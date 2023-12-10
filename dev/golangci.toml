@@ -1,0 +1,34 @@
+[linters]
+enable-all = true
+disable = [
+    "gci", # doesn't play nicely with goimports
+    "ifshort", # I'd often rather be explicit about calling functions and then using their output
+    "forbidigo", # I print output on purpose
+    "ireturn", # I return generic types
+    "nonamedreturns", # I like named returns
+    # deprecated
+    "deadcode",
+    "structcheck",
+    "exhaustivestruct",
+    "scopelint",
+    "nosnakecase",
+    "maligned",
+    "varcheck",
+    "interfacer",
+    "golint",
+]
+
+[issues]
+fix = true
+[linters-settings]
+enable-all = true
+[linters-settings.govet]
+check-shadowing = true
+settings = { shadow = { strict = true } } # I want to know!
+[linters-settings.depguard.rules]
+all.files = ["$all", "!$test"]
+all.allow = ["$gostd", "github.com/alexflint/go-arg"]
+test.files = ["$test"]
+test.allow = ["$gostd", "pgregory.net/rapid"]
+[linters-settings.nlreturn]
+block-size=2 # IMO this is ok style
