@@ -73,7 +73,60 @@ func (d *superSumTestDeps) sum(a, b int) int {
 	return result
 }
 
-// TODO: move linting to check for todos after everything else
+func TestPutCallWithWrongNumArgs_Panics(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	relay := NewCallRelay()
+	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct // nobody else would be able to fill in private fields
+	// Given inputs
+	superSum := func(a, b int, deps wrongNumPutArgsDeps) int {
+		return deps.sum(a, a) +
+			deps.sum(b, b) +
+			deps.sum(a, b) +
+			deps.sum(b, a)
+	}
+	deps := &wrongNumPutArgsTestDeps{relay: relay, t: t}
+
+	// When the func is run
+	tester.Start(superSum, 2, 3, deps)
+
+	// Then the internal sum is called 4x with different args
+	tester.AssertNextCallIs(deps.sum, 2, 2).InjectReturns(4)
+	tester.AssertNextCallIs(deps.sum, 3, 3).InjectReturns(6)
+	tester.AssertNextCallIs(deps.sum, 2, 3).InjectReturns(5)
+	tester.AssertNextCallIs(deps.sum, 3, 2).InjectReturns(5)
+
+	// Then the relay is shut down
+	tester.AssertDoneWithin(time.Second)
+
+	// Then the result is as expected
+	tester.AssertReturned(20)
+}
+
+type wrongNumPutArgsDeps interface {
+	sum(a, b int) int
+}
+
+type wrongNumPutArgsTestDeps struct {
+	relay *CallRelay
+	t     *testing.T
+}
+
+func (d *wrongNumPutArgsTestDeps) sum(first, second int) (result int) {
+	defer func() {
+		if r := recover(); r == nil {
+			d.t.Fatalf("Expected a panic, but didn't get one.")
+		}
+		// otherwise, we got our panic, now do the right thing
+		d.relay.PutCall(d.sum, first, second).FillReturns(&result)
+	}()
+
+	d.relay.PutCall(d.sum, first).FillReturns(&result)
+
+	return result
+}
+
 // TODO: test that start starts the func in a goroutine
 // TODO: test that assert done within passes if the goroutine is done
 // TODO: test that assert done within fails if the goroutine isn't done
@@ -83,12 +136,13 @@ func (d *superSumTestDeps) sum(a, b int) int {
 // TODO: test that AssertNextCallIs fails if the call is wrong
 // TODO: test that AssertNextCallIs fails if the args are the wrong type
 // TODO: test that AssertNextCallIs fails if the args are the wrong number
+// TODO: test that AssertNextCallIs fails if the args are the wrong value
 // TODO: test that InjectReturns passes if the args are the right type and number
 // TODO: test that InjectReturns fails if the args are the wrong type
 // TODO: test that InjectReturns fails if the args are the wrong number
 // TODO: test that PutCall passes if the args are the right type and number for the call
 // TODO: test that PutCall fails if the args are the wrong type for the call
-// TODO: test that PutCall fails if the args are the wrong number for the call
 // TODO: test that FillReturns passes if the args are the right type and number for the call
 // TODO: test that FillReturns fails if the args are the wrong type for the call
 // TODO: test that FillReturns fails if the args are the wrong number for the call
+// TODO: test parallel calls

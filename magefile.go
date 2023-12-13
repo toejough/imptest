@@ -89,6 +89,7 @@ func Check() error {
 		CheckNils, // suss out nils
 		Mutate,    // suss out untested logic
 		Fuzz,      // suss out unsafe assumptions about your function inputs
+		TodoCheck, // look for any fixme's or todos
 	} {
 		err := cmd()
 		if err != nil {
@@ -120,6 +121,12 @@ func Tidy() error {
 func Lint() error {
 	fmt.Println("Linting...")
 	_, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci.toml")
+	return err
+}
+
+func TodoCheck() error {
+	fmt.Println("Linting...")
+	_, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
 	return err
 }
 

@@ -1,0 +1,6 @@
+[linters]
+disable-all = true
+enable = ["godox"]
+
+[issues]
+fix = true

@@ -16,6 +16,7 @@ disable = [
     "varcheck",
     "interfacer",
     "golint",
+    "godox", # saving todos till the end
 ]
 
 [issues]
