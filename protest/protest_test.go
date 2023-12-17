@@ -1,6 +1,8 @@
 package protest_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +40,7 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	}
 }
 
-func TestStartFailsCleanlyWithWrongNumArgs(t *testing.T) {
+func TestStartFailsCleanlyWithTooFewArgs(t *testing.T) {
 	t.Parallel()
 
 	// Given testing needs
@@ -50,21 +52,34 @@ func TestStartFailsCleanlyWithWrongNumArgs(t *testing.T) {
 
 	// When the func is run with the wrong number of args
 	tester.Start(argFunc)
+	// And we wait for shutdown
+	tester.AssertDoneWithin(time.Second)
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to wrong num args, but it didn't")
+		t.Fatal("The test should've failed due to too few args, but it didn't")
+	}
+
+	// Then the test has the right error message
+	if !strings.Contains(mockedt.Failure(), "too few input arguments") {
+		t.Fatalf(
+			"The test should've failed due to too few args, but it didn't. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
 	}
 }
 
-// MockedTestingT
-func newMockedTestingT() *mockedTestingT { return &mockedTestingT{} }
+// MockedTestingT.
+func newMockedTestingT() *mockedTestingT { return &mockedTestingT{failure: ""} }
 
-type mockedTestingT struct{ failed bool }
+type mockedTestingT struct{ failure string }
 
-func (mt *mockedTestingT) Fatalf(message string, args ...any) {}
-func (mt *mockedTestingT) Helper()                            {}
-func (mt *mockedTestingT) Failed() bool                       { return mt.failed }
+func (mt *mockedTestingT) Fatalf(message string, args ...any) {
+	mt.failure = fmt.Sprintf(message, args...)
+}
+func (mt *mockedTestingT) Helper()         {}
+func (mt *mockedTestingT) Failed() bool    { return mt.failure != "" }
+func (mt *mockedTestingT) Failure() string { return mt.failure }
 
 // func TestRepeatedCalls(t *testing.T) {
 // 	t.Parallel()

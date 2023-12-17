@@ -17,9 +17,9 @@ import (
 	"time"
 )
 
-// RelayTester
+// RelayTester.
 func NewTester(t Tester) *RelayTester {
-	return &RelayTester{T: t, Relay: NewCallRelay()}
+	return &RelayTester{T: t, Relay: NewCallRelay(), returns: nil}
 }
 
 type RelayTester struct {
@@ -28,17 +28,28 @@ type RelayTester struct {
 	returns []reflect.Value
 }
 
-// RelayTester methods
+// RelayTester methods.
 func (rt *RelayTester) Start(function Function, args ...any) {
 	go func() {
+		// get args as reflect.Values
 		rArgs := make([]reflect.Value, len(args))
 		for i := range args {
 			rArgs[i] = reflect.ValueOf(args[i])
 		}
 
-		rt.returns = reflect.ValueOf(function).Call(rArgs)
+		// define some cleanup
+		defer func() {
+			// catch and handle bad args
+			if r := recover(); r != nil {
+				rt.T.Fatalf("failed to call %s with args (%v): %v", getFuncName(function), rArgs, r)
+			}
 
-		rt.Relay.Shutdown()
+			// always shutdown afterwards
+			rt.Relay.Shutdown()
+		}()
+
+		// actually call the function
+		rt.returns = reflect.ValueOf(function).Call(rArgs)
 	}()
 }
 
