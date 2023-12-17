@@ -1,16 +1,18 @@
-package main
+package protest_test
 
 import (
 	"testing"
 	"time"
+
+	"github.com/toejough/protest/protest"
 )
 
 func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	relay := NewCallRelay()
-	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct // nobody else would be able to fill in private fields
+	relay := protest.NewCallRelay()
+	tester := &protest.RelayTester{T: t, Relay: relay}
 	// TODO: just make a NewTester(t) func.
 	// Given inputs
 	lockchan := make(chan struct{})

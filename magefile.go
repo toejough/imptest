@@ -115,7 +115,7 @@ func CheckForFail() error {
 // Tidy tidies up go.mod
 func Tidy() error {
 	fmt.Println("Tidying go.mod...")
-	return sh.RunV("go", "mod", "tidy")
+	return sh.RunWithV(map[string]string{"GOPRIVATE": "github.com/toejough/protest"}, "go", "mod", "tidy")
 }
 
 // Lint lints the codebase
@@ -167,8 +167,8 @@ func Fuzz() error {
 // Run the mutation tests
 func Mutate() error {
 	fmt.Println("Running mutation tests...")
-	sh.RunV("gremlins", "unleash", "-i", "main")
-	output, err := sh.Output("gremlins", "unleash", "-i", "main")
+	sh.RunV("gremlins", "unleash", "-i", "protest")
+	output, err := sh.Output("gremlins", "unleash", "-i", "protest")
 
 	if strings.Contains(output, "LIVED") {
 		return fmt.Errorf("a mutation lived")

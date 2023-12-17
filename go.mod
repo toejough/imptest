@@ -1,4 +1,4 @@
-module protest
+module github.com/toejough/protest
 
 go 1.21.5
 

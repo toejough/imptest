@@ -6,7 +6,7 @@
 // maybe this whole suite is pointless?
 // A win over testify mocked: when the there's a test failure, we don't panic.
 // a win over testify.Mocked: we fail if the number of returns doesn't match
-package main
+package protest
 
 import (
 	"errors"

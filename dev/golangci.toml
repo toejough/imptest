@@ -30,6 +30,6 @@ settings = { shadow = { strict = true } } # I want to know!
 all.files = ["$all", "!$test"]
 all.allow = ["$gostd", "github.com/alexflint/go-arg"]
 test.files = ["$test"]
-test.allow = ["$gostd", "pgregory.net/rapid"]
+test.allow = ["$gostd", "pgregory.net/rapid", "github.com/toejough/protest"]
 [linters-settings.nlreturn]
 block-size=2 # IMO this is ok style
