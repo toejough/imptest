@@ -38,6 +38,34 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	}
 }
 
+func TestStartFailsCleanlyWithWrongNumArgs(t *testing.T) {
+	t.Parallel()
+
+	// Given testing needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+
+	// Given FUT
+	argFunc := func(_, _, _ int) {}
+
+	// When the func is run with the wrong number of args
+	tester.Start(argFunc)
+
+	// Then the test is marked as failed
+	if !mockedt.Failed() {
+		t.Fatal("The test should've failed due to wrong num args, but it didn't")
+	}
+}
+
+// MockedTestingT
+func newMockedTestingT() *mockedTestingT { return &mockedTestingT{} }
+
+type mockedTestingT struct{ failed bool }
+
+func (mt *mockedTestingT) Fatalf(message string, args ...any) {}
+func (mt *mockedTestingT) Helper()                            {}
+func (mt *mockedTestingT) Failed() bool                       { return mt.failed }
+
 // func TestRepeatedCalls(t *testing.T) {
 // 	t.Parallel()
 //

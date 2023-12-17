@@ -17,7 +17,18 @@ import (
 	"time"
 )
 
-// RelayTester methods.
+// RelayTester
+func NewTester(t Tester) *RelayTester {
+	return &RelayTester{T: t, Relay: NewCallRelay()}
+}
+
+type RelayTester struct {
+	T       Tester
+	Relay   *CallRelay
+	returns []reflect.Value
+}
+
+// RelayTester methods
 func (rt *RelayTester) Start(function Function, args ...any) {
 	go func() {
 		rArgs := make([]reflect.Value, len(args))
@@ -32,11 +43,6 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 }
 
 type (
-	RelayTester struct {
-		T       Tester
-		Relay   *CallRelay
-		returns []reflect.Value
-	}
 	Tester interface {
 		Helper()
 		Fatalf(message string, args ...any)
