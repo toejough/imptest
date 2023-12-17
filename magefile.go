@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/magefile/mage/sh"
@@ -166,7 +167,16 @@ func Fuzz() error {
 // Run the mutation tests
 func Mutate() error {
 	fmt.Println("Running mutation tests...")
-	return sh.RunV("gremlins", "unleash", "-i", "main")
+	sh.RunV("gremlins", "unleash", "-i", "main")
+	output, err := sh.Output("gremlins", "unleash", "-i", "main")
+
+	if strings.Contains(output, "LIVED") {
+		return fmt.Errorf("a mutation lived")
+	}
+	if strings.Contains(output, "NOT COVERED") {
+		return fmt.Errorf("a mutation was not covered")
+	}
+	return err
 }
 
 // Check for nils

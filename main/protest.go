@@ -17,7 +17,30 @@ import (
 	"time"
 )
 
+// RelayTester methods.
+func (rt *RelayTester) Start(function Function, args ...any) {
+	go func() {
+		rArgs := make([]reflect.Value, len(args))
+		for i := range args {
+			rArgs[i] = reflect.ValueOf(args[i])
+		}
+
+		rt.returns = reflect.ValueOf(function).Call(rArgs)
+
+		rt.Relay.Shutdown()
+	}()
+}
+
 type (
+	RelayTester struct {
+		T       Tester
+		Relay   *CallRelay
+		returns []reflect.Value
+	}
+	Tester interface {
+		Helper()
+		Fatalf(message string, args ...any)
+	}
 	CallRelay struct {
 		callChan chan *Call
 	}
@@ -27,15 +50,6 @@ type (
 		returns  chan []any
 	}
 	Function any
-	Tester   interface {
-		Helper()
-		Fatalf(message string, args ...any)
-	}
-	RelayTester struct {
-		T       Tester
-		Relay   *CallRelay
-		returns []reflect.Value
-	}
 )
 
 var (
@@ -259,20 +273,6 @@ func (c Call) FillReturns(returnPointers ...any) {
 		// Use Elem instead of directly using Set for setting pointers
 		returnPointerValue.Elem().Set(returnedValue)
 	}
-}
-
-// RelayTester methods.
-func (rt *RelayTester) Start(function Function, args ...any) {
-	go func() {
-		rArgs := make([]reflect.Value, len(args))
-		for i := range args {
-			rArgs[i] = reflect.ValueOf(args[i])
-		}
-
-		rt.returns = reflect.ValueOf(function).Call(rArgs)
-
-		rt.Relay.Shutdown()
-	}()
 }
 
 func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {

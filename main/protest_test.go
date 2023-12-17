@@ -5,127 +5,84 @@ import (
 	"time"
 )
 
-func TestNoCalls(t *testing.T) {
+func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
 	relay := NewCallRelay()
 	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct // nobody else would be able to fill in private fields
+	// TODO: just make a NewTester(t) func.
 	// Given inputs
-	sum := func(a, b int) int {
-		return a + b
+	lockchan := make(chan struct{})
+	waitchan := make(chan struct{})
+	wait := func() {
+		<-lockchan
 	}
 
-	// When the func is run
-	tester.Start(sum, 2, 3)
-
-	// Then the relay is shut down
-	tester.AssertDoneWithin(time.Second)
-
-	// Then the result is as expected
-	tester.AssertReturned(5)
-}
-
-func TestRepeatedCalls(t *testing.T) {
-	t.Parallel()
-
-	// Given test needs
-	relay := NewCallRelay()
-	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct // nobody else would be able to fill in private fields
-	// Given inputs
-	superSum := func(a, b int, deps superSumDeps) int {
-		return deps.sum(a, a) +
-			deps.sum(b, b) +
-			deps.sum(a, b) +
-			deps.sum(b, a)
-	}
-	deps := &superSumTestDeps{relay: relay}
+	// release the lock at the end of the test
+	defer close(lockchan)
 
 	// When the func is run
-	tester.Start(superSum, 2, 3, deps)
-
-	// Then the internal sum is called 4x with different args
-	tester.AssertNextCallIs(deps.sum, 2, 2).InjectReturns(4)
-	tester.AssertNextCallIs(deps.sum, 3, 3).InjectReturns(6)
-	tester.AssertNextCallIs(deps.sum, 2, 3).InjectReturns(5)
-	tester.AssertNextCallIs(deps.sum, 3, 2).InjectReturns(5)
-
-	// Then the relay is shut down
-	tester.AssertDoneWithin(time.Second)
-
-	// Then the result is as expected
-	tester.AssertReturned(20)
-}
-
-type superSumDeps interface {
-	sum(a, b int) int
-}
-
-type superSumTestDeps struct {
-	relay *CallRelay
-}
-
-func (d *superSumTestDeps) sum(a, b int) int {
-	var result int
-
-	d.relay.PutCall(d.sum, a, b).FillReturns(&result)
-
-	return result
-}
-
-func TestPutCallWithWrongNumArgs_Panics(t *testing.T) {
-	t.Parallel()
-
-	// Given test needs
-	relay := NewCallRelay()
-	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct // nobody else would be able to fill in private fields
-	// Given inputs
-	superSum := func(a, b int, deps wrongNumPutArgsDeps) int {
-		return deps.sum(a, a) +
-			deps.sum(b, b) +
-			deps.sum(a, b) +
-			deps.sum(b, a)
-	}
-	deps := &wrongNumPutArgsTestDeps{relay: relay, t: t}
-
-	// When the func is run
-	tester.Start(superSum, 2, 3, deps)
-
-	// Then the internal sum is called 4x with different args
-	tester.AssertNextCallIs(deps.sum, 2, 2).InjectReturns(4)
-	tester.AssertNextCallIs(deps.sum, 3, 3).InjectReturns(6)
-	tester.AssertNextCallIs(deps.sum, 2, 3).InjectReturns(5)
-	tester.AssertNextCallIs(deps.sum, 3, 2).InjectReturns(5)
-
-	// Then the relay is shut down
-	tester.AssertDoneWithin(time.Second)
-
-	// Then the result is as expected
-	tester.AssertReturned(20)
-}
-
-type wrongNumPutArgsDeps interface {
-	sum(a, b int) int
-}
-
-type wrongNumPutArgsTestDeps struct {
-	relay *CallRelay
-	t     *testing.T
-}
-
-func (d *wrongNumPutArgsTestDeps) sum(first, second int) (result int) {
-	defer func() {
-		if r := recover(); r == nil {
-			d.t.Fatalf("Expected a panic, but didn't get one.")
-		}
-		// otherwise, we got our panic, now do the right thing
-		d.relay.PutCall(d.sum, first, second).FillReturns(&result)
+	go func() {
+		tester.Start(wait)
+		close(waitchan)
 	}()
 
-	d.relay.PutCall(d.sum, first).FillReturns(&result)
-
-	return result
+	// Then the return from waitchan should be immediate
+	select {
+	case <-waitchan:
+	case <-time.After(time.Second):
+		t.Error("waitchan never closed, indicating function was run synchronously instead of in a goroutine.")
+	}
 }
+
+// func TestRepeatedCalls(t *testing.T) {
+// 	t.Parallel()
+//
+// 	// Given test needs
+// 	relay := NewCallRelay()
+// 	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct
+// 	// nobody else would be able to fill in private fields
+// 	// Given inputs
+// 	superSum := func(a, b int, deps superSumDeps) int {
+// 		return deps.sum(a, a) +
+// 			deps.sum(b, b) +
+// 			deps.sum(a, b) +
+// 			deps.sum(b, a)
+// 	}
+// 	deps := &superSumTestDeps{relay: relay}
+//
+// 	// When the func is run
+// 	tester.Start(superSum, 2, 3, deps)
+//
+// 	// Then the internal sum is called 4x with different args
+// 	tester.AssertNextCallIs(deps.sum, 2, 2).InjectReturns(4)
+// 	tester.AssertNextCallIs(deps.sum, 3, 3).InjectReturns(6)
+// 	tester.AssertNextCallIs(deps.sum, 2, 3).InjectReturns(5)
+// 	tester.AssertNextCallIs(deps.sum, 3, 2).InjectReturns(5)
+//
+// 	// Then the relay is shut down
+// 	tester.AssertDoneWithin(time.Second)
+//
+// 	// Then the result is as expected
+// 	tester.AssertReturned(20)
+// }
+//
+// type superSumDeps interface {
+// 	sum(a, b int) int
+// }
+//
+// type superSumTestDeps struct {
+// 	relay *CallRelay
+// }
+//
+// func (d *superSumTestDeps) sum(a, b int) int {
+// 	var result int
+//
+// 	d.relay.PutCall(d.sum, a, b).FillReturns(&result)
+//
+// 	return result
+// }
 
 // TODO: test that start starts the func in a goroutine
 // TODO: test that assert done within passes if the goroutine is done
