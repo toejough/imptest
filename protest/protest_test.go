@@ -14,7 +14,6 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 
 	// Given test needs
 	tester := protest.NewTester(t)
-	// TODO: just make a NewTester(t) func.
 	// Given inputs
 	lockchan := make(chan struct{})
 	waitchan := make(chan struct{})
