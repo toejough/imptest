@@ -81,6 +81,35 @@ func (mt *mockedTestingT) Helper()         {}
 func (mt *mockedTestingT) Failed() bool    { return mt.failure != "" }
 func (mt *mockedTestingT) Failure() string { return mt.failure }
 
+func TestStartFailsCleanlyWithTooManyArgs(t *testing.T) {
+	t.Parallel()
+
+	// Given testing needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+
+	// Given FUT
+	argFunc := func(_ int) {}
+
+	// When the func is run with the wrong number of args
+	tester.Start(argFunc, 1, 2, 3)
+	// And we wait for shutdown
+	tester.AssertDoneWithin(time.Second)
+
+	// Then the test is marked as failed
+	if !mockedt.Failed() {
+		t.Fatal("The test should've failed due to too few args, but it didn't")
+	}
+
+	// Then the test has the right error message
+	if !strings.Contains(mockedt.Failure(), "too many input arguments") {
+		t.Fatalf(
+			"The test should've failed due to too many args, but it didn't. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
 // func TestRepeatedCalls(t *testing.T) {
 // 	t.Parallel()
 //
