@@ -98,6 +98,35 @@ func TestStartFailsCleanlyWithTooManyArgs(t *testing.T) {
 	}
 }
 
+func TestStartFailsCleanlyWithWrongArgTypes(t *testing.T) {
+	t.Parallel()
+
+	// Given testing needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+
+	// Given FUT
+	argFunc := func(_ int) {}
+
+	// When the func is run with the wrong number of args
+	tester.Start(argFunc, "1")
+	// And we wait for shutdown
+	tester.AssertDoneWithin(time.Second)
+
+	// Then the test is marked as failed
+	if !mockedt.Failed() {
+		t.Fatal("The test should've failed due to wrong arg type, but it didn't")
+	}
+
+	// Then the test has the right error message
+	if !strings.Contains(mockedt.Failure(), "using string as type int") {
+		t.Fatalf(
+			"The test should've failed due wrong arg type, but it didn't. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
 // MockedTestingT.
 func newMockedTestingT() *mockedTestingT { return &mockedTestingT{failure: ""} }
 
