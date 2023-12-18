@@ -13,8 +13,7 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	relay := protest.NewCallRelay()
-	tester := &protest.RelayTester{T: t, Relay: relay}
+	tester := protest.NewTester(t)
 	// TODO: just make a NewTester(t) func.
 	// Given inputs
 	lockchan := make(chan struct{})
