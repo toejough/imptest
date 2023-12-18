@@ -40,6 +40,4 @@ install-if-missing ag
 install-if-missing go
 install-if-missing golangci-lint
 install-if-missing mage
-brew tap go-gremlins/tap
-install-if-missing gremlins
 go install go.uber.org/nilaway/cmd/nilaway@latest

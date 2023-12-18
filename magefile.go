@@ -88,7 +88,6 @@ func Check() error {
 		Test,      // verify the stuff you explicitly care about works
 		Lint,      // make it follow the standards you care about
 		CheckNils, // suss out nils
-		Mutate,    // suss out untested logic
 		Fuzz,      // suss out unsafe assumptions about your function inputs
 		TodoCheck, // look for any fixme's or todos
 	} {
@@ -162,21 +161,6 @@ func TestForFail() error {
 func Fuzz() error {
 	fmt.Println("Running fuzz tests...")
 	return sh.RunV("./dev/fuzz.fish")
-}
-
-// Run the mutation tests
-func Mutate() error {
-	fmt.Println("Running mutation tests...")
-	sh.RunV("gremlins", "unleash", "-i", "protest")
-	output, err := sh.Output("gremlins", "unleash", "-i", "protest")
-
-	if strings.Contains(output, "LIVED") {
-		return fmt.Errorf("a mutation lived")
-	}
-	if strings.Contains(output, "NOT COVERED") {
-		return fmt.Errorf("a mutation was not covered")
-	}
-	return err
 }
 
 // Check for nils

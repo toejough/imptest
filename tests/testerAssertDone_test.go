@@ -1,22 +1,21 @@
 package protest_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/toejough/protest/protest"
+	protest "github.com/toejough/protest/api"
 )
 
-func TestStartRunsFUTInGoroutine(t *testing.T) {
+func TestAssertDoneFailsIfNotDone(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	tester := protest.NewTester(t)
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
-	waitchan := make(chan struct{})
 	wait := func() {
 		<-lockchan
 	}
@@ -25,117 +24,48 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	defer close(lockchan)
 
 	// When the func is run
-	go func() {
-		tester.Start(wait)
-		close(waitchan)
-	}()
+	tester.Start(wait)
 
-	// Then the return from waitchan should be immediate
-	select {
-	case <-waitchan:
-	case <-time.After(time.Second):
-		t.Error("waitchan never closed, indicating function was run synchronously instead of in a goroutine.")
-	}
-}
-
-func TestStartFailsCleanlyWithTooFewArgs(t *testing.T) {
-	t.Parallel()
-
-	// Given testing needs
-	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
-
-	// Given FUT
-	argFunc := func(_, _, _ int) {}
-
-	// When the func is run with the wrong number of args
-	tester.Start(argFunc)
-	// And we wait for shutdown
-	tester.AssertDoneWithin(time.Second)
+	// And we wait for it to finish
+	tester.AssertDoneWithin(time.Millisecond)
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to too few args, but it didn't")
+		t.Fatal("The test should've failed due to FUT not ending, but it didn't")
 	}
 
 	// Then the test has the right error message
-	if !strings.Contains(mockedt.Failure(), "too few input arguments") {
+	if !strings.Contains(mockedt.Failure(), "waiting for shutdown") {
 		t.Fatalf(
-			"The test should've failed due to too few args, but it didn't. Instead the failure was: %s",
+			"The test should've failed due to the FUT not ending, but it didn't. Instead the failure was: %s",
 			mockedt.Failure(),
 		)
 	}
 }
 
-func TestStartFailsCleanlyWithTooManyArgs(t *testing.T) {
+func TestAssertDonePassesIfDone(t *testing.T) {
 	t.Parallel()
 
-	// Given testing needs
+	// Given test needs
 	mockedt := newMockedTestingT()
 	tester := protest.NewTester(mockedt)
+	// Given inputs
+	wait := func() {}
 
-	// Given FUT
-	argFunc := func(_ int) {}
+	// When the func is run
+	tester.Start(wait)
 
-	// When the func is run with the wrong number of args
-	tester.Start(argFunc, 1, 2, 3)
-	// And we wait for shutdown
-	tester.AssertDoneWithin(time.Second)
+	// And we wait for it to finish
+	tester.AssertDoneWithin(time.Millisecond)
 
 	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to too few args, but it didn't")
-	}
-
-	// Then the test has the right error message
-	if !strings.Contains(mockedt.Failure(), "too many input arguments") {
+	if mockedt.Failed() {
 		t.Fatalf(
-			"The test should've failed due to too many args, but it didn't. Instead the failure was: %s",
+			"The test should've passed due to FUT ending immediately, but it didn't: %s",
 			mockedt.Failure(),
 		)
 	}
 }
-
-func TestStartFailsCleanlyWithWrongArgTypes(t *testing.T) {
-	t.Parallel()
-
-	// Given testing needs
-	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
-
-	// Given FUT
-	argFunc := func(_ int) {}
-
-	// When the func is run with the wrong number of args
-	tester.Start(argFunc, "1")
-	// And we wait for shutdown
-	tester.AssertDoneWithin(time.Second)
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to wrong arg type, but it didn't")
-	}
-
-	// Then the test has the right error message
-	if !strings.Contains(mockedt.Failure(), "using string as type int") {
-		t.Fatalf(
-			"The test should've failed due wrong arg type, but it didn't. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
-}
-
-// MockedTestingT.
-func newMockedTestingT() *mockedTestingT { return &mockedTestingT{failure: ""} }
-
-type mockedTestingT struct{ failure string }
-
-func (mt *mockedTestingT) Fatalf(message string, args ...any) {
-	mt.failure = fmt.Sprintf(message, args...)
-}
-func (mt *mockedTestingT) Helper()         {}
-func (mt *mockedTestingT) Failed() bool    { return mt.failure != "" }
-func (mt *mockedTestingT) Failure() string { return mt.failure }
 
 // func TestRepeatedCalls(t *testing.T) {
 // 	t.Parallel()
@@ -185,8 +115,6 @@ func (mt *mockedTestingT) Failure() string { return mt.failure }
 // 	return result
 // }
 
-// TODO: test that assert done within passes if the goroutine is done
-// TODO: test that assert done within fails if the goroutine isn't done
 // TODO: test that assert return passes if the return is correct
 // TODO: test that assert return fails if the return is wrong
 // TODO: test that AssertNextCallIs passes if the call & args match
@@ -203,3 +131,4 @@ func (mt *mockedTestingT) Failure() string { return mt.failure }
 // TODO: test that FillReturns fails if the args are the wrong type for the call
 // TODO: test that FillReturns fails if the args are the wrong number for the call
 // TODO: test parallel calls
+// TODO: refactor protest out into separate files
