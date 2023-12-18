@@ -185,7 +185,6 @@ func (mt *mockedTestingT) Failure() string { return mt.failure }
 // 	return result
 // }
 
-// TODO: test that start starts the func in a goroutine
 // TODO: test that assert done within passes if the goroutine is done
 // TODO: test that assert done within fails if the goroutine isn't done
 // TODO: test that assert return passes if the return is correct
