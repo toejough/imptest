@@ -20,56 +20,51 @@ That's what this library is about.
 
 Example of use:
 ```go
-import (
-	"spacer/dev/protest"
-	"testing"
-	"time"
-)
-
-type mockRunDeps struct {
-	relay *protest.CallRelay
-}
-
-func (rd *mockRunDeps) pretest() bool {
-	var b bool
-
-	rd.relay.PutCall(rd.pretest).FillReturns(&b)
-
-	return b
-}
-
-func (rd *mockRunDeps) testMutations() bool {
-	var success bool
-
-	rd.relay.PutCall(rd.testMutations).FillReturns(&success)
-
-	return success
-}
-
-func (rd *mockRunDeps) exit(code int) {
-	rd.relay.PutCallNoReturn(rd.exit, code)
-}
-
-func TestRunHappyPath(t *testing.T) {
+func TestRepeatedCalls(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	relay := protest.NewCallRelay()
-	tester := &protest.RelayTester{T: t, Relay: relay}
+	relay := NewCallRelay()
+	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct
+	// nobody else would be able to fill in private fields
 	// Given inputs
-	deps := &mockRunDeps{relay: relay}
+	superSum := func(a, b int, deps superSumDeps) int {
+		return deps.sum(a, a) +
+			deps.sum(b, b) +
+			deps.sum(a, b) +
+			deps.sum(b, a)
+	}
+	deps := &superSumTestDeps{relay: relay}
 
 	// When the func is run
-	tester.Start(run, deps)
+	tester.Start(superSum, 2, 3, deps)
 
-	// Then the pretest is run
-	tester.AssertNextCallIs(deps.pretest).InjectReturns(true)
-	// Then the mutation testing is run
-	tester.AssertNextCallIs(deps.testMutations).InjectReturns(true)
-	// Then the program exits with 0
-	tester.AssertNextCallIs(deps.exit, 0)
+	// Then the internal sum is called 4x with different args
+	tester.AssertNextCallIs(deps.sum, 2, 2).InjectReturns(4)
+	tester.AssertNextCallIs(deps.sum, 3, 3).InjectReturns(6)
+	tester.AssertNextCallIs(deps.sum, 2, 3).InjectReturns(5)
+	tester.AssertNextCallIs(deps.sum, 3, 2).InjectReturns(5)
 
 	// Then the relay is shut down
 	tester.AssertDoneWithin(time.Second)
+
+	// Then the result is as expected
+	tester.AssertReturned(20)
+}
+
+type superSumDeps interface {
+	sum(a, b int) int
+}
+
+type superSumTestDeps struct {
+	relay *CallRelay
+}
+
+func (d *superSumTestDeps) sum(a, b int) int {
+	var result int
+
+	d.relay.PutCall(d.sum, a, b).FillReturns(&result)
+
+	return result
 }
 ```
