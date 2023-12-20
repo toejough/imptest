@@ -116,6 +116,26 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 
 func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.Relay.PutCall(f, a...) }
 
+func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
+	rt.T.Helper()
+	panicIfNotFunc(function, AssertNextCallIs)
+
+	supportedNumArgs := reflect.TypeOf(function).NumIn()
+	expectedNumArgs := len(args)
+
+	if expectedNumArgs != supportedNumArgs {
+		panic(fmt.Sprintf(
+			"the length of the expected argument list (%d)"+
+				" does not equal the length of the arguments (%s) supports (%d)",
+			expectedNumArgs,
+			getFuncName(function),
+			supportedNumArgs,
+		))
+	}
+
+	return AssertNextCallIs(rt.T, rt.Relay, getFuncName(function), args...)
+}
+
 type (
 	Tester interface {
 		Helper()
@@ -175,7 +195,7 @@ func assertCalledNameIs(t Tester, c *Call, expectedName string) {
 	t.Helper()
 
 	if c.Name() != expectedName {
-		t.Fatalf("the called function was expected to be %s, but was %s instead", expectedName, c.Name())
+		t.Fatalf("wrong func called: the called function was expected to be %s, but was %s instead", expectedName, c.Name())
 	}
 }
 
@@ -353,24 +373,4 @@ func (c Call) FillReturns(returnPointers ...any) {
 		// Use Elem instead of directly using Set for setting pointers
 		returnPointerValue.Elem().Set(returnedValue)
 	}
-}
-
-func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
-	rt.T.Helper()
-	panicIfNotFunc(function, AssertNextCallIs)
-
-	supportedNumArgs := reflect.TypeOf(function).NumIn()
-	expectedNumArgs := len(args)
-
-	if expectedNumArgs != supportedNumArgs {
-		panic(fmt.Sprintf(
-			"the length of the expected argument list (%d)"+
-				" does not equal the length of the arguments (%s) supports (%d)",
-			expectedNumArgs,
-			getFuncName(function),
-			supportedNumArgs,
-		))
-	}
-
-	return AssertNextCallIs(rt.T, rt.Relay, getFuncName(function), args...)
 }
