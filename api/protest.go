@@ -64,7 +64,7 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 
 	if lenReturns > lenArgs {
 		rt.T.Fatalf(
-			"The test asserted too few return values: "+
+			"The func returned too many return values: "+
 				"num function returned was %d, "+
 				"but the num the test asserted was %d",
 			lenReturns,
@@ -74,7 +74,7 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 		return
 	} else if lenReturns < lenArgs {
 		rt.T.Fatalf(
-			"The test asserted too many return values: "+
+			"The func returned too few return values: "+
 				"num function returned was %d, "+
 				"but the num the test asserted was %d",
 			lenReturns,
@@ -92,7 +92,7 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 
 		if returnedType != argType {
 			rt.T.Fatalf(
-				"The test asserted the wrong type for a return value: "+
+				"The func returned the wrong type for a return value: "+
 					"the return value at index %d was expected to be type %#v, "+
 					"but it was type %#v",
 				index, argType, returnedType,
@@ -102,7 +102,10 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 		}
 
 		if !reflect.DeepEqual(returned, arg) {
-			rt.T.Fatalf("the return value at index %d was expected to be %#v but it was %#v",
+			rt.T.Fatalf(
+				"The func returned the wrong value for a return: "+
+					"the return value at index %d was expected to be %#v, "+
+					"but it was %#v",
 				index, arg, returned,
 			)
 

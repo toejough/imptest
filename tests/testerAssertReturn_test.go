@@ -45,7 +45,7 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 	tester := protest.NewTester(mockedt)
 	// Given inputs
 	returns := func() (int, string) {
-		return 5, "five" //nolint: goconst // similarity across functions is a detail, not a feature to be abstracted
+		return 5, "five"
 	}
 
 	// When the func is run
@@ -100,8 +100,8 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 	mockedt := newMockedTestingT()
 	tester := protest.NewTester(mockedt)
 	// Given inputs
-	returns := func() (int, string) {
-		return 5, "five"
+	returns := func() int {
+		return 5
 	}
 
 	// When the func is run
@@ -111,7 +111,7 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 
 	// And we expect it to return the right value
-	tester.AssertReturned(5)
+	tester.AssertReturned(5, "five")
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
@@ -146,7 +146,7 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 
 	// And we expect it to return the right value
-	tester.AssertReturned(5, "five", 0x5)
+	tester.AssertReturned(5)
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
@@ -192,14 +192,47 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 	// Then the error calls out wrong type
 	if !strings.Contains(mockedt.Failure(), "wrong type") {
 		t.Fatalf(
-			// FIXME: the failure messages should assume that the test expectations are correct. Right now they assume that the function under test is correct and the test is wrong.
 			"The test should've failed with wrong types returned. Instead the failure was: %s",
 			mockedt.Failure(),
 		)
 	}
 }
 
-// TODO: test that assert return fails if the return is wrong
+func TestAssertReturnFailsWithWrongValues(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func() int {
+		return 5
+	}
+
+	// When the func is run
+	tester.Start(returns)
+
+	// And we wait for it to finish
+	tester.AssertDoneWithin(time.Second)
+
+	// And we expect it to return the right value
+	tester.AssertReturned(6)
+
+	// Then the test is marked as failed
+	if !mockedt.Failed() {
+		t.Fatal(
+			"The test should've failed with wrong values. Instead the test passed!",
+		)
+	}
+	// Then the error calls out wrong value
+	if !strings.Contains(mockedt.Failure(), "wrong value") {
+		t.Fatalf(
+			"The test should've failed with wrong value returned. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
 // TODO: test that AssertNextCallIs passes if the call & args match
 // TODO: test that AssertNextCallIs fails if the call is wrong
 // TODO: test that AssertNextCallIs fails if the args are the wrong type
