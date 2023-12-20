@@ -1,6 +1,7 @@
 package protest_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -87,6 +88,41 @@ func TestAssertReturnPassesWithNoValues(t *testing.T) {
 	if mockedt.Failed() {
 		t.Fatalf(
 			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
+func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func() (int, string) {
+		return 5, "five"
+	}
+
+	// When the func is run
+	tester.Start(returns)
+
+	// And we wait for it to finish
+	tester.AssertDoneWithin(time.Second)
+
+	// And we expect it to return the right value
+	tester.AssertReturned(5)
+
+	// Then the test is marked as passed
+	if !mockedt.Failed() {
+		t.Fatal(
+			"The test should've failed with too few returns. Instead the test passed!",
+		)
+	}
+	// Then the test is marked as passed
+	if !strings.Contains(mockedt.Failure(), "too few") {
+		t.Fatalf(
+			"The test should've failed with too few returns. Instead the failure was: %s",
 			mockedt.Failure(),
 		)
 	}
