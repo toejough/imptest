@@ -53,6 +53,34 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 	}()
 }
 
+func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
+	rt.T.Helper()
+	AssertRelayShutsDownWithin(rt.T, rt.Relay, d)
+}
+
+func (rt *RelayTester) AssertReturned(args ...any) {
+	lenReturns := len(rt.returns)
+	lenArgs := len(args)
+
+	if lenReturns > lenArgs {
+		rt.T.Fatalf(
+			"The test asserted too few return values: "+
+				"num function returned was %d, "+
+				"but the num the test asserted was %d",
+			lenReturns,
+			lenArgs,
+		)
+	}
+
+	for i := range args {
+		if !reflect.DeepEqual(rt.returns[i].Interface(), args[i]) {
+			rt.T.Fatalf("the return value at index %d was expected to be %#v but it was %#v",
+				i, args[i], rt.returns[i],
+			)
+		}
+	}
+}
+
 type (
 	Tester interface {
 		Helper()
@@ -310,26 +338,4 @@ func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
 	}
 
 	return AssertNextCallIs(rt.T, rt.Relay, getFuncName(function), args...)
-}
-
-func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
-	rt.T.Helper()
-	AssertRelayShutsDownWithin(rt.T, rt.Relay, d)
-}
-
-func (rt *RelayTester) AssertReturned(args ...any) {
-	lenReturns := len(rt.returns)
-	lenArgs := len(args)
-
-	if lenReturns != lenArgs {
-		rt.T.Fatalf("The function returned %d values, but the test asserted %d returns", lenReturns, lenArgs)
-	}
-
-	for i := range args {
-		if !reflect.DeepEqual(rt.returns[i].Interface(), args[i]) {
-			rt.T.Fatalf("the return value at index %d was expected to be %#v but it was %#v",
-				i, args[i], rt.returns[i],
-			)
-		}
-	}
 }
