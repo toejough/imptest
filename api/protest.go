@@ -70,6 +70,18 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 			lenReturns,
 			lenArgs,
 		)
+
+		return
+	} else if lenReturns < lenArgs {
+		rt.T.Fatalf(
+			"The test asserted too many return values: "+
+				"num function returned was %d, "+
+				"but the num the test asserted was %d",
+			lenReturns,
+			lenArgs,
+		)
+
+		return
 	}
 
 	for i := range args {
