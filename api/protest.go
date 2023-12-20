@@ -84,11 +84,29 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 		return
 	}
 
-	for i := range args {
-		if !reflect.DeepEqual(rt.returns[i].Interface(), args[i]) {
-			rt.T.Fatalf("the return value at index %d was expected to be %#v but it was %#v",
-				i, args[i], rt.returns[i],
+	for index := range args {
+		returned := rt.returns[index].Interface()
+		arg := args[index]
+		returnedType := reflect.TypeOf(returned).Name()
+		argType := reflect.TypeOf(arg).Name()
+
+		if returnedType != argType {
+			rt.T.Fatalf(
+				"The test asserted the wrong type for a return value: "+
+					"the return value at index %d was expected to be type %#v, "+
+					"but it was type %#v",
+				index, argType, returnedType,
 			)
+
+			return
+		}
+
+		if !reflect.DeepEqual(returned, arg) {
+			rt.T.Fatalf("the return value at index %d was expected to be %#v but it was %#v",
+				index, arg, returned,
+			)
+
+			return
 		}
 	}
 }
