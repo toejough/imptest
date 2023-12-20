@@ -65,7 +65,33 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 	}
 }
 
-// TODO: test that assert return passes if the return is correct
+func TestAssertReturnPassesWithNoValues(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func() {}
+
+	// When the func is run
+	tester.Start(returns)
+
+	// And we wait for it to finish
+	tester.AssertDoneWithin(time.Second)
+
+	// And we expect it to return no value
+	tester.AssertReturned()
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
 // TODO: test that assert return fails if the return is wrong
 // TODO: test that AssertNextCallIs passes if the call & args match
 // TODO: test that AssertNextCallIs fails if the call is wrong
