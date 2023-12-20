@@ -119,10 +119,45 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 			"The test should've failed with too few returns. Instead the test passed!",
 		)
 	}
-	// Then the test is marked as passed
+	// Then the error calls out too few
 	if !strings.Contains(mockedt.Failure(), "too few") {
 		t.Fatalf(
 			"The test should've failed with too few returns. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
+func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func() (int, string) {
+		return 5, "five"
+	}
+
+	// When the func is run
+	tester.Start(returns)
+
+	// And we wait for it to finish
+	tester.AssertDoneWithin(time.Second)
+
+	// And we expect it to return the right value
+	tester.AssertReturned(5, "five", 0x5)
+
+	// Then the test is marked as passed
+	if !mockedt.Failed() {
+		t.Fatal(
+			"The test should've failed with too many returns. Instead the test passed!",
+		)
+	}
+	// Then the error calls out too many
+	if !strings.Contains(mockedt.Failure(), "too many") {
+		t.Fatalf(
+			"The test should've failed with too many returns. Instead the failure was: %s",
 			mockedt.Failure(),
 		)
 	}
