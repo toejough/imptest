@@ -232,19 +232,3 @@ func TestAssertReturnFailsWithWrongValues(t *testing.T) {
 		)
 	}
 }
-
-// TODO: test that AssertNextCallIs passes if the call & args match
-// TODO: test that AssertNextCallIs fails if the call is wrong
-// TODO: test that AssertNextCallIs fails if the args are the wrong type
-// TODO: test that AssertNextCallIs fails if the args are the wrong number
-// TODO: test that AssertNextCallIs fails if the args are the wrong value
-// TODO: test that InjectReturns passes if the args are the right type and number
-// TODO: test that InjectReturns fails if the args are the wrong type
-// TODO: test that InjectReturns fails if the args are the wrong number
-// TODO: test that PutCall passes if the args are the right type and number for the call
-// TODO: test that PutCall fails if the args are the wrong type for the call
-// TODO: test that FillReturns passes if the args are the right type and number for the call
-// TODO: test that FillReturns fails if the args are the wrong type for the call
-// TODO: test that FillReturns fails if the args are the wrong number for the call
-// TODO: test parallel calls
-// TODO: refactor protest out into separate files
