@@ -114,6 +114,8 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 	}
 }
 
+func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.Relay.PutCall(f, a...) }
+
 type (
 	Tester interface {
 		Helper()

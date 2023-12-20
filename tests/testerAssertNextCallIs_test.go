@@ -1,7 +1,6 @@
 package protest_test
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -18,19 +17,15 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 	returns := func(deps testDeps) {
 		deps.Func()
 	}
-	tdm := newTestDepsMock()
+	tdm := newTestDepsMock(tester)
 
 	// When the func is run
 	tester.Start(returns, tdm)
+	// and nice cleanup is scheduled
+	defer tester.AssertDoneWithin(time.Second)
 
 	// Then the next call is to the func
 	tester.AssertNextCallIs(tdm.Func)
-
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
-
-	// And we expect it to return the right value
-	tester.AssertReturned(5)
 
 	// Then the test is marked as passed
 	if mockedt.Failed() {
@@ -43,49 +38,49 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 
 type testDeps interface{ Func() }
 
-type testDepsMock struct{ tester protest.Tester }
+type testDepsMock struct{ tester *protest.RelayTester }
 
-func newTestDepsMock() *testDepsMock {
-	return &testDepsMock{}
+func newTestDepsMock(t *protest.RelayTester) *testDepsMock {
+	return &testDepsMock{tester: t}
 }
 
 func (tdm *testDepsMock) Func() { tdm.tester.PutCall(tdm.Func) }
 
-func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
-	t.Parallel()
-	panic("not implemented")
-
-	// Given test needs
-	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
-	// Given inputs
-	returns := func() int {
-		return 5
-	}
-
-	// When the func is run
-	tester.Start(returns)
-
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
-
-	// And we expect it to return the right value
-	tester.AssertReturned(6)
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal(
-			"The test should've failed with wrong values. Instead the test passed!",
-		)
-	}
-	// Then the error calls out wrong value
-	if !strings.Contains(mockedt.Failure(), "wrong value") {
-		t.Fatalf(
-			"The test should've failed with wrong value returned. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
-}
+// func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
+// 	t.Parallel()
+// 	panic("not implemented")
+//
+// 	// Given test needs
+// 	mockedt := newMockedTestingT()
+// 	tester := protest.NewTester(mockedt)
+// 	// Given inputs
+// 	returns := func() int {
+// 		return 5
+// 	}
+//
+// 	// When the func is run
+// 	tester.Start(returns)
+//
+// 	// And we wait for it to finish
+// 	tester.AssertDoneWithin(time.Second)
+//
+// 	// And we expect it to return the right value
+// 	tester.AssertReturned(6)
+//
+// 	// Then the test is marked as failed
+// 	if !mockedt.Failed() {
+// 		t.Fatal(
+// 			"The test should've failed with wrong values. Instead the test passed!",
+// 		)
+// 	}
+// 	// Then the error calls out wrong value
+// 	if !strings.Contains(mockedt.Failure(), "wrong value") {
+// 		t.Fatalf(
+// 			"The test should've failed with wrong value returned. Instead the failure was: %s",
+// 			mockedt.Failure(),
+// 		)
+// 	}
+// }
 
 // TODO: test that AssertNextCallIs passes if the call & args match
 // TODO: test that AssertNextCallIs fails if the call is wrong
