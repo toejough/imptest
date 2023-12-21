@@ -168,12 +168,12 @@ func (tdm *testDepsMock) SomeArgs(i int, s string) { tdm.tester.PutCall(tdm.Func
 
 // TODO: wrong type and number of returns should also be a panic
 // TODO: test that AssertNextCallIs fails if the args are the wrong type
-// TODO: test that AssertNextCallIs fails if the args are the wrong number
 // TODO: test that AssertNextCallIs fails if the args are the wrong value
 // TODO: test that InjectReturns passes if the args are the right type and number
 // TODO: test that InjectReturns fails if the args are the wrong type
 // TODO: test that InjectReturns fails if the args are the wrong number
 // TODO: test that PutCall fails if the args are the wrong type for the call
+// TODO: test that PutCall fails if the args are the wrong number for the call
 // TODO: test that FillReturns passes if the args are the right type and number for the call
 // TODO: test that FillReturns fails if the args are the wrong type for the call
 // TODO: test that FillReturns fails if the args are the wrong number for the call

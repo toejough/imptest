@@ -111,21 +111,8 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 
 	// And we expect it to return the right value
+	defer expectPanicWith(t, "too few return values asserted")
 	tester.AssertReturned(5, "five")
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal(
-			"The test should've failed with too few returns. Instead the test passed!",
-		)
-	}
-	// Then the error calls out too few
-	if !strings.Contains(mockedt.Failure(), "too few") {
-		t.Fatalf(
-			"The test should've failed with too few returns. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
 }
 
 func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
