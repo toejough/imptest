@@ -123,10 +123,18 @@ func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
 	supportedNumArgs := reflect.TypeOf(function).NumIn()
 	expectedNumArgs := len(args)
 
-	if expectedNumArgs != supportedNumArgs {
+	if expectedNumArgs < supportedNumArgs {
 		panic(fmt.Sprintf(
-			"the length of the expected argument list (%d)"+
-				" does not equal the length of the arguments (%s) supports (%d)",
+			"too few args in the expected argument list (%d)"+
+				" compared to the number of arguments (%s) supports (%d)",
+			expectedNumArgs,
+			getFuncName(function),
+			supportedNumArgs,
+		))
+	} else if expectedNumArgs > supportedNumArgs {
+		panic(fmt.Sprintf(
+			"too many args in the expected argument list (%d)"+
+				" compared to the number of arguments (%s) supports (%d)",
 			expectedNumArgs,
 			getFuncName(function),
 			supportedNumArgs,

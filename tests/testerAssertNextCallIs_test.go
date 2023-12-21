@@ -54,10 +54,10 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 	mockedt := newMockedTestingT()
 	tester := protest.NewTester(mockedt)
 	// Given inputs
-	returns := func(deps testDeps) {
-		deps.Func()
+	returns := func(deps testDepsWrongFunc) {
+		deps.WrongFunc()
 	}
-	tdm := newTestDepsMockWrongFunc(tester)
+	tdm := newTestDepsMock(tester)
 
 	// When the func is run
 	tester.Start(returns, tdm)
@@ -65,7 +65,7 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 	defer tester.AssertDoneWithin(time.Second)
 
 	// Then the next call is to the func
-	tester.AssertNextCallIs(tdm.Func)
+	tester.AssertNextCallIs(tdm.WrongFunc)
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
@@ -82,24 +82,59 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 	}
 }
 
-type testDepsMockWrongFunc struct{ tester *protest.RelayTester }
+type testDepsWrongFunc interface{ WrongFunc() }
 
-func newTestDepsMockWrongFunc(t *protest.RelayTester) *testDepsMockWrongFunc {
-	return &testDepsMockWrongFunc{tester: t}
+func (tdm *testDepsMock) WrongFunc() { tdm.tester.PutCall(tdm.Func) }
+
+func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsTooFewArgs) {
+		deps.TooFewArgs(5, "six")
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	// and nice cleanup is scheduled
+	defer tester.AssertDoneWithin(time.Second)
+
+	// Then the next call fails with too few args
+	defer func() {
+		recoveredPanic := recover()
+		if recoveredPanic != nil {
+			// I don't care about the type assertion here - if the type assertion fails,
+			// then I'm ok with a panic at test time.
+			if !strings.Contains(recoveredPanic.(string), "too few args") { //nolint: forcetypeassert
+				t.Fatalf(
+					"The test should've failed with too few args expected. Instead the failure was: %s",
+					recoveredPanic,
+				)
+			}
+		} else {
+			t.Fatal(
+				"The test should've failed with too few args expected. Instead the test passed!",
+			)
+		}
+	}()
+	tester.AssertNextCallIs(tdm.TooFewArgs, 5)
 }
 
-func (tdm *testDepsMockWrongFunc) Func() { tdm.tester.PutCall(wrongFunc) }
+type testDepsTooFewArgs interface{ TooFewArgs(i int, s string) }
 
-func wrongFunc() {}
+func (tdm *testDepsMock) TooFewArgs(i int, s string) { tdm.tester.PutCall(tdm.Func, i, s) }
 
-// TODO: test that AssertNextCallIs fails if the call is wrong
+// TODO: wrong type and number of returns should also be a panic
 // TODO: test that AssertNextCallIs fails if the args are the wrong type
 // TODO: test that AssertNextCallIs fails if the args are the wrong number
 // TODO: test that AssertNextCallIs fails if the args are the wrong value
 // TODO: test that InjectReturns passes if the args are the right type and number
 // TODO: test that InjectReturns fails if the args are the wrong type
 // TODO: test that InjectReturns fails if the args are the wrong number
-// TODO: test that PutCall passes if the args are the right type and number for the call
 // TODO: test that PutCall fails if the args are the wrong type for the call
 // TODO: test that FillReturns passes if the args are the right type and number for the call
 // TODO: test that FillReturns fails if the args are the wrong type for the call
