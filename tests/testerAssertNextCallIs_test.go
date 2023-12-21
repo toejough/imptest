@@ -93,8 +93,8 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 	mockedt := newMockedTestingT()
 	tester := protest.NewTester(mockedt)
 	// Given inputs
-	returns := func(deps testDepsTooFewArgs) {
-		deps.TooFewArgs(5, "six")
+	returns := func(deps testDepsSomeArgs) {
+		deps.SomeArgs(5, "six")
 	}
 	tdm := newTestDepsMock(tester)
 
@@ -121,12 +121,50 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 			)
 		}
 	}()
-	tester.AssertNextCallIs(tdm.TooFewArgs, 5)
+	tester.AssertNextCallIs(tdm.SomeArgs, 5)
 }
 
-type testDepsTooFewArgs interface{ TooFewArgs(i int, s string) }
+func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
+	t.Parallel()
 
-func (tdm *testDepsMock) TooFewArgs(i int, s string) { tdm.tester.PutCall(tdm.Func, i, s) }
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsSomeArgs) {
+		deps.SomeArgs(5, "six")
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	// and nice cleanup is scheduled
+	defer tester.AssertDoneWithin(time.Second)
+
+	// Then the next call fails with too few args
+	defer func() {
+		recoveredPanic := recover()
+		if recoveredPanic != nil {
+			// I don't care about the type assertion here - if the type assertion fails,
+			// then I'm ok with a panic at test time.
+			if !strings.Contains(recoveredPanic.(string), "too many args") { //nolint: forcetypeassert
+				t.Fatalf(
+					"The test should've failed with too many args expected. Instead the failure was: %s",
+					recoveredPanic,
+				)
+			}
+		} else {
+			t.Fatal(
+				"The test should've failed with too many args expected. Instead the test passed!",
+			)
+		}
+	}()
+	tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
+}
+
+type testDepsSomeArgs interface{ SomeArgs(i int, s string) }
+
+func (tdm *testDepsMock) SomeArgs(i int, s string) { tdm.tester.PutCall(tdm.Func, i, s) }
 
 // TODO: wrong type and number of returns should also be a panic
 // TODO: test that AssertNextCallIs fails if the args are the wrong type
