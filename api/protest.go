@@ -66,10 +66,11 @@ func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 	AssertRelayShutsDownWithin(rt.T, rt.Relay, d)
 }
 
-func (rt *RelayTester) AssertReturned(args ...any) {
-	lenReturnsAsserted := len(args)
+func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
+	lenReturnsAsserted := len(assertedReturns)
 
-	numFunctionReturns := reflect.TypeOf(rt.function).NumOut()
+	reflectedFunc := reflect.TypeOf(rt.function)
+	numFunctionReturns := reflectedFunc.NumOut()
 
 	if numFunctionReturns > lenReturnsAsserted {
 		panic(fmt.Sprintf("Too few return values asserted. The func (%s) returns %d values,"+
@@ -87,29 +88,28 @@ func (rt *RelayTester) AssertReturned(args ...any) {
 		))
 	}
 
-	for index := range args {
+	for index := range assertedReturns {
 		returned := rt.returns[index].Interface()
-		arg := args[index]
-		returnedType := reflect.TypeOf(returned).Name()
-		argType := reflect.TypeOf(arg).Name()
+		returnType := reflectedFunc.Out(index).Name()
+		returnAsserted := assertedReturns[index]
+		assertedType := reflect.TypeOf(returnAsserted).Name()
 
-		if returnedType != argType {
-			rt.T.Fatalf(
-				"The func returned the wrong type for a return value: "+
-					"the return value at index %d was expected to be type %#v, "+
-					"but it was type %#v",
-				index, argType, returnedType,
-			)
-
-			return
+		if returnType != assertedType {
+			panic(fmt.Sprintf("Wrong return type asserted. The return at index %d from func (%s) is %s,"+
+				" but a value of type %s was asserted",
+				index,
+				getFuncName(rt.function),
+				returnType,
+				assertedType,
+			))
 		}
 
-		if !reflect.DeepEqual(returned, arg) {
+		if !reflect.DeepEqual(returned, returnAsserted) {
 			rt.T.Fatalf(
 				"The func returned the wrong value for a return: "+
 					"the return value at index %d was expected to be %#v, "+
 					"but it was %#v",
-				index, arg, returned,
+				index, returnAsserted, returned,
 			)
 
 			return

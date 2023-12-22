@@ -110,7 +110,7 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 	// And we wait for it to finish
 	tester.AssertDoneWithin(time.Second)
 
-	// And we expect it to return the right value
+	// And we assert too few returns
 	defer expectPanicWith(t, "Too few return values asserted")
 	tester.AssertReturned(5)
 }
@@ -132,7 +132,7 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 	// And we wait for it to finish
 	tester.AssertDoneWithin(time.Second)
 
-	// And we expect it to return the right value
+	// And we assert too many returns
 	defer expectPanicWith(t, "Too many return values asserted")
 	tester.AssertReturned(5, "six")
 }
@@ -154,22 +154,9 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 	// And we wait for it to finish
 	tester.AssertDoneWithin(time.Second)
 
-	// And we expect it to return the right value
+	// And we assert the wrong type
+	defer expectPanicWith(t, "Wrong return type asserted")
 	tester.AssertReturned("five")
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal(
-			"The test should've failed with wrong types. Instead the test passed!",
-		)
-	}
-	// Then the error calls out wrong type
-	if !strings.Contains(mockedt.Failure(), "wrong type") {
-		t.Fatalf(
-			"The test should've failed with wrong types returned. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
 }
 
 func TestAssertReturnFailsWithWrongValues(t *testing.T) {
