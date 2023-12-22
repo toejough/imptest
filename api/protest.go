@@ -213,11 +213,6 @@ func NewCall(f Function, args ...any) *Call {
 	return &Call{function: f, args: args, returns: make(chan []any)}
 }
 
-func NewCallNoReturn(f Function, args ...any) *Call {
-	panicIfNotFunc(f, NewCallNoReturn)
-	return &Call{function: f, args: args, returns: nil}
-}
-
 func NewCallRelay() *CallRelay {
 	return &CallRelay{callChan: make(chan *Call)}
 }
@@ -328,10 +323,6 @@ func (cr *CallRelay) PutCall(function Function, args ...any) *Call {
 	}
 
 	return cr.Put(NewCall(function, args...))
-}
-
-func (cr *CallRelay) PutCallNoReturn(f Function, args ...any) *Call {
-	return cr.Put(NewCallNoReturn(f, args...))
 }
 
 // Call methods.
