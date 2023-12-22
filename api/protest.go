@@ -246,7 +246,7 @@ func assertArgsAre(tester Tester, theCall *Call, expectedArgs ...any) {
 	}
 
 	if !reflect.DeepEqual(theCall.Args(), expectedArgs) {
-		tester.Fatalf("the function %s was expected to be called with %#v but was called with %#v",
+		tester.Fatalf("wrong values: the function %s was expected to be called with %#v but was called with %#v",
 			theCall.Name(), expectedArgs, theCall.Args(),
 		)
 	}
