@@ -19,17 +19,25 @@ import (
 
 // RelayTester.
 func NewTester(t Tester) *RelayTester {
-	return &RelayTester{T: t, Relay: NewCallRelay(), returns: nil}
+	return &RelayTester{
+		T:        t,
+		Relay:    NewCallRelay(),
+		function: nil,
+		returns:  nil,
+	}
 }
 
 type RelayTester struct {
-	T       Tester
-	Relay   *CallRelay
-	returns []reflect.Value
+	T        Tester
+	Relay    *CallRelay
+	function Function
+	returns  []reflect.Value
 }
 
 // RelayTester methods.
 func (rt *RelayTester) Start(function Function, args ...any) {
+	rt.function = function
+
 	go func() {
 		// get args as reflect.Values
 		rArgs := make([]reflect.Value, len(args))
@@ -59,29 +67,24 @@ func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 }
 
 func (rt *RelayTester) AssertReturned(args ...any) {
-	lenReturns := len(rt.returns)
-	lenArgs := len(args)
+	lenReturnsAsserted := len(args)
 
-	if lenReturns > lenArgs {
-		rt.T.Fatalf(
-			"The func returned too many return values: "+
-				"num function returned was %d, "+
-				"but the num the test asserted was %d",
-			lenReturns,
-			lenArgs,
-		)
+	numFunctionReturns := reflect.TypeOf(rt.function).NumOut()
 
-		return
-	} else if lenReturns < lenArgs {
-		rt.T.Fatalf(
-			"The func returned too few return values: "+
-				"num function returned was %d, "+
-				"but the num the test asserted was %d",
-			lenReturns,
-			lenArgs,
-		)
-
-		return
+	if numFunctionReturns > lenReturnsAsserted {
+		panic(fmt.Sprintf("Too few return values asserted. The func (%s) returns %d values,"+
+			" but only %d were asserted",
+			getFuncName(rt.function),
+			numFunctionReturns,
+			lenReturnsAsserted,
+		))
+	} else if numFunctionReturns < lenReturnsAsserted {
+		panic(fmt.Sprintf("Too many return values asserted. The func (%s) only returns %d values,"+
+			" but %d were asserted",
+			getFuncName(rt.function),
+			numFunctionReturns,
+			lenReturnsAsserted,
+		))
 	}
 
 	for index := range args {

@@ -100,6 +100,28 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 	mockedt := newMockedTestingT()
 	tester := protest.NewTester(mockedt)
 	// Given inputs
+	returns := func() (int, string) {
+		return 5, "six"
+	}
+
+	// When the func is run
+	tester.Start(returns)
+
+	// And we wait for it to finish
+	tester.AssertDoneWithin(time.Second)
+
+	// And we expect it to return the right value
+	defer expectPanicWith(t, "Too few return values asserted")
+	tester.AssertReturned(5)
+}
+
+func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
 	returns := func() int {
 		return 5
 	}
@@ -111,43 +133,8 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 
 	// And we expect it to return the right value
-	defer expectPanicWith(t, "too few return values asserted")
-	tester.AssertReturned(5, "five")
-}
-
-func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
-	t.Parallel()
-
-	// Given test needs
-	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
-	// Given inputs
-	returns := func() (int, string) {
-		return 5, "five"
-	}
-
-	// When the func is run
-	tester.Start(returns)
-
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
-
-	// And we expect it to return the right value
-	tester.AssertReturned(5)
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal(
-			"The test should've failed with too many returns. Instead the test passed!",
-		)
-	}
-	// Then the error calls out too many
-	if !strings.Contains(mockedt.Failure(), "too many") {
-		t.Fatalf(
-			"The test should've failed with too many returns. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
+	defer expectPanicWith(t, "Too many return values asserted")
+	tester.AssertReturned(5, "six")
 }
 
 func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
