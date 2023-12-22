@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/magefile/mage/sh"
@@ -83,12 +86,13 @@ func Monitor() error {
 func Check() error {
 	fmt.Println("Checking...")
 	for _, cmd := range []func() error{
-		Tidy,      // clean up the module dependencies
-		Test,      // verify the stuff you explicitly care about works
-		Lint,      // make it follow the standards you care about
-		CheckNils, // suss out nils
-		Fuzz,      // suss out unsafe assumptions about your function inputs
-		TodoCheck, // look for any fixme's or todos
+		Tidy,          // clean up the module dependencies
+		Test,          // verify the stuff you explicitly care about works
+		Lint,          // make it follow the standards you care about
+		CheckNils,     // suss out nils
+		CheckCoverage, // verify desired coverage
+		Fuzz,          // suss out unsafe assumptions about your function inputs
+		TodoCheck,     // look for any fixme's or todos
 	} {
 		err := cmd()
 		if err != nil {
@@ -146,7 +150,34 @@ func LintForFail() error {
 // Run the unit tests
 func Test() error {
 	fmt.Println("Running unit tests...")
-	return sh.RunV("go", "test", "-timeout", "5s", "./...")
+	return sh.RunV(
+		"go",
+		"test",
+		"-timeout=5s",
+		"-coverprofile=coverage.out",
+		"-coverpkg=./api",
+		"./...",
+	)
+}
+
+func CheckCoverage() error {
+	fmt.Println("Checking coverage...")
+	out, err := sh.Output("go", "tool", "cover", "-func=coverage.out")
+	if err != nil {
+		return err
+	}
+	fmt.Println(out)
+	lines := strings.Split(out, "\n")
+	lastLine := lines[len(lines)-1]
+	percentString := regexp.MustCompile(`\d+\.\d`).FindString(lastLine)
+	percent, err := strconv.ParseFloat(percentString, 64)
+	if err != nil {
+		return err
+	}
+	if percent < 100.0 {
+		return fmt.Errorf("coverage was less than the limit of 100.0%%")
+	}
+	return nil
 }
 
 // Run the unit tests purely to find out whether any fail
