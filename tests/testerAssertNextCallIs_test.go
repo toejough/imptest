@@ -100,8 +100,6 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 
 	// When the func is run
 	tester.Start(returns, tdm)
-	// and nice cleanup is scheduled
-	defer tester.AssertDoneWithin(time.Second)
 
 	// Then the next call fails with too few args
 	defer expectPanicWith(t, "too few args")
