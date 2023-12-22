@@ -123,28 +123,7 @@ func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
 	rt.T.Helper()
 	panicIfNotFunc(function, AssertNextCallIs)
 
-	supportedNumArgs := reflect.TypeOf(function).NumIn()
-	expectedNumArgs := len(args)
-
-	if expectedNumArgs < supportedNumArgs {
-		panic(fmt.Sprintf(
-			"too few args in the expected argument list (%d)"+
-				" compared to the number of arguments (%s) supports (%d)",
-			expectedNumArgs,
-			getFuncName(function),
-			supportedNumArgs,
-		))
-	} else if expectedNumArgs > supportedNumArgs {
-		panic(fmt.Sprintf(
-			"too many args in the expected argument list (%d)"+
-				" compared to the number of arguments (%s) supports (%d)",
-			expectedNumArgs,
-			getFuncName(function),
-			supportedNumArgs,
-		))
-	}
-
-	return AssertNextCallIs(rt.T, rt.Relay, getFuncName(function), args...)
+	return AssertNextCallIs(rt.T, rt.Relay, function, args...)
 }
 
 type (
@@ -169,14 +148,56 @@ var (
 )
 
 // Public helpers.
-func AssertNextCallIs(t Tester, r *CallRelay, name string, expectedArgs ...any) *Call {
-	t.Helper()
+func AssertNextCallIs(tester Tester, r *CallRelay, function Function, expectedArgs ...any) *Call {
+	tester.Helper()
 
-	c := r.Get()
-	assertCalledNameIs(t, c, name)
-	assertArgsAre(t, c, expectedArgs...)
+	called := r.Get()
+	name := getFuncName(function)
+	assertCalledNameIs(tester, called, name)
 
-	return c
+	reflectedFunc := reflect.TypeOf(function)
+	supportedNumArgs := reflectedFunc.NumIn()
+	expectedNumArgs := len(expectedArgs)
+
+	if expectedNumArgs < supportedNumArgs {
+		panic(fmt.Sprintf(
+			"too few args in the expected argument list (%d)"+
+				" compared to the number of arguments (%s) supports (%d)",
+			expectedNumArgs,
+			getFuncName(function),
+			supportedNumArgs,
+		))
+	} else if expectedNumArgs > supportedNumArgs {
+		panic(fmt.Sprintf(
+			"too many args in the expected argument list (%d)"+
+				" compared to the number of arguments (%s) supports (%d)",
+			expectedNumArgs,
+			getFuncName(function),
+			supportedNumArgs,
+		))
+	}
+
+	for index := range expectedArgs {
+		argAsserted := expectedArgs[index]
+		assertedType := reflect.TypeOf(argAsserted).Name()
+		actualType := reflectedFunc.In(index).Name()
+
+		if assertedType != actualType {
+			panic(fmt.Sprintf(
+				"Wrong type."+
+					"The type asserted for the arg at index %d is %s,"+
+					"but the actual type for that arg for function %s is %s",
+				index,
+				assertedType,
+				getFuncName(function),
+				actualType,
+			))
+		}
+	}
+
+	assertArgsAre(tester, called, expectedArgs...)
+
+	return called
 }
 
 func AssertRelayShutsDownWithin(t Tester, relay *CallRelay, waitTime time.Duration) {

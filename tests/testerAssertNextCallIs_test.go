@@ -122,20 +122,72 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 
 	// When the func is run
 	tester.Start(returns, tdm)
-	// and nice cleanup is scheduled
-	defer tester.AssertDoneWithin(time.Second)
 
 	// Then the next call fails with too few args
 	defer expectPanicWith(t, "too many args")
 	tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
 }
 
+func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsSomeArgs) {
+		deps.SomeArgs(5, "six")
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	// returns(tdm)
+
+	// Then the next call fails with wrong arg type
+	defer expectPanicWith(t, "Wrong type")
+	tester.AssertNextCallIs(tdm.SomeArgs, 5, 6)
+}
+
+func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsSomeArgs) {
+		deps.SomeArgs(5, "six")
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	// and nice cleanup is scheduled
+	defer tester.AssertDoneWithin(time.Second)
+
+	// Then the next call is to the func
+	tester.AssertNextCallIs(tdm.SomeArgs, 5, "seven")
+
+	// Then the test is marked as failed
+	if !mockedt.Failed() {
+		t.Fatal(
+			"The test should've failed with wrong values. Instead the test passed!",
+		)
+	}
+	// Then the error calls out wrong value
+	if !strings.Contains(mockedt.Failure(), "wrong values") {
+		t.Fatalf(
+			"The test should've failed with wrong values. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
 type testDepsSomeArgs interface{ SomeArgs(i int, s string) }
 
-func (tdm *testDepsMock) SomeArgs(i int, s string) { tdm.tester.PutCall(tdm.Func, i, s) }
+func (tdm *testDepsMock) SomeArgs(i int, s string) { tdm.tester.PutCall(tdm.SomeArgs, i, s) }
 
-// TODO: test that AssertNextCallIs fails if the args are the wrong type
-// TODO: test that AssertNextCallIs fails if the args are the wrong value
 // TODO: test that InjectReturns passes if the args are the right type and number
 // TODO: test that InjectReturns fails if the args are the wrong type
 // TODO: test that InjectReturns fails if the args are the wrong number
