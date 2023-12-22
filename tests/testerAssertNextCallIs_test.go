@@ -104,23 +104,7 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 	defer tester.AssertDoneWithin(time.Second)
 
 	// Then the next call fails with too few args
-	defer func() {
-		recoveredPanic := recover()
-		if recoveredPanic != nil {
-			// I don't care about the type assertion here - if the type assertion fails,
-			// then I'm ok with a panic at test time.
-			if !strings.Contains(recoveredPanic.(string), "too few args") { //nolint: forcetypeassert
-				t.Fatalf(
-					"The test should've failed with too few args expected. Instead the failure was: %s",
-					recoveredPanic,
-				)
-			}
-		} else {
-			t.Fatal(
-				"The test should've failed with too few args expected. Instead the test passed!",
-			)
-		}
-	}()
+	defer expectPanicWith(t, "too few args")
 	tester.AssertNextCallIs(tdm.SomeArgs, 5)
 }
 
@@ -142,23 +126,7 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 	defer tester.AssertDoneWithin(time.Second)
 
 	// Then the next call fails with too few args
-	defer func() {
-		recoveredPanic := recover()
-		if recoveredPanic != nil {
-			// I don't care about the type assertion here - if the type assertion fails,
-			// then I'm ok with a panic at test time.
-			if !strings.Contains(recoveredPanic.(string), "too many args") { //nolint: forcetypeassert
-				t.Fatalf(
-					"The test should've failed with too many args expected. Instead the failure was: %s",
-					recoveredPanic,
-				)
-			}
-		} else {
-			t.Fatal(
-				"The test should've failed with too many args expected. Instead the test passed!",
-			)
-		}
-	}()
+	defer expectPanicWith(t, "too many args")
 	tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
 }
 
@@ -166,7 +134,6 @@ type testDepsSomeArgs interface{ SomeArgs(i int, s string) }
 
 func (tdm *testDepsMock) SomeArgs(i int, s string) { tdm.tester.PutCall(tdm.Func, i, s) }
 
-// TODO: wrong type and number of returns should also be a panic
 // TODO: test that AssertNextCallIs fails if the args are the wrong type
 // TODO: test that AssertNextCallIs fails if the args are the wrong value
 // TODO: test that InjectReturns passes if the args are the right type and number
