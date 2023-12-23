@@ -185,14 +185,3 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 type testDepsSomeArgs interface{ SomeArgs(i int, s string) }
 
 func (tdm *testDepsMock) SomeArgs(i int, s string) { tdm.tester.PutCall(tdm.SomeArgs, i, s) }
-
-// TODO: test that InjectReturns passes if the args are the right type and number
-// TODO: test that InjectReturns fails if the args are the wrong type
-// TODO: test that InjectReturns fails if the args are the wrong number
-// TODO: test that PutCall fails if the args are the wrong type for the call
-// TODO: test that PutCall fails if the args are the wrong number for the call
-// TODO: test that FillReturns passes if the args are the right type and number for the call
-// TODO: test that FillReturns fails if the args are the wrong type for the call
-// TODO: test that FillReturns fails if the args are the wrong number for the call
-// TODO: test parallel calls
-// TODO: refactor protest out into separate files

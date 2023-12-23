@@ -312,14 +312,40 @@ func (cr *CallRelay) PutCall(function Function, args ...any) *Call {
 	supportedNumArgs := reflect.TypeOf(function).NumIn()
 	expectedNumArgs := len(args)
 
-	if expectedNumArgs != supportedNumArgs {
+	if expectedNumArgs < supportedNumArgs {
 		panic(fmt.Sprintf(
-			"the length of the expected argument list (%d)"+
-				" does not equal the length of the arguments (%s) supports (%d)",
+			"too few args: the length of the expected argument list (%d)"+
+				" is less than the length of the arguments (%s) supports (%d)",
 			expectedNumArgs,
 			getFuncName(function),
 			supportedNumArgs,
 		))
+	}
+
+	if expectedNumArgs > supportedNumArgs {
+		panic(fmt.Sprintf(
+			"too many args: the length of the expected argument list (%d)"+
+				" is greater than the length of the arguments (%s) supports (%d)",
+			expectedNumArgs,
+			getFuncName(function),
+			supportedNumArgs,
+		))
+	}
+
+	for index := range args {
+		passedArg := args[index]
+		passedArgType := reflect.TypeOf(passedArg).Name()
+		expectedArgType := reflect.TypeOf(function).In(index).Name()
+
+		if passedArgType != expectedArgType {
+			panic(fmt.Sprintf(
+				"wrong arg type: arg %d was type %s, but func (%s) wants type %s",
+				index,
+				passedArgType,
+				getFuncName(function),
+				expectedArgType,
+			))
+		}
 	}
 
 	return cr.Put(NewCall(function, args...))
