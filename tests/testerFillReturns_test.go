@@ -73,7 +73,15 @@ func (tdm *testDepsMock) FillWrongNumber() int {
 	return goodR
 }
 
-// TODO: test that FillReturns fails if the args are the wrong number for the call
+// TODO: test for the injected return to be nil passes
+// TODO: test filling with non-pointer fails
+// TODO: test for call.getReturns to return the right things
+// TODO: test for Fill is never called fails
+// TODO: test for AssertDoneWithin with an unchecked call fails
+// TODO: test for a putCall never happening fails
+// TODO: test for AssertNextCallIs after tester shutdown fails
+// TODO: test for passing non-function to AssertNextCallIs fails
+// TODO: handle remaining coverage
 // TODO: test parallel calls
-// TODO: refactor protest out into separate files
 // TODO: rename to imptest
+// TODO: refactor imptest out into separate files

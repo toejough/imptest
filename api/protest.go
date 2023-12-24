@@ -229,22 +229,6 @@ func assertCalledNameIs(t Tester, c *Call, expectedName string) {
 func assertArgsAre(tester Tester, theCall *Call, expectedArgs ...any) {
 	tester.Helper()
 
-	if theCall.Args() == nil && expectedArgs != nil {
-		tester.Fatalf(
-			"the function %s was expected to be called with %#v, but was called without args",
-			theCall.Name(),
-			expectedArgs,
-		)
-	}
-
-	if theCall.Args() != nil && expectedArgs == nil {
-		tester.Fatalf(
-			"the function %s was expected to be called without args, but was called with %#v",
-			theCall.Name(),
-			theCall.Args(),
-		)
-	}
-
 	if !reflect.DeepEqual(theCall.Args(), expectedArgs) {
 		tester.Fatalf("wrong values: the function %s was expected to be called with %#v but was called with %#v",
 			theCall.Name(), expectedArgs, theCall.Args(),
@@ -361,10 +345,6 @@ func (c Call) Args() []any {
 }
 
 func (c Call) InjectReturns(returnValues ...any) {
-	if c.returns == nil {
-		panic("cannot inject a return on a call with no returns")
-	}
-
 	supportedNumReturns := reflect.TypeOf(c.function).NumOut()
 	injectedNumReturns := len(returnValues)
 
