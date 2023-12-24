@@ -44,6 +44,26 @@ func (tdm *testDepsMock) Inject() int {
 	return r
 }
 
+func TestInjectReturnWrongTypeFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsInject) int {
+		return deps.Inject()
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	call := tester.AssertNextCallIs(tdm.Inject)
+	defer expectPanicWith(t, "wrong type")
+	call.InjectReturns("five")
+	tester.AssertDoneWithin(time.Second)
+}
+
 // func TestPutCallTooFewArgsFails(t *testing.T) {
 // 	t.Parallel()
 //
