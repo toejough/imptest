@@ -370,7 +370,7 @@ func (c Call) InjectReturns(returnValues ...any) {
 
 	if injectedNumReturns != supportedNumReturns {
 		panic(fmt.Sprintf(
-			"the length of the injected return list (%d)"+
+			"wrong number of returns: the length of the injected return list (%d)"+
 				" does not equal the length of the returns (%s) supports (%d)",
 			injectedNumReturns,
 			getFuncName(c.function),
