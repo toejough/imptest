@@ -378,6 +378,22 @@ func (c Call) InjectReturns(returnValues ...any) {
 		))
 	}
 
+	for index := range returnValues {
+		passedArg := returnValues[index]
+		passedArgType := reflect.TypeOf(passedArg).Name()
+		expectedArgType := reflect.TypeOf(c.function).Out(index).Name()
+
+		if passedArgType != expectedArgType {
+			panic(fmt.Sprintf(
+				"wrong return type: return value %d was type %s, but func (%s) returns type %s",
+				index,
+				passedArgType,
+				getFuncName(c.function),
+				expectedArgType,
+			))
+		}
+	}
+
 	select {
 	case c.returns <- returnValues:
 		return

@@ -59,7 +59,8 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 	// When the func is run
 	tester.Start(returns, tdm)
 	call := tester.AssertNextCallIs(tdm.Inject)
-	defer expectPanicWith(t, "wrong type")
+
+	defer expectPanicWith(t, "wrong return type")
 	call.InjectReturns("five")
 	tester.AssertDoneWithin(time.Second)
 }
