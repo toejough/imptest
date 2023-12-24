@@ -65,6 +65,27 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 }
 
+func TestInjectReturnWrongNumberFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsInject) int {
+		return deps.Inject()
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	call := tester.AssertNextCallIs(tdm.Inject)
+
+	defer expectPanicWith(t, "wrong number of returns")
+	call.InjectReturns(5, "five")
+	tester.AssertDoneWithin(time.Second)
+}
+
 // func TestPutCallTooFewArgsFails(t *testing.T) {
 // 	t.Parallel()
 //
@@ -138,8 +159,6 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 // 	tdm.tester.PutCall(tdm.PutWrongTypes, "THIS ONE IS THE WRONG TYPE", s)
 // }
 
-// TODO: test that InjectReturns fails if the args are the wrong type
-// TODO: test that InjectReturns fails if the args are the wrong number
 // TODO: test that FillReturns fails if the args are the wrong type for the call
 // TODO: test that FillReturns fails if the args are the wrong number for the call
 // TODO: test parallel calls
