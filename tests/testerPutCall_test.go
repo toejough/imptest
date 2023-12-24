@@ -79,12 +79,3 @@ type testDepsPutWrongTypes interface{ PutWrongTypes(i int, s string) }
 func (tdm *testDepsMock) PutWrongTypes(_ int, s string) {
 	tdm.tester.PutCall(tdm.PutWrongTypes, "THIS ONE IS THE WRONG TYPE", s)
 }
-
-// TODO: test that InjectReturns passes if the args are the right type and number
-// TODO: test that InjectReturns fails if the args are the wrong type
-// TODO: test that InjectReturns fails if the args are the wrong number
-// TODO: test that FillReturns passes if the args are the right type and number for the call
-// TODO: test that FillReturns fails if the args are the wrong type for the call
-// TODO: test that FillReturns fails if the args are the wrong number for the call
-// TODO: test parallel calls
-// TODO: refactor protest out into separate files
