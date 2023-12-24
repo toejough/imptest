@@ -411,7 +411,8 @@ func (c Call) FillReturns(returnPointers ...any) {
 
 	if len(returnPointers) != len(returnValues) {
 		panic(fmt.Sprintf(
-			"the length of the pointer array to fill with return values (%d) does not match the "+
+			"wrong number of returns: "+
+				"the length of the pointer array to fill with return values (%d) does not match the "+
 				" length of the return value array injected by the test (%d)",
 			len(returnPointers),
 			len(returnValues),
