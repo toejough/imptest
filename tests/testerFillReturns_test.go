@@ -30,12 +30,14 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 type testDepsFillWrongType interface{ FillWrongType() int }
 
 func (tdm *testDepsMock) FillWrongType() int {
-	var r int
-	var badR string
+	var (
+		goodR int
+		badR  string
+	)
 
 	tdm.tester.PutCall(tdm.FillWrongType).FillReturns(&badR)
 
-	return r
+	return goodR
 }
 
 // TODO: test that FillReturns fails if the args are the wrong number for the call

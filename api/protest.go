@@ -429,7 +429,21 @@ func (c Call) FillReturns(returnPointers ...any) {
 			panic("cannot fill value into non-pointer")
 		}
 
+		returnPointerType := reflect.TypeOf(returnPointerValue.Elem().Interface()).Name()
+		expectedArgType := reflect.TypeOf(c.function).Out(index).Name()
+
+		if returnPointerType != expectedArgType {
+			panic(fmt.Sprintf(
+				"wrong return type: return value %d to be filled was type %s, but func (%s) returns type %s",
+				index,
+				returnPointerType,
+				getFuncName(c.function),
+				expectedArgType,
+			))
+		}
+
 		returnedValue := reflect.ValueOf(returnValues[index])
+
 		// handle nils
 		if !returnedValue.IsValid() {
 			returnPointerValue.Elem().SetZero()
