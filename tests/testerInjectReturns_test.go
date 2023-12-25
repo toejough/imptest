@@ -44,6 +44,43 @@ func (tdm *testDepsMock) Inject() int {
 	return r
 }
 
+func TestInjectReturnNilPasses(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsInjectNil) *int {
+		return deps.InjectNil()
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	tester.AssertNextCallIs(tdm.InjectNil).InjectReturns(nil)
+	tester.AssertDoneWithin(time.Second)
+	tester.AssertReturned(5)
+
+	// Then the test passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
+type testDepsInjectNil interface{ InjectNil() *int }
+
+func (tdm *testDepsMock) InjectNil() *int {
+	var r *int
+
+	tdm.tester.PutCall(tdm.Inject).FillReturns(&r)
+
+	return r
+}
+
 func TestInjectReturnWrongTypeFails(t *testing.T) {
 	t.Parallel()
 
