@@ -131,6 +131,8 @@ func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
 	return AssertNextCallIs(rt.T, rt.Relay, function, args...)
 }
 
+func (rt *RelayTester) GetReturns() []reflect.Value { return rt.returns }
+
 type (
 	Tester interface {
 		Helper()
@@ -391,10 +393,6 @@ func (c Call) InjectReturns(returnValues ...any) {
 	case <-time.After(1 * time.Second):
 		panic("timed out waiting for " + c.Name() + " to read the injected return values")
 	}
-}
-
-func (c Call) GetReturns() []any {
-	return <-c.returns
 }
 
 func (c Call) FillReturns(returnPointers ...any) {
