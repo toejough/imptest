@@ -73,7 +73,36 @@ func (tdm *testDepsMock) FillWrongNumber() int {
 	return goodR
 }
 
-// TODO: test filling with non-pointer fails
+func TestFillNonPointerFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsFillNonPointer) int {
+		// Then test fails with wrong return type
+		defer expectPanicWith(t, "cannot fill value into non-pointer")
+		return deps.FillNonPointer()
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
+	tester.AssertDoneWithin(time.Second)
+}
+
+type testDepsFillNonPointer interface{ FillNonPointer() int }
+
+func (tdm *testDepsMock) FillNonPointer() int {
+	var goodR int
+
+	tdm.tester.PutCall(tdm.FillNonPointer).FillReturns(goodR)
+
+	return goodR
+}
+
 // TODO: test for call.getReturns to return the right things
 // TODO: test for Fill is never called fails
 // TODO: test for AssertDoneWithin with an unchecked call fails
