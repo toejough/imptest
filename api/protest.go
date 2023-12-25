@@ -90,8 +90,13 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 
 	for index := range assertedReturns {
 		returned := rt.returns[index].Interface()
-		returnType := reflectedFunc.Out(index).Name()
 		returnAsserted := assertedReturns[index]
+		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
+		if returnAsserted == nil && reflectedFunc.Out(index).Kind() == reflect.Pointer {
+			continue
+		}
+		// TODO: investigate undefined types. pointers don't seem to have a name.
+		returnType := reflectedFunc.Out(index).Name()
 		assertedType := reflect.TypeOf(returnAsserted).Name()
 
 		if returnType != assertedType {
@@ -360,6 +365,12 @@ func (c Call) InjectReturns(returnValues ...any) {
 
 	for index := range returnValues {
 		passedArg := returnValues[index]
+
+		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
+		if passedArg == nil && reflect.TypeOf(c.function).Out(index).Kind() == reflect.Pointer {
+			continue
+		}
+
 		passedArgType := reflect.TypeOf(passedArg).Name()
 		expectedArgType := reflect.TypeOf(c.function).Out(index).Name()
 

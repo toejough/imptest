@@ -73,7 +73,6 @@ func (tdm *testDepsMock) FillWrongNumber() int {
 	return goodR
 }
 
-// TODO: test for the injected return to be nil passes
 // TODO: test filling with non-pointer fails
 // TODO: test for call.getReturns to return the right things
 // TODO: test for Fill is never called fails

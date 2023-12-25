@@ -60,7 +60,7 @@ func TestInjectReturnNilPasses(t *testing.T) {
 	tester.Start(returns, tdm)
 	tester.AssertNextCallIs(tdm.InjectNil).InjectReturns(nil)
 	tester.AssertDoneWithin(time.Second)
-	tester.AssertReturned(5)
+	tester.AssertReturned(nil)
 
 	// Then the test passed
 	if mockedt.Failed() {
@@ -76,7 +76,7 @@ type testDepsInjectNil interface{ InjectNil() *int }
 func (tdm *testDepsMock) InjectNil() *int {
 	var r *int
 
-	tdm.tester.PutCall(tdm.Inject).FillReturns(&r)
+	tdm.tester.PutCall(tdm.InjectNil).FillReturns(&r)
 
 	return r
 }
