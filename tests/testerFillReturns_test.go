@@ -136,7 +136,6 @@ func (tdm *testDepsMock) FillNeverCalled() int {
 	return goodR
 }
 
-// TODO: test for a putCall never happening fails
 // TODO: test for AssertNextCallIs after tester shutdown fails
 // TODO: test for passing non-function to AssertNextCallIs fails
 // TODO: handle remaining coverage

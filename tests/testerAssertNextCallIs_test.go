@@ -185,3 +185,40 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 type testDepsSomeArgs interface{ SomeArgs(i int, s string) }
 
 func (tdm *testDepsMock) SomeArgs(i int, s string) { tdm.tester.PutCall(tdm.SomeArgs, i, s) }
+
+func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsAfterDone) {}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	// and nice cleanup happens
+	tester.AssertDoneWithin(time.Second)
+
+	// Then the assertion on the next call fails
+	tester.AssertNextCallIs(tdm.AfterDone)
+
+	// Then the test is marked as failed
+	if !mockedt.Failed() {
+		t.Fatal(
+			"The test should've failed with relay already shut down. Instead the test passed!",
+		)
+	}
+	// Then the error calls out wrong value
+	if !strings.Contains(mockedt.Failure(), "already shut down") {
+		t.Fatalf(
+			"The test should've failed with relay already shut down. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
+type testDepsAfterDone interface{ AfterDone() }
+
+func (tdm *testDepsMock) AfterDone() { tdm.tester.PutCall(tdm.AfterDone) }
