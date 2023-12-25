@@ -103,8 +103,39 @@ func (tdm *testDepsMock) FillNonPointer() int {
 	return goodR
 }
 
-// TODO: test for call.getReturns to return the right things
-// TODO: test for Fill is never called fails
+func TestFillNeverCalledFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsFillNeverCalled) int {
+		return deps.FillNeverCalled()
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	call := tester.AssertNextCallIs(tdm.FillNeverCalled)
+
+	// Then test fails with fill never called
+	defer expectPanicWith(t, "fill was not called")
+	call.InjectReturns(5)
+
+	tester.AssertDoneWithin(time.Second)
+}
+
+type testDepsFillNeverCalled interface{ FillNeverCalled() int }
+
+func (tdm *testDepsMock) FillNeverCalled() int {
+	var goodR int
+
+	tdm.tester.PutCall(tdm.FillNeverCalled)
+
+	return goodR
+}
+
 // TODO: test for AssertDoneWithin with an unchecked call fails
 // TODO: test for a putCall never happening fails
 // TODO: test for AssertNextCallIs after tester shutdown fails

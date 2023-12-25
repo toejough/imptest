@@ -391,7 +391,7 @@ func (c Call) InjectReturns(returnValues ...any) {
 	case c.returns <- returnValues:
 		return
 	case <-time.After(1 * time.Second):
-		panic("timed out waiting for " + c.Name() + " to read the injected return values")
+		panic("fill was not called: timed out waiting for " + c.Name() + " to read the injected return values")
 	}
 }
 
