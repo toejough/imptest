@@ -79,3 +79,34 @@ type testDepsPutWrongTypes interface{ PutWrongTypes(i int, s string) }
 func (tdm *testDepsMock) PutWrongTypes(_ int, s string) {
 	tdm.tester.PutCall(tdm.PutWrongTypes, "THIS ONE IS THE WRONG TYPE", s)
 }
+
+func TestNoPutCallFails(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	lockchan := make(chan struct{})
+	returns := func(deps testDepsNoPut) {
+		deps.NoPut()
+		<-lockchan
+	}
+	tdm := newTestDepsMock(tester)
+
+	// release the lock at the end of the test
+	defer close(lockchan)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+
+	// Then the assert next call fails waiting for that call
+	defer expectPanicWith(t, "waiting for a call")
+	// FIXME: this depends on actual wall time, and for test purposes, we really should
+	// have the timer as an injected dependency
+	tester.AssertNextCallIs(tdm.NoPut)
+}
+
+type testDepsNoPut interface{ NoPut() }
+
+func (tdm *testDepsMock) NoPut() {}
