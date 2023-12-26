@@ -136,9 +136,6 @@ func (tdm *testDepsMock) FillNeverCalled() int {
 	return goodR
 }
 
-// TODO: test for AssertNextCallIs after tester shutdown fails
-// TODO: test for passing non-function to AssertNextCallIs fails
-// TODO: handle remaining coverage
-// TODO: test parallel calls - tester.GetNextCall()?
 // TODO: rename to imptest
 // TODO: refactor imptest out into separate files
+// TODO: figure out if there's a way to do some property-based testing
