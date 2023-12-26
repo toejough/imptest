@@ -141,6 +141,30 @@ func (rt *RelayTester) QueueUnordered(function Function, args ...any) *DelayedCa
 	return newDelayedCall(function, args)
 }
 
+func panicIfWrongNumArgs(function Function, args []any) {
+	reflectedFunc := reflect.TypeOf(function)
+	numFunctionArgs := reflectedFunc.NumIn()
+	numGivenArgs := len(args)
+	funcName := getFuncName(function)
+
+	if numGivenArgs < numFunctionArgs {
+		panic(fmt.Sprintf("Too few args given. The func (%s) takes %d args,"+
+			" but only %d were given",
+			funcName,
+			numFunctionArgs,
+			numGivenArgs,
+		))
+	} else if numFunctionArgs < numGivenArgs {
+		panic(fmt.Sprintf("Too many args given. The func (%s) only takes %d args,"+
+			" but %d were given",
+			funcName,
+			numFunctionArgs,
+			numGivenArgs,
+		))
+	}
+
+}
+
 type (
 	Tester interface {
 		Helper()
