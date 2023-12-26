@@ -136,6 +136,8 @@ func (rt *RelayTester) GetReturns() []reflect.Value { return rt.returns }
 type (
 	Tester interface {
 		Helper()
+		// FIXME: this really needs to panic, but the testing mock doesn't, and that causes all kinds of other
+		// awkward logic in this library...
 		Fatalf(message string, args ...any)
 	}
 	CallRelay struct {
@@ -152,13 +154,19 @@ type (
 var (
 	errCallRelayNotShutDown     = errors.New("call relay was not shut down")
 	errCallRelayShutdownTimeout = errors.New("call relay timed out waiting for shutdown")
+	errCallAfterShutDown        = errors.New("expected a call, but the relay was already shut down")
 )
 
 // Public helpers.
 func AssertNextCallIs(tester Tester, r *CallRelay, function Function, expectedArgs ...any) *Call {
 	tester.Helper()
 
-	called := r.Get()
+	called, err := r.Get()
+	if err != nil {
+		tester.Fatalf(err.Error())
+		return nil
+	}
+
 	name := getFuncName(function)
 	assertCalledNameIs(tester, called, name)
 
@@ -263,14 +271,14 @@ func panicIfNotFunc(evaluate Function, from Function) {
 }
 
 // CallRelay Methods.
-func (cr *CallRelay) Get() *Call {
+func (cr *CallRelay) Get() (*Call, error) {
 	select {
 	case c, ok := <-cr.callChan:
 		if !ok {
-			panic("expected a call, but the relay was already shut down")
+			return nil, errCallAfterShutDown
 		}
 
-		return c
+		return c, nil
 	case <-time.After(time.Second):
 		panic("testing timeout waiting for a call")
 	}

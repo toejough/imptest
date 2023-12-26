@@ -20,7 +20,7 @@ func expectPanicWith(t *testing.T, message string) {
 		}
 	} else {
 		t.Fatalf(
-			"The test should've failed with '%s'. Instead the test passed!",
+			"The test should've panicked with '%s'. Instead the test continued!",
 			message,
 		)
 	}

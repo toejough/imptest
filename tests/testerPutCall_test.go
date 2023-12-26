@@ -1,6 +1,7 @@
 package protest_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -105,6 +106,20 @@ func TestNoPutCallFails(t *testing.T) {
 	// FIXME: this depends on actual wall time, and for test purposes, we really should
 	// have the timer as an injected dependency
 	tester.AssertNextCallIs(tdm.NoPut)
+
+	// Then the test is marked as failed
+	if !mockedt.Failed() {
+		t.Fatal(
+			"The test should've failed with relay already shut down. Instead the test passed!",
+		)
+	}
+	// Then the error calls out wrong value
+	if !strings.Contains(mockedt.Failure(), "already shut down") {
+		t.Fatalf(
+			"The test should've failed with relay already shut down. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsNoPut interface{ NoPut() }
