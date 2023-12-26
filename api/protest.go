@@ -133,6 +133,14 @@ func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
 
 func (rt *RelayTester) GetReturns() []reflect.Value { return rt.returns }
 
+func (rt *RelayTester) QueueUnordered(function Function, args ...any) *DelayedCall {
+	rt.T.Helper()
+	panicIfNotFunc(function, rt.QueueUnordered)
+	panicIfWrongNumArgs(function, args)
+	panicIfWrongArgTypes(function, args)
+	return newDelayedCall(function, args)
+}
+
 type (
 	Tester interface {
 		Helper()
@@ -148,7 +156,8 @@ type (
 		args     []any
 		returns  chan []any
 	}
-	Function any
+	Function    any
+	DelayedCall struct{}
 )
 
 var (
