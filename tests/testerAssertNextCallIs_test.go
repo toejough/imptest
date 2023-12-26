@@ -222,3 +222,24 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 type testDepsAfterDone interface{ AfterDone() }
 
 func (tdm *testDepsMock) AfterDone() { tdm.tester.PutCall(tdm.AfterDone) }
+
+func TestAssertNextCallIsWithNonFunction(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := protest.NewTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsSomeArgs) {
+		deps.SomeArgs(5, "six")
+	}
+	tdm := newTestDepsMock(tester)
+
+	// When the func is run
+	tester.Start(returns, tdm)
+	// returns(tdm)
+
+	// Then the next call fails with wrong arg type
+	defer expectPanicWith(t, "must pass a function")
+	tester.AssertNextCallIs("SomeArgs", 5, 6)
+}
