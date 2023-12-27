@@ -49,7 +49,7 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 		defer func() {
 			// catch and handle bad args
 			if r := recover(); r != nil {
-				rt.T.Fatalf("failed to call %s with args (%v): %v", getFuncName(function), rArgs, r)
+				rt.T.Fatalf("failed to call %s with args (%v): %v", GetFuncName(function), rArgs, r)
 			}
 
 			// always shutdown afterwards
@@ -75,14 +75,14 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 	if numFunctionReturns > lenReturnsAsserted {
 		panic(fmt.Sprintf("Too few return values asserted. The func (%s) returns %d values,"+
 			" but only %d were asserted",
-			getFuncName(rt.function),
+			GetFuncName(rt.function),
 			numFunctionReturns,
 			lenReturnsAsserted,
 		))
 	} else if numFunctionReturns < lenReturnsAsserted {
 		panic(fmt.Sprintf("Too many return values asserted. The func (%s) only returns %d values,"+
 			" but %d were asserted",
-			getFuncName(rt.function),
+			GetFuncName(rt.function),
 			numFunctionReturns,
 			lenReturnsAsserted,
 		))
@@ -103,7 +103,7 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 			panic(fmt.Sprintf("Wrong return type asserted. The return at index %d from func (%s) is %s,"+
 				" but a value of type %s was asserted",
 				index,
-				getFuncName(rt.function),
+				GetFuncName(rt.function),
 				returnType,
 				assertedType,
 			))
@@ -124,46 +124,31 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 
 func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.Relay.PutCall(f, a...) }
 
+func (rt *RelayTester) GetNextCall() *Call {
+	call, err := rt.Relay.Get()
+	// TODO: test for getNextCall after closing the channel
+	if err != nil {
+		rt.T.Fatalf(err.Error())
+		return nil
+	}
+
+	return call
+}
+
 func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
 	rt.T.Helper()
-	panicIfNotFunc(function, AssertNextCallIs)
+	panicIfNotFunc(function, rt.AssertNextCallIs)
 
-	return AssertNextCallIs(rt.T, rt.Relay, function, args...)
+	call := rt.GetNextCall()
+
+	if rt.T.Failed() {
+		return nil
+	}
+
+	return AssertCallIs(rt.T, call, function, args...)
 }
 
 func (rt *RelayTester) GetReturns() []reflect.Value { return rt.returns }
-
-func (rt *RelayTester) QueueUnordered(function Function, args ...any) *DelayedCall {
-	rt.T.Helper()
-	panicIfNotFunc(function, rt.QueueUnordered)
-	panicIfWrongNumArgs(function, args)
-	panicIfWrongArgTypes(function, args)
-	return newDelayedCall(function, args)
-}
-
-func panicIfWrongNumArgs(function Function, args []any) {
-	reflectedFunc := reflect.TypeOf(function)
-	numFunctionArgs := reflectedFunc.NumIn()
-	numGivenArgs := len(args)
-	funcName := getFuncName(function)
-
-	if numGivenArgs < numFunctionArgs {
-		panic(fmt.Sprintf("Too few args given. The func (%s) takes %d args,"+
-			" but only %d were given",
-			funcName,
-			numFunctionArgs,
-			numGivenArgs,
-		))
-	} else if numFunctionArgs < numGivenArgs {
-		panic(fmt.Sprintf("Too many args given. The func (%s) only takes %d args,"+
-			" but %d were given",
-			funcName,
-			numFunctionArgs,
-			numGivenArgs,
-		))
-	}
-
-}
 
 type (
 	Tester interface {
@@ -171,6 +156,7 @@ type (
 		// FIXME: this really needs to panic, but the testing mock doesn't, and that causes all kinds of other
 		// awkward logic in this library...
 		Fatalf(message string, args ...any)
+		Failed() bool
 	}
 	CallRelay struct {
 		callChan chan *Call
@@ -191,16 +177,10 @@ var (
 )
 
 // Public helpers.
-func AssertNextCallIs(tester Tester, r *CallRelay, function Function, expectedArgs ...any) *Call {
+func AssertCallIs(tester Tester, called *Call, function Function, expectedArgs ...any) *Call {
 	tester.Helper()
 
-	called, err := r.Get()
-	if err != nil {
-		tester.Fatalf(err.Error())
-		return nil
-	}
-
-	name := getFuncName(function)
+	name := GetFuncName(function)
 	assertCalledNameIs(tester, called, name)
 
 	reflectedFunc := reflect.TypeOf(function)
@@ -210,9 +190,10 @@ func AssertNextCallIs(tester Tester, r *CallRelay, function Function, expectedAr
 	if expectedNumArgs < supportedNumArgs {
 		panic(fmt.Sprintf(
 			"too few args in the expected argument list (%d)"+
+				// I want to keep these error messages independent
 				" compared to the number of arguments (%s) supports (%d)",
 			expectedNumArgs,
-			getFuncName(function),
+			GetFuncName(function),
 			supportedNumArgs,
 		))
 	} else if expectedNumArgs > supportedNumArgs {
@@ -220,7 +201,7 @@ func AssertNextCallIs(tester Tester, r *CallRelay, function Function, expectedAr
 			"too many args in the expected argument list (%d)"+
 				" compared to the number of arguments (%s) supports (%d)",
 			expectedNumArgs,
-			getFuncName(function),
+			GetFuncName(function),
 			supportedNumArgs,
 		))
 	}
@@ -237,7 +218,7 @@ func AssertNextCallIs(tester Tester, r *CallRelay, function Function, expectedAr
 					"but the actual type for that arg for function %s is %s",
 				index,
 				assertedType,
-				getFuncName(function),
+				GetFuncName(function),
 				actualType,
 			))
 		}
@@ -284,10 +265,11 @@ func assertArgsAre(tester Tester, theCall *Call, expectedArgs ...any) {
 	}
 }
 
-func getFuncName(f Function) string {
+func GetFuncName(f Function) string {
 	// docs say to use UnsafePointer explicitly instead of Pointer()
 	// https://pkg.Pgo.dev/reflect@go1.21.1#Value.Pointer
 	name := runtime.FuncForPC(uintptr(reflect.ValueOf(f).UnsafePointer())).Name()
+	// this suffix gets appended sometimes. It's unimportant, as far as I can tell.
 	name = strings.TrimSuffix(name, "-fm")
 
 	return name
@@ -297,7 +279,7 @@ func panicIfNotFunc(evaluate Function, from Function) {
 	kind := reflect.ValueOf(evaluate).Kind()
 	if kind != reflect.Func {
 		panic(fmt.Sprintf("must pass a function as the first argument to %s. received a %s instead.",
-			getFuncName(from),
+			GetFuncName(from),
 			kind.String(),
 		))
 	}
@@ -349,7 +331,7 @@ func (cr *CallRelay) PutCall(function Function, args ...any) *Call {
 			"too few args: the length of the expected argument list (%d)"+
 				" is less than the length of the arguments (%s) supports (%d)",
 			expectedNumArgs,
-			getFuncName(function),
+			GetFuncName(function),
 			supportedNumArgs,
 		))
 	}
@@ -359,7 +341,7 @@ func (cr *CallRelay) PutCall(function Function, args ...any) *Call {
 			"too many args: the length of the expected argument list (%d)"+
 				" is greater than the length of the arguments (%s) supports (%d)",
 			expectedNumArgs,
-			getFuncName(function),
+			GetFuncName(function),
 			supportedNumArgs,
 		))
 	}
@@ -374,7 +356,7 @@ func (cr *CallRelay) PutCall(function Function, args ...any) *Call {
 				"wrong arg type: arg %d was type %s, but func (%s) wants type %s",
 				index,
 				passedArgType,
-				getFuncName(function),
+				GetFuncName(function),
 				expectedArgType,
 			))
 		}
@@ -385,7 +367,7 @@ func (cr *CallRelay) PutCall(function Function, args ...any) *Call {
 
 // Call methods.
 func (c Call) Name() string {
-	return getFuncName(c.function)
+	return GetFuncName(c.function)
 }
 
 func (c Call) Args() []any {
@@ -401,7 +383,7 @@ func (c Call) InjectReturns(returnValues ...any) {
 			"wrong number of returns: the length of the injected return list (%d)"+
 				" does not equal the length of the returns (%s) supports (%d)",
 			injectedNumReturns,
-			getFuncName(c.function),
+			GetFuncName(c.function),
 			supportedNumReturns,
 		))
 	}
@@ -422,7 +404,7 @@ func (c Call) InjectReturns(returnValues ...any) {
 				"wrong return type: return value %d was type %s, but func (%s) returns type %s",
 				index,
 				passedArgType,
-				getFuncName(c.function),
+				GetFuncName(c.function),
 				expectedArgType,
 			))
 		}
@@ -468,7 +450,7 @@ func (c Call) FillReturns(returnPointers ...any) {
 				"wrong return type: return value %d to be filled was type %s, but func (%s) returns type %s",
 				index,
 				returnPointerType,
-				getFuncName(c.function),
+				GetFuncName(c.function),
 				expectedArgType,
 			))
 		}

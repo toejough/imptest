@@ -1,6 +1,7 @@
 package protest_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -16,19 +17,40 @@ func TestParallelCallsPasses(t *testing.T) {
 	// Given inputs
 	returns := func(arg int, deps testDepsParallel) (int, int) {
 		var aResult, bResult int
-		go func() { aResult = deps.ParallelA(arg) }()
-		go func() { bResult = deps.ParallelB(arg) }()
+
+		waitgroup := &sync.WaitGroup{}
+		waitgroup.Add(2)
+
+		go func() {
+			defer waitgroup.Done()
+
+			aResult = deps.ParallelA(arg)
+		}()
+		go func() {
+			defer waitgroup.Done()
+
+			bResult = deps.ParallelB(arg)
+		}()
+
+		waitgroup.Wait()
+
 		return aResult, bResult
 	}
 	tdm := newTestDepsMock(tester)
 
 	// When the func is run
 	tester.Start(returns, 6, tdm)
-	// And unordered calls are queueud
-	tester.QueueUnordered(tdm.ParallelB, 6).InjectReturns(2)
-	tester.QueueUnordered(tdm.ParallelA, 6).InjectReturns(1)
-	// And the queue is asserted
-	tester.AssertUnordered()
+	// Then the parallel calls are made
+	call1 := tester.GetNextCall()
+	if call1.Name() == protest.GetFuncName(tdm.ParallelA) {
+		protest.AssertCallIs(t, call1, tdm.ParallelA, 6)
+		call1.InjectReturns(1)
+		tester.AssertNextCallIs(tdm.ParallelB, 6).InjectReturns(2)
+	} else {
+		protest.AssertCallIs(t, call1, tdm.ParallelB, 6)
+		call1.InjectReturns(2)
+		tester.AssertNextCallIs(tdm.ParallelA, 6).InjectReturns(1)
+	}
 	// And the test completes
 	tester.AssertDoneWithin(time.Second)
 	tester.AssertReturned(1, 2)
