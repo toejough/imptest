@@ -155,7 +155,7 @@ func Test() error {
 		"test",
 		"-timeout=5s",
 		"-coverprofile=coverage.out",
-		"-coverpkg=./api",
+		"-coverpkg=./imptest",
 		"./...",
 	)
 }

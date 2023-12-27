@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	imptest "github.com/toejough/protest/api"
+	"github.com/toejough/protest/imptest"
 )
 
 func TestStartRunsFUTInGoroutine(t *testing.T) {
