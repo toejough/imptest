@@ -136,5 +136,4 @@ func (tdm *testDepsMock) FillNeverCalled() int {
 	return goodR
 }
 
-// TODO: refactor imptest out into separate files
 // TODO: figure out if there's a way to do some property-based testing
