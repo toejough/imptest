@@ -1,11 +1,11 @@
-package protest_test
+package imptest_test
 
 import (
 	"strings"
 	"testing"
 	"time"
 
-	protest "github.com/toejough/protest/api"
+	imptest "github.com/toejough/protest/api"
 )
 
 func TestAssertDoneFailsIfNotDone(t *testing.T) {
@@ -13,7 +13,7 @@ func TestAssertDoneFailsIfNotDone(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
 	wait := func() {
@@ -50,7 +50,7 @@ func TestAssertDonePassesIfDone(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	wait := func() {}
 
@@ -74,7 +74,7 @@ func TestAssertDoneWithQueuedCallFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	wait := func(deps testDepsQueuedCall) {
 		deps.QueuedCall()

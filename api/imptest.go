@@ -1,12 +1,5 @@
-// Package protest provides procedure testing functionality.
-// Why not https://github.com/stretchr/testify/blob/master/README.md#mock-package?
-// You only get to specify simple call/return behavior, with no guarantees about ordering, and you need to unset
-// handlers for repeated calls for the same function.
-// On the other hand, there's https://github.com/stretchr/testify/issues/741.  Is this necessary?
-// maybe this whole suite is pointless?
-// A win over testify mocked: when the there's a test failure, we don't panic.
-// a win over testify.Mocked: we fail if the number of returns doesn't match
-package protest
+// Package imptest provides impure function testing functionality.
+package imptest
 
 import (
 	"errors"
@@ -126,7 +119,6 @@ func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.Relay.Put
 
 func (rt *RelayTester) GetNextCall() *Call {
 	call, err := rt.Relay.Get()
-	// TODO: test for getNextCall after closing the channel
 	if err != nil {
 		rt.T.Fatalf(err.Error())
 		return nil

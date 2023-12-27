@@ -1,4 +1,4 @@
-package protest_test
+package imptest_test
 
 import (
 	"strings"

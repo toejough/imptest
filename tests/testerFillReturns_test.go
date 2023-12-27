@@ -1,10 +1,10 @@
-package protest_test
+package imptest_test
 
 import (
 	"testing"
 	"time"
 
-	protest "github.com/toejough/protest/api"
+	imptest "github.com/toejough/protest/api"
 )
 
 func TestFillReturnWrongTypeFails(t *testing.T) {
@@ -12,7 +12,7 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongType) int {
 		// Then test fails with wrong return type
@@ -45,7 +45,7 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongNumber) int {
 		// Then test fails with wrong return type
@@ -78,7 +78,7 @@ func TestFillNonPointerFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNonPointer) int {
 		// Then test fails with wrong return type
@@ -108,7 +108,7 @@ func TestFillNeverCalledFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNeverCalled) int {
 		return deps.FillNeverCalled()
@@ -136,6 +136,5 @@ func (tdm *testDepsMock) FillNeverCalled() int {
 	return goodR
 }
 
-// TODO: rename to imptest
 // TODO: refactor imptest out into separate files
 // TODO: figure out if there's a way to do some property-based testing

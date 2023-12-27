@@ -1,11 +1,11 @@
-package protest_test
+package imptest_test
 
 import (
 	"strings"
 	"testing"
 	"time"
 
-	protest "github.com/toejough/protest/api"
+	imptest "github.com/toejough/protest/api"
 )
 
 func TestAssertReturnPassesWithCorrectValue(t *testing.T) {
@@ -13,7 +13,7 @@ func TestAssertReturnPassesWithCorrectValue(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -42,7 +42,7 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func() (int, string) {
 		return 5, "five"
@@ -71,7 +71,7 @@ func TestAssertReturnPassesWithNoValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func() {}
 
@@ -98,7 +98,7 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func() (int, string) {
 		return 5, "six"
@@ -120,7 +120,7 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -142,7 +142,7 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -164,7 +164,7 @@ func TestAssertReturnFailsWithWrongValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5

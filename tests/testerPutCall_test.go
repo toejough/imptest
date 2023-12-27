@@ -1,11 +1,11 @@
-package protest_test
+package imptest_test
 
 import (
 	"strings"
 	"testing"
 	"time"
 
-	protest "github.com/toejough/protest/api"
+	imptest "github.com/toejough/protest/api"
 )
 
 func TestPutCallTooFewArgsFails(t *testing.T) {
@@ -13,7 +13,7 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooFew) {
 		// Then the next call fails with too few args
@@ -36,7 +36,7 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooMany) {
 		// Then the next call fails with too many args
@@ -61,7 +61,7 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutWrongTypes) {
 		// Then the next call fails with too many args
@@ -86,7 +86,7 @@ func TestNoPutCallFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
 	returns := func(deps testDepsNoPut) {

@@ -1,11 +1,11 @@
-package protest_test
+package imptest_test
 
 import (
 	"strings"
 	"testing"
 	"time"
 
-	protest "github.com/toejough/protest/api"
+	imptest "github.com/toejough/protest/api"
 )
 
 func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
@@ -13,7 +13,7 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDeps) {
 		deps.Func()
@@ -39,9 +39,9 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 
 type testDeps interface{ Func() }
 
-type testDepsMock struct{ tester *protest.RelayTester }
+type testDepsMock struct{ tester *imptest.RelayTester }
 
-func newTestDepsMock(t *protest.RelayTester) *testDepsMock {
+func newTestDepsMock(t *imptest.RelayTester) *testDepsMock {
 	return &testDepsMock{tester: t}
 }
 
@@ -52,7 +52,7 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsWrongFunc) {
 		deps.WrongFunc()
@@ -91,7 +91,7 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -111,7 +111,7 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -131,7 +131,7 @@ func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -152,7 +152,7 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -191,7 +191,7 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsAfterDone) {}
 	tdm := newTestDepsMock(tester)
@@ -228,7 +228,7 @@ func TestAssertNextCallIsWithNonFunction(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")

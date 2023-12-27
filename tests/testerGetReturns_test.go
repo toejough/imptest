@@ -1,10 +1,10 @@
-package protest_test
+package imptest_test
 
 import (
 	"testing"
 	"time"
 
-	protest "github.com/toejough/protest/api"
+	imptest "github.com/toejough/protest/api"
 )
 
 func TestGetReturnsPasses(t *testing.T) {
@@ -12,7 +12,7 @@ func TestGetReturnsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsGet) int {
 		return deps.Get()

@@ -1,18 +1,18 @@
-package protest_test
+package imptest_test
 
 import (
 	"strings"
 	"testing"
 	"time"
 
-	protest "github.com/toejough/protest/api"
+	imptest "github.com/toejough/protest/api"
 )
 
 func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	tester := protest.NewTester(t)
+	tester := imptest.NewTester(t)
 	// Given inputs
 	lockchan := make(chan struct{})
 	waitchan := make(chan struct{})
@@ -42,7 +42,7 @@ func TestStartFailsCleanlyWithTooFewArgs(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_, _, _ int) {}
@@ -71,7 +71,7 @@ func TestStartFailsCleanlyWithTooManyArgs(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_ int) {}
@@ -100,7 +100,7 @@ func TestStartFailsCleanlyWithWrongArgTypes(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := protest.NewTester(mockedt)
+	tester := imptest.NewTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_ int) {}
