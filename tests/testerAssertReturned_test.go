@@ -171,13 +171,15 @@ func TestAssertReturnFailsWithWrongValues(t *testing.T) {
 	}
 
 	// When the func is run
-	tester.Start(returns)
+	mockedt.Wrap(func() {
+		tester.Start(returns)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
 
-	// And we expect it to return the right value
-	tester.AssertReturned(6)
+		// And we expect it to return the right value
+		tester.AssertReturned(6)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {

@@ -52,16 +52,18 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 
 		// define some cleanup
 		defer func() {
+			// always shutdown afterwards
+			rt.relay.Shutdown()
+		}()
+		defer func() {
 			// catch and handle bad args
 			if r := recover(); r != nil {
 				rt.t.Fatalf("failed to call %s with args (%v): %v", GetFuncName(function), rArgs, r)
 			}
-
-			// always shutdown afterwards
-			rt.relay.Shutdown()
 		}()
 
 		// actually call the function
+		// TODO: make this panic if the args are wrong
 		rt.returns = reflect.ValueOf(function).Call(rArgs)
 	}()
 }
@@ -107,6 +109,7 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 		if returnAsserted == nil && isNillableKind(reflectedFunc.Out(index).Kind()) {
 			continue
 		}
+
 		returnType := reflectedFunc.Out(index)
 		assertedType := reflect.TypeOf(returnAsserted)
 
@@ -202,8 +205,6 @@ func (rt *RelayTester) GetReturns() []reflect.Value { return rt.returns }
 // Tester is the necessary testing interface for use with RelayTester.
 type Tester interface {
 	Helper()
-	// FIXME: this really needs to panic, but the testing mock doesn't, and that causes all kinds of other
-	// awkward logic in this library...
 	Fatalf(message string, args ...any)
 	Failed() bool
 }

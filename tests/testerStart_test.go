@@ -47,10 +47,12 @@ func TestStartFailsCleanlyWithTooFewArgs(t *testing.T) {
 	// Given FUT
 	argFunc := func(_, _, _ int) {}
 
-	// When the func is run with the wrong number of args
-	tester.Start(argFunc)
-	// And we wait for shutdown
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run with the wrong number of args
+		tester.Start(argFunc)
+		// And we wait for shutdown
+		tester.AssertDoneWithin(time.Second)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
@@ -76,14 +78,16 @@ func TestStartFailsCleanlyWithTooManyArgs(t *testing.T) {
 	// Given FUT
 	argFunc := func(_ int) {}
 
-	// When the func is run with the wrong number of args
-	tester.Start(argFunc, 1, 2, 3)
-	// And we wait for shutdown
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run with the wrong number of args
+		tester.Start(argFunc, 1, 2, 3)
+		// And we wait for shutdown
+		tester.AssertDoneWithin(time.Second)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to too few args, but it didn't")
+		t.Fatal("The test should've failed due to too many args, but it didn't")
 	}
 
 	// Then the test has the right error message
@@ -105,10 +109,12 @@ func TestStartFailsCleanlyWithWrongArgTypes(t *testing.T) {
 	// Given FUT
 	argFunc := func(_ int) {}
 
-	// When the func is run with the wrong number of args
-	tester.Start(argFunc, "1")
-	// And we wait for shutdown
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run with the wrong number of args
+		tester.Start(argFunc, "1")
+		// And we wait for shutdown
+		tester.AssertDoneWithin(time.Second)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {

@@ -54,10 +54,12 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertNextCallIs(tdm.FillWrongNumber).InjectReturns(5)
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+		tester.AssertNextCallIs(tdm.FillWrongNumber).InjectReturns(5)
+		tester.AssertDoneWithin(time.Second)
+	})
 }
 
 type testDepsFillWrongNumber interface{ FillWrongNumber() int }
@@ -87,10 +89,12 @@ func TestFillNonPointerFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
+		tester.AssertDoneWithin(time.Second)
+	})
 }
 
 type testDepsFillNonPointer interface{ FillNonPointer() int }

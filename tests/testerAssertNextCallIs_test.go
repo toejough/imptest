@@ -60,12 +60,14 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 	tdm := newTestDepsMock(tester)
 
 	// When the func is run
-	tester.Start(returns, tdm)
-	// and nice cleanup is scheduled
-	defer tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		tester.Start(returns, tdm)
+		// and nice cleanup is scheduled
+		defer tester.AssertDoneWithin(time.Second)
 
-	// Then the next call is to the func
-	tester.AssertNextCallIs(tdm.WrongFunc)
+		// Then the next call is to the func
+		tester.AssertNextCallIs(tdm.WrongFunc)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
@@ -160,12 +162,14 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 	tdm := newTestDepsMock(tester)
 
 	// When the func is run
-	tester.Start(returns, tdm)
-	// and nice cleanup is scheduled
-	defer tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		tester.Start(returns, tdm)
+		// and nice cleanup is scheduled
+		defer tester.AssertDoneWithin(time.Second)
 
-	// Then the next call is to the func
-	tester.AssertNextCallIs(tdm.SomeArgs, 5, "seven")
+		// Then the next call is to the func
+		tester.AssertNextCallIs(tdm.SomeArgs, 5, "seven")
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
@@ -197,12 +201,14 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 	tdm := newTestDepsMock(tester)
 
 	// When the func is run
-	tester.Start(returns, tdm)
-	// and nice cleanup happens
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		tester.Start(returns, tdm)
+		// and nice cleanup happens
+		tester.AssertDoneWithin(time.Second)
 
-	// Then the assertion on the next call fails
-	tester.AssertNextCallIs(tdm.AfterDone)
+		// Then the assertion on the next call fails
+		tester.AssertNextCallIs(tdm.AfterDone)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {

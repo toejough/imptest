@@ -20,14 +20,25 @@ func TestGetReturnsPasses(t *testing.T) {
 	tdm := newTestDepsMock(tester)
 
 	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertNextCallIs(tdm.Get).InjectReturns(5)
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		tester.Start(returns, tdm)
+		tester.AssertNextCallIs(tdm.Get).InjectReturns(5)
+		tester.AssertDoneWithin(time.Second)
+	})
+
 	returnVals := tester.GetReturns()
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 
 	// Then the return vals are as expected
 	if len(returnVals) != 1 {
-		t.Fatalf("The test returned %d returns. Only 1 was expected", len(returnVals))
+		t.Fatalf("The test returned %d returns. 1 was expected", len(returnVals))
 	}
 	// don't care if the type assertion fails. that'll fail the test, too
 	if returnVals[0].Interface().(int) != 5 { //nolint:forcetypeassert
@@ -40,7 +51,7 @@ type testDepsGet interface{ Get() int }
 func (tdm *testDepsMock) Get() int {
 	var r int
 
-	tdm.tester.PutCall(tdm.Inject).FillReturns(&r)
+	tdm.tester.PutCall(tdm.Get).FillReturns(&r)
 
 	return r
 }

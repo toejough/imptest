@@ -29,7 +29,9 @@ func TestAssertDoneFailsIfNotDone(t *testing.T) {
 	// And we wait for it to finish
 	// FIXME: this depends on actual wall time, and for test purposes, we really should
 	// have the timer as an injected dependency
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		tester.AssertDoneWithin(time.Second)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
@@ -82,10 +84,12 @@ func TestAssertDoneWithQueuedCallFails(t *testing.T) {
 	tdm := newTestDepsMock(tester)
 
 	// When the func is run
-	tester.Start(wait, tdm)
+	mockedt.Wrap(func() {
+		tester.Start(wait, tdm)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
+	})
 
 	// Then the test is marked as failed
 	if !mockedt.Failed() {
