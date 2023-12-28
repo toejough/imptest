@@ -1,7 +1,6 @@
 package imptest_test
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -37,7 +36,24 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	}
 }
 
-func TestStartFailsCleanlyWithTooFewArgs(t *testing.T) {
+func TestStartPanicsWithNonFunction(t *testing.T) {
+	t.Parallel()
+
+	// Given testing needs
+	mockedt := newMockedTestingT()
+	tester := imptest.NewTester(mockedt)
+
+	// Given FUT
+	argFunc := 5
+
+	mockedt.Wrap(func() {
+		// When the func is run with something that isn't a function
+		defer expectPanicWith(t, "must pass a function")
+		tester.Start(argFunc)
+	})
+}
+
+func TestStartPanicsWithTooFewArgs(t *testing.T) {
 	t.Parallel()
 
 	// Given testing needs
@@ -49,26 +65,12 @@ func TestStartFailsCleanlyWithTooFewArgs(t *testing.T) {
 
 	mockedt.Wrap(func() {
 		// When the func is run with the wrong number of args
+		defer expectPanicWith(t, "Too few args")
 		tester.Start(argFunc)
-		// And we wait for shutdown
-		tester.AssertDoneWithin(time.Second)
 	})
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to too few args, but it didn't")
-	}
-
-	// Then the test has the right error message
-	if !strings.Contains(mockedt.Failure(), "too few input arguments") {
-		t.Fatalf(
-			"The test should've failed due to too few args, but it didn't. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
 }
 
-func TestStartFailsCleanlyWithTooManyArgs(t *testing.T) {
+func TestStartPanicsWithTooManyArgs(t *testing.T) {
 	t.Parallel()
 
 	// Given testing needs
@@ -80,26 +82,12 @@ func TestStartFailsCleanlyWithTooManyArgs(t *testing.T) {
 
 	mockedt.Wrap(func() {
 		// When the func is run with the wrong number of args
+		defer expectPanicWith(t, "Too many args")
 		tester.Start(argFunc, 1, 2, 3)
-		// And we wait for shutdown
-		tester.AssertDoneWithin(time.Second)
 	})
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to too many args, but it didn't")
-	}
-
-	// Then the test has the right error message
-	if !strings.Contains(mockedt.Failure(), "too many input arguments") {
-		t.Fatalf(
-			"The test should've failed due to too many args, but it didn't. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
 }
 
-func TestStartFailsCleanlyWithWrongArgTypes(t *testing.T) {
+func TestStartPanicsWithWrongArgTypes(t *testing.T) {
 	t.Parallel()
 
 	// Given testing needs
@@ -111,21 +99,7 @@ func TestStartFailsCleanlyWithWrongArgTypes(t *testing.T) {
 
 	mockedt.Wrap(func() {
 		// When the func is run with the wrong number of args
+		defer expectPanicWith(t, "Wrong arg type")
 		tester.Start(argFunc, "1")
-		// And we wait for shutdown
-		tester.AssertDoneWithin(time.Second)
 	})
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal("The test should've failed due to wrong arg type, but it didn't")
-	}
-
-	// Then the test has the right error message
-	if !strings.Contains(mockedt.Failure(), "using string as type int") {
-		t.Fatalf(
-			"The test should've failed due wrong arg type, but it didn't. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
 }

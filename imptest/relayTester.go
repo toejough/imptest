@@ -41,6 +41,12 @@ type RelayTester struct {
 //
 // Start will store the return values from the function.
 func (rt *RelayTester) Start(function Function, args ...any) {
+	// TODO: further wrap these three up and use them at every public surface that a function
+	// and args are passed
+	panicIfNotFunc(function)
+	panicIfWrongNumArgs(function, args)
+	panicIfWrongArgTypes(function, args)
+
 	rt.function = function
 
 	go func() {
@@ -50,20 +56,12 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 			rArgs[i] = reflect.ValueOf(args[i])
 		}
 
-		// define some cleanup
+		// always shutdown afterwards
 		defer func() {
-			// always shutdown afterwards
 			rt.relay.Shutdown()
-		}()
-		defer func() {
-			// catch and handle bad args
-			if r := recover(); r != nil {
-				rt.t.Fatalf("failed to call %s with args (%v): %v", GetFuncName(function), rArgs, r)
-			}
 		}()
 
 		// actually call the function
-		// TODO: make this panic if the args are wrong
 		rt.returns = reflect.ValueOf(function).Call(rArgs)
 	}()
 }

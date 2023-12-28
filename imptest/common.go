@@ -112,3 +112,61 @@ func panicIfNotFunc(evaluate Function) {
 		))
 	}
 }
+
+// panicIfWrongNumArgs panics if the number of args given don't match the number of args
+// the given function takes.
+func panicIfWrongNumArgs(function Function, args []any) {
+	numArgs := len(args)
+
+	reflectedFunc := reflect.TypeOf(function)
+	numFunctionArgs := reflectedFunc.NumIn()
+
+	if numArgs < numFunctionArgs {
+		panic(fmt.Sprintf("Too few args passed. The func (%s) takes %d args,"+
+			" but only %d were passed",
+			GetFuncName(function),
+			numFunctionArgs,
+			numArgs,
+		))
+	} else if numFunctionArgs < numArgs {
+		panic(fmt.Sprintf("Too many args passed. The func (%s) only takes %d values,"+
+			" but %d were passed",
+			GetFuncName(function),
+			numFunctionArgs,
+			numArgs,
+		))
+	}
+}
+
+// panicIfWrongArgTypes panics if the types of args given don't match the types of args
+// the given function takes.
+func panicIfWrongArgTypes(function Function, args []any) {
+	reflectedFunc := reflect.TypeOf(function)
+
+	for index := range args {
+		arg := args[index]
+		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
+		if arg == nil && isNillableKind(reflectedFunc.In(index).Kind()) {
+			continue
+		}
+
+		functionArgType := reflectedFunc.In(index)
+		argType := reflect.TypeOf(arg)
+
+		if functionArgType == argType {
+			return
+		}
+
+		if functionArgType.Kind() == reflect.Interface && argType.Implements(functionArgType) {
+			return
+		}
+
+		panic(fmt.Sprintf("Wrong arg type. The arg at index %d for func (%s) is %s,"+
+			" but a value of type %s was passed",
+			index,
+			GetFuncName(function),
+			getTypeName(functionArgType),
+			getTypeName(argType),
+		))
+	}
+}
