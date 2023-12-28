@@ -14,7 +14,7 @@ import (
 func NewTester(t Tester) *RelayTester {
 	return &RelayTester{
 		t:        t,
-		Relay:    NewCallRelay(),
+		relay:    NewCallRelay(),
 		function: nil,
 		returns:  nil,
 	}
@@ -23,9 +23,8 @@ func NewTester(t Tester) *RelayTester {
 // RelayTester is a convenience wrapper over interacting with the CallRelay and
 // a testing library that generally follows the interface of the standard test.T.
 type RelayTester struct {
-	t Tester
-	// TODO: is Relay unnecessarily public?
-	Relay    *CallRelay
+	t        Tester
+	relay    *CallRelay
 	function Function
 	returns  []reflect.Value
 }
@@ -59,7 +58,7 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 			}
 
 			// always shutdown afterwards
-			rt.Relay.Shutdown()
+			rt.relay.Shutdown()
 		}()
 
 		// actually call the function
@@ -73,7 +72,7 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 	rt.t.Helper()
 
-	if err := rt.Relay.WaitForShutdown(d); err != nil {
+	if err := rt.relay.WaitForShutdown(d); err != nil {
 		rt.t.Fatalf("the relay has not shut down yet: %s", err)
 	}
 }
@@ -136,11 +135,11 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 }
 
 // PutCall puts the function and args onto the underlying CallRelay as a Call.
-func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.Relay.PutCall(f, a...) }
+func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.relay.PutCall(f, a...) }
 
 // GetNextCall gets the next Call from the underlying CallRelay.
 func (rt *RelayTester) GetNextCall() *Call {
-	call, err := rt.Relay.Get()
+	call, err := rt.relay.Get()
 	if err != nil {
 		rt.t.Fatalf(err.Error())
 		return nil
