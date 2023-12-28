@@ -21,7 +21,7 @@ type (
 // NewCall will create a new Call, set up with the given function and args, as well as a return
 // channel for injecting returns into and filling them from.
 func NewCall(f Function, args ...any) *Call {
-	panicIfNotFunc(f, NewCall)
+	panicIfNotFunc(f)
 	return &Call{function: f, args: args, returns: make(chan []any)}
 }
 

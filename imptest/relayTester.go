@@ -158,7 +158,7 @@ func (rt *RelayTester) GetNextCall() *Call {
 // given function and args match that Call. Otherwise, it fails the test.
 func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
 	rt.T.Helper()
-	panicIfNotFunc(function, rt.AssertNextCallIs)
+	panicIfNotFunc(function)
 
 	call := rt.GetNextCall()
 

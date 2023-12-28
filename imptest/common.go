@@ -105,11 +105,10 @@ func GetFuncName(f Function) string {
 // panicIfNotFunc panics if the given object is not a function. It also takes the caller
 // so that it can report where the panic came from.
 // TODO: don't pass the caller.
-func panicIfNotFunc(evaluate Function, from Function) {
+func panicIfNotFunc(evaluate Function) {
 	kind := reflect.ValueOf(evaluate).Kind()
 	if kind != reflect.Func {
-		panic(fmt.Sprintf("must pass a function as the first argument to %s. received a %s instead.",
-			GetFuncName(from),
+		panic(fmt.Sprintf("must pass a function. received a %s instead.",
 			kind.String(),
 		))
 	}
