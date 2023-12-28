@@ -23,7 +23,9 @@ func NewTester(t Tester) *RelayTester {
 // RelayTester is a convenience wrapper over interacting with the CallRelay and
 // a testing library that generally follows the interface of the standard test.T.
 type RelayTester struct {
-	T        Tester
+	// TODO: is T unnecessarily public?
+	T Tester
+	// TODO: is Relay unnecessarily public?
 	Relay    *CallRelay
 	function Function
 	returns  []reflect.Value
@@ -71,15 +73,9 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 // Otherwise it fails the test.
 func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 	rt.T.Helper()
-	AssertRelayShutsDownWithin(rt.T, rt.Relay, d)
-}
 
-// TODO: refactor this back into the tester.
-func AssertRelayShutsDownWithin(t Tester, relay *CallRelay, waitTime time.Duration) {
-	t.Helper()
-
-	if err := relay.WaitForShutdown(waitTime); err != nil {
-		t.Fatalf("the relay has not shut down yet: %s", err)
+	if err := rt.Relay.WaitForShutdown(d); err != nil {
+		rt.T.Fatalf("the relay has not shut down yet: %s", err)
 	}
 }
 
