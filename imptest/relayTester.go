@@ -107,7 +107,6 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 		if returnAsserted == nil && isNillableKind(reflectedFunc.Out(index).Kind()) {
 			continue
 		}
-		// TODO: make a better typename func that goes down to the first nameable thing
 		returnType := reflectedFunc.Out(index)
 		assertedType := reflect.TypeOf(returnAsserted)
 
@@ -116,8 +115,8 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 				" but a value of type %s was asserted",
 				index,
 				GetFuncName(rt.function),
-				returnType.Name(),
-				assertedType.Name(),
+				getTypeName(returnType),
+				getTypeName(assertedType),
 			))
 		}
 
@@ -132,6 +131,16 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 			return
 		}
 	}
+}
+
+// getTypeName gets the type's name, if it has one. If it does not have one, getTypeName
+// will return the type's string.
+func getTypeName(t reflect.Type) string {
+	if t.Name() != "" {
+		return t.Name()
+	}
+
+	return t.String()
 }
 
 // isNillableKind returns true if the kind passed is nillable.
