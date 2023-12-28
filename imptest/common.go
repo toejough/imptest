@@ -104,7 +104,6 @@ func GetFuncName(f Function) string {
 
 // panicIfNotFunc panics if the given object is not a function. It also takes the caller
 // so that it can report where the panic came from.
-// TODO: don't pass the caller.
 func panicIfNotFunc(evaluate Function) {
 	kind := reflect.ValueOf(evaluate).Kind()
 	if kind != reflect.Func {
