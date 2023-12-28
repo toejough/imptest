@@ -13,7 +13,7 @@ import (
 // a new CallRelay properly set up.
 func NewTester(t Tester) *RelayTester {
 	return &RelayTester{
-		T:        t,
+		t:        t,
 		Relay:    NewCallRelay(),
 		function: nil,
 		returns:  nil,
@@ -23,8 +23,7 @@ func NewTester(t Tester) *RelayTester {
 // RelayTester is a convenience wrapper over interacting with the CallRelay and
 // a testing library that generally follows the interface of the standard test.T.
 type RelayTester struct {
-	// TODO: is T unnecessarily public?
-	T Tester
+	t Tester
 	// TODO: is Relay unnecessarily public?
 	Relay    *CallRelay
 	function Function
@@ -56,7 +55,7 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 		defer func() {
 			// catch and handle bad args
 			if r := recover(); r != nil {
-				rt.T.Fatalf("failed to call %s with args (%v): %v", GetFuncName(function), rArgs, r)
+				rt.t.Fatalf("failed to call %s with args (%v): %v", GetFuncName(function), rArgs, r)
 			}
 
 			// always shutdown afterwards
@@ -72,10 +71,10 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 // implying that the function under test was done within the given time.
 // Otherwise it fails the test.
 func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
-	rt.T.Helper()
+	rt.t.Helper()
 
 	if err := rt.Relay.WaitForShutdown(d); err != nil {
-		rt.T.Fatalf("the relay has not shut down yet: %s", err)
+		rt.t.Fatalf("the relay has not shut down yet: %s", err)
 	}
 }
 
@@ -124,7 +123,7 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 		}
 
 		if !reflect.DeepEqual(returned, returnAsserted) {
-			rt.T.Fatalf(
+			rt.t.Fatalf(
 				"The func returned the wrong value for a return: "+
 					"the return value at index %d was expected to be %#v, "+
 					"but it was %#v",
@@ -143,7 +142,7 @@ func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.Relay.Put
 func (rt *RelayTester) GetNextCall() *Call {
 	call, err := rt.Relay.Get()
 	if err != nil {
-		rt.T.Fatalf(err.Error())
+		rt.t.Fatalf(err.Error())
 		return nil
 	}
 
@@ -153,16 +152,16 @@ func (rt *RelayTester) GetNextCall() *Call {
 // AssertNextCallIs gets the next Call from the underlying CallRelay and checks that the
 // given function and args match that Call. Otherwise, it fails the test.
 func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
-	rt.T.Helper()
+	rt.t.Helper()
 	panicIfNotFunc(function)
 
 	call := rt.GetNextCall()
 
-	if rt.T.Failed() {
+	if rt.t.Failed() {
 		return nil
 	}
 
-	return AssertCallIs(rt.T, call, function, args...)
+	return AssertCallIs(rt.t, call, function, args...)
 }
 
 // GetReturns gets the values returned by the function.
