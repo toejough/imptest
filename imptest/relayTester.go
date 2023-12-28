@@ -103,21 +103,22 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 	for index := range assertedReturns {
 		returned := rt.returns[index].Interface()
 		returnAsserted := assertedReturns[index]
+		// TODO: handle all the nillable kinds.
 		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
 		if returnAsserted == nil && reflectedFunc.Out(index).Kind() == reflect.Pointer {
 			continue
 		}
-		// TODO: investigate undefined types. pointers don't seem to have a name.
-		returnType := reflectedFunc.Out(index).Name()
-		assertedType := reflect.TypeOf(returnAsserted).Name()
+		// TODO: make a better typename func that goes down to the first nameable thing
+		returnType := reflectedFunc.Out(index)
+		assertedType := reflect.TypeOf(returnAsserted)
 
 		if returnType != assertedType {
 			panic(fmt.Sprintf("Wrong return type asserted. The return at index %d from func (%s) is %s,"+
 				" but a value of type %s was asserted",
 				index,
 				GetFuncName(rt.function),
-				returnType,
-				assertedType,
+				returnType.Name(),
+				assertedType.Name(),
 			))
 		}
 
