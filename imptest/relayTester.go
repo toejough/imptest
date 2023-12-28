@@ -103,9 +103,8 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 	for index := range assertedReturns {
 		returned := rt.returns[index].Interface()
 		returnAsserted := assertedReturns[index]
-		// TODO: handle all the nillable kinds.
 		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
-		if returnAsserted == nil && reflectedFunc.Out(index).Kind() == reflect.Pointer {
+		if returnAsserted == nil && isNillableKind(reflectedFunc.Out(index).Kind()) {
 			continue
 		}
 		// TODO: make a better typename func that goes down to the first nameable thing
@@ -135,7 +134,31 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 	}
 }
 
-// PutCall puts the function and args onto the underlying CallRelay as a Call.
+// isNillableKind returns true if the kind passed is nillable.
+// According to https://pkg.go.dev/reflect#Value.IsNil, this is the case for
+// chan, func, interface, map, pointer, or slice kinds.
+func isNillableKind(kind reflect.Kind) bool {
+	switch kind {
+	case reflect.Chan, reflect.Func, reflect.Interface,
+		reflect.Map, reflect.Pointer, reflect.Slice:
+		return true
+	case reflect.Invalid, reflect.Bool, reflect.Int,
+		reflect.Int8, reflect.Int16, reflect.Int32,
+		reflect.Int64, reflect.Uint, reflect.Uint8,
+		reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Uintptr, reflect.Float32, reflect.Float64,
+		reflect.Complex64, reflect.Complex128, reflect.Array,
+		reflect.String, reflect.Struct, reflect.UnsafePointer:
+		return false
+	default:
+		// This code is only coverable if go itself introduces a new kind into the reflect package
+		// ...or if we just force a new kind int during whitebox testing?
+		// I'm not worried about writing a test to cover this.
+		panic(fmt.Sprintf("unable to check for nillability for unknown kind %s", kind.String()))
+	}
+}
+
+// PutCallputs the function and args onto the underlying CallRelay as a Call.
 func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.relay.PutCall(f, a...) }
 
 // GetNextCall gets the next Call from the underlying CallRelay.

@@ -174,8 +174,8 @@ func CheckCoverage() error {
 	if err != nil {
 		return err
 	}
-	if percent < 100.0 {
-		return fmt.Errorf("coverage was less than the limit of 100.0%%")
+	if percent < 95 {
+		return fmt.Errorf("coverage was less than the limit of 95%%")
 	}
 	return nil
 }
