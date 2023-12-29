@@ -76,6 +76,11 @@ func (c Call) FillReturns(returnPointers ...any) {
 			continue
 		}
 
+		// USEFUL SNIPPETS FROM JSON.UNMARSHAL
+		// if returnPointerValue.Kind() != reflect.Pointer || returnPointerValue.IsNil() {
+		// 	return &InvalidUnmarshalError{reflect.TypeOf(v)}
+		// }
+		// v.Set(reflect.ValueOf(oi))
 		returnPointerValue.Set(reflect.ValueOf(returnValues[index]))
 	}
 }
