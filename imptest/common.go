@@ -104,23 +104,23 @@ func panicIfWrongNumArgs(function Function, args []any) {
 
 // panicIfWrongNumReturns panics if the number of returns given don't match the number of values
 // the given function returns.
-func panicIfWrongNumReturns(function reflect.Value, returns []any) {
+func panicIfWrongNumReturns(function Function, returns []any) {
 	numReturns := len(returns)
 
-	reflectedFunc := function.Type()
+	reflectedFunc := reflect.TypeOf(function)
 	numFunctionReturns := reflectedFunc.NumOut()
 
 	if numReturns < numFunctionReturns {
 		panic(fmt.Sprintf("Too few returns passed. The func (%s) returns %d values,"+
 			" but only %d were passed",
-			GetFuncName(function.Interface()),
+			GetFuncName(function),
 			numFunctionReturns,
 			numReturns,
 		))
 	} else if numFunctionReturns < numReturns {
 		panic(fmt.Sprintf("Too many returns passed. The func (%s) only returns %d values,"+
 			" but %d were passed",
-			GetFuncName(function.Interface()),
+			GetFuncName(function),
 			numFunctionReturns,
 			numReturns,
 		))
@@ -162,8 +162,8 @@ func panicIfWrongArgTypes(function Function, args []any) {
 
 // panicIfWrongReturnTypes panics if the types of returns given don't match the types of values
 // the given function returns.
-func panicIfWrongReturnTypes(function reflect.Value, returns []any) {
-	reflectedFunc := function.Type()
+func panicIfWrongReturnTypes(function Function, returns []any) {
+	reflectedFunc := reflect.TypeOf(function)
 
 	for index := range returns {
 		ret := returns[index]
@@ -186,7 +186,7 @@ func panicIfWrongReturnTypes(function reflect.Value, returns []any) {
 		panic(fmt.Sprintf("Wrong return type. The return type at index %d for func (%s) is %s,"+
 			" but a value of type %s was passed",
 			index,
-			GetFuncName(function.Interface()),
+			GetFuncName(function),
 			getTypeName(functionReturnType),
 			getTypeName(retType),
 		))
@@ -195,7 +195,7 @@ func panicIfWrongReturnTypes(function reflect.Value, returns []any) {
 
 // panicIfInvalidReturns panics if either the number or type of the given values are mismatched
 // with the return signature of the function.
-func panicIfInvalidReturns(function reflect.Value, assertedReturns []any) {
+func panicIfInvalidReturns(function Function, assertedReturns []any) {
 	panicIfWrongNumReturns(function, assertedReturns)
 	panicIfWrongReturnTypes(function, assertedReturns)
 }

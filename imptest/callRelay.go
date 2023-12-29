@@ -6,7 +6,6 @@ package imptest
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"time"
 )
 
@@ -60,8 +59,8 @@ func (cr *CallRelay) WaitForShutdown(waitTime time.Duration) error {
 }
 
 // putCall puts a function & args onto the relay as a call.
-func (cr *CallRelay) putCall(rf reflect.Value, args ...any) *Call {
-	c := newCall(rf, args...)
+func (cr *CallRelay) putCall(f Function, args ...any) *Call {
+	c := newCall(f, args...)
 	cr.callChan <- c
 
 	return c

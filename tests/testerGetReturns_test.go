@@ -41,8 +41,8 @@ func TestGetReturnsPasses(t *testing.T) {
 		t.Fatalf("The test returned %d returns. 1 was expected", len(returnVals))
 	}
 	// don't care if the type assertion fails. that'll fail the test, too
-	if returnVals[0].Interface().(int) != 5 { //nolint:forcetypeassert
-		t.Fatalf("The test returned %d. expected 5", returnVals[0].Interface().(int)) //nolint:forcetypeassert
+	if returnVals[0].(int) != 5 { //nolint:forcetypeassert
+		t.Fatalf("The test returned %d. expected 5", returnVals[0].(int)) //nolint:forcetypeassert
 	}
 }
 
