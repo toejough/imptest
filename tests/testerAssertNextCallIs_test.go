@@ -104,7 +104,7 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 	tester.Start(returns, tdm)
 
 	// Then the next call fails with too few args
-	defer expectPanicWith(t, "too few args")
+	defer expectPanicWith(t, "Too few args")
 	tester.AssertNextCallIs(tdm.SomeArgs, 5)
 }
 
@@ -124,7 +124,7 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 	tester.Start(returns, tdm)
 
 	// Then the next call fails with too few args
-	defer expectPanicWith(t, "too many args")
+	defer expectPanicWith(t, "Too many args")
 	tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
 }
 
@@ -145,7 +145,7 @@ func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
 	// returns(tdm)
 
 	// Then the next call fails with wrong arg type
-	defer expectPanicWith(t, "Wrong type")
+	defer expectPanicWith(t, "Wrong arg type")
 	tester.AssertNextCallIs(tdm.SomeArgs, 5, 6)
 }
 

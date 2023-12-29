@@ -98,7 +98,7 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 	call := tester.AssertNextCallIs(tdm.Inject)
 
 	// Then test fails with wrong return type
-	defer expectPanicWith(t, "wrong return type")
+	defer expectPanicWith(t, "Wrong return type")
 	call.InjectReturns("five")
 	tester.AssertDoneWithin(time.Second)
 }
@@ -120,7 +120,7 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 	call := tester.AssertNextCallIs(tdm.Inject)
 
 	// Then test fails with wrong number of returns
-	defer expectPanicWith(t, "wrong number of returns")
+	defer expectPanicWith(t, "Too many returns")
 	call.InjectReturns(5, "five")
 	tester.AssertDoneWithin(time.Second)
 }

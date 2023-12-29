@@ -12,22 +12,22 @@ import (
 // Call is the basic type that represents a function call.
 type (
 	Call struct {
-		function Function
-		args     []any
-		returns  chan []any
+		// TODO: consistently make internal reps the reflect.Values?
+		rFunc   reflect.Value
+		args    []any
+		returns chan []any
 	}
 )
 
-// NewCall will create a new Call, set up with the given function and args, as well as a return
+// newCall will create a new Call, set up with the given function and args, as well as a return
 // channel for injecting returns into and filling them from.
-func NewCall(f Function, args ...any) *Call {
-	panicIfNotFunc(f)
-	return &Call{function: f, args: args, returns: make(chan []any)}
+func newCall(rf reflect.Value, args ...any) *Call {
+	return &Call{rFunc: rf, args: args, returns: make(chan []any)}
 }
 
 // Name returns the name of the function.
 func (c Call) Name() string {
-	return GetFuncName(c.function)
+	return GetFuncName(c.rFunc.Interface())
 }
 
 // Args returns the args passed to the function.
@@ -38,40 +38,7 @@ func (c Call) Args() []any {
 // InjectReturns injects return values into the underlying return channel. These are
 // intended to be filled into the functions own internal return values via FillReturns.
 func (c Call) InjectReturns(returnValues ...any) {
-	supportedNumReturns := reflect.TypeOf(c.function).NumOut()
-	injectedNumReturns := len(returnValues)
-
-	if injectedNumReturns != supportedNumReturns {
-		panic(fmt.Sprintf(
-			"wrong number of returns: the length of the injected return list (%d)"+
-				" does not equal the length of the returns (%s) supports (%d)",
-			injectedNumReturns,
-			GetFuncName(c.function),
-			supportedNumReturns,
-		))
-	}
-
-	for index := range returnValues {
-		passedArg := returnValues[index]
-
-		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
-		if passedArg == nil && reflect.TypeOf(c.function).Out(index).Kind() == reflect.Pointer {
-			continue
-		}
-
-		passedArgType := reflect.TypeOf(passedArg).Name()
-		expectedArgType := reflect.TypeOf(c.function).Out(index).Name()
-
-		if passedArgType != expectedArgType {
-			panic(fmt.Sprintf(
-				"wrong return type: return value %d was type %s, but func (%s) returns type %s",
-				index,
-				passedArgType,
-				GetFuncName(c.function),
-				expectedArgType,
-			))
-		}
-	}
+	panicIfInvalidReturns(c.rFunc, returnValues)
 
 	select {
 	case c.returns <- returnValues:
@@ -108,14 +75,14 @@ func (c Call) FillReturns(returnPointers ...any) {
 		}
 
 		returnPointerType := reflect.TypeOf(returnPointerValue.Elem().Interface()).Name()
-		expectedArgType := reflect.TypeOf(c.function).Out(index).Name()
+		expectedArgType := c.rFunc.Type().Out(index).Name()
 
 		if returnPointerType != expectedArgType {
 			panic(fmt.Sprintf(
 				"wrong return type: return value %d to be filled was type %s, but func (%s) returns type %s",
 				index,
 				returnPointerType,
-				GetFuncName(c.function),
+				GetFuncName(c.rFunc.Interface()),
 				expectedArgType,
 			))
 		}

@@ -20,49 +20,12 @@ type Function any
 func AssertCallIs(tester Tester, called *Call, function Function, expectedArgs ...any) *Call {
 	tester.Helper()
 
+	panicIfNotFunc(function)
+	panicIfWrongNumArgs(function, expectedArgs)
+	panicIfWrongArgTypes(function, expectedArgs)
+
 	name := GetFuncName(function)
 	assertCalledNameIs(tester, called, name)
-
-	reflectedFunc := reflect.TypeOf(function)
-	supportedNumArgs := reflectedFunc.NumIn()
-	expectedNumArgs := len(expectedArgs)
-
-	if expectedNumArgs < supportedNumArgs {
-		panic(fmt.Sprintf(
-			"too few args in the expected argument list (%d)"+
-				// I want to keep these error messages independent
-				" compared to the number of arguments (%s) supports (%d)",
-			expectedNumArgs,
-			GetFuncName(function),
-			supportedNumArgs,
-		))
-	} else if expectedNumArgs > supportedNumArgs {
-		panic(fmt.Sprintf(
-			"too many args in the expected argument list (%d)"+
-				" compared to the number of arguments (%s) supports (%d)",
-			expectedNumArgs,
-			GetFuncName(function),
-			supportedNumArgs,
-		))
-	}
-
-	for index := range expectedArgs {
-		argAsserted := expectedArgs[index]
-		assertedType := reflect.TypeOf(argAsserted).Name()
-		actualType := reflectedFunc.In(index).Name()
-
-		if assertedType != actualType {
-			panic(fmt.Sprintf(
-				"Wrong type."+
-					"The type asserted for the arg at index %d is %s,"+
-					"but the actual type for that arg for function %s is %s",
-				index,
-				assertedType,
-				GetFuncName(function),
-				actualType,
-			))
-		}
-	}
 
 	assertArgsAre(tester, called, expectedArgs...)
 
@@ -93,6 +56,7 @@ func assertArgsAre(tester Tester, theCall *Call, expectedArgs ...any) {
 
 // GetFuncName gets the function's name.
 func GetFuncName(f Function) string {
+	panicIfNotFunc(f)
 	// docs say to use UnsafePointer explicitly instead of Pointer()
 	// https://pkg.Pgo.dev/reflect@go1.21.1#Value.Pointer
 	name := runtime.FuncForPC(uintptr(reflect.ValueOf(f).UnsafePointer())).Name()
@@ -138,6 +102,31 @@ func panicIfWrongNumArgs(function Function, args []any) {
 	}
 }
 
+// panicIfWrongNumReturns panics if the number of returns given don't match the number of values
+// the given function returns.
+func panicIfWrongNumReturns(function reflect.Value, returns []any) {
+	numReturns := len(returns)
+
+	reflectedFunc := function.Type()
+	numFunctionReturns := reflectedFunc.NumOut()
+
+	if numReturns < numFunctionReturns {
+		panic(fmt.Sprintf("Too few returns passed. The func (%s) returns %d values,"+
+			" but only %d were passed",
+			GetFuncName(function.Interface()),
+			numFunctionReturns,
+			numReturns,
+		))
+	} else if numFunctionReturns < numReturns {
+		panic(fmt.Sprintf("Too many returns passed. The func (%s) only returns %d values,"+
+			" but %d were passed",
+			GetFuncName(function.Interface()),
+			numFunctionReturns,
+			numReturns,
+		))
+	}
+}
+
 // panicIfWrongArgTypes panics if the types of args given don't match the types of args
 // the given function takes.
 func panicIfWrongArgTypes(function Function, args []any) {
@@ -154,14 +143,14 @@ func panicIfWrongArgTypes(function Function, args []any) {
 		argType := reflect.TypeOf(arg)
 
 		if functionArgType == argType {
-			return
+			continue
 		}
 
 		if functionArgType.Kind() == reflect.Interface && argType.Implements(functionArgType) {
-			return
+			continue
 		}
 
-		panic(fmt.Sprintf("Wrong arg type. The arg at index %d for func (%s) is %s,"+
+		panic(fmt.Sprintf("Wrong arg type. The arg type at index %d for func (%s) is %s,"+
 			" but a value of type %s was passed",
 			index,
 			GetFuncName(function),
@@ -169,4 +158,44 @@ func panicIfWrongArgTypes(function Function, args []any) {
 			getTypeName(argType),
 		))
 	}
+}
+
+// panicIfWrongReturnTypes panics if the types of returns given don't match the types of values
+// the given function returns.
+func panicIfWrongReturnTypes(function reflect.Value, returns []any) {
+	reflectedFunc := function.Type()
+
+	for index := range returns {
+		ret := returns[index]
+		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
+		if ret == nil && isNillableKind(reflectedFunc.Out(index).Kind()) {
+			continue
+		}
+
+		functionReturnType := reflectedFunc.Out(index)
+		retType := reflect.TypeOf(ret)
+
+		if functionReturnType == retType {
+			continue
+		}
+
+		if functionReturnType.Kind() == reflect.Interface && retType.Implements(functionReturnType) {
+			continue
+		}
+
+		panic(fmt.Sprintf("Wrong return type. The return type at index %d for func (%s) is %s,"+
+			" but a value of type %s was passed",
+			index,
+			GetFuncName(function.Interface()),
+			getTypeName(functionReturnType),
+			getTypeName(retType),
+		))
+	}
+}
+
+// panicIfInvalidReturns panics if either the number or type of the given values are mismatched
+// with the return signature of the function.
+func panicIfInvalidReturns(function reflect.Value, assertedReturns []any) {
+	panicIfWrongNumReturns(function, assertedReturns)
+	panicIfWrongReturnTypes(function, assertedReturns)
 }

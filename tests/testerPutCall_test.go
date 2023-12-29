@@ -17,7 +17,7 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 	// Given inputs
 	returns := func(deps testDepsPutTooFew) {
 		// Then the next call fails with too few args
-		defer expectPanicWith(t, "too few args")
+		defer expectPanicWith(t, "Too few args")
 		deps.PutTooFew(5, "six")
 	}
 	tdm := newTestDepsMock(tester)
@@ -40,7 +40,7 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 	// Given inputs
 	returns := func(deps testDepsPutTooMany) {
 		// Then the next call fails with too many args
-		defer expectPanicWith(t, "too many args")
+		defer expectPanicWith(t, "Too many args")
 		deps.PutTooMany(5, "six")
 	}
 	tdm := newTestDepsMock(tester)
@@ -65,7 +65,7 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 	// Given inputs
 	returns := func(deps testDepsPutWrongTypes) {
 		// Then the next call fails with too many args
-		defer expectPanicWith(t, "wrong arg type")
+		defer expectPanicWith(t, "Wrong arg type")
 		deps.PutWrongTypes(5, "six")
 	}
 	tdm := newTestDepsMock(tester)

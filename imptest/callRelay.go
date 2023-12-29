@@ -38,12 +38,6 @@ func (cr *CallRelay) Get() (*Call, error) {
 	}
 }
 
-// Put puts a call onto the relay.
-func (cr *CallRelay) Put(c *Call) *Call {
-	cr.callChan <- c
-	return c
-}
-
 // Shutdown shuts the relay down by closing the internal call channel.
 func (cr *CallRelay) Shutdown() {
 	close(cr.callChan)
@@ -65,48 +59,12 @@ func (cr *CallRelay) WaitForShutdown(waitTime time.Duration) error {
 	}
 }
 
-// PutCall puts a function & args onto the relay as a call.
-func (cr *CallRelay) PutCall(function Function, args ...any) *Call {
-	supportedNumArgs := reflect.TypeOf(function).NumIn()
-	expectedNumArgs := len(args)
+// putCall puts a function & args onto the relay as a call.
+func (cr *CallRelay) putCall(rf reflect.Value, args ...any) *Call {
+	c := newCall(rf, args...)
+	cr.callChan <- c
 
-	if expectedNumArgs < supportedNumArgs {
-		panic(fmt.Sprintf(
-			"too few args: the length of the expected argument list (%d)"+
-				" is less than the length of the arguments (%s) supports (%d)",
-			expectedNumArgs,
-			GetFuncName(function),
-			supportedNumArgs,
-		))
-	}
-
-	if expectedNumArgs > supportedNumArgs {
-		panic(fmt.Sprintf(
-			"too many args: the length of the expected argument list (%d)"+
-				" is greater than the length of the arguments (%s) supports (%d)",
-			expectedNumArgs,
-			GetFuncName(function),
-			supportedNumArgs,
-		))
-	}
-
-	for index := range args {
-		passedArg := args[index]
-		passedArgType := reflect.TypeOf(passedArg).Name()
-		expectedArgType := reflect.TypeOf(function).In(index).Name()
-
-		if passedArgType != expectedArgType {
-			panic(fmt.Sprintf(
-				"wrong arg type: arg %d was type %s, but func (%s) wants type %s",
-				index,
-				passedArgType,
-				GetFuncName(function),
-				expectedArgType,
-			))
-		}
-	}
-
-	return cr.Put(NewCall(function, args...))
+	return c
 }
 
 // Errors.

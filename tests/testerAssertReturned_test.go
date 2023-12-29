@@ -111,7 +111,7 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 
 	// And we assert too few returns
-	defer expectPanicWith(t, "Too few return values asserted")
+	defer expectPanicWith(t, "Too few returns")
 	tester.AssertReturned(5)
 }
 
@@ -133,7 +133,7 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 
 	// And we assert too many returns
-	defer expectPanicWith(t, "Too many return values asserted")
+	defer expectPanicWith(t, "Too many returns")
 	tester.AssertReturned(5, "six")
 }
 
@@ -155,7 +155,7 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 	tester.AssertDoneWithin(time.Second)
 
 	// And we assert the wrong type
-	defer expectPanicWith(t, "Wrong return type asserted")
+	defer expectPanicWith(t, "Wrong return type")
 	tester.AssertReturned("five")
 }
 

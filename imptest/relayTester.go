@@ -13,20 +13,22 @@ import (
 // a new CallRelay properly set up.
 func NewTester(t Tester) *RelayTester {
 	return &RelayTester{
-		t:        t,
-		relay:    NewCallRelay(),
-		function: nil,
-		returns:  nil,
+		t:       t,
+		relay:   NewCallRelay(),
+		rFunc:   reflect.Value{},
+		rArgs:   nil,
+		returns: nil,
 	}
 }
 
 // RelayTester is a convenience wrapper over interacting with the CallRelay and
 // a testing library that generally follows the interface of the standard test.T.
 type RelayTester struct {
-	t        Tester
-	relay    *CallRelay
-	function Function
-	returns  []reflect.Value
+	t       Tester
+	relay   *CallRelay
+	rFunc   reflect.Value
+	rArgs   []reflect.Value
+	returns []reflect.Value
 }
 
 // Start calls the give function with the given args in a goroutine and returns immediately.
@@ -41,29 +43,24 @@ type RelayTester struct {
 //
 // Start will store the return values from the function.
 func (rt *RelayTester) Start(function Function, args ...any) {
-	// TODO: further wrap these three up and use them at every public surface that a function
-	// and args are passed
-	panicIfNotFunc(function)
-	panicIfWrongNumArgs(function, args)
-	panicIfWrongArgTypes(function, args)
-
-	rt.function = function
+	panicIfInvalidCall(function, args)
 
 	go func() {
-		// get args as reflect.Values
-		rArgs := make([]reflect.Value, len(args))
-		for i := range args {
-			rArgs[i] = reflect.ValueOf(args[i])
-		}
+		defer func() { rt.relay.Shutdown() }()
 
-		// always shutdown afterwards
-		defer func() {
-			rt.relay.Shutdown()
-		}()
-
-		// actually call the function
-		rt.returns = reflect.ValueOf(function).Call(rArgs)
+		rt.rFunc = reflect.ValueOf(function)
+		rt.rArgs = reflectValuesOf(args)
+		rt.returns = rt.rFunc.Call(rt.rArgs)
 	}()
+}
+
+func reflectValuesOf(args []any) []reflect.Value {
+	rArgs := make([]reflect.Value, len(args))
+	for i := range args {
+		rArgs[i] = reflect.ValueOf(args[i])
+	}
+
+	return rArgs
 }
 
 // AssertDoneWithin checks that the underlying relay was shut down within the given time,
@@ -79,46 +76,17 @@ func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 
 // AssertReturned checks that the function returned the given values. Otherwise it fails the test.
 func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
-	lenReturnsAsserted := len(assertedReturns)
+	panicIfInvalidReturns(rt.rFunc, assertedReturns)
 
-	reflectedFunc := reflect.TypeOf(rt.function)
-	numFunctionReturns := reflectedFunc.NumOut()
-
-	if numFunctionReturns > lenReturnsAsserted {
-		panic(fmt.Sprintf("Too few return values asserted. The func (%s) returns %d values,"+
-			" but only %d were asserted",
-			GetFuncName(rt.function),
-			numFunctionReturns,
-			lenReturnsAsserted,
-		))
-	} else if numFunctionReturns < lenReturnsAsserted {
-		panic(fmt.Sprintf("Too many return values asserted. The func (%s) only returns %d values,"+
-			" but %d were asserted",
-			GetFuncName(rt.function),
-			numFunctionReturns,
-			lenReturnsAsserted,
-		))
-	}
+	reflectedFunc := rt.rFunc.Type()
 
 	for index := range assertedReturns {
 		returned := rt.returns[index].Interface()
 		returnAsserted := assertedReturns[index]
+		// TODO: need a better equality check, like for functions
 		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
 		if returnAsserted == nil && isNillableKind(reflectedFunc.Out(index).Kind()) {
 			continue
-		}
-
-		returnType := reflectedFunc.Out(index)
-		assertedType := reflect.TypeOf(returnAsserted)
-
-		if returnType != assertedType {
-			panic(fmt.Sprintf("Wrong return type asserted. The return at index %d from func (%s) is %s,"+
-				" but a value of type %s was asserted",
-				index,
-				GetFuncName(rt.function),
-				getTypeName(returnType),
-				getTypeName(assertedType),
-			))
 		}
 
 		if !reflect.DeepEqual(returned, returnAsserted) {
@@ -169,7 +137,12 @@ func isNillableKind(kind reflect.Kind) bool {
 }
 
 // PutCallputs the function and args onto the underlying CallRelay as a Call.
-func (rt *RelayTester) PutCall(f Function, a ...any) *Call { return rt.relay.PutCall(f, a...) }
+func (rt *RelayTester) PutCall(f Function, a ...any) *Call {
+	panicIfInvalidCall(f, a)
+	rf := reflect.ValueOf(f)
+
+	return rt.relay.putCall(rf, a...)
+}
 
 // GetNextCall gets the next Call from the underlying CallRelay.
 func (rt *RelayTester) GetNextCall() *Call {
@@ -185,16 +158,19 @@ func (rt *RelayTester) GetNextCall() *Call {
 // AssertNextCallIs gets the next Call from the underlying CallRelay and checks that the
 // given function and args match that Call. Otherwise, it fails the test.
 func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
-	rt.t.Helper()
-	panicIfNotFunc(function)
+	panicIfInvalidCall(function, args)
 
 	call := rt.GetNextCall()
 
-	if rt.t.Failed() {
-		return nil
-	}
-
 	return AssertCallIs(rt.t, call, function, args...)
+}
+
+// panicIfInvalidCall panics if the passed function is in fact not a function.
+// panicIfInvalidCall panics if the arg num or type is mismatched with the function's signature.
+func panicIfInvalidCall(function Function, args []any) {
+	panicIfNotFunc(function)
+	panicIfWrongNumArgs(function, args)
+	panicIfWrongArgTypes(function, args)
 }
 
 // GetReturns gets the values returned by the function.
