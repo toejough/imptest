@@ -52,48 +52,65 @@ func (c Call) InjectReturns(returnValues ...any) {
 func (c Call) FillReturns(returnPointers ...any) {
 	returnValues := <-c.returns
 
+	panicIfWrongNumReturns(c.function, returnPointers)
+
+	// necessarily in-line to prove to nilaway that the loops are fine
 	if len(returnPointers) != len(returnValues) {
 		panic(fmt.Sprintf(
-			"wrong number of returns: "+
-				"the length of the pointer array to fill with return values (%d) does not match the "+
-				" length of the return value array injected by the test (%d)",
+			"num values to fill (%d) != num values injected (%d)",
 			len(returnPointers),
 			len(returnValues),
 		))
 	}
 
+	panicIfNotAllPointers(returnPointers)
+	panicIfNotEqualTypes(c.function, returnPointers, returnValues)
+
+	// Fill the pointers
 	for index := range returnValues {
-		// USEFUL SNIPPETS FROM JSON.UNMARSHAL
-		// if returnPointerValue.Kind() != reflect.Pointer || returnPointerValue.IsNil() {
-		// 	return &InvalidUnmarshalError{reflect.TypeOf(v)}
-		// }
-		// v.Set(reflect.ValueOf(oi))
-		returnPointerValue := reflect.ValueOf(returnPointers[index])
-		if returnPointerValue.Kind() != reflect.Pointer || returnPointerValue.IsNil() {
-			panic("cannot fill value into non-pointer")
+		returnPointerValue := reflect.ValueOf(returnPointers[index]).Elem()
+
+		// handle untyped nils
+		if isUntypedNil(returnValues[index]) {
+			returnPointerValue.SetZero()
+			continue
 		}
 
-		returnPointerType := reflect.TypeOf(returnPointerValue.Elem().Interface()).Name()
-		expectedArgType := reflect.TypeOf(c.function).Out(index).Name()
+		returnPointerValue.Set(reflect.ValueOf(returnValues[index]))
+	}
+}
+
+// panicIfNotEqualTypes panics of the types in the first argument set aren't the same as those
+// in the second.
+func panicIfNotEqualTypes(function Function, returnPointers []any, returnValues []any) {
+	for index := range returnValues {
+		returnPointerValue := reflect.ValueOf(returnPointers[index]).Elem()
+		returnPointerType := getTypeName(returnPointerValue.Type())
+		expectedArgType := getTypeName(reflect.TypeOf(function).Out(index))
 
 		if returnPointerType != expectedArgType {
 			panic(fmt.Sprintf(
 				"wrong return type: return value %d to be filled was type %s, but func (%s) returns type %s",
 				index,
 				returnPointerType,
-				GetFuncName(c.function),
+				GetFuncName(function),
 				expectedArgType,
 			))
 		}
+	}
+}
 
-		returnedValue := reflect.ValueOf(returnValues[index])
-
-		// handle nils
-		if !returnedValue.IsValid() {
-			returnPointerValue.Elem().SetZero()
-			continue
+// panicIfNotAllPointers panics if all the args aren't pointers.
+func panicIfNotAllPointers(returnPointers []any) {
+	// USEFUL SNIPPETS FROM JSON.UNMARSHAL
+	// if returnPointerValue.Kind() != reflect.Pointer || returnPointerValue.IsNil() {
+	// 	return &InvalidUnmarshalError{reflect.TypeOf(v)}
+	// }
+	// v.Set(reflect.ValueOf(oi))
+	for index := range returnPointers {
+		returnPointerValue := reflect.ValueOf(returnPointers[index])
+		if returnPointerValue.Kind() != reflect.Pointer || returnPointerValue.IsNil() {
+			panic(fmt.Sprintf("cannot fill value into non-pointer at index %d", index))
 		}
-		// Use Elem instead of directly using Set for setting pointers
-		returnPointerValue.Elem().Set(returnedValue)
 	}
 }
