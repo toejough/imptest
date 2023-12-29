@@ -47,10 +47,14 @@ func assertCalledNameIs(t Tester, c *Call, expectedName string) {
 func assertArgsAre(tester Tester, theCall *Call, expectedArgs ...any) {
 	tester.Helper()
 
-	if !reflect.DeepEqual(theCall.Args(), expectedArgs) {
-		tester.Fatalf("wrong values: the function %s was expected to be called with %#v but was called with %#v",
-			theCall.Name(), expectedArgs, theCall.Args(),
-		)
+	actualArgs := theCall.Args()
+
+	for i := range expectedArgs {
+		if !deepEqual(actualArgs[i], expectedArgs[i]) {
+			tester.Fatalf("wrong values: the function %s was expected to be called with %#v at index %d but was called with %#v",
+				theCall.Name(), expectedArgs[i], i, actualArgs[i],
+			)
+		}
 	}
 }
 
@@ -198,4 +202,71 @@ func panicIfWrongReturnTypes(function Function, returns []any) {
 func panicIfInvalidReturns(function Function, assertedReturns []any) {
 	panicIfWrongNumReturns(function, assertedReturns)
 	panicIfWrongReturnTypes(function, assertedReturns)
+}
+
+// deepEqual checks whether two values are deeply equal.
+// deepEqual calls functions equal if their names are equal.
+// For everything else it depends on reflect.DeepEqual.
+func deepEqual(actual, expected any) bool {
+	// handle, for instance, nil == (*int)nil
+	// check out https://groups.google.com/g/golang-nuts/c/rVO7ld8KIXI?pli=1 or
+	// for more. Rob Pike agrees this is weird & gross. "unsatisfactory."
+	if isNil(actual) && isNil(expected) {
+		return true
+	}
+
+	// Special handling for functions. For our purposes, call funcs with the same names equal.
+	if reflect.TypeOf(actual).Kind() == reflect.Func &&
+		reflect.TypeOf(expected).Kind() == reflect.Func &&
+		GetFuncName(actual) == GetFuncName(expected) {
+		return true
+	}
+
+	return reflect.DeepEqual(actual, expected)
+}
+
+// isNil returns whether the value is nil.
+func isNil(value any) bool { return isUntypedNil(value) || isTypedNil(value) }
+
+// isTypedNil returns whether the value is a typed nil.
+func isTypedNil(value any) bool {
+	reflectedValue := reflect.ValueOf(value)
+	return isNillableKind(reflectedValue.Kind()) && reflectedValue.IsNil()
+}
+
+// isUntypedNil returns whether the value is an untyped nil.
+func isUntypedNil(value any) bool { return !reflect.ValueOf(value).IsValid() }
+
+// getTypeName gets the type's name, if it has one. If it does not have one, getTypeName
+// will return the type's string.
+func getTypeName(t reflect.Type) string {
+	if t.Name() != "" {
+		return t.Name()
+	}
+
+	return t.String()
+}
+
+// isNillableKind returns true if the kind passed is nillable.
+// According to https://pkg.go.dev/reflect#Value.IsNil, this is the case for
+// chan, func, interface, map, pointer, or slice kinds.
+func isNillableKind(kind reflect.Kind) bool {
+	switch kind {
+	case reflect.Chan, reflect.Func, reflect.Interface,
+		reflect.Map, reflect.Pointer, reflect.Slice:
+		return true
+	case reflect.Invalid, reflect.Bool, reflect.Int,
+		reflect.Int8, reflect.Int16, reflect.Int32,
+		reflect.Int64, reflect.Uint, reflect.Uint8,
+		reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Uintptr, reflect.Float32, reflect.Float64,
+		reflect.Complex64, reflect.Complex128, reflect.Array,
+		reflect.String, reflect.Struct, reflect.UnsafePointer:
+		return false
+	default:
+		// This code is only coverable if go itself introduces a new kind into the reflect package
+		// ...or if we just force a new kind int during whitebox testing?
+		// I'm not worried about writing a test to cover this.
+		panic(fmt.Sprintf("unable to check for nillability for unknown kind %s", kind.String()))
+	}
 }

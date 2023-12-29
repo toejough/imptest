@@ -56,12 +56,13 @@ func TestInjectReturnNilPasses(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertNextCallIs(tdm.InjectNil).InjectReturns(nil)
-	tester.AssertDoneWithin(time.Second)
-	tester.AssertReturned(nil)
-
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+		tester.AssertNextCallIs(tdm.InjectNil).InjectReturns(nil)
+		tester.AssertDoneWithin(time.Second)
+		tester.AssertReturned(nil)
+	})
 	// Then the test passed
 	if mockedt.Failed() {
 		t.Fatalf(

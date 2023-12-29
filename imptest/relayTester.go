@@ -4,7 +4,6 @@ package imptest
 // This file provides RelayTester.
 
 import (
-	"fmt"
 	"reflect"
 	"time"
 )
@@ -104,18 +103,11 @@ func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 	panicIfInvalidReturns(rt.function, assertedReturns)
 
-	reflectedFunc := reflect.TypeOf(rt.function)
-
 	for index := range assertedReturns {
 		returned := rt.returnValues[index]
 		returnAsserted := assertedReturns[index]
-		// TODO: need a better equality check, like for functions
-		// if the func type is a pointer and the passed Arg is nil, that's ok, too.
-		if returnAsserted == nil && isNillableKind(reflectedFunc.Out(index).Kind()) {
-			continue
-		}
 
-		if !reflect.DeepEqual(returned, returnAsserted) {
+		if !deepEqual(returned, returnAsserted) {
 			rt.t.Fatalf(
 				"The func returned the wrong value for a return: "+
 					"the return value at index %d was expected to be %#v, "+
@@ -125,40 +117,6 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 
 			return
 		}
-	}
-}
-
-// getTypeName gets the type's name, if it has one. If it does not have one, getTypeName
-// will return the type's string.
-func getTypeName(t reflect.Type) string {
-	if t.Name() != "" {
-		return t.Name()
-	}
-
-	return t.String()
-}
-
-// isNillableKind returns true if the kind passed is nillable.
-// According to https://pkg.go.dev/reflect#Value.IsNil, this is the case for
-// chan, func, interface, map, pointer, or slice kinds.
-func isNillableKind(kind reflect.Kind) bool {
-	switch kind {
-	case reflect.Chan, reflect.Func, reflect.Interface,
-		reflect.Map, reflect.Pointer, reflect.Slice:
-		return true
-	case reflect.Invalid, reflect.Bool, reflect.Int,
-		reflect.Int8, reflect.Int16, reflect.Int32,
-		reflect.Int64, reflect.Uint, reflect.Uint8,
-		reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Uintptr, reflect.Float32, reflect.Float64,
-		reflect.Complex64, reflect.Complex128, reflect.Array,
-		reflect.String, reflect.Struct, reflect.UnsafePointer:
-		return false
-	default:
-		// This code is only coverable if go itself introduces a new kind into the reflect package
-		// ...or if we just force a new kind int during whitebox testing?
-		// I'm not worried about writing a test to cover this.
-		panic(fmt.Sprintf("unable to check for nillability for unknown kind %s", kind.String()))
 	}
 }
 

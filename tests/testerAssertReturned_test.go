@@ -44,19 +44,21 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 	mockedt := newMockedTestingT()
 	tester := imptest.NewTester(mockedt)
 	// Given inputs
-	returns := func() (int, string) {
-		return 5, "five"
+	// I know the last thing is always nil (unparam)
+	returns := func() (int, string, any, any, []int) { //nolint:unparam
+		return 5, "five", tester.Start, newMockedTestingT, nil
 	}
 
-	// When the func is run
-	tester.Start(returns)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
 
-	// And we expect it to return the right value
-	tester.AssertReturned(5, "five")
-
+		// And we expect it to return the right value
+		tester.AssertReturned(5, "five", tester.Start, newMockedTestingT, nil)
+	})
 	// Then the test is marked as passed
 	if mockedt.Failed() {
 		t.Fatalf(
