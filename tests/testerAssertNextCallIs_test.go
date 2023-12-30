@@ -20,13 +20,16 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	// and nice cleanup is scheduled
-	defer tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
 
-	// Then the next call is to the func
-	tester.AssertNextCallIs(tdm.Func)
+		// Then the next call is to the func
+		tester.AssertNextCallIs(tdm.Func)
+
+		// and we wait for the test to complete
+		tester.AssertDoneWithin(time.Second)
+	})
 
 	// Then the test is marked as passed
 	if mockedt.Failed() {
@@ -59,14 +62,15 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
 	mockedt.Wrap(func() {
+		// When the func is run
 		tester.Start(returns, tdm)
-		// and nice cleanup is scheduled
-		defer tester.AssertDoneWithin(time.Second)
 
 		// Then the next call is to the func
 		tester.AssertNextCallIs(tdm.WrongFunc)
+
+		// And we wait for the test to complete
+		tester.AssertDoneWithin(time.Second)
 	})
 
 	// Then the test is marked as failed
@@ -100,12 +104,14 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
 
-	// Then the next call fails with too few args
-	defer expectPanicWith(t, "Too few args")
-	tester.AssertNextCallIs(tdm.SomeArgs, 5)
+		// Then the next call fails with too few args
+		defer expectPanicWith(t, "Too few args")
+		tester.AssertNextCallIs(tdm.SomeArgs, 5)
+	})
 }
 
 func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
@@ -120,12 +126,14 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
 
-	// Then the next call fails with too few args
-	defer expectPanicWith(t, "Too many args")
-	tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
+		// Then the next call fails with too few args
+		defer expectPanicWith(t, "Too many args")
+		tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
+	})
 }
 
 func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
@@ -140,13 +148,15 @@ func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	// returns(tdm)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+		// returns(tdm)
 
-	// Then the next call fails with wrong arg type
-	defer expectPanicWith(t, "Wrong arg type")
-	tester.AssertNextCallIs(tdm.SomeArgs, 5, 6)
+		// Then the next call fails with wrong arg type
+		defer expectPanicWith(t, "Wrong arg type")
+		tester.AssertNextCallIs(tdm.SomeArgs, 5, 6)
+	})
 }
 
 func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
@@ -164,11 +174,12 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 	// When the func is run
 	mockedt.Wrap(func() {
 		tester.Start(returns, tdm)
-		// and nice cleanup is scheduled
-		defer tester.AssertDoneWithin(time.Second)
 
 		// Then the next call is to the func
 		tester.AssertNextCallIs(tdm.SomeArgs, 5, "seven")
+
+		// and we wait for the test to complete
+		tester.AssertDoneWithin(time.Second)
 	})
 
 	// Then the test is marked as failed
@@ -208,6 +219,9 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 
 		// Then the assertion on the next call fails
 		tester.AssertNextCallIs(tdm.AfterDone)
+
+		// and we wait for the test to complete
+		tester.AssertDoneWithin(time.Second)
 	})
 
 	// Then the test is marked as failed
@@ -241,11 +255,13 @@ func TestAssertNextCallIsWithNonFunction(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	// returns(tdm)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+		// returns(tdm)
 
-	// Then the next call fails with wrong arg type
-	defer expectPanicWith(t, "must pass a function")
-	tester.AssertNextCallIs("SomeArgs", 5, 6)
+		// Then the next call fails with wrong arg type
+		defer expectPanicWith(t, "must pass a function")
+		tester.AssertNextCallIs("SomeArgs", 5, 6)
+	})
 }

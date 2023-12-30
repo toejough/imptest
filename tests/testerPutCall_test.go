@@ -1,7 +1,6 @@
 package imptest_test
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -22,9 +21,13 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+
+		// and the func is done
+		tester.AssertDoneWithin(time.Second)
+	})
 }
 
 type testDepsPutTooFew interface{ PutTooFew(i int, s string) }
@@ -45,9 +48,11 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run and completes
+		tester.Start(returns, tdm)
+		tester.AssertDoneWithin(time.Second)
+	})
 }
 
 type testDepsPutTooMany interface{ PutTooMany(i int, s string) }
@@ -70,9 +75,11 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run and completes
+		tester.Start(returns, tdm)
+		tester.AssertDoneWithin(time.Second)
+	})
 }
 
 type testDepsPutWrongTypes interface{ PutWrongTypes(i int, s string) }
@@ -98,28 +105,16 @@ func TestNoPutCallFails(t *testing.T) {
 	// release the lock at the end of the test
 	defer close(lockchan)
 
-	// When the func is run
-	tester.Start(returns, tdm)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
 
-	// Then the assert next call fails waiting for that call
-	defer expectPanicWith(t, "waiting for a call")
-	// FIXME: this depends on actual wall time, and for test purposes, we really should
-	// have the timer as an injected dependency
-	tester.AssertNextCallIs(tdm.NoPut)
-
-	// Then the test is marked as failed
-	if !mockedt.Failed() {
-		t.Fatal(
-			"The test should've failed with relay already shut down. Instead the test passed!",
-		)
-	}
-	// Then the error calls out wrong value
-	if !strings.Contains(mockedt.Failure(), "already shut down") {
-		t.Fatalf(
-			"The test should've failed with relay already shut down. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
+		// Then the assert next call fails waiting for that call
+		defer expectPanicWith(t, "waiting for a call")
+		// FIXME: this depends on actual wall time, and for test purposes, we really should
+		// have the timer as an injected dependency
+		tester.AssertNextCallIs(tdm.NoPut)
+	})
 }
 
 type testDepsNoPut interface{ NoPut() }

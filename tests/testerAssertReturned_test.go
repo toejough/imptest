@@ -19,14 +19,16 @@ func TestAssertReturnPassesWithCorrectValue(t *testing.T) {
 		return 5
 	}
 
-	// When the func is run
-	tester.Start(returns)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
 
-	// And we expect it to return the right value
-	tester.AssertReturned(5)
+		// And we expect it to return the right value
+		tester.AssertReturned(5)
+	})
 
 	// Then the test is marked as passed
 	if mockedt.Failed() {
@@ -59,6 +61,7 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 		// And we expect it to return the right value
 		tester.AssertReturned(5, "five", tester.Start, newMockedTestingT, nil)
 	})
+
 	// Then the test is marked as passed
 	if mockedt.Failed() {
 		t.Fatalf(
@@ -77,14 +80,16 @@ func TestAssertReturnPassesWithNoValues(t *testing.T) {
 	// Given inputs
 	returns := func() {}
 
-	// When the func is run
-	tester.Start(returns)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
 
-	// And we expect it to return no value
-	tester.AssertReturned()
+		// And we expect it to return no value
+		tester.AssertReturned()
+	})
 
 	// Then the test is marked as passed
 	if mockedt.Failed() {
@@ -106,15 +111,17 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 		return 5, "six"
 	}
 
-	// When the func is run
-	tester.Start(returns)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
 
-	// And we assert too few returns
-	defer expectPanicWith(t, "Too few returns")
-	tester.AssertReturned(5)
+		// And we assert too few returns
+		defer expectPanicWith(t, "Too few returns")
+		tester.AssertReturned(5)
+	})
 }
 
 func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
@@ -128,15 +135,17 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 		return 5
 	}
 
-	// When the func is run
-	tester.Start(returns)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
 
-	// And we assert too many returns
-	defer expectPanicWith(t, "Too many returns")
-	tester.AssertReturned(5, "six")
+		// And we assert too many returns
+		defer expectPanicWith(t, "Too many returns")
+		tester.AssertReturned(5, "six")
+	})
 }
 
 func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
@@ -150,15 +159,17 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 		return 5
 	}
 
-	// When the func is run
-	tester.Start(returns)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
 
-	// And we assert the wrong type
-	defer expectPanicWith(t, "Wrong return type")
-	tester.AssertReturned("five")
+		// And we assert the wrong type
+		defer expectPanicWith(t, "Wrong return type")
+		tester.AssertReturned("five")
+	})
 }
 
 func TestAssertReturnFailsWithWrongValues(t *testing.T) {

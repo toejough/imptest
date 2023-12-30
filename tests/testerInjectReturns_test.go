@@ -13,17 +13,26 @@ func TestInjectReturnPasses(t *testing.T) {
 	// Given test needs
 	mockedt := newMockedTestingT()
 	tester := imptest.NewTester(mockedt)
+
 	// Given inputs
 	returns := func(deps testDepsInject) int {
 		return deps.Inject()
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertNextCallIs(tdm.Inject).InjectReturns(5)
-	tester.AssertDoneWithin(time.Second)
-	tester.AssertReturned(5)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+
+		// and a good return is injected
+		tester.AssertNextCallIs(tdm.Inject).InjectReturns(5)
+
+		// and we wait for done
+		tester.AssertDoneWithin(time.Second)
+
+		// Then we get a good return from the FUT
+		tester.AssertReturned(5)
+	})
 
 	// Then the test passed
 	if mockedt.Failed() {
@@ -50,6 +59,7 @@ func TestInjectReturnNilPasses(t *testing.T) {
 	// Given test needs
 	mockedt := newMockedTestingT()
 	tester := imptest.NewTester(mockedt)
+
 	// Given inputs
 	returns := func(deps testDepsInjectNil) *int {
 		return deps.InjectNil()
@@ -59,10 +69,17 @@ func TestInjectReturnNilPasses(t *testing.T) {
 	mockedt.Wrap(func() {
 		// When the func is run
 		tester.Start(returns, tdm)
+
+		// and a nil is injected
 		tester.AssertNextCallIs(tdm.InjectNil).InjectReturns(nil)
+
+		// and we wait for the function to return
 		tester.AssertDoneWithin(time.Second)
+
+		// then a nil is returned
 		tester.AssertReturned(nil)
 	})
+
 	// Then the test passed
 	if mockedt.Failed() {
 		t.Fatalf(
@@ -94,14 +111,17 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	call := tester.AssertNextCallIs(tdm.Inject)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
 
-	// Then test fails with wrong return type
-	defer expectPanicWith(t, "Wrong return type")
-	call.InjectReturns("five")
-	tester.AssertDoneWithin(time.Second)
+		// and the call is returned
+		call := tester.AssertNextCallIs(tdm.Inject)
+
+		// Then test fails with wrong return type
+		defer expectPanicWith(t, "Wrong return type")
+		call.InjectReturns("five")
+	})
 }
 
 func TestInjectReturnWrongNumberFails(t *testing.T) {
@@ -116,12 +136,15 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	call := tester.AssertNextCallIs(tdm.Inject)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
 
-	// Then test fails with wrong number of returns
-	defer expectPanicWith(t, "Too many returns")
-	call.InjectReturns(5, "five")
-	tester.AssertDoneWithin(time.Second)
+		// and the next call is returned
+		call := tester.AssertNextCallIs(tdm.Inject)
+
+		// Then test fails with wrong number of returns
+		defer expectPanicWith(t, "Too many returns")
+		call.InjectReturns(5, "five")
+	})
 }

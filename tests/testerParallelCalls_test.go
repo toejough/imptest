@@ -38,22 +38,26 @@ func TestParallelCallsPasses(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, 6, tdm)
-	// Then the parallel calls are made
-	call1 := tester.GetNextCall()
-	if call1.Name() == imptest.GetFuncName(tdm.ParallelA) {
-		imptest.AssertCallIs(t, call1, tdm.ParallelA, 6)
-		call1.InjectReturns(1)
-		tester.AssertNextCallIs(tdm.ParallelB, 6).InjectReturns(2)
-	} else {
-		imptest.AssertCallIs(t, call1, tdm.ParallelB, 6)
-		call1.InjectReturns(2)
-		tester.AssertNextCallIs(tdm.ParallelA, 6).InjectReturns(1)
-	}
-	// And the test completes
-	tester.AssertDoneWithin(time.Second)
-	tester.AssertReturned(1, 2)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, 6, tdm)
+
+		// And the parallel calls are made
+		call1 := tester.GetNextCall()
+		if call1.Name() == imptest.GetFuncName(tdm.ParallelA) {
+			imptest.AssertCallIs(t, call1, tdm.ParallelA, 6)
+			call1.InjectReturns(1)
+			tester.AssertNextCallIs(tdm.ParallelB, 6).InjectReturns(2)
+		} else {
+			imptest.AssertCallIs(t, call1, tdm.ParallelB, 6)
+			call1.InjectReturns(2)
+			tester.AssertNextCallIs(tdm.ParallelA, 6).InjectReturns(1)
+		}
+
+		// And the test completes
+		tester.AssertDoneWithin(time.Second)
+		tester.AssertReturned(1, 2)
+	})
 
 	// Then the test passed
 	if mockedt.Failed() {

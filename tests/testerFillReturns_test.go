@@ -21,10 +21,16 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
-	tester.AssertDoneWithin(time.Second)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+
+		// and a good return is injected
+		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
+
+		// and we wait for the test to complete
+		tester.AssertDoneWithin(time.Second)
+	})
 }
 
 type testDepsFillWrongType interface{ FillWrongType() int }
@@ -57,7 +63,11 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 	mockedt.Wrap(func() {
 		// When the func is run
 		tester.Start(returns, tdm)
+
+		// And a good return is injected
 		tester.AssertNextCallIs(tdm.FillWrongNumber).InjectReturns(5)
+
+		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
 	})
 }
@@ -92,7 +102,11 @@ func TestFillNonPointerFails(t *testing.T) {
 	mockedt.Wrap(func() {
 		// When the func is run
 		tester.Start(returns, tdm)
+
+		// and a good return is injected
 		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
+
+		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
 	})
 }
@@ -119,15 +133,15 @@ func TestFillNeverCalledFails(t *testing.T) {
 	}
 	tdm := newTestDepsMock(tester)
 
-	// When the func is run
-	tester.Start(returns, tdm)
-	call := tester.AssertNextCallIs(tdm.FillNeverCalled)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+		call := tester.AssertNextCallIs(tdm.FillNeverCalled)
 
-	// Then test fails with fill never called
-	defer expectPanicWith(t, "fill was not called")
-	call.InjectReturns(5)
-
-	tester.AssertDoneWithin(time.Second)
+		// Then test fails with fill never called
+		defer expectPanicWith(t, "fill was not called")
+		call.InjectReturns(5)
+	})
 }
 
 type testDepsFillNeverCalled interface{ FillNeverCalled() int }

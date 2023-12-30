@@ -23,13 +23,13 @@ func TestAssertDoneFailsIfNotDone(t *testing.T) {
 	// release the lock at the end of the test
 	defer close(lockchan)
 
-	// When the func is run
-	tester.Start(wait)
-
-	// And we wait for it to finish
 	// FIXME: this depends on actual wall time, and for test purposes, we really should
 	// have the timer as an injected dependency
 	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(wait)
+
+		// And we wait for it to finish
 		tester.AssertDoneWithin(time.Second)
 	})
 
@@ -56,11 +56,13 @@ func TestAssertDonePassesIfDone(t *testing.T) {
 	// Given inputs
 	wait := func() {}
 
-	// When the func is run
-	tester.Start(wait)
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(wait)
 
-	// And we wait for it to finish
-	tester.AssertDoneWithin(time.Second)
+		// And we wait for it to finish
+		tester.AssertDoneWithin(time.Second)
+	})
 
 	// Then the test is marked as failed
 	if mockedt.Failed() {

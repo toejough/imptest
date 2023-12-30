@@ -18,15 +18,21 @@ func TestGetReturnsPasses(t *testing.T) {
 		return deps.Get()
 	}
 	tdm := newTestDepsMock(tester)
+	returnVals := []any{}
 
-	// When the func is run
 	mockedt.Wrap(func() {
+		// When the func is run
 		tester.Start(returns, tdm)
-		tester.AssertNextCallIs(tdm.Get).InjectReturns(5)
-		tester.AssertDoneWithin(time.Second)
-	})
 
-	returnVals := tester.GetReturns()
+		// and a good return value is injected
+		tester.AssertNextCallIs(tdm.Get).InjectReturns(5)
+
+		// and we wait for the function to be done
+		tester.AssertDoneWithin(time.Second)
+
+		// and we get the returns
+		returnVals = tester.GetReturns()
+	})
 
 	// Then the test is marked as passed
 	if mockedt.Failed() {
