@@ -12,7 +12,7 @@ func TestInjectReturnPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 
 	// Given inputs
 	returns := func(deps testDepsInject) int {
@@ -58,7 +58,7 @@ func TestInjectReturnNilPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 
 	// Given inputs
 	returns := func(deps testDepsInjectNil) *int {
@@ -104,7 +104,7 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsInject) int {
 		return deps.Inject()
@@ -129,7 +129,7 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsInject) int {
 		return deps.Inject()

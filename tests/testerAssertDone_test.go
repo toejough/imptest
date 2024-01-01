@@ -13,7 +13,7 @@ func TestAssertDoneFailsIfNotDone(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
 	wait := func() {
@@ -23,8 +23,6 @@ func TestAssertDoneFailsIfNotDone(t *testing.T) {
 	// release the lock at the end of the test
 	defer close(lockchan)
 
-	// FIXME: this depends on actual wall time, and for test purposes, we really should
-	// have the timer as an injected dependency
 	mockedt.Wrap(func() {
 		// When the func is run
 		tester.Start(wait)
@@ -52,7 +50,7 @@ func TestAssertDonePassesIfDone(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	wait := func() {}
 
@@ -78,7 +76,7 @@ func TestAssertDoneWithQueuedCallFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	wait := func(deps testDepsQueuedCall) {
 		deps.QueuedCall()

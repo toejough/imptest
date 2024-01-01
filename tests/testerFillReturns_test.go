@@ -12,7 +12,7 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongType) int {
 		// Then test fails with wrong return type
@@ -51,7 +51,7 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongNumber) int {
 		// Then test fails with wrong return type
@@ -90,7 +90,7 @@ func TestFillNonPointerFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNonPointer) int {
 		// Then test fails with wrong return type
@@ -126,7 +126,7 @@ func TestFillNeverCalledFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNeverCalled) int {
 		return deps.FillNeverCalled()

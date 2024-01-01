@@ -14,14 +14,41 @@ import (
 type (
 	CallRelay struct {
 		callChan chan *Call
+		deps     CallRelayDeps
+	}
+	CallRelayDeps interface {
+		After(duration time.Duration) <-chan time.Time
 	}
 )
 
 // NewCallRelay creates and returns a pointer to a new CallRelay, with the underlying
 // channel set up properly.
-func NewCallRelay() *CallRelay {
-	return &CallRelay{callChan: make(chan *Call)}
+func NewCallRelay(deps CallRelayDeps) *CallRelay {
+	return &CallRelay{
+		callChan: make(chan *Call),
+		deps:     deps,
+	}
 }
+
+// NewDefaultCallRelay creates and returns a pointer to a new CallRelay, with a new
+// DefaultCallRelayDeps.
+func NewDefaultCallRelay() *CallRelay {
+	return &CallRelay{
+		callChan: make(chan *Call),
+		deps:     NewDefaultCallRelayDeps(),
+	}
+}
+
+// NewDefaultCallRelayDeps creates and returns a pointer to a new NewDefaultCallRelayDeps.
+func NewDefaultCallRelayDeps() *DefaultCallRelayDeps { return &DefaultCallRelayDeps{} }
+
+// DefaultCallRelayDeps is the default implementation of CallRelayDeps, which uses the
+// standard lib time.After to supply the After method.
+type DefaultCallRelayDeps struct{}
+
+// After takes a duration and returns a channel which returns the time elapsed once the duration
+// has been met or exceeded.
+func (deps *DefaultCallRelayDeps) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
 // Get gets a call from the relay.
 func (cr *CallRelay) Get() (*Call, error) {
@@ -32,6 +59,8 @@ func (cr *CallRelay) Get() (*Call, error) {
 		}
 
 		return c, nil
+		// TODO: use the deps after
+		// TODO: pass duration in. rename to "GetWithin"
 	case <-time.After(time.Second):
 		panic("testing timeout waiting for a call")
 	}
@@ -53,7 +82,7 @@ func (cr *CallRelay) WaitForShutdown(waitTime time.Duration) error {
 		}
 
 		return fmt.Errorf("had a call queued: %v: %w", thisCall, errCallRelayNotShutDown)
-	case <-time.After(waitTime):
+	case <-cr.deps.After(waitTime):
 		return errCallRelayShutdownTimeout
 	}
 }

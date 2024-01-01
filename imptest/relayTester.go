@@ -8,12 +8,24 @@ import (
 	"time"
 )
 
-// NewTester provides a pointer to a new RelayTester with the given test object set and
-// a new CallRelay properly set up.
-func NewTester(t Tester) *RelayTester {
+// NewTester provides a pointer to a new RelayTester with the given test object and CallRelay
+// TODO: rename to NewRelayTester.
+func NewTester(t Tester, r *CallRelay) *RelayTester {
 	return &RelayTester{
 		t:            t,
-		relay:        NewCallRelay(),
+		relay:        r,
+		function:     nil,
+		args:         nil,
+		returnValues: nil,
+	}
+}
+
+// NewDefaultTester creates and returns a pointer to a new RelayTester with a
+// new default CallRelay set up.
+func NewDefaultTester(t Tester) *RelayTester {
+	return &RelayTester{
+		t:            t,
+		relay:        NewDefaultCallRelay(),
 		function:     nil,
 		args:         nil,
 		returnValues: nil,
@@ -22,13 +34,15 @@ func NewTester(t Tester) *RelayTester {
 
 // RelayTester is a convenience wrapper over interacting with the CallRelay and
 // a testing library that generally follows the interface of the standard test.T.
-type RelayTester struct {
-	t            Tester
-	relay        *CallRelay
-	function     Function
-	args         []any
-	returnValues []any
-}
+type (
+	RelayTester struct {
+		t            Tester
+		relay        *CallRelay
+		function     Function
+		args         []any
+		returnValues []any
+	}
+)
 
 // Start calls the give function with the given args in a goroutine and returns immediately.
 // The intent is to start the function running and then return control flow to the calling

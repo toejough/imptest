@@ -12,7 +12,7 @@ func TestGetReturnsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsGet) int {
 		return deps.Get()

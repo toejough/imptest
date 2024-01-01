@@ -12,7 +12,7 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooFew) {
 		// Then the next call fails with too few args
@@ -39,7 +39,7 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooMany) {
 		// Then the next call fails with too many args
@@ -66,7 +66,7 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutWrongTypes) {
 		// Then the next call fails with too many args
@@ -93,7 +93,7 @@ func TestNoPutCallFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
 	returns := func(deps testDepsNoPut) {

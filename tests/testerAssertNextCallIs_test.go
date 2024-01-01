@@ -13,7 +13,7 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDeps) {
 		deps.Func()
@@ -55,7 +55,7 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsWrongFunc) {
 		deps.WrongFunc()
@@ -97,7 +97,7 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -119,7 +119,7 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -141,7 +141,7 @@ func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -164,7 +164,7 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -206,7 +206,7 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsAfterDone) {}
 	tdm := newTestDepsMock(tester)
@@ -248,7 +248,7 @@ func TestAssertNextCallIsWithNonFunction(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")

@@ -13,7 +13,7 @@ func TestAssertReturnPassesWithCorrectValue(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -44,7 +44,7 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	// I know the last thing is always nil (unparam)
 	returns := func() (int, string, any, any, []int) { //nolint:unparam
@@ -76,7 +76,7 @@ func TestAssertReturnPassesWithNoValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func() {}
 
@@ -105,7 +105,7 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func() (int, string) {
 		return 5, "six"
@@ -129,7 +129,7 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -153,7 +153,7 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -177,7 +177,7 @@ func TestAssertReturnFailsWithWrongValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewTester(mockedt)
+	tester := imptest.NewDefaultTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
