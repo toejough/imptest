@@ -13,7 +13,7 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDeps) {
 		deps.Func()
@@ -25,7 +25,7 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// Then the next call is to the func
-		tester.AssertNextCallIs(tdm.Func)
+		tester.AssertNextCallWithin(time.Second, tdm.Func)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -55,7 +55,7 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsWrongFunc) {
 		deps.WrongFunc()
@@ -67,7 +67,7 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// Then the next call is to the func
-		tester.AssertNextCallIs(tdm.WrongFunc)
+		tester.AssertNextCallWithin(time.Second, tdm.WrongFunc)
 
 		// And we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -97,7 +97,7 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -110,7 +110,7 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 
 		// Then the next call fails with too few args
 		defer expectPanicWith(t, "Too few args")
-		tester.AssertNextCallIs(tdm.SomeArgs, 5)
+		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5)
 	})
 }
 
@@ -119,7 +119,7 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -132,7 +132,7 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 
 		// Then the next call fails with too few args
 		defer expectPanicWith(t, "Too many args")
-		tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
+		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5, "six", 0x7)
 	})
 }
 
@@ -141,7 +141,7 @@ func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -155,7 +155,7 @@ func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
 
 		// Then the next call fails with wrong arg type
 		defer expectPanicWith(t, "Wrong arg type")
-		tester.AssertNextCallIs(tdm.SomeArgs, 5, 6)
+		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5, 6)
 	})
 }
 
@@ -164,7 +164,7 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -176,7 +176,7 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// Then the next call is to the func
-		tester.AssertNextCallIs(tdm.SomeArgs, 5, "seven")
+		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5, "seven")
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -206,7 +206,7 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsAfterDone) {}
 	tdm := newTestDepsMock(tester)
@@ -218,7 +218,7 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 		tester.AssertDoneWithin(time.Second)
 
 		// Then the assertion on the next call fails
-		tester.AssertNextCallIs(tdm.AfterDone)
+		tester.AssertNextCallWithin(time.Second, tdm.AfterDone)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -248,7 +248,7 @@ func TestAssertNextCallIsWithNonFunction(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsSomeArgs) {
 		deps.SomeArgs(5, "six")
@@ -262,6 +262,6 @@ func TestAssertNextCallIsWithNonFunction(t *testing.T) {
 
 		// Then the next call fails with wrong arg type
 		defer expectPanicWith(t, "must pass a function")
-		tester.AssertNextCallIs("SomeArgs", 5, 6)
+		tester.AssertNextCallWithin(time.Second, "SomeArgs", 5, 6)
 	})
 }

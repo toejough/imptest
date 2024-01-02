@@ -8,9 +8,8 @@ import (
 	"time"
 )
 
-// NewTester provides a pointer to a new RelayTester with the given test object and CallRelay
-// TODO: rename to NewRelayTester.
-func NewTester(t Tester, r *CallRelay) *RelayTester {
+// NewRelayTester provides a pointer to a new RelayTester with the given test object and CallRelay.
+func NewRelayTester(t Tester, r *CallRelay) *RelayTester {
 	return &RelayTester{
 		t:            t,
 		relay:        r,
@@ -20,9 +19,9 @@ func NewTester(t Tester, r *CallRelay) *RelayTester {
 	}
 }
 
-// NewDefaultTester creates and returns a pointer to a new RelayTester with a
+// NewDefaultRelayTester creates and returns a pointer to a new RelayTester with a
 // new default CallRelay set up.
-func NewDefaultTester(t Tester) *RelayTester {
+func NewDefaultRelayTester(t Tester) *RelayTester {
 	return &RelayTester{
 		t:            t,
 		relay:        NewDefaultCallRelay(),
@@ -141,9 +140,9 @@ func (rt *RelayTester) PutCall(f Function, a ...any) *Call {
 	return rt.relay.putCall(f, a...)
 }
 
-// GetNextCall gets the next Call from the underlying CallRelay.
-func (rt *RelayTester) GetNextCall() *Call {
-	call, err := rt.relay.Get()
+// GetNextCallWithin gets the next Call from the underlying CallRelay.
+func (rt *RelayTester) GetNextCallWithin(d time.Duration) *Call {
+	call, err := rt.relay.GetWithin(d)
 	if err != nil {
 		rt.t.Fatalf(err.Error())
 		return nil
@@ -152,12 +151,12 @@ func (rt *RelayTester) GetNextCall() *Call {
 	return call
 }
 
-// AssertNextCallIs gets the next Call from the underlying CallRelay and checks that the
+// AssertNextCallWithin gets the next Call from the underlying CallRelay and checks that the
 // given function and args match that Call. Otherwise, it fails the test.
-func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
+func (rt *RelayTester) AssertNextCallWithin(d time.Duration, function Function, args ...any) *Call {
 	panicIfInvalidCall(function, args)
 
-	call := rt.GetNextCall()
+	call := rt.GetNextCallWithin(d)
 
 	return AssertCallIs(rt.t, call, function, args...)
 }

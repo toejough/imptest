@@ -13,7 +13,7 @@ func TestAssertDoneFailsIfNotDone(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
 	wait := func() {
@@ -50,7 +50,7 @@ func TestAssertDonePassesIfDone(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	wait := func() {}
 
@@ -76,7 +76,7 @@ func TestAssertDoneWithQueuedCallFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	wait := func(deps testDepsQueuedCall) {
 		deps.QueuedCall()

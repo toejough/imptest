@@ -50,8 +50,8 @@ type DefaultCallRelayDeps struct{}
 // has been met or exceeded.
 func (deps *DefaultCallRelayDeps) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
-// Get gets a call from the relay.
-func (cr *CallRelay) Get() (*Call, error) {
+// GetWithin gets a call from the relay.
+func (cr *CallRelay) GetWithin(duration time.Duration) (*Call, error) {
 	select {
 	case c, ok := <-cr.callChan:
 		if !ok {
@@ -59,9 +59,7 @@ func (cr *CallRelay) Get() (*Call, error) {
 		}
 
 		return c, nil
-		// TODO: use the deps after
-		// TODO: pass duration in. rename to "GetWithin"
-	case <-time.After(time.Second):
+	case <-cr.deps.After(duration):
 		panic("testing timeout waiting for a call")
 	}
 }

@@ -13,7 +13,7 @@ func TestParallelCallsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(arg int, deps testDepsParallel) (int, int) {
 		var aResult, bResult int
@@ -43,15 +43,15 @@ func TestParallelCallsPasses(t *testing.T) {
 		tester.Start(returns, 6, tdm)
 
 		// And the parallel calls are made
-		call1 := tester.GetNextCall()
+		call1 := tester.GetNextCallWithin(time.Second)
 		if call1.Name() == imptest.GetFuncName(tdm.ParallelA) {
 			imptest.AssertCallIs(t, call1, tdm.ParallelA, 6)
 			call1.InjectReturns(1)
-			tester.AssertNextCallIs(tdm.ParallelB, 6).InjectReturns(2)
+			tester.AssertNextCallWithin(time.Second, tdm.ParallelB, 6).InjectReturns(2)
 		} else {
 			imptest.AssertCallIs(t, call1, tdm.ParallelB, 6)
 			call1.InjectReturns(2)
-			tester.AssertNextCallIs(tdm.ParallelA, 6).InjectReturns(1)
+			tester.AssertNextCallWithin(time.Second, tdm.ParallelA, 6).InjectReturns(1)
 		}
 
 		// And the test completes

@@ -12,7 +12,7 @@ func TestInjectReturnPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 
 	// Given inputs
 	returns := func(deps testDepsInject) int {
@@ -25,7 +25,7 @@ func TestInjectReturnPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallIs(tdm.Inject).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.Inject).InjectReturns(5)
 
 		// and we wait for done
 		tester.AssertDoneWithin(time.Second)
@@ -58,7 +58,7 @@ func TestInjectReturnNilPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 
 	// Given inputs
 	returns := func(deps testDepsInjectNil) *int {
@@ -71,7 +71,7 @@ func TestInjectReturnNilPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a nil is injected
-		tester.AssertNextCallIs(tdm.InjectNil).InjectReturns(nil)
+		tester.AssertNextCallWithin(time.Second, tdm.InjectNil).InjectReturns(nil)
 
 		// and we wait for the function to return
 		tester.AssertDoneWithin(time.Second)
@@ -104,7 +104,7 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsInject) int {
 		return deps.Inject()
@@ -116,7 +116,7 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and the call is returned
-		call := tester.AssertNextCallIs(tdm.Inject)
+		call := tester.AssertNextCallWithin(time.Second, tdm.Inject)
 
 		// Then test fails with wrong return type
 		defer expectPanicWith(t, "Wrong return type")
@@ -129,7 +129,7 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsInject) int {
 		return deps.Inject()
@@ -141,7 +141,7 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and the next call is returned
-		call := tester.AssertNextCallIs(tdm.Inject)
+		call := tester.AssertNextCallWithin(time.Second, tdm.Inject)
 
 		// Then test fails with wrong number of returns
 		defer expectPanicWith(t, "Too many returns")

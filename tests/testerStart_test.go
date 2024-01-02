@@ -11,7 +11,7 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	tester := imptest.NewDefaultTester(t)
+	tester := imptest.NewDefaultRelayTester(t)
 	// Given inputs
 	lockchan := make(chan struct{})
 	waitchan := make(chan struct{})
@@ -41,7 +41,7 @@ func TestStartPanicsWithNonFunction(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := 5
@@ -58,7 +58,7 @@ func TestStartPanicsWithTooFewArgs(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_, _, _ int) {}
@@ -75,7 +75,7 @@ func TestStartPanicsWithTooManyArgs(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_ int) {}
@@ -92,7 +92,7 @@ func TestStartPanicsWithWrongArgTypes(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_ int) {}

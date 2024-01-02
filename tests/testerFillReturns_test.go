@@ -12,7 +12,7 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongType) int {
 		// Then test fails with wrong return type
@@ -26,7 +26,7 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturns(5)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -51,7 +51,7 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongNumber) int {
 		// Then test fails with wrong return type
@@ -65,7 +65,7 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// And a good return is injected
-		tester.AssertNextCallIs(tdm.FillWrongNumber).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.FillWrongNumber).InjectReturns(5)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -90,7 +90,7 @@ func TestFillNonPointerFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNonPointer) int {
 		// Then test fails with wrong return type
@@ -104,7 +104,7 @@ func TestFillNonPointerFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturns(5)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -126,7 +126,7 @@ func TestFillNeverCalledFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNeverCalled) int {
 		return deps.FillNeverCalled()
@@ -136,7 +136,7 @@ func TestFillNeverCalledFails(t *testing.T) {
 	mockedt.Wrap(func() {
 		// When the func is run
 		tester.Start(returns, tdm)
-		call := tester.AssertNextCallIs(tdm.FillNeverCalled)
+		call := tester.AssertNextCallWithin(time.Second, tdm.FillNeverCalled)
 
 		// Then test fails with fill never called
 		defer expectPanicWith(t, "fill was not called")

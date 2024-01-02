@@ -12,7 +12,7 @@ func TestGetReturnsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsGet) int {
 		return deps.Get()
@@ -25,7 +25,7 @@ func TestGetReturnsPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return value is injected
-		tester.AssertNextCallIs(tdm.Get).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.Get).InjectReturns(5)
 
 		// and we wait for the function to be done
 		tester.AssertDoneWithin(time.Second)

@@ -12,7 +12,7 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooFew) {
 		// Then the next call fails with too few args
@@ -39,7 +39,7 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooMany) {
 		// Then the next call fails with too many args
@@ -66,7 +66,7 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutWrongTypes) {
 		// Then the next call fails with too many args
@@ -93,7 +93,7 @@ func TestNoPutCallFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultTester(mockedt)
+	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
 	returns := func(deps testDepsNoPut) {
@@ -111,9 +111,7 @@ func TestNoPutCallFails(t *testing.T) {
 
 		// Then the assert next call fails waiting for that call
 		defer expectPanicWith(t, "waiting for a call")
-		// FIXME: this depends on actual wall time, and for test purposes, we really should
-		// have the timer as an injected dependency
-		tester.AssertNextCallIs(tdm.NoPut)
+		tester.AssertNextCallWithin(time.Second, tdm.NoPut)
 	})
 }
 
