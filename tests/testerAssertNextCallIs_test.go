@@ -176,6 +176,10 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// Then the next call is to the func
+		// TODO: add calls to allow:
+		// * tester.AssertNextCallIs
+		// * tester.AssertDone
+		// * call.InjectReturns
 		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5, "seven")
 
 		// and we wait for the test to complete

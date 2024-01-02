@@ -42,6 +42,7 @@ func (c Call) InjectReturns(returnValues ...any) {
 	select {
 	case c.returns <- returnValues:
 		return
+		// TODO: pass this duration in
 	case <-time.After(1 * time.Second):
 		panic("fill was not called: timed out waiting for " + c.Name() + " to read the injected return values")
 	}
