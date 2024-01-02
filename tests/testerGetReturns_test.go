@@ -25,7 +25,7 @@ func TestGetReturnsPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return value is injected
-		tester.AssertNextCallWithin(time.Second, tdm.Get).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.Get).InjectReturnsWithin(time.Second, 5)
 
 		// and we wait for the function to be done
 		tester.AssertDoneWithin(time.Second)

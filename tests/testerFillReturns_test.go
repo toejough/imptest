@@ -26,7 +26,7 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturnsWithin(time.Second, 5)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -65,7 +65,7 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// And a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.FillWrongNumber).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.FillWrongNumber).InjectReturnsWithin(time.Second, 5)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -104,7 +104,7 @@ func TestFillNonPointerFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturnsWithin(time.Second, 5)
 
 		// and we wait for the test to complete
 		tester.AssertDoneWithin(time.Second)
@@ -140,7 +140,7 @@ func TestFillNeverCalledFails(t *testing.T) {
 
 		// Then test fails with fill never called
 		defer expectPanicWith(t, "fill was not called")
-		call.InjectReturns(5)
+		call.InjectReturnsWithin(time.Second, 5)
 	})
 }
 

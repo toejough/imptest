@@ -34,16 +34,17 @@ func (c Call) Args() []any {
 	return c.args
 }
 
-// InjectReturns injects return values into the underlying return channel. These are
+// InjectReturnsWithin injects return values into the underlying return channel. These are
 // intended to be filled into the functions own internal return values via FillReturns.
-func (c Call) InjectReturns(returnValues ...any) {
+// InjectReturnsWithin panics if the injected values are not consumed by FillReturns
+// within the given duration.
+func (c Call) InjectReturnsWithin(duration time.Duration, returnValues ...any) {
 	panicIfInvalidReturns(c.function, returnValues)
 
 	select {
 	case c.returns <- returnValues:
 		return
-		// TODO: pass this duration in
-	case <-time.After(1 * time.Second):
+	case <-time.After(duration):
 		panic("fill was not called: timed out waiting for " + c.Name() + " to read the injected return values")
 	}
 }

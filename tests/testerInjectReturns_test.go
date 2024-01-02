@@ -25,7 +25,7 @@ func TestInjectReturnPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.Inject).InjectReturns(5)
+		tester.AssertNextCallWithin(time.Second, tdm.Inject).InjectReturnsWithin(time.Second, 5)
 
 		// and we wait for done
 		tester.AssertDoneWithin(time.Second)
@@ -71,7 +71,7 @@ func TestInjectReturnNilPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a nil is injected
-		tester.AssertNextCallWithin(time.Second, tdm.InjectNil).InjectReturns(nil)
+		tester.AssertNextCallWithin(time.Second, tdm.InjectNil).InjectReturnsWithin(time.Second, nil)
 
 		// and we wait for the function to return
 		tester.AssertDoneWithin(time.Second)
@@ -120,7 +120,7 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 
 		// Then test fails with wrong return type
 		defer expectPanicWith(t, "Wrong return type")
-		call.InjectReturns("five")
+		call.InjectReturnsWithin(time.Second, "five")
 	})
 }
 
@@ -145,6 +145,6 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 
 		// Then test fails with wrong number of returns
 		defer expectPanicWith(t, "Too many returns")
-		call.InjectReturns(5, "five")
+		call.InjectReturnsWithin(time.Second, 5, "five")
 	})
 }
