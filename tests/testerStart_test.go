@@ -11,7 +11,7 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	tester := imptest.NewDefaultRelayTester(t)
+	tester := imptest.NewRelayTester(t)
 	// Given inputs
 	lockchan := make(chan struct{})
 	waitchan := make(chan struct{})
@@ -41,16 +41,24 @@ func TestStartPanicsWithNonFunction(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := 5
 
 	mockedt.Wrap(func() {
 		// When the func is run with something that isn't a function
-		defer expectPanicWith(t, "must pass a function")
+		defer expectPanicWith(mockedt, "must pass a function")
 		tester.Start(argFunc)
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func TestStartPanicsWithTooFewArgs(t *testing.T) {
@@ -58,16 +66,24 @@ func TestStartPanicsWithTooFewArgs(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_, _, _ int) {}
 
 	mockedt.Wrap(func() {
 		// When the func is run with the wrong number of args
-		defer expectPanicWith(t, "Too few args")
+		defer expectPanicWith(mockedt, "Too few args")
 		tester.Start(argFunc)
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func TestStartPanicsWithTooManyArgs(t *testing.T) {
@@ -75,16 +91,24 @@ func TestStartPanicsWithTooManyArgs(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_ int) {}
 
 	mockedt.Wrap(func() {
 		// When the func is run with the wrong number of args
-		defer expectPanicWith(t, "Too many args")
+		defer expectPanicWith(mockedt, "Too many args")
 		tester.Start(argFunc, 1, 2, 3)
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func TestStartPanicsWithWrongArgTypes(t *testing.T) {
@@ -92,14 +116,22 @@ func TestStartPanicsWithWrongArgTypes(t *testing.T) {
 
 	// Given testing needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 
 	// Given FUT
 	argFunc := func(_ int) {}
 
 	mockedt.Wrap(func() {
 		// When the func is run with the wrong number of args
-		defer expectPanicWith(t, "Wrong arg type")
+		defer expectPanicWith(mockedt, "Wrong arg type")
 		tester.Start(argFunc, "1")
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }

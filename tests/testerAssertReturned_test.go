@@ -12,7 +12,7 @@ func TestAssertReturnPassesWithCorrectValue(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -43,7 +43,7 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	// I know the last thing is always nil (unparam)
 	returns := func() (int, string, any, any, []int) { //nolint:unparam
@@ -75,7 +75,7 @@ func TestAssertReturnPassesWithNoValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func() {}
 
@@ -104,7 +104,7 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func() (int, string) {
 		return 5, "six"
@@ -118,9 +118,17 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 		tester.AssertFinishes()
 
 		// And we assert too few returns
-		defer expectPanicWith(t, "Too few returns")
+		defer expectPanicWith(mockedt, "Too few returns")
 		tester.AssertReturned(5)
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
@@ -128,7 +136,7 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -142,9 +150,17 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 		tester.AssertFinishes()
 
 		// And we assert too many returns
-		defer expectPanicWith(t, "Too many returns")
+		defer expectPanicWith(mockedt, "Too many returns")
 		tester.AssertReturned(5, "six")
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
@@ -152,7 +168,7 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5
@@ -166,9 +182,17 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 		tester.AssertFinishes()
 
 		// And we assert the wrong type
-		defer expectPanicWith(t, "Wrong return type")
+		defer expectPanicWith(mockedt, "Wrong return type")
 		tester.AssertReturned("five")
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func TestAssertReturnFailsWithWrongValues(t *testing.T) {
@@ -176,7 +200,7 @@ func TestAssertReturnFailsWithWrongValues(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func() int {
 		return 5

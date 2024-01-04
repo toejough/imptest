@@ -11,7 +11,7 @@ func TestGetReturnsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsGet) int {
 		return deps.Get()

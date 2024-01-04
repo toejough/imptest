@@ -12,7 +12,7 @@ func TestParallelCallsPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsParallel, arg int) (int, int) {
 		var aResult, bResult int

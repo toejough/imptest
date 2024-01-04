@@ -11,11 +11,11 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooFew) {
 		// Then the next call fails with too few args
-		defer expectPanicWith(t, "Too few args")
+		defer expectPanicWith(mockedt, "Too few args")
 		deps.PutTooFew(5, "six")
 	}
 	tdm := newTestDepsMock(tester)
@@ -27,6 +27,14 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 		// and the func is done
 		tester.AssertFinishes()
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsPutTooFew interface{ PutTooFew(i int, s string) }
@@ -38,11 +46,11 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutTooMany) {
 		// Then the next call fails with too many args
-		defer expectPanicWith(t, "Too many args")
+		defer expectPanicWith(mockedt, "Too many args")
 		deps.PutTooMany(5, "six")
 	}
 	tdm := newTestDepsMock(tester)
@@ -52,6 +60,14 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 		tester.Start(returns, tdm)
 		tester.AssertFinishes()
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsPutTooMany interface{ PutTooMany(i int, s string) }
@@ -65,11 +81,11 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsPutWrongTypes) {
 		// Then the next call fails with too many args
-		defer expectPanicWith(t, "Wrong arg type")
+		defer expectPanicWith(mockedt, "Wrong arg type")
 		deps.PutWrongTypes(5, "six")
 	}
 	tdm := newTestDepsMock(tester)
@@ -79,6 +95,14 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 		tester.Start(returns, tdm)
 		tester.AssertFinishes()
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsPutWrongTypes interface{ PutWrongTypes(i int, s string) }
@@ -92,7 +116,7 @@ func TestNoPutCallFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	lockchan := make(chan struct{})
 	returns := func(deps testDepsNoPut) {
@@ -109,9 +133,17 @@ func TestNoPutCallFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// Then the assert next call fails waiting for that call
-		defer expectPanicWith(t, "waiting for a call")
+		defer expectPanicWith(mockedt, "waiting for a call")
 		tester.AssertNextCallIs(tdm.NoPut)
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsNoPut interface{ NoPut() }

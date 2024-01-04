@@ -11,7 +11,7 @@ func TestInjectReturnPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 
 	// Given inputs
 	returns := func(deps testDepsInject) int {
@@ -57,7 +57,7 @@ func TestInjectReturnNilPasses(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 
 	// Given inputs
 	returns := func(deps testDepsInjectNil) *int {
@@ -103,7 +103,7 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsInject) int {
 		return deps.Inject()
@@ -118,9 +118,17 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 		call := tester.AssertNextCallIs(tdm.Inject)
 
 		// Then test fails with wrong return type
-		defer expectPanicWith(t, "Wrong return type")
+		defer expectPanicWith(mockedt, "Wrong return type")
 		call.InjectReturns("five")
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func TestInjectReturnWrongNumberFails(t *testing.T) {
@@ -128,7 +136,7 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsInject) int {
 		return deps.Inject()
@@ -143,7 +151,15 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 		call := tester.AssertNextCallIs(tdm.Inject)
 
 		// Then test fails with wrong number of returns
-		defer expectPanicWith(t, "Too many returns")
+		defer expectPanicWith(mockedt, "Too many returns")
 		call.InjectReturns(5, "five")
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }

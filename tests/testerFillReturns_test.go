@@ -11,11 +11,11 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongType) int {
 		// Then test fails with wrong return type
-		defer expectPanicWith(t, "wrong return type")
+		defer expectPanicWith(mockedt, "wrong return type")
 		return deps.FillWrongType()
 	}
 	tdm := newTestDepsMock(tester)
@@ -30,6 +30,14 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 		// and we wait for the test to complete
 		tester.AssertFinishes()
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsFillWrongType interface{ FillWrongType() int }
@@ -50,11 +58,11 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillWrongNumber) int {
 		// Then test fails with wrong return type
-		defer expectPanicWith(t, "wrong number of returns")
+		defer expectPanicWith(mockedt, "Too many returns")
 		return deps.FillWrongNumber()
 	}
 	tdm := newTestDepsMock(tester)
@@ -69,6 +77,14 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 		// and we wait for the test to complete
 		tester.AssertFinishes()
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsFillWrongNumber interface{ FillWrongNumber() int }
@@ -79,7 +95,7 @@ func (tdm *testDepsMock) FillWrongNumber() int {
 		badR  string
 	)
 
-	tdm.tester.PutCall(tdm.FillWrongType).FillReturns(&goodR, &badR)
+	tdm.tester.PutCall(tdm.FillWrongNumber).FillReturns(&goodR, &badR)
 
 	return goodR
 }
@@ -89,11 +105,11 @@ func TestFillNonPointerFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNonPointer) int {
 		// Then test fails with wrong return type
-		defer expectPanicWith(t, "cannot fill value into non-pointer")
+		defer expectPanicWith(mockedt, "cannot fill value into non-pointer")
 		return deps.FillNonPointer()
 	}
 	tdm := newTestDepsMock(tester)
@@ -103,11 +119,19 @@ func TestFillNonPointerFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
+		tester.AssertNextCallIs(tdm.FillNonPointer).InjectReturns(5)
 
 		// and we wait for the test to complete
 		tester.AssertFinishes()
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsFillNonPointer interface{ FillNonPointer() int }
@@ -125,7 +149,7 @@ func TestFillNeverCalledFails(t *testing.T) {
 
 	// Given test needs
 	mockedt := newMockedTestingT()
-	tester := imptest.NewDefaultRelayTester(mockedt)
+	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
 	returns := func(deps testDepsFillNeverCalled) int {
 		return deps.FillNeverCalled()
@@ -138,9 +162,17 @@ func TestFillNeverCalledFails(t *testing.T) {
 		call := tester.AssertNextCallIs(tdm.FillNeverCalled)
 
 		// Then test fails with fill never called
-		defer expectPanicWith(t, "fill was not called")
+		defer expectPanicWith(mockedt, "fill was not called")
 		call.InjectReturns(5)
 	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 type testDepsFillNeverCalled interface{ FillNeverCalled() int }

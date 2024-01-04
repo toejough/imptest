@@ -8,9 +8,8 @@ import (
 	"time"
 )
 
-// NewRelayTester provides a pointer to a new RelayTester with the given test object and CallRelay.
-// TODO: rename this to NewRelayTesterCustom.
-func NewRelayTester(t Tester, r *CallRelay, d time.Duration) *RelayTester {
+// NewRelayTesterCustom provides a pointer to a new RelayTester with the given test object and CallRelay.
+func NewRelayTesterCustom(t Tester, r *CallRelay, d time.Duration) *RelayTester {
 	return &RelayTester{
 		t:              t,
 		relay:          r,
@@ -21,12 +20,10 @@ func NewRelayTester(t Tester, r *CallRelay, d time.Duration) *RelayTester {
 	}
 }
 
-// NewDefaultRelayTester creates and returns a pointer to a new RelayTester with a
+// NewRelayTester creates and returns a pointer to a new RelayTester with a
 // new default CallRelay set up.
-// TODO: rename this to NewRelayTester.
-// TODO: same for newDfaultCallrElay.
-func NewDefaultRelayTester(t Tester) *RelayTester {
-	return NewRelayTester(t, NewCallRelay(&defaultCallRelayDeps{}, time.Second), time.Second)
+func NewRelayTester(t Tester) *RelayTester {
+	return NewRelayTesterCustom(t, NewCallRelay(&defaultCallRelayDeps{}, time.Second), time.Second)
 }
 
 // defaultCallRelayDeps is the default implementation of CallRelayDeps, which uses the
@@ -176,7 +173,7 @@ func (rt *RelayTester) GetNextCall() *Call {
 // GetNextCallWithin gets the next Call from the underlying CallRelay.
 // GetNextCallWithin fails the test if the call was not available within the given timeout.
 func (rt *RelayTester) GetNextCallWithin(d time.Duration) *Call {
-	call, err := rt.relay.GetWithin(d)
+	call, err := rt.relay.GetCallWithin(d)
 	if err != nil {
 		rt.t.Fatalf(err.Error())
 		return nil

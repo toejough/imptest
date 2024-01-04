@@ -36,13 +36,12 @@ func NewCallRelay(deps CallRelayDeps, d time.Duration) *CallRelay {
 // GetCall gets a call from the relay.
 // GetCall panics if the call was not available within the default timeout.
 func (cr *CallRelay) GetCall() (*Call, error) {
-	return cr.GetWithin(cr.defaultTimeout)
+	return cr.GetCallWithin(cr.defaultTimeout)
 }
 
-// GetWithin gets a call from the relay.
-// GetWithin panics if the call was not available within the given timeout.
-// TODO: rename to getCallWithin.
-func (cr *CallRelay) GetWithin(duration time.Duration) (*Call, error) {
+// GetCallWithin gets a call from the relay.
+// GetCallWithin panics if the call was not available within the given timeout.
+func (cr *CallRelay) GetCallWithin(duration time.Duration) (*Call, error) {
 	select {
 	case c, ok := <-cr.callChan:
 		if !ok {
