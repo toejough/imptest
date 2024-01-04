@@ -3,7 +3,6 @@ package imptest_test
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -43,19 +42,19 @@ func TestParallelCallsPasses(t *testing.T) {
 		tester.Start(returns, 6, tdm)
 
 		// And the parallel calls are made
-		call1 := tester.GetNextCallWithin(time.Second)
+		call1 := tester.GetNextCall()
 		if call1.Name() == imptest.GetFuncName(tdm.ParallelA) {
 			imptest.AssertCallIs(t, call1, tdm.ParallelA, 6)
-			call1.InjectReturnsWithin(time.Second, 1)
-			tester.AssertNextCallWithin(time.Second, tdm.ParallelB, 6).InjectReturnsWithin(time.Second, 2)
+			call1.InjectReturns(1)
+			tester.AssertNextCallIs(tdm.ParallelB, 6).InjectReturns(2)
 		} else {
 			imptest.AssertCallIs(t, call1, tdm.ParallelB, 6)
-			call1.InjectReturnsWithin(time.Second, 2)
-			tester.AssertNextCallWithin(time.Second, tdm.ParallelA, 6).InjectReturnsWithin(time.Second, 1)
+			call1.InjectReturns(2)
+			tester.AssertNextCallIs(tdm.ParallelA, 6).InjectReturns(1)
 		}
 
 		// And the test completes
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 		tester.AssertReturned(1, 2)
 	})
 

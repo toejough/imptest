@@ -2,7 +2,6 @@ package imptest_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -26,10 +25,10 @@ func TestFillReturnWrongTypeFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturnsWithin(time.Second, 5)
+		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
 
 		// and we wait for the test to complete
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 }
 
@@ -65,10 +64,10 @@ func TestFillReturnWrongNumberFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// And a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.FillWrongNumber).InjectReturnsWithin(time.Second, 5)
+		tester.AssertNextCallIs(tdm.FillWrongNumber).InjectReturns(5)
 
 		// and we wait for the test to complete
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 }
 
@@ -104,10 +103,10 @@ func TestFillNonPointerFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.FillWrongType).InjectReturnsWithin(time.Second, 5)
+		tester.AssertNextCallIs(tdm.FillWrongType).InjectReturns(5)
 
 		// and we wait for the test to complete
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 }
 
@@ -136,11 +135,11 @@ func TestFillNeverCalledFails(t *testing.T) {
 	mockedt.Wrap(func() {
 		// When the func is run
 		tester.Start(returns, tdm)
-		call := tester.AssertNextCallWithin(time.Second, tdm.FillNeverCalled)
+		call := tester.AssertNextCallIs(tdm.FillNeverCalled)
 
 		// Then test fails with fill never called
 		defer expectPanicWith(t, "fill was not called")
-		call.InjectReturnsWithin(time.Second, 5)
+		call.InjectReturns(5)
 	})
 }
 

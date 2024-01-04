@@ -9,19 +9,33 @@ import (
 	"time"
 )
 
-// Call is the basic type that represents a function call.
+// Call is the basic type that represents a function Call.
 type (
 	Call struct {
-		function Function
-		args     []any
-		returns  chan []any
+		deps           CallDeps
+		defaultTimeout time.Duration
+		function       Function
+		args           []any
+		returns        chan []any
 	}
 )
 
-// newCall will create a new Call, set up with the given function and args, as well as a return
-// channel for injecting returns into and filling them from.
-func newCall(f Function, args ...any) *Call {
-	return &Call{function: f, args: args, returns: make(chan []any)}
+// CallDeps is the set of impure dependencies for Call.
+type CallDeps interface {
+	After(d time.Duration) <-chan time.Time
+}
+
+// NewCall will create a new Call, set up with the given default timeout for filling return values,
+// the given function and args, as well as a return channel for injecting returns into
+// and filling them from (within that given timeout), as well as a custom set of dependencies.
+func NewCall(deps CallDeps, d time.Duration, f Function, args ...any) *Call {
+	return &Call{
+		defaultTimeout: d,
+		function:       f,
+		args:           args,
+		returns:        make(chan []any),
+		deps:           deps,
+	}
 }
 
 // Name returns the name of the function.
@@ -34,6 +48,14 @@ func (c Call) Args() []any {
 	return c.args
 }
 
+// InjectReturns injects return values into the underlying return channel. These are
+// intended to be filled into the functions own internal return values via FillReturns.
+// InjectReturnsWithin panics if the injected values are not consumed by FillReturns
+// within the default duration.
+func (c Call) InjectReturns(returnValues ...any) {
+	c.InjectReturnsWithin(c.defaultTimeout, returnValues...)
+}
+
 // InjectReturnsWithin injects return values into the underlying return channel. These are
 // intended to be filled into the functions own internal return values via FillReturns.
 // InjectReturnsWithin panics if the injected values are not consumed by FillReturns
@@ -44,7 +66,7 @@ func (c Call) InjectReturnsWithin(duration time.Duration, returnValues ...any) {
 	select {
 	case c.returns <- returnValues:
 		return
-	case <-time.After(duration):
+	case <-c.deps.After(duration):
 		panic("fill was not called: timed out waiting for " + c.Name() + " to read the injected return values")
 	}
 }

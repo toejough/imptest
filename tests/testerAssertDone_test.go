@@ -3,7 +3,6 @@ package imptest_test
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -28,7 +27,7 @@ func TestAssertDoneFailsIfNotDone(t *testing.T) {
 		tester.Start(wait)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 
 	// Then the test is marked as failed
@@ -59,7 +58,7 @@ func TestAssertDonePassesIfDone(t *testing.T) {
 		tester.Start(wait)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 
 	// Then the test is marked as failed
@@ -88,7 +87,7 @@ func TestAssertDoneWithQueuedCallFails(t *testing.T) {
 		tester.Start(wait, tdm)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 
 	// Then the test is marked as failed

@@ -9,37 +9,57 @@ import (
 )
 
 // NewRelayTester provides a pointer to a new RelayTester with the given test object and CallRelay.
-func NewRelayTester(t Tester, r *CallRelay) *RelayTester {
+// TODO: rename this to NewRelayTesterCustom.
+func NewRelayTester(t Tester, r *CallRelay, d time.Duration) *RelayTester {
 	return &RelayTester{
-		t:            t,
-		relay:        r,
-		function:     nil,
-		args:         nil,
-		returnValues: nil,
+		t:              t,
+		relay:          r,
+		defaultTimeout: d,
+		function:       nil,
+		args:           nil,
+		returnValues:   nil,
 	}
 }
 
 // NewDefaultRelayTester creates and returns a pointer to a new RelayTester with a
 // new default CallRelay set up.
+// TODO: rename this to NewRelayTester.
+// TODO: same for newDfaultCallrElay.
 func NewDefaultRelayTester(t Tester) *RelayTester {
-	return &RelayTester{
-		t:            t,
-		relay:        NewDefaultCallRelay(),
-		function:     nil,
-		args:         nil,
-		returnValues: nil,
-	}
+	return NewRelayTester(t, NewCallRelay(time.Second, &defaultCallRelayDeps{}), time.Second)
 }
+
+// defaultCallRelayDeps is the default implementation of CallRelayDeps, which uses the
+// standard lib time.After to supply the After method.
+type defaultCallRelayDeps struct{}
+
+// After takes a duration and returns a channel which returns the time elapsed once the duration
+// has been met or exceeded.
+func (deps *defaultCallRelayDeps) After(d time.Duration) <-chan time.Time { return time.After(d) }
+
+// NewCall returns a pointer to a new Call object.
+func (deps *defaultCallRelayDeps) NewCall(duration time.Duration, function Function, args ...any) *Call {
+	return NewCall(&defaultCallDeps{}, duration, function, args...)
+}
+
+// defaultCallDeps is the default implementation of CallDeps, which uses the
+// standard lib time.After to supply the After method.
+type defaultCallDeps struct{}
+
+// After takes a duration and returns a channel which returns the time elapsed once the duration
+// has been met or exceeded.
+func (deps *defaultCallDeps) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
 // RelayTester is a convenience wrapper over interacting with the CallRelay and
 // a testing library that generally follows the interface of the standard test.T.
 type (
 	RelayTester struct {
-		t            Tester
-		relay        *CallRelay
-		function     Function
-		args         []any
-		returnValues []any
+		t              Tester
+		relay          *CallRelay
+		defaultTimeout time.Duration
+		function       Function
+		args           []any
+		returnValues   []any
 	}
 )
 
@@ -63,12 +83,12 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 	go func() {
 		defer func() { rt.relay.Shutdown() }()
 
-		rt.returnValues = call(function, args)
+		rt.returnValues = callFunc(function, args)
 	}()
 }
 
-// call calls the given function with the given args, and returns the return values from that call.
-func call(f Function, args []any) []any {
+// callFunc calls the given function with the given args, and returns the return values from that callFunc.
+func callFunc(f Function, args []any) []any {
 	rf := reflect.ValueOf(f)
 	rArgs := reflectValuesOf(args)
 	rReturns := rf.Call(rArgs)
@@ -99,6 +119,13 @@ func reflectValuesOf(args []any) []reflect.Value {
 	}
 
 	return rArgs
+}
+
+// AssertFinishes checks that the underlying relay was shut down within the default time,
+// implying that the function under test was done within the default time.
+// Otherwise it fails the test.
+func (rt *RelayTester) AssertFinishes() {
+	rt.AssertDoneWithin(rt.defaultTimeout)
 }
 
 // AssertDoneWithin checks that the underlying relay was shut down within the given time,
@@ -140,7 +167,14 @@ func (rt *RelayTester) PutCall(f Function, a ...any) *Call {
 	return rt.relay.putCall(f, a...)
 }
 
+// GetNextCall gets the next Call from the underlying CallRelay.
+// GetNextCall fails the test if the call was not available within the default timeout.
+func (rt *RelayTester) GetNextCall() *Call {
+	return rt.GetNextCallWithin(rt.defaultTimeout)
+}
+
 // GetNextCallWithin gets the next Call from the underlying CallRelay.
+// GetNextCallWithin fails the test if the call was not available within the given timeout.
 func (rt *RelayTester) GetNextCallWithin(d time.Duration) *Call {
 	call, err := rt.relay.GetWithin(d)
 	if err != nil {
@@ -151,8 +185,16 @@ func (rt *RelayTester) GetNextCallWithin(d time.Duration) *Call {
 	return call
 }
 
+// AssertNextCallIs gets the next Call from the underlying CallRelay and checks that the
+// given function and args match that Call. Otherwise, it fails the test.
+// AssertNextCallIs fails the test if the call is not available within the default timeout.
+func (rt *RelayTester) AssertNextCallIs(function Function, args ...any) *Call {
+	return rt.AssertNextCallWithin(rt.defaultTimeout, function, args...)
+}
+
 // AssertNextCallWithin gets the next Call from the underlying CallRelay and checks that the
 // given function and args match that Call. Otherwise, it fails the test.
+// AssertNextCallWithin fails the test if the call is not available within the given timeout.
 func (rt *RelayTester) AssertNextCallWithin(d time.Duration, function Function, args ...any) *Call {
 	panicIfInvalidCall(function, args)
 

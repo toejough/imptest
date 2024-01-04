@@ -13,44 +13,36 @@ import (
 // function under test to the test.
 type (
 	CallRelay struct {
-		callChan chan *Call
-		deps     CallRelayDeps
+		callChan       chan *Call
+		defaultTimeout time.Duration
+		deps           CallRelayDeps
 	}
 	CallRelayDeps interface {
 		After(duration time.Duration) <-chan time.Time
+		NewCall(duration time.Duration, function Function, args ...any) *Call
 	}
 )
 
 // NewCallRelay creates and returns a pointer to a new CallRelay, with the underlying
 // channel set up properly.
-func NewCallRelay(deps CallRelayDeps) *CallRelay {
+// TODO: move deps to the front of the arg list, everywhere.
+func NewCallRelay(d time.Duration, deps CallRelayDeps) *CallRelay {
 	return &CallRelay{
-		callChan: make(chan *Call),
-		deps:     deps,
+		callChan:       make(chan *Call),
+		defaultTimeout: d,
+		deps:           deps,
 	}
 }
 
-// NewDefaultCallRelay creates and returns a pointer to a new CallRelay, with a new
-// DefaultCallRelayDeps.
-func NewDefaultCallRelay() *CallRelay {
-	return &CallRelay{
-		callChan: make(chan *Call),
-		deps:     NewDefaultCallRelayDeps(),
-	}
+// GetCall gets a call from the relay.
+// GetCall panics if the call was not available within the default timeout.
+func (cr *CallRelay) GetCall() (*Call, error) {
+	return cr.GetWithin(cr.defaultTimeout)
 }
-
-// NewDefaultCallRelayDeps creates and returns a pointer to a new NewDefaultCallRelayDeps.
-func NewDefaultCallRelayDeps() *DefaultCallRelayDeps { return &DefaultCallRelayDeps{} }
-
-// DefaultCallRelayDeps is the default implementation of CallRelayDeps, which uses the
-// standard lib time.After to supply the After method.
-type DefaultCallRelayDeps struct{}
-
-// After takes a duration and returns a channel which returns the time elapsed once the duration
-// has been met or exceeded.
-func (deps *DefaultCallRelayDeps) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
 // GetWithin gets a call from the relay.
+// GetWithin panics if the call was not available within the given timeout.
+// TODO: rename to getCallWithin.
 func (cr *CallRelay) GetWithin(duration time.Duration) (*Call, error) {
 	select {
 	case c, ok := <-cr.callChan:
@@ -87,7 +79,8 @@ func (cr *CallRelay) WaitForShutdown(waitTime time.Duration) error {
 
 // putCall puts a function & args onto the relay as a call.
 func (cr *CallRelay) putCall(f Function, args ...any) *Call {
-	c := newCall(f, args...)
+	c := cr.deps.NewCall(cr.defaultTimeout, f, args...)
+
 	cr.callChan <- c
 
 	return c

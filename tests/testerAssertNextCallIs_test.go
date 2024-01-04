@@ -25,10 +25,10 @@ func TestAssertNextCallIsNoArgsPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// Then the next call is to the func
-		tester.AssertNextCallWithin(time.Second, tdm.Func)
+		tester.AssertNextCallIs(tdm.Func)
 
 		// and we wait for the test to complete
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 
 	// Then the test is marked as passed
@@ -67,10 +67,10 @@ func TestAssertNextCallIsWrongFuncFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// Then the next call is to the func
-		tester.AssertNextCallWithin(time.Second, tdm.WrongFunc)
+		tester.AssertNextCallIs(tdm.WrongFunc)
 
 		// And we wait for the test to complete
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 
 	// Then the test is marked as failed
@@ -110,7 +110,7 @@ func TestAssertNextCallIsTooFewArgsFails(t *testing.T) {
 
 		// Then the next call fails with too few args
 		defer expectPanicWith(t, "Too few args")
-		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5)
+		tester.AssertNextCallIs(tdm.SomeArgs, 5)
 	})
 }
 
@@ -132,7 +132,7 @@ func TestAssertNextCallIsTooManyArgsFails(t *testing.T) {
 
 		// Then the next call fails with too few args
 		defer expectPanicWith(t, "Too many args")
-		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5, "six", 0x7)
+		tester.AssertNextCallIs(tdm.SomeArgs, 5, "six", 0x7)
 	})
 }
 
@@ -154,8 +154,9 @@ func TestAssertNextCallIsWrongTypeFails(t *testing.T) {
 		// returns(tdm)
 
 		// Then the next call fails with wrong arg type
+		// TODO: make expectpanicwith use mockedT and then verify success/failure after.
 		defer expectPanicWith(t, "Wrong arg type")
-		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5, 6)
+		tester.AssertNextCallIs(tdm.SomeArgs, 5, 6)
 	})
 }
 
@@ -180,10 +181,12 @@ func TestAssertNextCallIsWrongValuesFails(t *testing.T) {
 		// * tester.AssertNextCallIs
 		// * tester.AssertDone
 		// * call.InjectReturns
-		tester.AssertNextCallWithin(time.Second, tdm.SomeArgs, 5, "seven")
+		// TODO: make the timeouts for all relay and call funcs not time-out if
+		// the durations are 0
+		tester.AssertNextCallIs(tdm.SomeArgs, 5, "seven")
 
 		// and we wait for the test to complete
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 
 	// Then the test is marked as failed
@@ -219,13 +222,13 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 	mockedt.Wrap(func() {
 		tester.Start(returns, tdm)
 		// and nice cleanup happens
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// Then the assertion on the next call fails
-		tester.AssertNextCallWithin(time.Second, tdm.AfterDone)
+		tester.AssertNextCallIs(tdm.AfterDone)
 
 		// and we wait for the test to complete
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 
 	// Then the test is marked as failed
@@ -266,6 +269,6 @@ func TestAssertNextCallIsWithNonFunction(t *testing.T) {
 
 		// Then the next call fails with wrong arg type
 		defer expectPanicWith(t, "must pass a function")
-		tester.AssertNextCallWithin(time.Second, "SomeArgs", 5, 6)
+		tester.AssertNextCallIs(time.Second, "SomeArgs", 5, 6)
 	})
 }

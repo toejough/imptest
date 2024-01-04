@@ -2,7 +2,6 @@ package imptest_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -25,10 +24,10 @@ func TestInjectReturnPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return is injected
-		tester.AssertNextCallWithin(time.Second, tdm.Inject).InjectReturnsWithin(time.Second, 5)
+		tester.AssertNextCallIs(tdm.Inject).InjectReturns(5)
 
 		// and we wait for done
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// Then we get a good return from the FUT
 		tester.AssertReturned(5)
@@ -71,10 +70,10 @@ func TestInjectReturnNilPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a nil is injected
-		tester.AssertNextCallWithin(time.Second, tdm.InjectNil).InjectReturnsWithin(time.Second, nil)
+		tester.AssertNextCallIs(tdm.InjectNil).InjectReturns(nil)
 
 		// and we wait for the function to return
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// then a nil is returned
 		tester.AssertReturned(nil)
@@ -116,11 +115,11 @@ func TestInjectReturnWrongTypeFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and the call is returned
-		call := tester.AssertNextCallWithin(time.Second, tdm.Inject)
+		call := tester.AssertNextCallIs(tdm.Inject)
 
 		// Then test fails with wrong return type
 		defer expectPanicWith(t, "Wrong return type")
-		call.InjectReturnsWithin(time.Second, "five")
+		call.InjectReturns("five")
 	})
 }
 
@@ -141,10 +140,10 @@ func TestInjectReturnWrongNumberFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and the next call is returned
-		call := tester.AssertNextCallWithin(time.Second, tdm.Inject)
+		call := tester.AssertNextCallIs(tdm.Inject)
 
 		// Then test fails with wrong number of returns
 		defer expectPanicWith(t, "Too many returns")
-		call.InjectReturnsWithin(time.Second, 5, "five")
+		call.InjectReturns(5, "five")
 	})
 }

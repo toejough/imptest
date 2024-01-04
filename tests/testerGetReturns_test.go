@@ -2,7 +2,6 @@ package imptest_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -25,10 +24,10 @@ func TestGetReturnsPasses(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and a good return value is injected
-		tester.AssertNextCallWithin(time.Second, tdm.Get).InjectReturnsWithin(time.Second, 5)
+		tester.AssertNextCallIs(tdm.Get).InjectReturns(5)
 
 		// and we wait for the function to be done
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// and we get the returns
 		returnVals = tester.GetReturns()

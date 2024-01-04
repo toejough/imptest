@@ -3,7 +3,6 @@ package imptest_test
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -24,7 +23,7 @@ func TestAssertReturnPassesWithCorrectValue(t *testing.T) {
 		tester.Start(returns)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// And we expect it to return the right value
 		tester.AssertReturned(5)
@@ -56,7 +55,7 @@ func TestAssertReturnPassesWithCorrectValues(t *testing.T) {
 		tester.Start(returns)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// And we expect it to return the right value
 		tester.AssertReturned(5, "five", tester.Start, newMockedTestingT, nil)
@@ -85,7 +84,7 @@ func TestAssertReturnPassesWithNoValues(t *testing.T) {
 		tester.Start(returns)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// And we expect it to return no value
 		tester.AssertReturned()
@@ -116,7 +115,7 @@ func TestAssertReturnFailsWithTooFewReturns(t *testing.T) {
 		tester.Start(returns)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// And we assert too few returns
 		defer expectPanicWith(t, "Too few returns")
@@ -140,7 +139,7 @@ func TestAssertReturnFailsWithTooManyReturns(t *testing.T) {
 		tester.Start(returns)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// And we assert too many returns
 		defer expectPanicWith(t, "Too many returns")
@@ -164,7 +163,7 @@ func TestAssertReturnFailsWithWrongTypes(t *testing.T) {
 		tester.Start(returns)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// And we assert the wrong type
 		defer expectPanicWith(t, "Wrong return type")
@@ -188,7 +187,7 @@ func TestAssertReturnFailsWithWrongValues(t *testing.T) {
 		tester.Start(returns)
 
 		// And we wait for it to finish
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 
 		// And we expect it to return the right value
 		tester.AssertReturned(6)

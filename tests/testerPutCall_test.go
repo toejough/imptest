@@ -2,7 +2,6 @@ package imptest_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -26,7 +25,7 @@ func TestPutCallTooFewArgsFails(t *testing.T) {
 		tester.Start(returns, tdm)
 
 		// and the func is done
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 }
 
@@ -51,7 +50,7 @@ func TestPutCallTooManyArgsFails(t *testing.T) {
 	mockedt.Wrap(func() {
 		// When the func is run and completes
 		tester.Start(returns, tdm)
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 }
 
@@ -78,7 +77,7 @@ func TestPutCallWrongTypesFails(t *testing.T) {
 	mockedt.Wrap(func() {
 		// When the func is run and completes
 		tester.Start(returns, tdm)
-		tester.AssertDoneWithin(time.Second)
+		tester.AssertFinishes()
 	})
 }
 
@@ -111,7 +110,7 @@ func TestNoPutCallFails(t *testing.T) {
 
 		// Then the assert next call fails waiting for that call
 		defer expectPanicWith(t, "waiting for a call")
-		tester.AssertNextCallWithin(time.Second, tdm.NoPut)
+		tester.AssertNextCallIs(tdm.NoPut)
 	})
 }
 
