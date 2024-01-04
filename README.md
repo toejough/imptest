@@ -20,7 +20,7 @@ func TestRepeatedCalls(t *testing.T) {
 	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct
 	// nobody else would be able to fill in private fields
 	// Given inputs
-	superSum := func(a, b int, deps superSumDeps) int {
+	superSum := func(deps superSumDeps, a, b int) int {
 		return deps.sum(a, a) +
 			deps.sum(b, b) +
 			deps.sum(a, b) +
@@ -29,7 +29,7 @@ func TestRepeatedCalls(t *testing.T) {
 	deps := &superSumTestDeps{relay: relay}
 
 	// When the func is run
-	tester.Start(superSum, 2, 3, deps)
+	tester.Start(superSum, deps, 2, 3)
 
 	// Then the internal sum is called 4x with different args
 	tester.AssertNextCallIs(deps.sum, 2, 2).InjectReturns(4)

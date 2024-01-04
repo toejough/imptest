@@ -14,7 +14,7 @@ func TestParallelCallsPasses(t *testing.T) {
 	mockedt := newMockedTestingT()
 	tester := imptest.NewDefaultRelayTester(mockedt)
 	// Given inputs
-	returns := func(arg int, deps testDepsParallel) (int, int) {
+	returns := func(deps testDepsParallel, arg int) (int, int) {
 		var aResult, bResult int
 
 		waitgroup := &sync.WaitGroup{}
@@ -39,7 +39,7 @@ func TestParallelCallsPasses(t *testing.T) {
 
 	mockedt.Wrap(func() {
 		// When the func is run
-		tester.Start(returns, 6, tdm)
+		tester.Start(returns, tdm, 6)
 
 		// And the parallel calls are made
 		call1 := tester.GetNextCall()

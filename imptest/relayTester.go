@@ -26,7 +26,7 @@ func NewRelayTester(t Tester, r *CallRelay, d time.Duration) *RelayTester {
 // TODO: rename this to NewRelayTester.
 // TODO: same for newDfaultCallrElay.
 func NewDefaultRelayTester(t Tester) *RelayTester {
-	return NewRelayTester(t, NewCallRelay(time.Second, &defaultCallRelayDeps{}), time.Second)
+	return NewRelayTester(t, NewCallRelay(&defaultCallRelayDeps{}, time.Second), time.Second)
 }
 
 // defaultCallRelayDeps is the default implementation of CallRelayDeps, which uses the

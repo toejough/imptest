@@ -25,8 +25,7 @@ type (
 
 // NewCallRelay creates and returns a pointer to a new CallRelay, with the underlying
 // channel set up properly.
-// TODO: move deps to the front of the arg list, everywhere.
-func NewCallRelay(d time.Duration, deps CallRelayDeps) *CallRelay {
+func NewCallRelay(deps CallRelayDeps, d time.Duration) *CallRelay {
 	return &CallRelay{
 		callChan:       make(chan *Call),
 		defaultTimeout: d,
