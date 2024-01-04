@@ -23,7 +23,7 @@ func NewRelayTesterCustom(t Tester, r *CallRelay, d time.Duration) *RelayTester 
 // NewRelayTester creates and returns a pointer to a new RelayTester with a
 // new default CallRelay set up.
 func NewRelayTester(t Tester) *RelayTester {
-	return NewRelayTesterCustom(t, NewCallRelay(&defaultCallRelayDeps{}, time.Second), time.Second)
+	return NewRelayTesterCustom(t, NewCallRelay(&defaultCallRelayDeps{}), time.Second)
 }
 
 // defaultCallRelayDeps is the default implementation of CallRelayDeps, which uses the
@@ -35,8 +35,8 @@ type defaultCallRelayDeps struct{}
 func (deps *defaultCallRelayDeps) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
 // NewCall returns a pointer to a new Call object.
-func (deps *defaultCallRelayDeps) NewCall(duration time.Duration, function Function, args ...any) *Call {
-	return NewCall(&defaultCallDeps{}, duration, function, args...)
+func (deps *defaultCallRelayDeps) NewCall(function Function, args ...any) *Call {
+	return NewCall(&defaultCallDeps{}, time.Second, function, args...)
 }
 
 // defaultCallDeps is the default implementation of CallDeps, which uses the

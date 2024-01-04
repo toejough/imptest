@@ -13,23 +13,21 @@ import (
 // function under test to the test.
 type (
 	CallRelay struct {
-		callChan       chan *Call
-		defaultTimeout time.Duration
-		deps           CallRelayDeps
+		callChan chan *Call
+		deps     CallRelayDeps
 	}
 	CallRelayDeps interface {
 		After(duration time.Duration) <-chan time.Time
-		NewCall(duration time.Duration, function Function, args ...any) *Call
+		NewCall(function Function, args ...any) *Call
 	}
 )
 
 // NewCallRelay creates and returns a pointer to a new CallRelay, with the underlying
 // channel set up properly.
-func NewCallRelay(deps CallRelayDeps, d time.Duration) *CallRelay {
+func NewCallRelay(deps CallRelayDeps) *CallRelay {
 	return &CallRelay{
-		callChan:       make(chan *Call),
-		defaultTimeout: d,
-		deps:           deps,
+		callChan: make(chan *Call),
+		deps:     deps,
 	}
 }
 
@@ -71,7 +69,7 @@ func (cr *CallRelay) WaitForShutdown(waitTime time.Duration) error {
 
 // putCall puts a function & args onto the relay as a call.
 func (cr *CallRelay) putCall(f Function, args ...any) *Call {
-	c := cr.deps.NewCall(cr.defaultTimeout, f, args...)
+	c := cr.deps.NewCall(f, args...)
 
 	cr.callChan <- c
 
