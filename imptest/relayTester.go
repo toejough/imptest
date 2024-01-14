@@ -8,20 +8,16 @@ import (
 	"time"
 )
 
-// NewRelayTesterCustom provides a pointer to a new RelayTester with the given test object and CallRelay.
-func NewRelayTesterCustom(t Tester, r *CallRelay, d time.Duration) *RelayTester {
-	return &RelayTester{
-		t:              t,
-		relay:          r,
-		defaultTimeout: d,
-		function:       nil,
-		args:           nil,
-		returnValues:   nil,
-	}
-}
+// Testing philosophy:
+// Constructors ("New...") are implicitly tested by their use in other tests.
+// Other public functions and methods are explicitly tested.
+// Private functions are implicitly tested via the public functions' tests.
 
 // NewRelayTester creates and returns a pointer to a new RelayTester with a
-// new default CallRelay set up.
+// new CallRelay set up, with one-second default timeouts.
+// It is provided so that the normal user won't have to fill in a bunch of
+// sane dependencies themselves. If you want to provide the dependencies yourself,
+// please use NewRelayTesterCustom.
 func NewRelayTester(t Tester) *RelayTester {
 	return NewRelayTesterCustom(t, NewCallRelay(&defaultCallRelayDeps{}), time.Second)
 }
@@ -47,6 +43,20 @@ type defaultCallDeps struct{}
 // has been met or exceeded.
 func (deps *defaultCallDeps) After(d time.Duration) <-chan time.Time { return time.After(d) }
 
+// NewRelayTesterCustom provides a pointer to a new RelayTester with the given test object and CallRelay.
+// If you want a new RelayTester with sane default call-relay and timeouts already set, please
+// use NewRelayTester.
+func NewRelayTesterCustom(t Tester, r *CallRelay, d time.Duration) *RelayTester {
+	return &RelayTester{
+		t:              t,
+		relay:          r,
+		defaultTimeout: d,
+		function:       nil,
+		args:           nil,
+		returnValues:   nil,
+	}
+}
+
 // RelayTester is a convenience wrapper over interacting with the CallRelay and
 // a testing library that generally follows the interface of the standard test.T.
 type (
@@ -62,15 +72,17 @@ type (
 
 // Start calls the give function with the given args in a goroutine and returns immediately.
 // The intent is to start the function running and then return control flow to the calling
-// test in order to have it assert various calls are happening in the right order, inject
-// the necessary return values into them, and finally assert that the function is complete
-// and returned the right values.
+// test to act as a coroutine, passing data back and forth to the function under test to verify
+// correct behavior.
 //
-// Start will catch panics, reporting them as fatal test failures.
-//
-// Start will shut down the CallRelay for the tester when the function returns.
-//
-// Start will store the return values from the function.
+// Properties you can depend on:
+// * Start will panic if 'function' is anything other than a function.
+// * Start will call the function in a goroutine and return control to the caller immediately.
+// * Start will call the function exactly once.
+// * Start will call the function with the given arguments.
+// * Start will make the function's return values available via GetReturns and AssertReturned.
+// * Start will recover any panic from the function and call Tester.Fatalf with it.
+// * Start will shut down the CallRelay when the function exits.
 func (rt *RelayTester) Start(function Function, args ...any) {
 	panicIfInvalidCall(function, args)
 

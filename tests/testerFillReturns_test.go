@@ -184,5 +184,3 @@ func (tdm *testDepsMock) FillNeverCalled() int {
 
 	return goodR
 }
-
-// TODO: figure out if there's a way to do some property-based testing
