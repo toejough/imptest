@@ -1,6 +1,7 @@
 package imptest_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -43,7 +44,9 @@ func testStartPanicsWithNonFunction(rapidT *rapid.T) {
 	tester := imptest.NewRelayTester(mockedt)
 
 	// Given FUT
-	argFunc := 5
+
+	gen := generateRandomTypeZeroValue()
+	argFunc := gen.Draw(rapidT, "argFunc")
 	// TODO: use rapid.Custom to generate arbitrary non-function types from reflect.
 	// https://pkg.go.dev/pgregory.net/rapid#Custom
 	// https://pkg.go.dev/reflect#Type
@@ -62,6 +65,55 @@ func testStartPanicsWithNonFunction(rapidT *rapid.T) {
 			mockedt.Failure(),
 		)
 	}
+}
+
+func generateRandomType(rapidT *rapid.T) reflect.Type {
+	generators := []func() reflect.Type{
+		func() reflect.Type { var v bool; return reflect.TypeOf(v) },
+		func() reflect.Type { var v byte; return reflect.TypeOf(v) },
+		func() reflect.Type { var v float32; return reflect.TypeOf(v) },
+		func() reflect.Type { var v float64; return reflect.TypeOf(v) },
+		func() reflect.Type { var v int; return reflect.TypeOf(v) },
+		func() reflect.Type { var v int8; return reflect.TypeOf(v) },
+		func() reflect.Type { var v int16; return reflect.TypeOf(v) },
+		func() reflect.Type { var v int32; return reflect.TypeOf(v) },
+		func() reflect.Type { var v int64; return reflect.TypeOf(v) },
+		func() reflect.Type { var v rune; return reflect.TypeOf(v) },
+		func() reflect.Type { var v string; return reflect.TypeOf(v) },
+		func() reflect.Type { var v uint; return reflect.TypeOf(v) },
+		func() reflect.Type { var v uint8; return reflect.TypeOf(v) },
+		func() reflect.Type { var v uint16; return reflect.TypeOf(v) },
+		func() reflect.Type { var v uint32; return reflect.TypeOf(v) },
+		func() reflect.Type { var v uint64; return reflect.TypeOf(v) },
+		func() reflect.Type { var v uintptr; return reflect.TypeOf(v) },
+		func() reflect.Type { return reflect.TypeOf(complex(float32(0), float32(0))) },
+		func() reflect.Type { return reflect.TypeOf(complex(float64(0), float64(0))) },
+		func() reflect.Type {
+			return reflect.ArrayOf(rapid.IntRange(0, 1000).Draw(rapidT, "arrayLen"), generateRandomType(rapidT))
+		},
+		func() reflect.Type { return reflect.SliceOf(generateRandomType(rapidT)) },
+		func() reflect.Type {
+			return reflect.ChanOf(
+				rapid.SampledFrom([]reflect.ChanDir{reflect.RecvDir, reflect.SendDir, reflect.BothDir}).Draw(rapidT, "chanDir"),
+				generateRandomType(rapidT),
+			)
+		},
+		// func() reflect.Type {
+		// 	ins := generateSliceOfRandomTypes()
+		// 	outs := generateSliceOfRandomTypes()
+		// 	return reflect.FuncOf(ins, outs, decideIfVariadic(ins))
+		// },
+	}
+
+	index := rapid.IntRange(0, len(generators)-1).Draw(rapidT, "index")
+
+	return generators[index]()
+}
+
+func generateRandomTypeZeroValue() *rapid.Generator[any] {
+	return rapid.Custom(func(rapidT *rapid.T) any {
+		return reflect.New(generateRandomType(rapidT)).Interface()
+	})
 }
 
 func TestStartPanicsWithNonFunction(t *testing.T) {
