@@ -45,7 +45,7 @@ func testStartPanicsWithNonFunction(rapidT *rapid.T) {
 
 	// Given FUT
 
-	gen := generateRandomTypeZeroValue()
+	gen := generateRandomTypeZeroValueNonFunc()
 	argFunc := gen.Draw(rapidT, "argFunc")
 	// TODO: use rapid.Custom to generate arbitrary non-function types from reflect.
 	// https://pkg.go.dev/pgregory.net/rapid#Custom
@@ -55,6 +55,11 @@ func testStartPanicsWithNonFunction(rapidT *rapid.T) {
 	mockedt.Wrap(func() {
 		// When the func is run with something that isn't a function
 		defer expectPanicWith(mockedt, "must pass a function")
+		// TODO: capture goroutine panics and re-escalate at wait for shutdown?
+		//   feels like a lot of work to capture the backtrace & everything? is it? might be gratifying
+		//   to get that right, but also feels low priority.
+		// TODO: test for nil functions? If we do that then we need a generator that does more
+		//  than just return zero functions... seems low priority.
 		tester.Start(argFunc)
 	})
 
@@ -67,8 +72,15 @@ func testStartPanicsWithNonFunction(rapidT *rapid.T) {
 	}
 }
 
-func generateRandomType(rapidT *rapid.T) reflect.Type {
-	generators := []func() reflect.Type{
+func generateRandomTypeNonFunc(rapidT *rapid.T) reflect.Type {
+	generators := listTypeGeneratorsNonFunc(rapidT)
+	index := rapid.IntRange(0, len(generators)-1).Draw(rapidT, "index")
+
+	return generators[index]()
+}
+
+func listTypeGeneratorsNonFunc(rapidT *rapid.T) []func() reflect.Type {
+	return []func() reflect.Type{
 		func() reflect.Type { var v bool; return reflect.TypeOf(v) },
 		func() reflect.Type { var v byte; return reflect.TypeOf(v) },
 		func() reflect.Type { var v float32; return reflect.TypeOf(v) },
@@ -91,28 +103,64 @@ func generateRandomType(rapidT *rapid.T) reflect.Type {
 		func() reflect.Type {
 			return reflect.ArrayOf(rapid.IntRange(0, 1000).Draw(rapidT, "arrayLen"), generateRandomType(rapidT))
 		},
-		func() reflect.Type { return reflect.SliceOf(generateRandomType(rapidT)) },
 		func() reflect.Type {
 			return reflect.ChanOf(
 				rapid.SampledFrom([]reflect.ChanDir{reflect.RecvDir, reflect.SendDir, reflect.BothDir}).Draw(rapidT, "chanDir"),
 				generateRandomType(rapidT),
 			)
 		},
-		// func() reflect.Type {
-		// 	ins := generateSliceOfRandomTypes()
-		// 	outs := generateSliceOfRandomTypes()
-		// 	return reflect.FuncOf(ins, outs, decideIfVariadic(ins))
-		// },
+		func() reflect.Type { return reflect.MapOf(generateRandomType(rapidT), generateRandomType(rapidT)) },
+		func() reflect.Type { return reflect.PointerTo(generateRandomType(rapidT)) },
+		func() reflect.Type { return reflect.SliceOf(generateRandomType(rapidT)) },
 	}
+}
+
+func listTypeGenerators(rapidT *rapid.T) []func() reflect.Type {
+	generators := listTypeGeneratorsNonFunc(rapidT)
+	generators = append(generators,
+		func() reflect.Type {
+			ins := generateSliceOfRandomTypes(rapidT)
+			outs := generateSliceOfRandomTypes(rapidT)
+
+			return reflect.FuncOf(ins, outs, decideIfVariadic(rapidT, ins))
+		},
+	)
+
+	return generators
+}
+
+func generateRandomType(rapidT *rapid.T) reflect.Type {
+	generators := listTypeGenerators(rapidT)
 
 	index := rapid.IntRange(0, len(generators)-1).Draw(rapidT, "index")
 
 	return generators[index]()
 }
 
-func generateRandomTypeZeroValue() *rapid.Generator[any] {
+func decideIfVariadic(rapidT *rapid.T, ins []reflect.Type) bool {
+	if len(ins) == 0 {
+		return false
+	}
+
+	if ins[len(ins)-1].Kind() != reflect.Slice {
+		return false
+	}
+
+	return rapid.Bool().Draw(rapidT, "isVariadic")
+}
+
+func generateSliceOfRandomTypes(rapidT *rapid.T) []reflect.Type {
+	s := []reflect.Type{}
+	for i := 0; i < rapid.IntRange(0, 10).Draw(rapidT, "sliceLen"); i++ {
+		s = append(s, generateRandomType(rapidT))
+	}
+
+	return s
+}
+
+func generateRandomTypeZeroValueNonFunc() *rapid.Generator[any] {
 	return rapid.Custom(func(rapidT *rapid.T) any {
-		return reflect.New(generateRandomType(rapidT)).Interface()
+		return reflect.New(generateRandomTypeNonFunc(rapidT)).Elem().Interface()
 	})
 }
 
