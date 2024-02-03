@@ -75,14 +75,17 @@ type (
 // test to act as a coroutine, passing data back and forth to the function under test to verify
 // correct behavior.
 //
-// Properties you can depend on:
-// * Start will panic if 'function' is anything other than a function.
-// * Start will call the function in a goroutine and return control to the caller immediately.
-// * Start will call the function exactly once.
-// * Start will call the function with the given arguments.
-// * Start will make the function's return values available via GetReturns and AssertReturned.
-// * Start will recover any panic from the function and call Tester.Fatalf with it.
-// * Start will shut down the CallRelay when the function exits.
+// Tested properties you can depend on:
+//
+//   - Start will panic if 'function' is anything other than a function.
+//   - Start will panic if 'function' takes a different number of args than are passed as 'args'
+//   - Start will panic if 'function' takes different args of different types than are passed as 'args'
+//   - Start will call the function in a goroutine and return control to the caller immediately.
+//   - Start will call the function with the given arguments.
+//   - Start will call the function exactly once.
+//   - Start will make the function's return values available via GetReturns and AssertReturned.
+//   - Start will recover any panic from the function and call Tester.Fatalf with it.
+//   - Start will shut down the CallRelay when the function exits.
 func (rt *RelayTester) Start(function Function, args ...any) {
 	panicIfInvalidCall(function, args)
 
