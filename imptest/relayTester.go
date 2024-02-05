@@ -9,12 +9,24 @@ import (
 )
 
 // Testing philosophy:
+//
 // Constructors ("New...") are implicitly tested by their use in other tests.
 // Other public functions and methods are explicitly tested.
 // Private functions are implicitly tested via the public functions' tests.
 
+// Error philosophy:
+//
+// Failures: Failed assertions, which are about expected failures the user is testing for (this is a test library), should
+// trigger a test failure.
+//
+// Errors: Errors caused by user input, IO conditions, or any combination thereof, should return an error value.
+//
+// Panics: Errors of programming, which would ideally be caught by a sufficiently advanced type system or linting, should
+// trigger an explanatory panic.
+
 // NewRelayTester creates and returns a pointer to a new RelayTester with a
 // new CallRelay set up, with one-second default timeouts.
+//
 // It is provided so that the normal user won't have to fill in a bunch of
 // sane dependencies themselves. If you want to provide the dependencies yourself,
 // please use NewRelayTesterCustom.
@@ -77,15 +89,20 @@ type (
 //
 // Tested properties you can depend on:
 //
+//   - Start will panic if 'function' and 'args' are an invalid set. This is a programming error, and
+//     not something that a caller can reasonably recover from.
 //   - Start will panic if 'function' is anything other than a function.
 //   - Start will panic if 'function' takes a different number of args than are passed as 'args'
 //   - Start will panic if 'function' takes different args of different types than are passed as 'args'
+//   - Start will make 'function' available for inspection by AssertReturned
 //   - Start will call the function in a goroutine and return control to the caller immediately.
 //   - Start will call the function with the given arguments.
 //   - Start will call the function exactly once.
 //   - Start will make the function's return values available via GetReturns and AssertReturned.
 //   - Start will recover any panic from the function and call Tester.Fatalf with it.
 //   - Start will shut down the CallRelay when the function exits.
+//     TODO: refactor to be testable with imptest itself?
+//     TODO: pass a call instead of function/args? They are a set for the purposes of panic eval
 func (rt *RelayTester) Start(function Function, args ...any) {
 	panicIfInvalidCall(function, args)
 
