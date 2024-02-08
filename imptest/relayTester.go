@@ -26,6 +26,18 @@ import (
 // Errors: all other error conditions should trigger an error with sufficient detail to enable the caller to take
 // corrective action
 
+// Behavioral properties philosophy:
+//
+// Every public function will satisfy a maximum of 7 behavioral properties it guarantees.
+// Beyond that it becomes necessary to abstract out calls to dependencies, and abstract the property
+// validation to validation that the dependencies are called and reacted to appropriately.
+
+// Dependency philosophy:
+//
+// Function dependencies shall be passed in via a final argument to the function.
+// Method dependencies shall be passed in via a final argument to the type's constructor.
+// Dependency argument types shall be interfaces, not structs.
+
 // NewRelayTester creates and returns a pointer to a new RelayTester with a
 // new CallRelay set up, with one-second default timeouts.
 //
