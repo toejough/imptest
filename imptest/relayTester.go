@@ -38,6 +38,8 @@ import (
 // Method dependencies shall be passed in via a final argument to the type's constructor.
 // Dependency argument types shall be interfaces, not structs.
 
+// **Constructors**
+
 // NewRelayTester creates and returns a pointer to a new RelayTester with a
 // new CallRelay set up, with one-second default timeouts.
 //
@@ -96,6 +98,8 @@ type (
 	}
 )
 
+// **Public Functions & Methods**
+
 // Start calls the give function with the given args in a goroutine and returns immediately.
 // The intent is to start the function running and then return control flow to the calling
 // test to act as a coroutine, passing data back and forth to the function under test to verify
@@ -128,40 +132,6 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 
 		rt.returnValues = callFunc(function, args)
 	}()
-}
-
-// callFunc calls the given function with the given args, and returns the return values from that callFunc.
-func callFunc(f Function, args []any) []any {
-	rf := reflect.ValueOf(f)
-	rArgs := reflectValuesOf(args)
-	rReturns := rf.Call(rArgs)
-
-	return unreflectValues(rReturns)
-}
-
-// unreflectValues returns the actual values of the reflected values.
-func unreflectValues(rArgs []reflect.Value) []any {
-	// tricking nilaway with repeated appends till this issue is closed
-	// https://github.com/uber-go/nilaway/pull/60
-	// args := make([]any, len(rArgs))
-	args := []any{}
-
-	for i := range rArgs {
-		// args[i] = rArgs[i].Interface()
-		args = append(args, rArgs[i].Interface())
-	}
-
-	return args
-}
-
-// reflectValuesOf returns reflected values for all of the values.
-func reflectValuesOf(args []any) []reflect.Value {
-	rArgs := make([]reflect.Value, len(args))
-	for i := range args {
-		rArgs[i] = reflect.ValueOf(args[i])
-	}
-
-	return rArgs
 }
 
 // AssertFinishes checks that the underlying relay was shut down within the default time,
@@ -246,14 +216,6 @@ func (rt *RelayTester) AssertNextCallWithin(d time.Duration, function Function, 
 	return AssertCallIs(rt.t, call, function, args...)
 }
 
-// panicIfInvalidCall panics if the passed function is in fact not a function.
-// panicIfInvalidCall panics if the arg num or type is mismatched with the function's signature.
-func panicIfInvalidCall(function Function, args []any) {
-	panicIfNotFunc(function)
-	panicIfWrongNumArgs(function, args)
-	panicIfWrongArgTypes(function, args)
-}
-
 // GetReturns gets the values returned by the function.
 func (rt *RelayTester) GetReturns() []any { return rt.returnValues }
 
@@ -262,4 +224,48 @@ type Tester interface {
 	Helper()
 	Fatalf(message string, args ...any)
 	Failed() bool
+}
+
+// **Private Functions & Methods**
+
+// callFunc calls the given function with the given args, and returns the return values from that callFunc.
+func callFunc(f Function, args []any) []any {
+	rf := reflect.ValueOf(f)
+	rArgs := reflectValuesOf(args)
+	rReturns := rf.Call(rArgs)
+
+	return unreflectValues(rReturns)
+}
+
+// unreflectValues returns the actual values of the reflected values.
+func unreflectValues(rArgs []reflect.Value) []any {
+	// tricking nilaway with repeated appends till this issue is closed
+	// https://github.com/uber-go/nilaway/pull/60
+	// args := make([]any, len(rArgs))
+	args := []any{}
+
+	for i := range rArgs {
+		// args[i] = rArgs[i].Interface()
+		args = append(args, rArgs[i].Interface())
+	}
+
+	return args
+}
+
+// reflectValuesOf returns reflected values for all of the values.
+func reflectValuesOf(args []any) []reflect.Value {
+	rArgs := make([]reflect.Value, len(args))
+	for i := range args {
+		rArgs[i] = reflect.ValueOf(args[i])
+	}
+
+	return rArgs
+}
+
+// panicIfInvalidCall panics if the passed function is in fact not a function.
+// panicIfInvalidCall panics if the arg num or type is mismatched with the function's signature.
+func panicIfInvalidCall(function Function, args []any) {
+	panicIfNotFunc(function)
+	panicIfWrongNumArgs(function, args)
+	panicIfWrongArgTypes(function, args)
 }
