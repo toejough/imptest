@@ -16,13 +16,14 @@ import (
 
 // Error philosophy:
 //
-// Failures: Failed assertions, which are about expected failures the user is testing for (this is a test library), should
+// Failures: conditions which signal expected failures the user is testing for (this is a test library), should
 // trigger a test failure.
 //
-// Errors: Errors caused by user input, IO conditions, or any combination thereof, should return an error value.
+// Panics: conditions which signal that the test is fundamentally written incorrectly should
+// trigger an explanatory panic for the programmer to track down.
 //
-// Panics: Errors of programming, which would ideally be caught by a sufficiently advanced type system or linting, should
-// trigger an explanatory panic.
+// Errors: all other error conditions should trigger an error with sufficient detail to enable the caller to take
+// corrective action
 
 // NewRelayTester creates and returns a pointer to a new RelayTester with a
 // new CallRelay set up, with one-second default timeouts.
