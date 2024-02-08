@@ -19,8 +19,9 @@ import (
 // Failures: conditions which signal expected failures the user is testing for (this is a test library), should
 // trigger a test failure.
 //
-// Panics: conditions which signal that the test is fundamentally written incorrectly should
-// trigger an explanatory panic for the programmer to track down.
+// Panics: conditions which signal an error which it is not generally reasonable to expect a caller to recover from,
+// which instead imply programmer intervention is necessary to resolve, should trigger an explanatory panic for the
+// programmer to track down.
 //
 // Errors: all other error conditions should trigger an error with sufficient detail to enable the caller to take
 // corrective action
