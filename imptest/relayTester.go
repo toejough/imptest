@@ -28,14 +28,13 @@ import (
 
 // Behavioral properties philosophy:
 //
-// Every public function will satisfy a maximum of 7 behavioral properties it guarantees.
-// Beyond that it becomes necessary to abstract out calls to dependencies, and abstract the property
-// validation to validation that the dependencies are called and reacted to appropriately.
+// Every public function will satisfy a number of behavioral properties it guarantees.
+// Those properties will be tested.
 
 // Dependency philosophy:
 //
 // Function dependencies shall be passed in via a final argument to the function.
-// Method dependencies shall be passed in via a final argument to the type's constructor.
+// Method dependencies shall be passed in via arguments to the type's constructor.
 // Dependency argument types shall be interfaces, not structs.
 
 // **Constructors**
@@ -107,8 +106,6 @@ type (
 //
 // Tested properties you can depend on:
 //
-//   - Start will panic if 'function' and 'args' are an invalid set. This is a programming error, and
-//     not something that a caller can reasonably recover from.
 //   - Start will panic if 'function' is anything other than a function.
 //   - Start will panic if 'function' takes a different number of args than are passed as 'args'
 //   - Start will panic if 'function' takes different args of different types than are passed as 'args'
