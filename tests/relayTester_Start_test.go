@@ -89,16 +89,47 @@ func valuesOf[K comparable, V any](m map[K]V) []V {
 
 func TestStartPanicsWithWrongNumArgs(t *testing.T) {
 	t.Parallel()
-	rapid.Check(t, testStartPanicsWithWrongNumArgs)
+
+	mockedt := newMockedTestingT()
+
+	// When the test is run
+	mockedt.Wrap(func() {
+		rapid.Check(mockedt, testStartPanicsWithWrongNumArgs)
+	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
 }
 
 func testStartPanicsWithWrongNumArgs(rapidT *rapid.T) {
 	// Given testing needs
-	mockedt := newMockedTestingT()
-	tester := imptest.NewRelayTester(mockedt)
+	tester := imptest.NewRelayTester(rapidT)
 
 	// Given FUT
 	numArgs := rapid.IntRange(0, 5).Draw(rapidT, "numArgs")
+	argFunc := funcOfNArgs(numArgs)
+
+	// Given the wrong number of args
+	numArgsToPass := rapid.IntRange(0, 10).Filter(func(i int) bool { return i != numArgs }).Draw(rapidT, "numArgsToPass")
+	argsToPass := make([]any, numArgsToPass)
+
+	// Then we expect a panic
+	expectedMessage := "Too few args"
+	if numArgs < numArgsToPass {
+		expectedMessage = "Too many args"
+	}
+	defer expectPanicWith(rapidT, expectedMessage)
+
+	// (when the test is actually run)
+	tester.Start(argFunc, argsToPass...)
+}
+
+func funcOfNArgs(numArgs int) any {
 	args := make([]reflect.Type, numArgs)
 
 	for i := range args {
@@ -107,29 +138,7 @@ func testStartPanicsWithWrongNumArgs(rapidT *rapid.T) {
 
 	argFunc := reflect.New(reflect.FuncOf(args, nil, false)).Elem().Interface()
 
-	// Given the wrong number of args
-	numArgsToPass := rapid.IntRange(0, 10).Filter(func(i int) bool { return i != numArgs }).Draw(rapidT, "numArgsToPass")
-	argsToPass := make([]any, numArgsToPass)
-
-	// When the func is run
-	mockedt.Wrap(func() {
-		// Then we expect a panic
-		expectedMessage := "Too few args"
-		if numArgs < numArgsToPass {
-			expectedMessage = "Too many args"
-		}
-		defer expectPanicWith(mockedt, expectedMessage)
-		// (when the test is actually run)
-		tester.Start(argFunc, argsToPass...)
-	})
-
-	// Then the test is marked as passed
-	if mockedt.Failed() {
-		rapidT.Fatalf(
-			"The test should've passed. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
+	return argFunc
 }
 
 func TestStartRunsFUTInGoroutine(t *testing.T) {

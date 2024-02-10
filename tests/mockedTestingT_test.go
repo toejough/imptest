@@ -16,9 +16,20 @@ func (mt *mockedTestingT) Fatalf(message string, args ...any) {
 
 	runtime.Goexit()
 }
-func (mt *mockedTestingT) Helper()         {}
-func (mt *mockedTestingT) Failed() bool    { return mt.failure != "" }
-func (mt *mockedTestingT) Failure() string { return mt.failure }
+func (mt *mockedTestingT) Helper()                   {}
+func (mt *mockedTestingT) Failed() bool              { return mt.failure != "" }
+func (mt *mockedTestingT) Failure() string           { return mt.failure }
+func (mt *mockedTestingT) Error(...any)              {}
+func (mt *mockedTestingT) Errorf(s string, a ...any) { mt.Fatalf(s, a...) }
+func (mt *mockedTestingT) Fail()                     {}
+func (mt *mockedTestingT) FailNow()                  {}
+func (mt *mockedTestingT) Fatal(...any)              {}
+func (mt *mockedTestingT) Log(...any)                {}
+func (mt *mockedTestingT) Logf(string, ...any)       {}
+func (mt *mockedTestingT) Name() string              { return "" }
+func (mt *mockedTestingT) Skip(...any)               {}
+func (mt *mockedTestingT) SkipNow()                  {}
+func (mt *mockedTestingT) Skipf(string, ...any)      {}
 
 // Wrap wraps the test calls such that the mocked testing library can catch
 // when a fatal error occurs and correctly return callflow to the test.
