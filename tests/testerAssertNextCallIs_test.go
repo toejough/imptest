@@ -232,7 +232,8 @@ func TestAssertNextCallIsAfterDoneFails(t *testing.T) {
 	mockedt := newMockedTestingT()
 	tester := imptest.NewRelayTester(mockedt)
 	// Given inputs
-	returns := func(deps testDepsAfterDone) {}
+	// revive thinks the arg is unused, but it just can't trace it.
+	returns := func(deps testDepsAfterDone) {} //nolint:revive
 	tdm := newTestDepsMock(tester)
 
 	// When the func is run

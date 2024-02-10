@@ -267,6 +267,6 @@ func isNillableKind(kind reflect.Kind) bool {
 		// This code is only coverable if go itself introduces a new kind into the reflect package
 		// ...or if we just force a new kind int during whitebox testing?
 		// I'm not worried about writing a test to cover this.
-		panic(fmt.Sprintf("unable to check for nillability for unknown kind %s", kind.String()))
+		panic("unable to check for nillability for unknown kind " + kind.String())
 	}
 }

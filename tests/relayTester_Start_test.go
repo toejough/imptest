@@ -113,11 +113,13 @@ func testStartPanicsWithWrongNumArgs(rapidT *rapid.T) {
 
 	// When the func is run
 	mockedt.Wrap(func() {
+		// Then we expect a panic
 		expectedMessage := "Too few args"
 		if numArgs < numArgsToPass {
 			expectedMessage = "Too many args"
 		}
 		defer expectPanicWith(mockedt, expectedMessage)
+		// (when the test is actually run)
 		tester.Start(argFunc, argsToPass...)
 	})
 
