@@ -79,7 +79,6 @@ func NewRelayTesterCustom(t Tester, r *CallRelay, d time.Duration) *RelayTester 
 		relay:          r,
 		defaultTimeout: d,
 		function:       nil,
-		args:           nil,
 		returnValues:   nil,
 	}
 }
@@ -92,7 +91,6 @@ type (
 		relay          *CallRelay
 		defaultTimeout time.Duration
 		function       Function
-		args           []any
 		returnValues   []any
 	}
 )
@@ -116,13 +114,10 @@ type (
 //   - Start will make the function's return values available via GetReturns and AssertReturned.
 //   - Start will recover any panic from the function and call Tester.Fatalf with it.
 //   - Start will shut down the CallRelay when the function exits.
-//     TODO: refactor to be testable with imptest itself?
-//     TODO: pass a call instead of function/args? They are a set for the purposes of panic eval
 func (rt *RelayTester) Start(function Function, args ...any) {
 	panicIfInvalidCall(function, args)
 
 	rt.function = function
-	rt.args = args
 
 	go func() {
 		defer func() { rt.relay.Shutdown() }()

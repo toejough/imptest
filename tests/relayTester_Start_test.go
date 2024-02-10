@@ -1,6 +1,7 @@
 package imptest_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -86,6 +87,49 @@ func valuesOf[K comparable, V any](m map[K]V) []V {
 	return values
 }
 
+func TestStartPanicsWithWrongNumArgs(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, testStartPanicsWithWrongNumArgs)
+}
+
+func testStartPanicsWithWrongNumArgs(rapidT *rapid.T) {
+	// Given testing needs
+	mockedt := newMockedTestingT()
+	tester := imptest.NewRelayTester(mockedt)
+
+	// Given FUT
+	numArgs := rapid.IntRange(0, 5).Draw(rapidT, "numArgs")
+	args := make([]reflect.Type, numArgs)
+
+	for i := range args {
+		args[i] = reflect.TypeOf(0)
+	}
+
+	argFunc := reflect.New(reflect.FuncOf(args, nil, false)).Elem().Interface()
+
+	// Given the wrong number of args
+	numArgsToPass := rapid.IntRange(0, 10).Filter(func(i int) bool { return i != numArgs }).Draw(rapidT, "numArgsToPass")
+	argsToPass := make([]any, numArgsToPass)
+
+	// When the func is run
+	mockedt.Wrap(func() {
+		expectedMessage := "Too few args"
+		if numArgs < numArgsToPass {
+			expectedMessage = "Too many args"
+		}
+		defer expectPanicWith(mockedt, expectedMessage)
+		tester.Start(argFunc, argsToPass...)
+	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		rapidT.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
 func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
@@ -112,56 +156,6 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	case <-waitchan:
 	case <-time.After(time.Second):
 		t.Error("waitchan never closed, indicating function was run synchronously instead of in a goroutine.")
-	}
-}
-
-func TestStartPanicsWithTooFewArgs(t *testing.T) {
-	t.Parallel()
-
-	// Given testing needs
-	mockedt := newMockedTestingT()
-	tester := imptest.NewRelayTester(mockedt)
-
-	// Given FUT
-	argFunc := func(_, _, _ int) {}
-
-	mockedt.Wrap(func() {
-		// When the func is run with the wrong number of args
-		defer expectPanicWith(mockedt, "Too few args")
-		tester.Start(argFunc)
-	})
-
-	// Then the test is marked as passed
-	if mockedt.Failed() {
-		t.Fatalf(
-			"The test should've passed. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
-}
-
-func TestStartPanicsWithTooManyArgs(t *testing.T) {
-	t.Parallel()
-
-	// Given testing needs
-	mockedt := newMockedTestingT()
-	tester := imptest.NewRelayTester(mockedt)
-
-	// Given FUT
-	argFunc := func(_ int) {}
-
-	mockedt.Wrap(func() {
-		// When the func is run with the wrong number of args
-		defer expectPanicWith(mockedt, "Too many args")
-		tester.Start(argFunc, 1, 2, 3)
-	})
-
-	// Then the test is marked as passed
-	if mockedt.Failed() {
-		t.Fatalf(
-			"The test should've passed. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
 	}
 }
 
