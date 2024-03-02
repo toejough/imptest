@@ -34,11 +34,20 @@ func AssertCallIs(tester Tester, called *Call, function Function, expectedArgs .
 
 // assertCalledNameIs checks whether the given name matches the name of the function in the Call,
 // and fails the test if not.
-func assertCalledNameIs(t Tester, c *Call, expectedName string) {
-	t.Helper()
+func assertCalledNameIs(tester Tester, call *Call, expectedName string) {
+	tester.Helper()
 
-	if c.Name() != expectedName {
-		t.Fatalf("wrong func called: the called function was expected to be %s, but was %s instead", expectedName, c.Name())
+	name := ""
+	if call != nil {
+		name = call.Name()
+	}
+
+	if name != expectedName {
+		tester.Fatalf(
+			"wrong func called: the called function was expected to be %s, but was %s instead",
+			expectedName,
+			name,
+		)
 	}
 }
 
@@ -47,12 +56,18 @@ func assertCalledNameIs(t Tester, c *Call, expectedName string) {
 func assertArgsAre(tester Tester, theCall *Call, expectedArgs ...any) {
 	tester.Helper()
 
-	actualArgs := theCall.Args()
+	actualArgs := []any{}
+	name := ""
+
+	if theCall != nil {
+		name = theCall.Name()
+		actualArgs = theCall.Args()
+	}
 
 	for i := range expectedArgs {
 		if !deepEqual(actualArgs[i], expectedArgs[i]) {
 			tester.Fatalf("wrong values: the function %s was expected to be called with %#v at index %d but was called with %#v",
-				theCall.Name(), expectedArgs[i], i, actualArgs[i],
+				name, expectedArgs[i], i, actualArgs[i],
 			)
 		}
 	}
