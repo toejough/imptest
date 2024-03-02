@@ -16,25 +16,14 @@ func TestStartPanicsWithNonFunction(t *testing.T) {
 
 func testStartPanicsWithNonFunction(rapidT *rapid.T) {
 	// Given testing needs
-	mockedt := newMockedTestingT()
-	tester := imptest.NewRelayTester(mockedt)
+	tester := imptest.NewRelayTester(rapidT)
 
 	// Given FUT
 	argFunc := generateRandomValueNonFunc(rapidT)
 
-	mockedt.Wrap(func() {
-		// When the func is run with something that isn't a function
-		defer expectPanicWith(mockedt, "must pass a function")
-		tester.Start(argFunc)
-	})
-
-	// Then the test is marked as passed
-	if mockedt.Failed() {
-		rapidT.Fatalf(
-			"The test should've passed. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
+	// When the func is run with something that isn't a function
+	defer expectPanicWith(rapidT, "must pass a function")
+	tester.Start(argFunc)
 }
 
 func generateRandomValueNonFunc(rapidT *rapid.T) any {
@@ -90,20 +79,7 @@ func valuesOf[K comparable, V any](m map[K]V) []V {
 func TestStartPanicsWithWrongNumArgs(t *testing.T) {
 	t.Parallel()
 
-	mockedt := newMockedTestingT()
-
-	// When the test is run
-	mockedt.Wrap(func() {
-		rapid.Check(mockedt, testStartPanicsWithWrongNumArgs)
-	})
-
-	// Then the test is marked as passed
-	if mockedt.Failed() {
-		t.Fatalf(
-			"The test should've passed. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
-	}
+	rapid.Check(t, testStartPanicsWithWrongNumArgs)
 }
 
 func testStartPanicsWithWrongNumArgs(rapidT *rapid.T) {
@@ -141,6 +117,22 @@ func funcOfNArgs(numArgs int) any {
 	return argFunc
 }
 
+func TestStartPanicsWithWrongArgTypes(t *testing.T) {
+	t.Parallel()
+
+	// Given testing needs
+	tester := imptest.NewRelayTester(t)
+
+	// Given FUT
+	// could use rapid and reflect to make random types, but that feels
+	// like overkill.
+	argFunc := func(_ int) {}
+
+	// When the func is run with the wrong number of args
+	defer expectPanicWith(t, "Wrong arg type")
+	tester.Start(argFunc, "1")
+}
+
 func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
@@ -149,12 +141,19 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	// Given inputs
 	lockchan := make(chan struct{})
 	waitchan := make(chan struct{})
+	donechan := make(chan struct{})
+	// Given setup
+	runs := 0
+	// this function won't return synchronously, so if we
+	// return immediately, we know it was either run in a goroutine
+	// or not at all.
 	wait := func() {
+		// we will know this ran n times
+		runs++
+		// wait till lockchan is closed
 		<-lockchan
+		close(donechan)
 	}
-
-	// release the lock at the end of the test
-	defer close(lockchan)
 
 	// When the func is run
 	go func() {
@@ -168,29 +167,17 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Error("waitchan never closed, indicating function was run synchronously instead of in a goroutine.")
 	}
-}
 
-func TestStartPanicsWithWrongArgTypes(t *testing.T) {
-	t.Parallel()
+	// When closing the lockchan
+	close(lockchan)
+	select {
+	case <-donechan:
+	case <-time.After(time.Second):
+		panic("donechan never closed, indicating function never completed.")
+	}
 
-	// Given testing needs
-	mockedt := newMockedTestingT()
-	tester := imptest.NewRelayTester(mockedt)
-
-	// Given FUT
-	argFunc := func(_ int) {}
-
-	mockedt.Wrap(func() {
-		// When the func is run with the wrong number of args
-		defer expectPanicWith(mockedt, "Wrong arg type")
-		tester.Start(argFunc, "1")
-	})
-
-	// Then the test is marked as passed
-	if mockedt.Failed() {
-		t.Fatalf(
-			"The test should've passed. Instead the failure was: %s",
-			mockedt.Failure(),
-		)
+	// Then we should be done with our single run
+	if runs != 1 {
+		t.Fatalf("Expected a single run, but got %d instead", runs)
 	}
 }
