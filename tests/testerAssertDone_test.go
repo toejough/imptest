@@ -48,26 +48,15 @@ func TestAssertDonePassesIfDone(t *testing.T) {
 	t.Parallel()
 
 	// Given test needs
-	mockedt := newMockedTestingT()
-	tester := imptest.NewRelayTester(mockedt)
+	tester := imptest.NewRelayTester(t)
 	// Given inputs
 	wait := func() {}
 
-	mockedt.Wrap(func() {
-		// When the func is run
-		tester.Start(wait)
+	// When the func is run
+	tester.Start(wait)
 
-		// And we wait for it to finish
-		tester.AssertFinishes()
-	})
-
-	// Then the test is marked as failed
-	if mockedt.Failed() {
-		t.Fatalf(
-			"The test should've passed due to FUT ending immediately, but it didn't: %s",
-			mockedt.Failure(),
-		)
-	}
+	// And we wait for it to finish
+	tester.AssertFinishes()
 }
 
 func TestAssertDoneWithQueuedCallFails(t *testing.T) {

@@ -97,7 +97,7 @@ type (
 
 // **Public Functions & Methods**
 
-// Start calls the give function with the given args in a goroutine and returns immediately.
+// Start calls the given function with the given args in a goroutine and returns immediately.
 // The intent is to start the function running and then return control flow to the calling
 // test to act as a coroutine, passing data back and forth to the function under test to verify
 // correct behavior.
@@ -135,6 +135,12 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 // AssertFinishes checks that the underlying relay was shut down within the default time,
 // implying that the function under test was done within the default time.
 // Otherwise it fails the test.
+//
+// Tested properties you can depend on:
+//   - [x] AssertFinishes returns once the underlying relay is shut down
+//   - [x] AssertFinishes will not return successfully before the underlying relay is shut down
+//   - [x] AssertFinishes will fail the test when the defaultTimeout time elapses before the underlying
+//     relay is shut down. The timeout countdown starts when AssertFinishes is called.
 func (rt *RelayTester) AssertFinishes() {
 	rt.AssertDoneWithin(rt.defaultTimeout)
 }
