@@ -148,6 +148,12 @@ func (rt *RelayTester) AssertFinishes() {
 // AssertDoneWithin checks that the underlying relay was shut down within the given time,
 // implying that the function under test was done within the given time.
 // Otherwise it fails the test.
+//
+// Tested properties you can depend on:
+//   - [x] AssertDoneWithin returns once the underlying relay is shut down
+//   - [x] AssertDoneWithin will not return successfully before the underlying relay is shut down
+//   - [x] AssertDoneWithin will fail the test when the given time elapses before the underlying
+//     relay is shut down. The timeout countdown starts when AssertDoneWithin is called.
 func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 	rt.t.Helper()
 
