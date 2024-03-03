@@ -133,6 +133,60 @@ func TestStartPanicsWithWrongArgTypes(t *testing.T) {
 	tester.Start(argFunc, "1")
 }
 
+func TestStartIsOkWithVariadicFuncs(t *testing.T) {
+	t.Parallel()
+
+	// Given testing needs
+	tester := imptest.NewRelayTester(t)
+
+	// Given FUT with variadic args
+	testFunc := func(args ...any) {}
+
+	// When func is run with start
+	tester.Start(testFunc, "first", "second", "third")
+
+	// Then no failure, because the variadic args were accepted
+
+}
+func TestStartCallsFuncWithArgs(t *testing.T) {
+	t.Parallel()
+
+	// Given testing needs
+	tester := imptest.NewRelayTester(t)
+	doneChan := make(chan struct{})
+
+	// Given FUT
+	var argsPassed []any
+	testFunc := func(args ...any) {
+		argsPassed = args
+		close(doneChan)
+	}
+
+	// When func is run with start
+	intArg := 1
+	strArg := "hi there"
+	structArg := struct{}{}
+	tester.Start(testFunc, intArg, strArg, &structArg)
+
+	// When we wait for the testFunc to finish
+	select {
+	case <-doneChan:
+	case <-time.After(time.Second):
+		panic("doneChan never closed, indicating function never completed.")
+	}
+
+	// Then the args are equivalent
+	expectedArgs := []any{intArg, strArg, &structArg}
+	if !reflect.DeepEqual(argsPassed, expectedArgs) {
+		t.Fatalf(
+			"Expected %#v but the func was called with %#v",
+			argsPassed,
+			expectedArgs,
+		)
+	}
+
+}
+
 func TestStartRunsFUTInGoroutine(t *testing.T) {
 	t.Parallel()
 
