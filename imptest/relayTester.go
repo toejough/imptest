@@ -112,7 +112,7 @@ type (
 //	-[x] Start will call the function with the given arguments.
 //	-[x] Start will call the function exactly once.
 //	-[x] Start will make the function's return values available via GetReturns and AssertReturned.
-//	- Start will recover any panic from the function and call Tester.Fatalf with it.
+//	-[x] Start will recover any panic from the function and call Tester.Fatalf with it.
 //	-[x] Start will shut down the CallRelay when the function exits.
 func (rt *RelayTester) Start(function Function, args ...any) {
 	panicIfInvalidCall(function, args)
@@ -120,7 +120,13 @@ func (rt *RelayTester) Start(function Function, args ...any) {
 	rt.function = function
 
 	go func() {
-		defer func() { rt.relay.Shutdown() }()
+		defer func() {
+			rt.relay.Shutdown()
+
+			if r := recover(); r != nil {
+				rt.t.Fatalf("caught panic from started function: %v", r)
+			}
+		}()
 
 		rt.returnValues = callFunc(function, args)
 	}()
