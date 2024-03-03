@@ -103,6 +103,7 @@ func panicIfWrongNumArgs(function Function, args []any) {
 
 	reflectedFunc := reflect.TypeOf(function)
 	numFunctionArgs := reflectedFunc.NumIn()
+	isVariadic := reflectedFunc.IsVariadic()
 
 	if numArgs < numFunctionArgs {
 		panic(fmt.Sprintf("Too few args passed. The func (%s) takes %d args,"+
@@ -111,8 +112,8 @@ func panicIfWrongNumArgs(function Function, args []any) {
 			numFunctionArgs,
 			numArgs,
 		))
-	} else if numFunctionArgs < numArgs {
-		panic(fmt.Sprintf("Too many args passed. The func (%s) only takes %d values,"+
+	} else if numFunctionArgs < numArgs && !isVariadic {
+		panic(fmt.Sprintf("Too many args passed. The func (%s) only takes %d values and is not variadic,"+
 			" but %d were passed",
 			GetFuncName(function),
 			numFunctionArgs,
@@ -150,6 +151,7 @@ func panicIfWrongNumReturns(function Function, returns []any) {
 // the given function takes.
 func panicIfWrongArgTypes(function Function, args []any) {
 	reflectedFunc := reflect.TypeOf(function)
+	finalFuncIndex := reflectedFunc.NumIn() - 1
 
 	for index := range args {
 		arg := args[index]
@@ -158,7 +160,14 @@ func panicIfWrongArgTypes(function Function, args []any) {
 			continue
 		}
 
-		functionArgType := reflectedFunc.In(index)
+		var functionArgType reflect.Type
+
+		if reflectedFunc.IsVariadic() && index >= finalFuncIndex {
+			functionArgType = reflectedFunc.In(finalFuncIndex).Elem()
+		} else {
+			functionArgType = reflectedFunc.In(index)
+		}
+
 		argType := reflect.TypeOf(arg)
 
 		if functionArgType == argType {

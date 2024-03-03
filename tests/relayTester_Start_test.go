@@ -140,14 +140,13 @@ func TestStartIsOkWithVariadicFuncs(t *testing.T) {
 	tester := imptest.NewRelayTester(t)
 
 	// Given FUT with variadic args
-	testFunc := func(args ...any) {}
+	testFunc := func(_ ...any) {}
 
 	// When func is run with start
-	tester.Start(testFunc, "first", "second", "third")
-
 	// Then no failure, because the variadic args were accepted
-
+	tester.Start(testFunc, "first", "second", "third")
 }
+
 func TestStartCallsFuncWithArgs(t *testing.T) {
 	t.Parallel()
 
@@ -157,8 +156,10 @@ func TestStartCallsFuncWithArgs(t *testing.T) {
 
 	// Given FUT
 	var argsPassed []any
+
 	testFunc := func(args ...any) {
 		argsPassed = args
+
 		close(doneChan)
 	}
 
@@ -184,7 +185,6 @@ func TestStartCallsFuncWithArgs(t *testing.T) {
 			expectedArgs,
 		)
 	}
-
 }
 
 func TestStartRunsFUTInGoroutine(t *testing.T) {
