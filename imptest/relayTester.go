@@ -163,6 +163,14 @@ func (rt *RelayTester) AssertDoneWithin(d time.Duration) {
 }
 
 // AssertReturned checks that the function returned the given values. Otherwise it fails the test.
+//
+// Tested properties you can depend on:
+//   - [x] AssertReturned will panic if there are a different number of returns passed in than the
+//     function passed to Start returned
+//   - [x] AssertReturned will panic if the types passed are different than the types the function
+//     passed to Start returns
+//   - [x] AssertReturned will fail the test if the values passed in do not match those returned by
+//     the function passed to Start.
 func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 	panicIfInvalidReturns(rt.function, assertedReturns)
 
@@ -184,6 +192,13 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 }
 
 // PutCallputs the function and args onto the underlying CallRelay as a Call.
+//
+// Tested properties you can depend on:
+//   - [x] PutCall will panic if the function is not a function
+//   - [x] PutCall will panic if the args passed do not match the number of args the function takes
+//   - [x] PutCall will panic if the args passed do not match the types of the args the function takes
+//   - [x] PutCall will put the call onto the underlying CallRelay for inspection by the test via AssertNextCallIs
+//     and GetNextCall, and their "within" variations.
 func (rt *RelayTester) PutCall(f Function, a ...any) *Call {
 	panicIfInvalidCall(f, a)
 

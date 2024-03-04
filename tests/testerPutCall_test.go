@@ -6,6 +6,42 @@ import (
 	"github.com/toejough/protest/imptest"
 )
 
+func TestPutCallPanicsWithNonFunction(t *testing.T) {
+	t.Parallel()
+
+	// Given test needs
+	mockedt := newMockedTestingT()
+	tester := imptest.NewRelayTester(mockedt)
+	// Given inputs
+	returns := func(deps testDepsPutNonFunc) {
+		// Then the next call fails with too few args
+		// When the func is run with something that isn't a function
+		defer expectPanicWith(t, "must pass a function")
+		deps.PutNonFunc()
+	}
+	tdm := newTestDepsMock(tester)
+
+	mockedt.Wrap(func() {
+		// When the func is run
+		tester.Start(returns, tdm)
+
+		// and the func is done
+		tester.AssertFinishes()
+	})
+
+	// Then the test is marked as passed
+	if mockedt.Failed() {
+		t.Fatalf(
+			"The test should've passed. Instead the failure was: %s",
+			mockedt.Failure(),
+		)
+	}
+}
+
+type testDepsPutNonFunc interface{ PutNonFunc() }
+
+func (tdm *testDepsMock) PutNonFunc() { tdm.tester.PutCall("not a func") }
+
 func TestPutCallTooFewArgsFails(t *testing.T) {
 	t.Parallel()
 
