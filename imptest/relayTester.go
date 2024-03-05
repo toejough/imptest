@@ -191,7 +191,7 @@ func (rt *RelayTester) AssertReturned(assertedReturns ...any) {
 	}
 }
 
-// PutCallputs the function and args onto the underlying CallRelay as a Call.
+// PutCall puts the function and args onto the underlying CallRelay as a Call.
 //
 // Tested properties you can depend on:
 //   - [x] PutCall will panic if the function is not a function
@@ -207,6 +207,12 @@ func (rt *RelayTester) PutCall(f Function, a ...any) *Call {
 
 // GetNextCall gets the next Call from the underlying CallRelay.
 // GetNextCall fails the test if the call was not available within the default timeout.
+//
+// Tested properties you can depend on:.
+//   - [x] GetNextCall will return the next call which has not already been popped by previous calls
+//     to GetNextCall or AssertNextCallIs, from the underlying CallRelay, in the order
+//     inserted by PutCall.
+//   - [] GetNextCall will fail the test if the defaultTimeout passes before the next call is available.
 func (rt *RelayTester) GetNextCall() *Call {
 	return rt.GetNextCallWithin(rt.defaultTimeout)
 }
