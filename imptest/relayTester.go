@@ -212,7 +212,7 @@ func (rt *RelayTester) PutCall(f Function, a ...any) *Call {
 //   - [x] GetNextCall will return the next call which has not already been popped by previous calls
 //     to GetNextCall or AssertNextCallIs, from the underlying CallRelay, in the order
 //     inserted by PutCall.
-//   - [] GetNextCall will fail the test if the defaultTimeout passes before the next call is available.
+//   - [x] GetNextCall will fail the test if the defaultTimeout passes before the next call is available.
 func (rt *RelayTester) GetNextCall() *Call {
 	return rt.GetNextCallWithin(rt.defaultTimeout)
 }
