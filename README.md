@@ -6,7 +6,7 @@ I find that most test suites are written assuming pure functions: Inputs -> Outp
 
 Impure functions, on the other hand, are characterized by calls to _other_ functions. The whole point of some functions is that they coordinate calls to other functions. We often don't want to validate what those other functions _do_, as we already have tests for them, or they're 3rd parties that we trust. If we _do_ care about the end-to-end functionality, we can use integration tests or end-to-end testing. This library is here to help where we really do just want to test that the function-under-test makes the calls it's supposed to, in the right order, shuffling inputs and outputs between them correctly.
 
-Let's start with an example that has no arguments. It's... purely impure.
+Let's start with an example that has no arguments or returns. It's... purely impure.
 
 ```go
 func DoThings() {
@@ -104,11 +104,13 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 
 A slightly less verbose version of the test is generally helpful for parsing and understanding, so Imptest provides some syntactic sugar.
 
+TODO: also wrap the function under test into the tester.
+
 ```go
 // The test replaces those functions in order to test they are called
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
     // Given pkg deps replaced
-    tester := imptest.NewTester(t)
+    tester := imptest.NewTester(t, DoThings)
     // WrapFunc returns a function of the same signature, but which:
     // * puts the given function on the relay for test validation
     // * waits for the test to tell it to return before returning
@@ -119,7 +121,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
     pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
 
     // When DoThings is started
-    tester.Start(func(){DoThings()})
+    tester.Start()
 
     // Then the functions are called in the following order
     tester.AssertCalled(id1).Return()
@@ -164,7 +166,7 @@ func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
     pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
 
     // When DoThings is started
-    tester.Start(func(){DoThings()})
+    tester.Start(DoThings)
 
     // Then the functions are called in the following order
     tester.AssertCalled(id1).Return()
@@ -187,7 +189,7 @@ func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
     pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
 
     // When DoThings is started
-    tester.Start(func(){DoThings()})
+    tester.Start(DoThings)
 
     // Then the functions are called in the following order
     tester.AssertCalled(id1).Return()

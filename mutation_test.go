@@ -14,5 +14,6 @@ func TestMutation(t *testing.T) {
 		ooze.WithTestCommand("mage testForFail"),
 		ooze.Parallel(),
 		ooze.IgnoreSourceFiles("^magefile\\.go$"),
+		ooze.WithMinimumThreshold(0.75),
 	)
 }

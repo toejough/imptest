@@ -90,6 +90,7 @@ func Check() error {
 		Test,          // verify the stuff you explicitly care about works
 		Lint,          // make it follow the standards you care about
 		CheckNils,     // suss out nils
+		Mutate,        // check for untested code
 		CheckCoverage, // verify desired coverage
 		Fuzz,          // suss out unsafe assumptions about your function inputs
 		TodoCheck,     // look for any fixme's or todos
@@ -157,6 +158,16 @@ func Test() error {
 		"-coverprofile=coverage.out",
 		"-coverpkg=./imptest",
 		"./...",
+	)
+}
+
+// Run the mutation tests
+func Mutate() error {
+	fmt.Println("Running unit tests...")
+	return sh.RunV(
+		"go",
+		"test",
+		"-tags=mutation",
 	)
 }
 
