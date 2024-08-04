@@ -28,8 +28,16 @@ check-shadowing = true
 settings = { shadow = { strict = true } } # I want to know!
 [linters-settings.depguard.rules]
 all.files = ["$all", "!$test"]
-all.allow = ["$gostd", "github.com/alexflint/go-arg"]
+all.allow = [
+	"$gostd", 
+	"github.com/alexflint/go-arg",
+	"github.com/google/uuid"
+]
 test.files = ["$test"]
-test.allow = ["$gostd", "pgregory.net/rapid", "github.com/toejough/protest/imptest"]
+test.allow = [
+	"$gostd", 
+	"pgregory.net/rapid", 
+	"github.com/toejough/protest/imptest",
+]
 [linters-settings.nlreturn]
 block-size=2 # IMO this is ok style

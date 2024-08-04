@@ -6,43 +6,47 @@ import (
 	"github.com/toejough/protest/imptest"
 )
 
-// DoThings now calls functions from a package-level dependencies struct.
-func DoThings() {
-	pkgDeps.thing1()
-	pkgDeps.thing2()
-	pkgDeps.thing3()
+// TODO: context deps?
+// DoThings now calls functions from a dependencies struct.
+func DoThings(deps doThingsDeps) {
+	deps.thing1()
+	deps.thing2()
+	deps.thing3()
 }
 
-func thing1() {}
-func thing2() {}
-func thing3() {}
-
-// The package dependencies are initialized with the original functions.
-var pkgDeps = struct {
+type doThingsDeps struct {
 	thing1 func()
 	thing2 func()
 	thing3 func()
-}{thing1, thing2, thing3}
+}
 
 // The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
+	t.Parallel()
 	// Given pkg deps replaced
 	calls := make(chan imptest.FuncCall)
 	// WrapFunc returns a function of the same signature, but which:
-	// * puts the given function on the relay for test validation
+	// * puts the given function on the calls channel for test validation
 	// * waits for the test to tell it to return before returning
-	// It also returns an ID, to compare against, because go does not allow
-	// us to compare functions.
-	var id1, id2, id3 string
-	pkgDeps.thing1, id1 = imptest.WrapFunc(thing1, calls)
-	pkgDeps.thing2, id2 = imptest.WrapFunc(thing2, calls)
-	pkgDeps.thing3, id3 = imptest.WrapFunc(thing3, calls)
+	// It also returns an ID, to compare against, because go does not allow us
+	// to compare functions.
+	var (
+		id1, id2, id3 string
+		deps          doThingsDeps
+	)
+
+	// since WrapFunc returns a function of the same signature, we don't even
+	// need a concrete function to emulate, we can just use the zero value
+	// functions from the dependency struct to build the test function from
+	deps.thing1, id1 = imptest.WrapFunc(deps.thing1, calls)
+	deps.thing2, id2 = imptest.WrapFunc(deps.thing2, calls)
+	deps.thing3, id3 = imptest.WrapFunc(deps.thing3, calls)
 
 	// When DoThings is started
 	go func() {
 		// record when the func is done so we can test that, too
 		defer close(calls)
-		DoThings()
+		DoThings(deps)
 	}()
 
 	// Then thing1 is called
@@ -52,7 +56,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	}
 
 	// When thing1 returns
-	funcCall1.Out <- []any{}
+	funcCall1.ReturnValuesChan <- []any{} // no returns
 
 	// Then thing2 is called
 	funcCall2 := <-calls
@@ -61,7 +65,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	}
 
 	// When thing2 returns
-	funcCall2.Out <- []any{}
+	funcCall2.ReturnValuesChan <- nil // for no returns, can also inject nil
 
 	// Then thing3 is called
 	funcCall3 := <-calls
@@ -70,7 +74,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	}
 
 	// When thing3 returns
-	funcCall3.Out <- []any{}
+	funcCall3.ReturnValuesChan <- nil
 
 	// Then there are no more calls
 	_, open := <-calls

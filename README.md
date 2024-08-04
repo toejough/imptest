@@ -28,77 +28,91 @@ We literally don't care about the underlying functionality, we just want to ensu
 
 Somehow we need to get notified, at runtime, whether `thing1` is called. The imptest way to do this is to mock `thing1`, replacing it with a call that instead puts `thing1` on a channel for the test to inspect before moving on.
 
-You can choose any dependency injection method you like. For simplicity, the following examples will assume a package level struct that stores the functions which we want to test for.
+You can choose any dependency injection method you like. For simplicity, the following examples will assume a struct that stores the functions which we want to test for.
 
 ```go
-// DoThings now calls functions from a package-level dependencies struct
-func DoThings() {
-    pkgDeps.thing1()
-    pkgDeps.thing2()
-    pkgDeps.thing3()
+package imptest_test
+
+import (
+	"testing"
+
+	"github.com/toejough/protest/imptest"
+)
+
+// DoThings now calls functions from a dependencies struct.
+func DoThings(deps doThingsDeps) {
+	deps.thing1()
+	deps.thing2()
+	deps.thing3()
 }
 
-// The package dependencies are initialized with the original functions
-var pkgDeps = struct{
-    thing1 func()
-    thing2 func()
-    thing3 func()
-}{thing1, thing2, thing3}
+type doThingsDeps struct {
+	thing1 func()
+	thing2 func()
+	thing3 func()
+}
 
-// The test replaces those functions in order to test they are called
+// The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
-    // Given pkg deps replaced
-    relay := imptest.NewRelay()
-    // WrapFunc returns a function of the same signature, but which:
-    // * puts the given function on the relay for test validation
-    // * waits for the test to tell it to return before returning
-    // It also returns an ID, to compare against, because go does not allow    
-    // us to compare functions.
-    pkgDeps.thing1, id1 = relay.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = relay.WrapFunc(thing2)
-    pkgDeps.thing3, id3 = relay.WrapFunc(thing3)
+	t.Parallel()
+	// Given pkg deps replaced
+	calls := make(chan imptest.FuncCall)
+	// WrapFunc returns a function of the same signature, but which:
+	// * puts the given function on the calls channel for test validation
+	// * waits for the test to tell it to return before returning
+	// It also returns an ID, to compare against, because go does not allow us
+	// to compare functions.
+	var (
+		id1, id2, id3 string
+		deps          doThingsDeps
+	)
 
-    // When DoThings is started
-    done := false
-    go func() {
-        DoThings()
-        // record when the func is done so we can test that, too
-        done = true
-    }()
+	// since WrapFunc returns a function of the same signature, we don't even
+	// need a concrete function to emulate, we can just use the zero value
+	// functions from the dependency struct to build the test function from
+	deps.thing1, id1 = imptest.WrapFunc(deps.thing1, calls)
+	deps.thing2, id2 = imptest.WrapFunc(deps.thing2, calls)
+	deps.thing3, id3 = imptest.WrapFunc(deps.thing3, calls)
 
-    // Then thing1 is called 
-    if relay.NextCallID() != id1 {
-        t.Fail()
-    }
+	// When DoThings is started
+	go func() {
+		// record when the func is done so we can test that, too
+		defer close(calls)
+		DoThings(deps)
+	}()
 
-    // When thing1 returns 
-    relay.Return()
+	// Then thing1 is called
+	funcCall1 := <-calls
+	if funcCall1.ID != id1 {
+		t.Fail()
+	}
 
-    // Then thing2 is called
-    if relay.NextCallID() != id2 {
-        t.Fail()
-    }
+	// When thing1 returns
+	funcCall1.ReturnValuesChan <- []any{} // no returns
 
-    // When thing2 returns 
-    relay.Return() 
+	// Then thing2 is called
+	funcCall2 := <-calls
+	if funcCall2.ID != id2 {
+		t.Fail()
+	}
 
-    // Then thing3 is called
-    if relay.NextCallID() != id3 {
-        t.Fail()
-    }
+	// When thing2 returns
+	funcCall2.ReturnValuesChan <- nil // for no returns, can also inject nil
 
-    // When thing3 returns
-    relay.Return()
+	// Then thing3 is called
+	funcCall3 := <-calls
+	if funcCall3.ID != id3 {
+		t.Fail()
+	}
 
-    // Then there are no more calls
-    if relay.NextCallID() != nil {
-        t.Fail()
-    }
+	// When thing3 returns
+	funcCall3.ReturnValuesChan <- nil
 
-    // And the function returns
-    if !done {
-        t.Fail()
-    }
+	// Then there are no more calls
+	_, open := <-calls
+	if open {
+		t.Fail()
+	}
 }
 ```
 
