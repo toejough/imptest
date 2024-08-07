@@ -25,6 +25,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	t.Parallel()
 	// Given pkg deps replaced
 	calls := make(chan imptest.FuncCall)
+
 	// WrapFunc returns a function of the same signature, but which:
 	// * puts the given function on the calls channel for test validation
 	// * waits for the test to tell it to return before returning
@@ -34,7 +35,6 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 		id1, id2, id3 string
 		deps          doThingsDeps
 	)
-
 	// since WrapFunc returns a function of the same signature, we don't even
 	// need a concrete function to emulate, we can just use the zero value
 	// functions from the dependency struct to build the test function from
@@ -81,4 +81,42 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	if open {
 		t.Fail()
 	}
+}
+
+// The test replaces those functions in order to test they are called.
+func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
+	t.Parallel()
+
+	// Given pkg deps replaced
+	calls := make(chan imptest.FuncCall)
+
+	// WrapFunc returns a function of the same signature, but which:
+	// * puts the given function on the calls channel for test validation
+	// * waits for the test to tell it to return before returning
+	// It also returns an ID, to compare against, because go does not allow us
+	// to compare functions.
+	var (
+		id1, id2, id3 string
+		deps          doThingsDeps
+	)
+	// since WrapFunc returns a function of the same signature, we don't even
+	// need a concrete function to emulate, we can just use the zero value
+	// functions from the dependency struct to build the test function from
+	deps.thing1, id1 = imptest.WrapFunc(deps.thing1, calls)
+	deps.thing2, id2 = imptest.WrapFunc(deps.thing2, calls)
+	deps.thing3, id3 = imptest.WrapFunc(deps.thing3, calls)
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t, calls)
+
+	// When DoThings is started
+	tester.Start(DoThings, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id2).Return()
+	tester.AssertCalled(id3).Return()
+
+	// Then the function returned
+	tester.AssertReturned()
 }

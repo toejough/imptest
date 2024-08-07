@@ -3,6 +3,7 @@ package imptest
 
 import (
 	"reflect"
+	"testing"
 
 	"github.com/google/uuid"
 )
@@ -45,4 +46,37 @@ type FuncCall struct {
 	ID               string
 	args             []reflect.Value
 	ReturnValuesChan chan []any
+}
+
+// NewFuncTester returns a newly initialized FuncTester.
+func NewFuncTester(t *testing.T, c chan FuncCall) *FuncTester {
+	t.Helper()
+
+	return &FuncTester{
+		T:     t,
+		Calls: c,
+	}
+}
+
+// Tester contains the *testing.T and the chan FuncCall.
+type FuncTester struct {
+	T            *testing.T
+	Calls        chan FuncCall
+	ReturnValues []any
+}
+
+// Start starts the function.
+func (t *FuncTester) Start(function any, args ...any) {
+	// record when the func is done so we can test that, too
+	go func() {
+		defer func() {
+			close(t.Calls)
+
+			if r := recover(); r != nil {
+				t.T.Fatalf("caught panic from started function: %v", r)
+			}
+		}()
+
+		t.ReturnValues = callFunc(function, args)
+	}()
 }
