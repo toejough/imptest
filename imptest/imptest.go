@@ -10,6 +10,8 @@ import (
 
 func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 	// creates a unique ID for the function
+	// TODO: allow users to override the ID
+	// TODO: drop the uuid
 	funcID := GetFuncName(function) + "_" + uuid.New().String()
 
 	// create the function, that when called:
@@ -22,7 +24,7 @@ func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 		returnValuesChan := make(chan []any)
 
 		// Submit this call to the calls channel
-		calls <- FuncCall{funcID, args, returnValuesChan}
+		calls <- FuncCall{funcID, unreflectValues(args), returnValuesChan}
 
 		// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
 		for _, a := range <-returnValuesChan {
@@ -44,7 +46,7 @@ func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 
 type FuncCall struct {
 	ID               string
-	args             []reflect.Value
+	args             []any
 	ReturnValuesChan chan []any
 }
 
@@ -53,8 +55,9 @@ func NewFuncTester(t *testing.T, c chan FuncCall) *FuncTester {
 	t.Helper()
 
 	return &FuncTester{
-		T:     t,
-		Calls: c,
+		T:            t,
+		Calls:        c,
+		ReturnValues: []any{},
 	}
 }
 
@@ -70,6 +73,8 @@ func (t *FuncTester) Start(function any, args ...any) {
 	// record when the func is done so we can test that, too
 	go func() {
 		defer func() {
+			t.T.Helper()
+
 			close(t.Calls)
 
 			if r := recover(); r != nil {
@@ -79,4 +84,55 @@ func (t *FuncTester) Start(function any, args ...any) {
 
 		t.ReturnValues = callFunc(function, args)
 	}()
+}
+
+// AssertCalled asserts that the passed in fuction and args match.
+func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncCall {
+	t.T.Helper()
+
+	actualCall := <-t.Calls
+	if actualCall.ID != expectedCallID {
+		t.T.Fatalf(
+			"wrong callID: expected the function %s to be called, but %s was called instead",
+			expectedCallID,
+			actualCall.ID,
+		)
+	}
+
+	actualArgs := actualCall.args
+	for i := range expectedArgs {
+		if !deepEqual(actualArgs[i], expectedArgs[i]) {
+			t.T.Fatalf("wrong values: the function %s was expected to be called with %#v at index %d but was called with %#v",
+				expectedCallID, expectedArgs[i], i, actualArgs[i],
+			)
+		}
+	}
+
+	return actualCall
+}
+
+// AssertReturned asserts that the function under test returned the given values.
+func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
+	t.T.Helper()
+
+	// Then there are no more calls
+	_, open := <-t.Calls
+	if open {
+		t.T.Fail()
+	}
+
+	// TODO: create a basic diff function based on json marshalling
+	// TODO: allow users to override the diff function
+	for i := range expectedReturnValues {
+		if !deepEqual(t.ReturnValues[i], expectedReturnValues[i]) {
+			t.T.Fatalf("wrong values: the function under test was expected to return %#v at index %d but returned %#v",
+				expectedReturnValues[i], i, t.ReturnValues[i],
+			)
+		}
+	}
+}
+
+// Return returns the given values in the func call.
+func (c FuncCall) Return(returnVals ...any) {
+	c.ReturnValuesChan <- returnVals
 }
