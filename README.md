@@ -346,68 +346,9 @@ func TestDoThingsConcurrently(t *testing.T) {
 
 Some other niceties:
 
-* `Return()` is unnecessary. If another tester/relay call is made, it will automatically apply `Return()` if no `Return(...interface{})` call was already made.
 * `SetGoroutines(0)` will allow an arbitrary number of goroutines, if you don't care to track their count.
 * `Timeout(duration)` will set the timeout for all future assertions/next calls. The default is 1s.
 
-Using this library to validate your dependencies are called correctly, and their results are used correctly, requires some kind of dependency injection to be used. ImpTest works by mocking, mostly, but instead of supplying a single mocked version of the function, we supply a version of the function that pipes the call through a relay, so that mid-call it can be inspected by the test. The test then injects an appropriate return value, which the relay then picks up from within the mocked function, and returns.
-
-
-The general flow of events for building an ImpTest:
-
-* decide which calls you want to test for (you want to test that these calls are made, without _actually_ calling them in the test)
-* inject them into your function via dependency injection, rather than as direct calls 
-* 
-Example of use:
-```go
-func TestRepeatedCalls(t *testing.T) {
-	t.Parallel()
-
-	// Given test needs
-	relay := NewCallRelay()
-	tester := &RelayTester{T: t, Relay: relay} //nolint: exhaustruct
-	// nobody else would be able to fill in private fields
-	// Given inputs
-	superSum := func(deps superSumDeps, a, b int) int {
-		return deps.sum(a, a) +
-			deps.sum(b, b) +
-			deps.sum(a, b) +
-			deps.sum(b, a)
-	}
-	deps := &superSumTestDeps{relay: relay}
-
-	// When the func is run
-	tester.Start(superSum, deps, 2, 3)
-
-	// Then the internal sum is called 4x with different args
-	tester.AssertNextCallIs(deps.sum, 2, 2).InjectReturns(4)
-	tester.AssertNextCallIs(deps.sum, 3, 3).InjectReturns(6)
-	tester.AssertNextCallIs(deps.sum, 2, 3).InjectReturns(5)
-	tester.AssertNextCallIs(deps.sum, 3, 2).InjectReturns(5)
-
-	// Then the relay is shut down
-	tester.AssertDoneWithin(time.Second)
-
-	// Then the result is as expected
-	tester.AssertReturned(20)
-}
-
-type superSumDeps interface {
-	sum(a, b int) int
-}
-
-type superSumTestDeps struct {
-	relay *CallRelay
-}
-
-func (d *superSumTestDeps) sum(a, b int) int {
-	var result int
-
-	d.relay.PutCall(d.sum, a, b).FillReturns(&result)
-
-	return result
-}
-```
 # alternatives/inspirations
 Why not https://github.com/stretchr/testify/blob/master/README.md#mock-package?
 

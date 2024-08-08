@@ -18,7 +18,13 @@ type doThingsDeps struct {
 	thing1 func()
 	thing2 func()
 	thing3 func()
+	thing4 func() bool
 }
+
+func thing1()      {}
+func thing2()      {}
+func thing3()      {}
+func thing4() bool { return false }
 
 // The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
@@ -35,12 +41,10 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 		id1, id2, id3 string
 		deps          doThingsDeps
 	)
-	// since WrapFunc returns a function of the same signature, we don't even
-	// need a concrete function to emulate, we can just use the zero value
-	// functions from the dependency struct to build the test function from
-	deps.thing1, id1 = imptest.WrapFunc(deps.thing1, calls)
-	deps.thing2, id2 = imptest.WrapFunc(deps.thing2, calls)
-	deps.thing3, id3 = imptest.WrapFunc(deps.thing3, calls)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, calls)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, calls)
 
 	// When DoThings is started
 	go func() {
@@ -99,12 +103,10 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 		id1, id2, id3 string
 		deps          doThingsDeps
 	)
-	// since WrapFunc returns a function of the same signature, we don't even
-	// need a concrete function to emulate, we can just use the zero value
-	// functions from the dependency struct to build the test function from
-	deps.thing1, id1 = imptest.WrapFunc(deps.thing1, calls)
-	deps.thing2, id2 = imptest.WrapFunc(deps.thing2, calls)
-	deps.thing3, id3 = imptest.WrapFunc(deps.thing3, calls)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, calls)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, calls)
 
 	// convenience test wrapper
 	tester := imptest.NewFuncTester(t, calls)
@@ -118,5 +120,81 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	tester.AssertCalled(id3).Return()
 
 	// Then the function returned
+	tester.AssertReturned()
+}
+
+func DoThingsWithBranch(deps doThingsDeps) {
+	deps.thing1()
+
+	if deps.thing4() {
+		deps.thing2()
+	}
+}
+
+func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	// Given pkg deps replaced
+	calls := make(chan imptest.FuncCall)
+
+	// WrapFunc returns a function of the same signature, but which:
+	// * puts the given function on the calls channel for test validation
+	// * waits for the test to tell it to return before returning
+	// It also returns an ID, to compare against, because go does not allow us
+	// to compare functions.
+	var (
+		id1, id4 string
+		deps     doThingsDeps
+	)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, calls)
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t, calls)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithBranch, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id4).Return(false)
+
+	// Then the function is done
+	tester.AssertReturned()
+}
+
+func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
+	t.Parallel()
+
+	// Given pkg deps replaced
+	calls := make(chan imptest.FuncCall)
+
+	// WrapFunc returns a function of the same signature, but which:
+	// * puts the given function on the calls channel for test validation
+	// * waits for the test to tell it to return before returning
+	// It also returns an ID, to compare against, because go does not allow us
+	// to compare functions.
+	var (
+		id1, id2, id4 string
+		deps          doThingsDeps
+	)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, calls)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, calls)
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t, calls)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithBranch, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id4).Return(true)
+	tester.AssertCalled(id2).Return()
+
+	// Then the function is done
 	tester.AssertReturned()
 }

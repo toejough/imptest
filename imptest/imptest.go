@@ -4,15 +4,13 @@ package imptest
 import (
 	"reflect"
 	"testing"
-
-	"github.com/google/uuid"
 )
 
 func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 	// creates a unique ID for the function
 	// TODO: allow users to override the ID
 	// TODO: drop the uuid
-	funcID := GetFuncName(function) + "_" + uuid.New().String()
+	funcID := GetFuncName(function)
 
 	// create the function, that when called:
 	// * puts its ID and args onto the call channel along with a return channel
@@ -99,6 +97,7 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 		)
 	}
 
+	// TODO: just simplify the comparison. Deep-equal or bust as the default.
 	actualArgs := actualCall.args
 	for i := range expectedArgs {
 		if !deepEqual(actualArgs[i], expectedArgs[i]) {
