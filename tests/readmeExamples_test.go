@@ -19,12 +19,16 @@ type doThingsDeps struct {
 	thing2 func()
 	thing3 func()
 	thing4 func() bool
+	thing5 func(int) string
+	thing6 func(string) int
 }
 
-func thing1()      {}
-func thing2()      {}
-func thing3()      {}
-func thing4() bool { return false }
+func thing1()           {}
+func thing2()           {}
+func thing3()           {}
+func thing4() bool      { return false }
+func thing5(int) string { return "" }
+func thing6(string) int { return 0 }
 
 // The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
@@ -197,4 +201,42 @@ func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
 
 	// Then the function is done
 	tester.AssertReturned()
+}
+
+func DoThingsWithArgs(x int, deps doThingsDeps) int {
+	y := deps.thing5(x)
+	return deps.thing6(y)
+}
+
+func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
+	t.Parallel()
+
+	// Given pkg deps replaced
+	calls := make(chan imptest.FuncCall)
+
+	// WrapFunc returns a function of the same signature, but which:
+	// * puts the given function on the calls channel for test validation
+	// * waits for the test to tell it to return before returning
+	// It also returns an ID, to compare against, because go does not allow us
+	// to compare functions.
+	var (
+		id5, id6 string
+		deps     doThingsDeps
+	)
+
+	deps.thing5, id5 = imptest.WrapFunc(thing5, calls)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, calls)
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t, calls)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithArgs, 1, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id5, 1).Return("hi")
+	tester.AssertCalled(id6, "hi").Return(2)
+
+	// Then the function returned as expected
+	tester.AssertReturned(2)
 }
