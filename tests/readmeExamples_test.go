@@ -214,11 +214,6 @@ func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
 	// Given pkg deps replaced
 	calls := make(chan imptest.FuncCall)
 
-	// WrapFunc returns a function of the same signature, but which:
-	// * puts the given function on the calls channel for test validation
-	// * waits for the test to tell it to return before returning
-	// It also returns an ID, to compare against, because go does not allow us
-	// to compare functions.
 	var (
 		id5, id6 string
 		deps     doThingsDeps
@@ -239,4 +234,26 @@ func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
 
 	// Then the function returned as expected
 	tester.AssertReturned(2)
+}
+
+func DoThingsThatPanic() {
+	panic("on purpose?!")
+}
+
+// The test replaces those functions in order to test they are called.
+func TestDoThingsThatPanic(t *testing.T) {
+	t.Parallel()
+
+	// TODO: make new func tester build calls
+	// ideally the following two lines are just
+	// tester := imptest.NewFuncTester(t)
+	// Given pkg deps replaced
+	calls := make(chan imptest.FuncCall)
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t, calls)
+
+	// When DoThings is started
+	tester.Start(DoThingsThatPanic)
+	tester.AssertPanicked("on purpose?!")
 }

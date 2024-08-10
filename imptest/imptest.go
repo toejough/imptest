@@ -55,6 +55,7 @@ func NewFuncTester(t *testing.T, c chan FuncCall) *FuncTester {
 	return &FuncTester{
 		T:            t,
 		Calls:        c,
+		Panic:        nil,
 		ReturnValues: []any{},
 	}
 }
@@ -63,6 +64,7 @@ func NewFuncTester(t *testing.T, c chan FuncCall) *FuncTester {
 type FuncTester struct {
 	T            *testing.T
 	Calls        chan FuncCall
+	Panic        any
 	ReturnValues []any
 }
 
@@ -71,13 +73,9 @@ func (t *FuncTester) Start(function any, args ...any) {
 	// record when the func is done so we can test that, too
 	go func() {
 		defer func() {
-			t.T.Helper()
-
 			close(t.Calls)
 
-			if r := recover(); r != nil {
-				t.T.Fatalf("caught panic from started function: %v", r)
-			}
+			t.Panic = recover()
 		}()
 
 		t.ReturnValues = callFunc(function, args)
@@ -134,4 +132,21 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 // Return returns the given values in the func call.
 func (c FuncCall) Return(returnVals ...any) {
 	c.ReturnValuesChan <- returnVals
+}
+
+// AssertPanicked asserts that the function under test paniced with the given value.
+func (t *FuncTester) AssertPanicked(expectedPanic any) {
+	t.T.Helper()
+
+	// Then there are no more calls
+	_, open := <-t.Calls
+	if open {
+		t.T.Fatal("the function under test was not done, but a panic was expected")
+	}
+
+	if !deepEqual(t.Panic, expectedPanic) {
+		t.T.Fatalf("wrong panic: the function under test was expected to panic with %#v  but %#v was found instead",
+			expectedPanic, t.Panic,
+		)
+	}
 }
