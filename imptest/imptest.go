@@ -101,7 +101,11 @@ func (t *FuncTester) Start(function any, args ...any) {
 func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncCall {
 	t.T.Helper()
 
-	actualCall := <-t.Calls
+	actualCall, open := <-t.Calls
+	if !open {
+		t.T.Fatalf("expected a call to %s, but the function under test returned early", expectedCallID)
+	}
+
 	if actualCall.ID != expectedCallID {
 		t.T.Fatalf(
 			"wrong callID: expected the function %s to be called, but %s was called instead",
