@@ -60,15 +60,16 @@ type FuncCall struct {
 	ID               string
 	args             []any
 	ReturnValuesChan chan []any
+	PanicValueChan   chan any
 }
 
 // NewFuncTester returns a newly initialized FuncTester.
-func NewFuncTester(t *testing.T, c chan FuncCall) *FuncTester {
+func NewFuncTester(t *testing.T) *FuncTester {
 	t.Helper()
 
 	return &FuncTester{
 		T:            t,
-		Calls:        c,
+		Calls:        make(chan FuncCall),
 		Panic:        nil,
 		ReturnValues: []any{},
 	}

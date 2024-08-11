@@ -95,25 +95,18 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	t.Parallel()
 
-	// Given pkg deps replaced
-	calls := make(chan imptest.FuncCall)
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-	// WrapFunc returns a function of the same signature, but which:
-	// * puts the given function on the calls channel for test validation
-	// * waits for the test to tell it to return before returning
-	// It also returns an ID, to compare against, because go does not allow us
-	// to compare functions.
+	// Given pkg deps replaced
 	var (
 		id1, id2, id3 string
 		deps          doThingsDeps
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, calls)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, calls)
-
-	// convenience test wrapper
-	tester := imptest.NewFuncTester(t, calls)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
 
 	// When DoThings is started
 	tester.Start(DoThings, deps)
@@ -138,24 +131,17 @@ func DoThingsWithBranch(deps doThingsDeps) {
 func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	// Given pkg deps replaced
-	calls := make(chan imptest.FuncCall)
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-	// WrapFunc returns a function of the same signature, but which:
-	// * puts the given function on the calls channel for test validation
-	// * waits for the test to tell it to return before returning
-	// It also returns an ID, to compare against, because go does not allow us
-	// to compare functions.
+	// Given pkg deps replaced
 	var (
 		id1, id4 string
 		deps     doThingsDeps
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, calls)
-
-	// convenience test wrapper
-	tester := imptest.NewFuncTester(t, calls)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.Calls)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithBranch, deps)
@@ -171,25 +157,18 @@ func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
 func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
 	t.Parallel()
 
-	// Given pkg deps replaced
-	calls := make(chan imptest.FuncCall)
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-	// WrapFunc returns a function of the same signature, but which:
-	// * puts the given function on the calls channel for test validation
-	// * waits for the test to tell it to return before returning
-	// It also returns an ID, to compare against, because go does not allow us
-	// to compare functions.
+	// Given pkg deps replaced
 	var (
 		id1, id2, id4 string
 		deps          doThingsDeps
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, calls)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, calls)
-
-	// convenience test wrapper
-	tester := imptest.NewFuncTester(t, calls)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.Calls)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithBranch, deps)
@@ -211,19 +190,17 @@ func DoThingsWithArgs(x int, deps doThingsDeps) int {
 func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
 	t.Parallel()
 
-	// Given pkg deps replaced
-	calls := make(chan imptest.FuncCall)
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
+	// Given pkg deps replaced
 	var (
 		id5, id6 string
 		deps     doThingsDeps
 	)
 
-	deps.thing5, id5 = imptest.WrapFunc(thing5, calls)
-	deps.thing6, id6 = imptest.WrapFunc(thing6, calls)
-
-	// convenience test wrapper
-	tester := imptest.NewFuncTester(t, calls)
+	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.Calls)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.Calls)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithArgs, 1, deps)
