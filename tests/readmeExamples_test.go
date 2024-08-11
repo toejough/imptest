@@ -244,16 +244,42 @@ func DoThingsThatPanic() {
 func TestDoThingsThatPanic(t *testing.T) {
 	t.Parallel()
 
-	// TODO: make new func tester build calls
-	// ideally the following two lines are just
-	// tester := imptest.NewFuncTester(t)
-	// Given pkg deps replaced
-	calls := make(chan imptest.FuncCall)
-
-	// convenience test wrapper
-	tester := imptest.NewFuncTester(t, calls)
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
 	// When DoThings is started
 	tester.Start(DoThingsThatPanic)
 	tester.AssertPanicked("on purpose?!")
+}
+
+func DoThingsWithPanic(deps doThingsDeps) (panicVal string) {
+	defer func() {
+		if r := recover(); r != nil {
+			panicVal = r.(string)
+		}
+	}()
+
+	deps.thing1()
+
+	return
+}
+
+// The test replaces those functions in order to test they are called.
+func TestDoThingsWithPanic(t *testing.T) {
+	t.Parallel()
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t)
+	var deps doThingsDeps
+	var id1 string
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithPanic, deps)
+
+	// Then id7 is called. When it panics...
+	tester.AssertCalled(id1).Panic("omg what?")
+
+	// Then the function returns the panic message
+	tester.AssertReturned("omg what?")
 }

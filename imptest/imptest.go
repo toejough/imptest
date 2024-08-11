@@ -21,12 +21,26 @@ func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 		// Create a channel to receive return values on
 		returnValuesChan := make(chan []any)
 
-		// Submit this call to the calls channel
-		calls <- FuncCall{funcID, unreflectValues(args), returnValuesChan}
+		// Create a channel to receive a panic value on
+		panicValueChan := make(chan any)
 
-		// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
-		for _, a := range <-returnValuesChan {
-			returnValues = append(returnValues, reflect.ValueOf(a))
+		// Submit this call to the calls channel
+		calls <- FuncCall{
+			funcID,
+			unreflectValues(args),
+			returnValuesChan,
+			panicValueChan,
+		}
+
+		select {
+		case returnValuesReflected := <-returnValuesChan:
+			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
+			for _, a := range returnValuesReflected {
+				returnValues = append(returnValues, reflect.ValueOf(a))
+			}
+		// if we're supposed to panic, do.
+		case panicValue := <-panicValueChan:
+			panic(panicValue)
 		}
 
 		return returnValues
@@ -132,6 +146,13 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 // Return returns the given values in the func call.
 func (c FuncCall) Return(returnVals ...any) {
 	c.ReturnValuesChan <- returnVals
+	close(c.ReturnValuesChan)
+}
+
+// Return returns the given values in the func call.
+func (c FuncCall) Panic(panicVal any) {
+	c.PanicValueChan <- panicVal
+	close(c.PanicValueChan)
 }
 
 // AssertPanicked asserts that the function under test paniced with the given value.
