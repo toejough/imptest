@@ -232,7 +232,12 @@ func TestDoThingsThatPanic(t *testing.T) {
 func DoThingsWithPanic(deps doThingsDeps) (panicVal string) {
 	defer func() {
 		if r := recover(); r != nil {
-			panicVal = r.(string)
+			var ok bool
+
+			panicVal, ok = r.(string)
+			if !ok {
+				panic(r)
+			}
 		}
 	}()
 
@@ -247,8 +252,12 @@ func TestDoThingsWithPanic(t *testing.T) {
 
 	// convenience test wrapper
 	tester := imptest.NewFuncTester(t)
-	var deps doThingsDeps
-	var id1 string
+
+	var (
+		deps doThingsDeps
+		id1  string
+	)
+
 	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
 
 	// When DoThings is started

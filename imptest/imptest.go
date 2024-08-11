@@ -9,7 +9,6 @@ import (
 func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 	// creates a unique ID for the function
 	// TODO: allow users to override the ID
-	// TODO: drop the uuid
 	funcID := GetFuncName(function)
 
 	// create the function, that when called:
@@ -17,7 +16,7 @@ func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 	// * waits until the return channel has something, and then returns that
 	funcType := reflect.TypeOf(function)
 
-	relayer := func(args []reflect.Value) (returnValues []reflect.Value) {
+	relayer := func(args []reflect.Value) []reflect.Value {
 		// Create a channel to receive return values on
 		returnValuesChan := make(chan []any)
 
@@ -34,16 +33,22 @@ func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 
 		select {
 		case returnValuesReflected := <-returnValuesChan:
-			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
-			for _, a := range returnValuesReflected {
-				returnValues = append(returnValues, reflect.ValueOf(a))
+			if len(returnValuesReflected) == 0 {
+				return nil
 			}
+
+			returnValues := make([]reflect.Value, len(returnValuesReflected))
+
+			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
+			for i, a := range returnValuesReflected {
+				returnValues[i] = reflect.ValueOf(a)
+			}
+
+			return returnValues
 		// if we're supposed to panic, do.
 		case panicValue := <-panicValueChan:
 			panic(panicValue)
 		}
-
-		return returnValues
 	}
 
 	// Make a function of the right type.
@@ -114,14 +119,10 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 		)
 	}
 
-	// TODO: just simplify the comparison. Deep-equal or bust as the default.
-	actualArgs := actualCall.args
-	for i := range expectedArgs {
-		if !deepEqual(actualArgs[i], expectedArgs[i]) {
-			t.T.Fatalf("wrong values: the function %s was expected to be called with %#v at index %d but was called with %#v",
-				expectedCallID, expectedArgs[i], i, actualArgs[i],
-			)
-		}
+	if !reflect.DeepEqual(actualCall.args, expectedArgs) {
+		t.T.Fatalf("wrong values: the function %s was expected to be called with %#v, but was called with %#v",
+			expectedCallID, expectedArgs, actualCall.args,
+		)
 	}
 
 	return actualCall
@@ -139,12 +140,10 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 
 	// TODO: create a basic diff function based on json marshalling
 	// TODO: allow users to override the diff function
-	for i := range expectedReturnValues {
-		if !deepEqual(t.ReturnValues[i], expectedReturnValues[i]) {
-			t.T.Fatalf("wrong values: the function under test was expected to return %#v at index %d but returned %#v",
-				expectedReturnValues[i], i, t.ReturnValues[i],
-			)
-		}
+	if !reflect.DeepEqual(t.ReturnValues, expectedReturnValues) {
+		t.T.Fatalf("wrong values: the function under test was expected to return %#v, but returned %#v",
+			expectedReturnValues, t.ReturnValues,
+		)
 	}
 }
 
@@ -170,7 +169,7 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 		t.T.Fatal("the function under test was not done, but a panic was expected")
 	}
 
-	if !deepEqual(t.Panic, expectedPanic) {
+	if !reflect.DeepEqual(t.Panic, expectedPanic) {
 		t.T.Fatalf("wrong panic: the function under test was expected to panic with %#v  but %#v was found instead",
 			expectedPanic, t.Panic,
 		)

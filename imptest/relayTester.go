@@ -273,6 +273,10 @@ func unreflectValues(rArgs []reflect.Value) []any {
 	// tricking nilaway with repeated appends till this issue is closed
 	// https://github.com/uber-go/nilaway/pull/60
 	// args := make([]any, len(rArgs))
+	if len(rArgs) == 0 {
+		return nil
+	}
+
 	args := []any{}
 
 	for i := range rArgs {
