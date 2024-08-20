@@ -73,19 +73,21 @@ func NewFuncTester(t *testing.T) *FuncTester {
 	t.Helper()
 
 	return &FuncTester{
-		T:            t,
-		Calls:        make(chan FuncCall),
-		Panic:        nil,
-		ReturnValues: []any{},
+		t,
+		make(chan FuncCall),
+		nil,
+		[]any{},
+		1,
 	}
 }
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
-	T            *testing.T
-	Calls        chan FuncCall
-	Panic        any
-	ReturnValues []any
+	T             *testing.T
+	Calls         chan FuncCall
+	Panic         any
+	ReturnValues  []any
+	maxGoroutines int
 }
 
 // Start starts the function.
@@ -93,6 +95,14 @@ func (t *FuncTester) Start(function any, args ...any) {
 	// record when the func is done so we can test that, too
 	go func() {
 		defer func() {
+			// FIXME: This can't go this way when the function under test starts goroutines and just returns immediately. If we close the channel, then there's no way for the goroutines to put their calls on the channel.
+			// is there any way for us to know how many goroutines a function spawned, and wait for those?
+			// num goroutines may be able to check this, but probably not in a parallel mode.
+			// there's a possible solution over here: https://github.com/golang/go/blob/master/src/net/http/main_test.go#L26-L51
+			// like we could read the stack & see what goroutines were fired off by us?
+			// likely, we really just need to not close if goroutines is anything other than 1.
+			// in that case, and actually every case, we need our own indicator that we think this func has returned,
+			// besides closing the call channel.
 			close(t.Calls)
 
 			t.Panic = recover()
@@ -106,6 +116,14 @@ func (t *FuncTester) Start(function any, args ...any) {
 func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncCall {
 	t.T.Helper()
 
+	// check if the call is on the queue
+	// if it is, remove it & return it.
+	// if it isn't, and the queue isn't full, pull another call & check it.
+	// if it matches, return it.
+	// if not add it to the queue and go back to checking the queue size.
+	// add the mismatch message to a failure queue
+	// if the queue is full, fail with the failure queue
+	// if the channel is closed, fail with the failure queue and a closed message
 	actualCall, open := <-t.Calls
 	if !open {
 		t.T.Fatalf("expected a call to %s, but the function under test returned early", expectedCallID)
@@ -174,4 +192,9 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 			expectedPanic, t.Panic,
 		)
 	}
+}
+
+// SetGoroutines sets the number of goroutines to read till finding the expected call.
+func (t *FuncTester) SetGoroutines(num int) {
+	t.maxGoroutines = num
 }
