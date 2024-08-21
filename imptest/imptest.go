@@ -198,3 +198,119 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 func (t *FuncTester) SetGoroutines(num int) {
 	t.maxGoroutines = num
 }
+
+// TODO: make ID it's own type
+// ExpectCall creates a new ExpectedCall, which will perform the various Assert commands when Enforced.
+func (t *FuncTester) ExpectCall(id string, args ...any) *ExpectedCall {
+	return &ExpectedCall{t, id, args, nil}
+}
+
+// ExpectedCall contains the tester, expected call ID, expected args, and any
+// forced returns/panic, which can all be asserted and executed with the
+// Enforce call.
+type ExpectedCall struct {
+	t                  *FuncTester
+	id                 string
+	args               []any
+	forcedReturnValues []any
+}
+
+// ForceReturn sets the value(s) you want to force to be returned if/when the expected call is found.
+func (t *ExpectedCall) ForceReturn(returnValues ...any) *ExpectedCall {
+	t.forcedReturnValues = returnValues
+	return t
+}
+
+// Enforce enforces the expectations with the underlying tester.
+func (t *ExpectedCall) Enforce() {
+	t.t.AssertCalled(t.id, t.args...).Return(t.forcedReturnValues...)
+}
+
+// ExpectReturn creates a new ExpectedReturn, which will perform the check for a returned value when Enforced.
+func (t *FuncTester) ExpectReturn(args ...any) *ExpectedReturn {
+	return &ExpectedReturn{t, args}
+}
+
+// ExpectedReturn contains the tester and expected return values, which can be asserted with the Enforce call.
+type ExpectedReturn struct {
+	t            *FuncTester
+	returnValues []any
+}
+
+// Enforce enforces the expectations with the underlying tester.
+func (t *ExpectedReturn) Enforce() {
+	t.t.AssertReturned(t.returnValues...)
+}
+
+// ExpectOrdered returns an ExpectedOrdered, which will walk through each
+// enforceable one by one and enforce it when the ExpectOrdered is Enforced.
+func (t *FuncTester) ExpectOrdered(enforceables ...enforceable) *ExpectedOrdered {
+	return &ExpectedOrdered{t, enforceables}
+}
+
+// ExpectedOrdered contains a tester and the enforceables that will be enforced in order when Enforce is called.
+type ExpectedOrdered struct {
+	t            *FuncTester
+	enforceables []enforceable
+}
+
+// Enforce enforces the expectations with the underlying tester.
+func (eo *ExpectedOrdered) Enforce() {
+	for _, e := range eo.enforceables {
+		e.Enforce()
+	}
+}
+
+// an enforceable is something that has the Enforce method.
+type enforceable interface {
+	Enforce()
+	EnforceIfMatch() (enforced, matchable bool)
+}
+
+// ExpectUnordered returns an ExpectedUnordered, which will walk through each
+// enforceable one by one and enforce it when the ExpectUnordered is Enforced.
+func (t *FuncTester) ExpectUnordered(enforceables ...enforceable) *ExpectedUnordered {
+	return &ExpectedUnordered{t, enforceables}
+}
+
+// ExpectedOrdered contains a tester and the enforceables that will be enforced in order when Enforce is called.
+type ExpectedUnordered struct {
+	t            *FuncTester
+	enforceables []enforceable
+}
+
+// Enforce enforces the expectations with the underlying tester.
+func (eo *ExpectedUnordered) Enforce() {
+	// FIXME: fix the order of operations here - the whole point is that this is unordered.
+	// any of the underlying enforceables might be enforceable, or might not, and it's ok, so long as one of them is, right now. For iterable enforceables, we only want to check the first/next item, not the entire list.
+	// get a copy of our enforceables
+	enforceables := []enforceable{}
+	copy(enforceables, eo.enforceables)
+	// loop through them till they've all been enforced
+	for len(enforceables) > 0 {
+		// none have been enforced yet
+		enforced := false
+		// need a temporary place to store the still-matchable enforceables after we've tried to enforce them.
+		newEnforceables := []enforceable{}
+		// loop through the current set, and try to enforce.
+		for _, e := range enforceables {
+			// only try to enforce if we haven't been successful yet.
+			if !enforced {
+				var matchable bool
+				enforced, matchable, checkedAgainst = e.EnforceIfMatch()
+				// if this enforceable isn't matchable anymore (it was a single item that was matched, or a collection and all of its items have been matched), then skip adding it to the new list
+				if !matchable {
+					continue
+				}
+			}
+			// add the enforceable to the new list
+			newEnforceables = append(newEnforceables, e)
+		}
+		// error out if we were unable to enforce anything
+		if !enforced {
+			eo.t.T.Fatalf("unable to match. Expected any of %v, but the current state is %v", expected, eo.t.State())
+		}
+		// flip the new list into the main list to keep going
+		enforceables = newEnforceables
+	}
+}
