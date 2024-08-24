@@ -300,28 +300,61 @@ func TestDoThingsConcurrently(t *testing.T) {
 	tester.Start(DoThingsConcurrently, deps)
 
 	// Then the functions are called in any order
-	// SetGoroutines tells the tester that it should pull up to the number given calls off of the
-	// relay. Each call to AssertCalled will pull up to that many calls off of the relay before asserting
-	// that one of them matches.
-	//	tester.SetGoroutines(2) // maybe just set a concurrent max wait? if someone calls id8 instead of id7, id7's going to wait forever. though that's the same as any other sync test that expects a call that never comes. except it's worse here because in that case we do eventually get a shutdown call channel. 1just concurrent(true) & concurrent(false)?
-	// tester.Concurrently(func() {...}, func(){..}, ...)? as each func completes, goroutine count goes down
-
 	tester.ExpectUnordered(
 		tester.ExpectCall(id3).ForceReturn(), // this could be second or third, and would be fine
 		tester.ExpectOrdered(
-			tester.ExpectCall(id4, 2).ForceReturn(3), // this could be first, and would be fine
-			tester.ExpectCall(id7, 3).ForceReturn(),  // this must be called after the wait for id2
+			tester.ExpectCall(id4).ForceReturn(true),   // this could be first, and would be fine
+			tester.ExpectCall(id7, true).ForceReturn(), // this must be called after the wait for id2
 		),
 		// Then the function is done
 		tester.ExpectReturn(),
 		// wrapping this into the concurrently call means we have to put the return values on a channel, not a field. Probably should have anyway.
 	).Enforce()
-	// ehhhh, this doesn't handle a case where we use a goroutine pool to dynamically spawn more or less...
-	// tester.DoConcurrently(assertAndRespondable...)
-	// tester.DoSequentially(assertAndRespondable...)
-	// tester.ExpectedCallAndResponse(id, expectedArgs, injectedReturns)
-	// tester.ExpectedReturn(expectedVals)
-	// tester.ExpectedPanic(expectedVal)
-	// each has a .AssertAndRespond() which validates the call type (or types) happened, and responds to each call as appropriate.
-
 }
+
+// func TestDoThingsConcurrently(t *testing.T) {
+// 	// Given pkg deps replaced
+// 	t.Parallel()
+//
+// 	// Given pkg deps replaced
+// 	calls := make(chan imptest.FuncCall)
+// 	defer close(calls)
+//
+// 	var (
+// 		deps          doThingsDeps
+// 		id3, id4, id7 string
+// 	)
+//
+// 	deps.thing3, id3 = imptest.WrapFunc(thing3, calls)
+// 	deps.thing4, id4 = imptest.WrapFunc(thing4, calls)
+// 	deps.thing7, id7 = imptest.WrapFunc(thing7, calls)
+// 	returnFunc, returnID := imptest.ReturnFunc(calls)
+// 	// TODO: follow this pattern for panics, too.
+//
+// 	// When DoThings is started
+// 	go func() {
+// 		// record when the func is done so we can test that, too
+// 		DoThingsConcurrently(deps)
+// 		returnFunc()
+// 	}()
+//
+// 	// Then thing3 or thing4 is called, or the function has returned
+// 	funcCall1 := <-calls
+// 	if funcCall1.ID == id3 {
+// 		funcCall1.ReturnValuesChan <- nil
+// 		funcCall2 := <-calls
+// 		if funcCall2.ID == id4 {
+// 			funcCall2.ReturnValuesChan <- []any{true}
+// 			funcCall3 := <-calls
+// 			if funcCall3.ID == id7 && reflect.DeepEqual(funcCall3.Args, []any{true}) {
+// 				funcCall3.ReturnValuesChan <- nil
+// 				funcCall4 := <-calls
+// 				if funcCall4.ID == returnID {
+// 					// pass
+// 				} else {
+// 					t.Fail()
+// 				}
+// 			}
+// 		}
+// 	}
+// }
