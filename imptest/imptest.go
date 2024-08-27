@@ -72,6 +72,7 @@ type FuncCall struct {
 // NewFuncTester returns a newly initialized FuncTester.
 func NewFuncTester(t *testing.T) *FuncTester {
 	t.Helper()
+
 	calls := make(chan FuncCall)
 	returnFunc, returnID := ReturnFunc(calls)
 	panicFunc, panicID := PanicFunc(calls)
@@ -86,20 +87,28 @@ func NewFuncTester(t *testing.T) *FuncTester {
 		panicFunc,
 		returnID,
 		panicID,
+		[]int{},
+		[]FuncCall{},
+		0,
+		0,
 	}
 }
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
-	T             *testing.T
-	Calls         chan FuncCall
-	Panic         any
-	ReturnValues  []any
-	maxGoroutines int
-	returnFunc    func()
-	panicFunc     func()
-	returnID      string
-	panicID       string
+	T               *testing.T
+	Calls           chan FuncCall
+	Panic           any
+	ReturnValues    []any
+	maxGoroutines   int
+	returnFunc      func()
+	panicFunc       func()
+	returnID        string
+	panicID         string
+	marks           []int
+	callQueue       []FuncCall
+	queueStartIndex int
+	maxQueueLen     int
 }
 
 // Start starts the function.
@@ -123,31 +132,47 @@ func (t *FuncTester) Start(function any, args ...any) {
 func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncCall {
 	t.T.Helper()
 
-	// check if the call is on the queue
-	// if it is, remove it & return it.
-	// if it isn't, and the queue isn't full, pull another call & check it.
-	// if it matches, return it.
-	// if not add it to the queue and go back to checking the queue size.
-	// add the mismatch message to a failure queue
-	// if the queue is full, fail with the failure queue
-	// if the channel is closed, fail with the failure queue and a closed message
+	unmatchedCalls := []FuncCall{}
+
+	for {
+		// get the next thing
+		next := t.nextCall()
+		// if match, shove other checked calls back onto the queue & return
+		if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
+			t.callQueue = append(t.callQueue, unmatchedCalls...)
+			return next
+		} else {
+			// if no match, put call on the stack of checked calls
+			unmatchedCalls = append(unmatchedCalls, next)
+		}
+		// if !more, fail with message about what we expected to find vs what we got
+		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen {
+			t.T.Fatalf(
+				"Expected call ID %s, with args %#v, but the only calls found were %#v",
+				expectedCallID,
+				expectedArgs,
+				unmatchedCalls,
+			)
+		}
+	}
+}
+
+// nextCall gets the next call from the queue or the calls.
+func (t *FuncTester) nextCall() FuncCall {
+	if len(t.callQueue[t.queueStartIndex:]) > 0 {
+		next := t.callQueue[t.queueStartIndex]
+		if t.queueStartIndex > 0 {
+			t.callQueue = append(t.callQueue[0:t.queueStartIndex-1], t.callQueue[t.queueStartIndex+1:]...)
+		} else {
+			t.callQueue = t.callQueue[t.queueStartIndex+1:]
+		}
+
+		return next
+	}
+
 	actualCall, open := <-t.Calls
 	if !open {
-		t.T.Fatalf("expected a call to %s, but the calls channel was already closed", expectedCallID)
-	}
-
-	if actualCall.ID != expectedCallID {
-		t.T.Fatalf(
-			"wrong callID: expected the function %s to be called, but %s was called instead",
-			expectedCallID,
-			actualCall.ID,
-		)
-	}
-
-	if !reflect.DeepEqual(actualCall.Args, expectedArgs) {
-		t.T.Fatalf("wrong values: the function %s was expected to be called with %#v, but was called with %#v",
-			expectedCallID, expectedArgs, actualCall.Args,
-		)
+		t.T.Fatal("expected a call to be available, but the calls channel was already closed")
 	}
 
 	return actualCall
@@ -157,27 +182,28 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	t.T.Helper()
 
+	unmatchedCalls := []FuncCall{}
 	expectedCallID := t.returnID
 
-	actualCall, open := <-t.Calls
-	if !open {
-		t.T.Fatalf("expected a call to %s, but the calls channel was already closed", expectedCallID)
-	}
-
-	if actualCall.ID != expectedCallID {
-		t.T.Fatalf(
-			"wrong callID: expected the function %s to be called, but %s was called instead",
-			expectedCallID,
-			actualCall.ID,
-		)
-	}
-
-	// TODO: create a basic diff function based on json marshalling
-	// TODO: allow users to override the diff function
-	if !reflect.DeepEqual(t.ReturnValues, expectedReturnValues) {
-		t.T.Fatalf("wrong values: the function under test was expected to return %#v, but returned %#v",
-			expectedReturnValues, t.ReturnValues,
-		)
+	for {
+		// get the next thing
+		next := t.nextCall()
+		// if match, shove other checked calls back onto the queue & return
+		if next.ID == expectedCallID && reflect.DeepEqual(t.ReturnValues, expectedReturnValues) {
+			t.callQueue = append(t.callQueue, unmatchedCalls...)
+			return
+		} else {
+			// if no match, put call on the stack of checked calls
+			unmatchedCalls = append(unmatchedCalls, next)
+		}
+		// if !more, fail with message about what we expected to find vs what we got
+		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen {
+			t.T.Fatalf(
+				"Expected a return from the function under test, with return values %#v, but the only calls found were %#v",
+				expectedReturnValues,
+				unmatchedCalls,
+			)
+		}
 	}
 }
 
@@ -197,25 +223,29 @@ func (c FuncCall) Panic(panicVal any) {
 func (t *FuncTester) AssertPanicked(expectedPanic any) {
 	t.T.Helper()
 
+	unmatchedCalls := []FuncCall{}
 	expectedCallID := t.panicID
 
-	actualCall, open := <-t.Calls
-	if !open {
-		t.T.Fatalf("expected a call to %s, but the calls channel was already closed", expectedCallID)
-	}
-
-	if actualCall.ID != expectedCallID {
-		t.T.Fatalf(
-			"wrong callID: expected the function %s to be called, but %s was called instead",
-			expectedCallID,
-			actualCall.ID,
-		)
-	}
-
-	if !reflect.DeepEqual(t.Panic, expectedPanic) {
-		t.T.Fatalf("wrong panic: the function under test was expected to panic with %#v  but %#v was found instead",
-			expectedPanic, t.Panic,
-		)
+	t.T.Logf("we're asserting called...")
+	for {
+		// get the next thing
+		next := t.nextCall()
+		// if match, shove other checked calls back onto the queue & return
+		if next.ID == expectedCallID && reflect.DeepEqual(t.Panic, expectedPanic) {
+			t.callQueue = append(t.callQueue, unmatchedCalls...)
+			return
+		} else {
+			// if no match, put call on the stack of checked calls
+			unmatchedCalls = append(unmatchedCalls, next)
+		}
+		// if !more, fail with message about what we expected to find vs what we got
+		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen {
+			t.T.Fatalf(
+				"Expected a panic, with value %#v, but the only calls found were %#v",
+				expectedPanic,
+				unmatchedCalls,
+			)
+		}
 	}
 }
 
@@ -286,12 +316,15 @@ type ExpectedUnordered struct {
 
 func (eu *ExpectedUnordered) Enforce() {
 	eu.t.T.Helper()
+
 	for {
 		// Get the next possible expected calls to match against. If none, return.
 		expectedCalls := eu.peekNextExpectedCalls()
 		if len(expectedCalls) == 0 {
 			return
 		}
+
+		// TODO: replace this with a function that's called as necessary
 		concreteCalls := []string{}
 		for _, ec := range expectedCalls {
 			concreteCalls = append(concreteCalls, fmt.Sprintf("ID: %s, Args: %v\n", ec.id, ec.args))
@@ -302,6 +335,8 @@ func (eu *ExpectedUnordered) Enforce() {
 		if !ok {
 			eu.t.T.Fatalf("expected any of %v, but the calls channel was closed", concreteCalls)
 		}
+
+		// TODO: make this a function that's called as necessary
 		callString := fmt.Sprintf("ID: %s, Args: %v", call.ID, call.Args)
 		// Match one of them
 		matched := eu.match(call, expectedCalls)
@@ -318,36 +353,41 @@ func (eu *ExpectedUnordered) Enforce() {
 			call.Return(matched.returns...)
 		}
 		// repeat
+		continue // lolol this line is only here to satisfy the linter yelling about blank last lines ¯\_(ツ)_/¯
 	}
 }
 
 func (eu *ExpectedUnordered) peekNextExpectedCalls() []*ExpectedCall {
 	expectedCalls := []*ExpectedCall{}
+
 	for _, expected := range eu.expected {
-		switch v := expected.(type) {
+		switch concreteExpectation := expected.(type) {
 		case *ExpectedCall:
-			expectedCalls = append(expectedCalls, v)
+			expectedCalls = append(expectedCalls, concreteExpectation)
 		case *ExpectedUnordered:
-			expectedCalls = append(expectedCalls, v.peekNextExpectedCalls()...)
+			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
 		case *ExpectedOrdered:
-			expectedCalls = append(expectedCalls, v.peekNextExpectedCalls()...)
+			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
 		}
 	}
+
 	return expectedCalls
 }
 
 func (eo *ExpectedOrdered) peekNextExpectedCalls() []*ExpectedCall {
 	expectedCalls := []*ExpectedCall{}
+
 	for _, expected := range eo.expected {
-		switch v := expected.(type) {
+		switch concreteExpectation := expected.(type) {
 		case *ExpectedCall:
-			expectedCalls = append(expectedCalls, v)
+			expectedCalls = append(expectedCalls, concreteExpectation)
 		case *ExpectedUnordered:
-			expectedCalls = append(expectedCalls, v.peekNextExpectedCalls()...)
+			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
 		case *ExpectedOrdered:
-			expectedCalls = append(expectedCalls, v.peekNextExpectedCalls()...)
+			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
 		}
 	}
+
 	return expectedCalls
 }
 
@@ -356,6 +396,7 @@ func (eu *ExpectedUnordered) match(call FuncCall, expectedCalls []*ExpectedCall)
 		if expected.id != call.ID {
 			continue
 		}
+
 		if !reflect.DeepEqual(call.Args, expected.args) {
 			continue
 		}
@@ -369,62 +410,76 @@ func (eu *ExpectedUnordered) match(call FuncCall, expectedCalls []*ExpectedCall)
 func (eu *ExpectedUnordered) pop(matched *ExpectedCall) bool {
 	popped := false
 	newEnforceables := []Enforceable{}
+
 	for _, expected := range eu.expected {
 		if popped {
 			newEnforceables = append(newEnforceables, expected)
 			continue
 		}
-		switch v := expected.(type) {
+
+		switch concreteExpectation := expected.(type) {
 		case *ExpectedCall:
-			if v.id == matched.id && reflect.DeepEqual(v.args, matched.args) {
+			if concreteExpectation.id == matched.id && reflect.DeepEqual(concreteExpectation.args, matched.args) {
 				popped = true
 				continue
 			}
 		case *ExpectedUnordered:
-			popped = v.pop(matched)
-			if len(v.expected) == 0 {
+			popped = concreteExpectation.pop(matched)
+
+			if len(concreteExpectation.expected) == 0 {
 				continue
 			}
 		case *ExpectedOrdered:
-			popped = v.pop(matched)
-			if len(v.expected) == 0 {
+			popped = concreteExpectation.pop(matched)
+
+			if len(concreteExpectation.expected) == 0 {
 				continue
 			}
 		}
+
 		newEnforceables = append(newEnforceables, expected)
 	}
+
 	eu.expected = newEnforceables
+
 	return popped
 }
 
 func (eo *ExpectedOrdered) pop(matched *ExpectedCall) bool {
 	popped := false
 	newEnforceables := []Enforceable{}
+
 	for _, expected := range eo.expected {
 		if popped {
 			newEnforceables = append(newEnforceables, expected)
 			continue
 		}
-		switch v := expected.(type) {
+
+		switch concreteExpectation := expected.(type) {
 		case *ExpectedCall:
-			if v.id == matched.id && reflect.DeepEqual(v.args, matched.args) {
+			if concreteExpectation.id == matched.id && reflect.DeepEqual(concreteExpectation.args, matched.args) {
 				popped = true
 				continue
 			}
 		case *ExpectedUnordered:
-			popped = v.pop(matched)
-			if len(v.expected) == 0 {
+			popped = concreteExpectation.pop(matched)
+
+			if len(concreteExpectation.expected) == 0 {
 				continue
 			}
 		case *ExpectedOrdered:
-			popped = v.pop(matched)
-			if len(v.expected) == 0 {
+			popped = concreteExpectation.pop(matched)
+
+			if len(concreteExpectation.expected) == 0 {
 				continue
 			}
 		}
+
 		newEnforceables = append(newEnforceables, expected)
 	}
+
 	eo.expected = newEnforceables
+
 	return popped
 }
 
@@ -482,6 +537,7 @@ type ExpectedOrdered struct {
 
 func (eo *ExpectedOrdered) Enforce() {
 	eo.t.T.Helper()
+
 	for _, e := range eo.expected {
 		e.Enforce()
 	}
@@ -489,4 +545,26 @@ func (eo *ExpectedOrdered) Enforce() {
 
 func (t *FuncTester) ExpectOrdered(expected ...Enforceable) *ExpectedOrdered {
 	return &ExpectedOrdered{t, expected}
+}
+
+// Concurrently marks the current size of the call queue, such that assertion calls made within the passed functions only start from the marked location in the queue. It also limits the maximum size of the queue by the number of concurrent functions that have yet to complete. It is nestable - nested calls to Concurrently will push a new mark onto a queue of marks, and pop it off when complete.
+func (t *FuncTester) Concurrently(funcs ...func()) {
+	// read the current queue length
+	mark := len(t.callQueue)
+	// add a mark for that length
+	t.marks = append(t.marks, mark)
+	// reset queue start index to the latest mark
+	t.queueStartIndex = t.marks[len(t.marks)-1]
+	// add len(funcs) -1 as a max for queue length
+	t.maxQueueLen += len(funcs) - 1
+	// run each function.
+	for _, f := range funcs {
+		f()
+		// reset queue start index to the latest mark
+		t.queueStartIndex = t.marks[len(t.marks)-1]
+		// reduce the max queue length
+		t.maxQueueLen -= 1
+	}
+	// at the end, pop the mark we added
+	t.marks = t.marks[0 : len(t.marks)-1]
 }

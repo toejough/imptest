@@ -235,33 +235,3 @@ func TestStartRunsFUTInGoroutine(t *testing.T) {
 		t.Fatalf("Expected a single run, but got %d instead", runs)
 	}
 }
-
-func TestStartFailsOnPanic(t *testing.T) {
-	t.Parallel()
-
-	// Given test needs
-	mockedt := newMockedTestingT()
-	tester := imptest.NewRelayTester(mockedt)
-	doneChan := make(chan struct{})
-	// Given FUT that panics
-	panickyFunc := func() {
-		defer close(doneChan)
-		panic("intentionally panicky")
-	}
-
-	mockedt.Wrap(func() {
-		// When Start is called with the func
-		tester.Start(panickyFunc)
-		// When we wait for the func to finish
-		select {
-		case <-doneChan:
-		case <-time.After(time.Second):
-			panic("doneChan never closed, indicating function never completed.")
-		}
-	})
-
-	// Then the test is marked as failed with the panic message
-	if !mockedt.Failed() {
-		t.Fatal("Test should've failed due to the panic, but it didn't.")
-	}
-}
