@@ -5,7 +5,6 @@ go 1.22.3
 require (
 	github.com/gtramontina/ooze v0.2.0
 	github.com/magefile/mage v1.15.0
-	pgregory.net/rapid v1.1.0
 )
 
 require (

@@ -301,6 +301,8 @@ func TestDoThingsConcurrentlySync(t *testing.T) {
 
 	// Then the functions are called in any order
 	// TODO randomize order asserted
+	// TODO add a way to verify that nothing _unexpected_ landed in the call
+	// queue after we finish our tests. tester.AssertNoOrphanedCalls()?
 	tester.Concurrently(func() {
 		// we expect this call _concurrently_, acking that this is not
 		// necessarily the order the calls will actually come through because

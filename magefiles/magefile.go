@@ -165,7 +165,8 @@ func Test() error {
 
 // Run the mutation tests
 func Mutate() error {
-	fmt.Println("Running unit tests...")
+	// TODO: add a run of the testForFail func, which is what the mutator runs
+	fmt.Println("Running mutation tests...")
 	return sh.RunV(
 		"go",
 		"test",
@@ -197,7 +198,16 @@ func CheckCoverage() error {
 func TestForFail() error {
 	fmt.Println("Running unit tests for overall pass/fail...")
 
-	return sh.RunV("go", "test", "-timeout", "5s", "./...", "-rapid.nofailfile", "-failfast")
+	return sh.RunV(
+		"go",
+		"test",
+		"-timeout=5s",
+		"./...",
+		// "-rapid.nofailfile",
+		"-failfast",
+		"-shuffle=on",
+		"-race",
+	)
 }
 
 // Run the fuzz tests

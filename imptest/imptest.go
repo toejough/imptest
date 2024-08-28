@@ -132,13 +132,33 @@ func (t *FuncTester) Start(function any, args ...any) {
 func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncCall {
 	t.T.Helper()
 
+	return t.assertMatch(expectedCallID, expectedArgs)
+}
+
+func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) FuncCall {
 	unmatchedCalls := []FuncCall{}
 
 	for {
 		// get the next thing
 		next := t.nextCall()
+
+		// TODO: clean this up in terms of better switching & abstraction
+		actualArgs := next.Args
+		expectationID := "call ID of " + expectedCallID
+
+		if expectedCallID == t.returnID {
+			actualArgs = t.ReturnValues
+			expectationID = "return from function under test"
+		} else if expectedCallID == t.panicID {
+			actualArgs = []any{t.Panic}
+			expectationID = "panic from function under test"
+		}
+
+		// TODO: is this mapping unnecessary?
+		actualID := next.ID
+
 		// if match, shove other checked calls back onto the queue & return
-		if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
+		if actualID == expectedCallID && reflect.DeepEqual(actualArgs, expectedArgs) {
 			t.callQueue = append(t.callQueue, unmatchedCalls...)
 			return next
 		}
@@ -146,18 +166,20 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 		t.T.Logf(
 			"No match between expected (%s)\nand next (%s)",
 			fmt.Sprintf("ID: %s, Args: %#v", expectedCallID, expectedArgs),
-			fmt.Sprintf("ID: %s, Args: %#v", next.ID, next.Args),
+			fmt.Sprintf("ID: %s, Args: %#v", actualID, actualArgs),
 		)
+
 		// if no match, put call on the stack of checked calls
 		unmatchedCalls = append(unmatchedCalls, next)
+
 		// if !more, fail with message about what we expected to find vs what we got
 		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen+1 {
 			t.T.Fatalf(
-				"Expected call ID %s,"+
+				"Expected %s,"+
 					"with args %#v,\nbut the only calls found were %#v.\n"+
 					"len(unmatchedCalls): %d.\nlen(callQueue): %d,\nmaxQueueLen: %d.\n"+
 					" queueStartIndex: %d.\ncallQueue: %#v",
-				expectedCallID,
+				expectationID,
 				expectedArgs,
 				unmatchedCalls,
 				len(unmatchedCalls),
@@ -200,29 +222,7 @@ func (t *FuncTester) nextCall() FuncCall {
 func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	t.T.Helper()
 
-	unmatchedCalls := []FuncCall{}
-	expectedCallID := t.returnID
-
-	// TODO: some abstraction of this logic across calls / return / panic
-	for {
-		// get the next thing
-		next := t.nextCall()
-		// if match, shove other checked calls back onto the queue & return
-		if next.ID == expectedCallID && reflect.DeepEqual(t.ReturnValues, expectedReturnValues) {
-			t.callQueue = append(t.callQueue, unmatchedCalls...)
-			return
-		}
-		// if no match, put call on the stack of checked calls
-		unmatchedCalls = append(unmatchedCalls, next)
-		// if !more, fail with message about what we expected to find vs what we got
-		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen+1 {
-			t.T.Fatalf(
-				"Expected a return from the function under test, with return values %#v, but the only calls found were %#v",
-				expectedReturnValues,
-				unmatchedCalls,
-			)
-		}
-	}
+	t.assertMatch(t.returnID, expectedReturnValues)
 }
 
 // Return returns the given values in the func call.
@@ -241,33 +241,7 @@ func (c FuncCall) Panic(panicVal any) {
 func (t *FuncTester) AssertPanicked(expectedPanic any) {
 	t.T.Helper()
 
-	unmatchedCalls := []FuncCall{}
-	expectedCallID := t.panicID
-
-	for {
-		// get the next thing
-		next := t.nextCall()
-		// if match, shove other checked calls back onto the queue & return
-		if next.ID == expectedCallID && reflect.DeepEqual(t.Panic, expectedPanic) {
-			t.callQueue = append(t.callQueue, unmatchedCalls...)
-			return
-		}
-		// if no match, put call on the stack of checked calls
-		unmatchedCalls = append(unmatchedCalls, next)
-		// if !more, fail with message about what we expected to find vs what we got
-		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen+1 {
-			t.T.Fatalf(
-				"Expected a panic, with value %#v, but the only calls found were %#v",
-				expectedPanic,
-				unmatchedCalls,
-			)
-		}
-	}
-}
-
-// SetGoroutines sets the number of goroutines to read till finding the expected call.
-func (t *FuncTester) SetGoroutines(num int) {
-	t.maxGoroutines = num
+	t.assertMatch(t.panicID, []any{expectedPanic})
 }
 
 // TODO: make ID it's own type
@@ -315,252 +289,6 @@ func PanicFunc(calls chan FuncCall) (func(), string) {
 
 	// returns both the wrapped func and the ID
 	return panicFunc, funcID
-}
-
-func (t *FuncTester) ExpectUnordered(expected ...Enforceable) *ExpectedUnordered {
-	return &ExpectedUnordered{t, expected}
-}
-
-type Enforceable interface {
-	Enforce()
-}
-
-type ExpectedUnordered struct {
-	t        *FuncTester
-	expected []Enforceable
-}
-
-func (eu *ExpectedUnordered) Enforce() {
-	eu.t.T.Helper()
-
-	for {
-		// Get the next possible expected calls to match against. If none, return.
-		expectedCalls := eu.peekNextExpectedCalls()
-		if len(expectedCalls) == 0 {
-			return
-		}
-
-		// TODO: replace this with a function that's called as necessary
-		concreteCalls := []string{}
-		for _, ec := range expectedCalls {
-			concreteCalls = append(concreteCalls, fmt.Sprintf("ID: %s, Args: %v\n", ec.id, ec.args))
-		}
-		// Get the next call
-		call, ok := <-eu.t.Calls
-		// TODO: consolidate the closed check in a "next" call
-		if !ok {
-			eu.t.T.Fatalf("expected any of %v, but the calls channel was closed", concreteCalls)
-		}
-
-		// TODO: make this a function that's called as necessary
-		callString := fmt.Sprintf("ID: %s, Args: %v", call.ID, call.Args)
-		// Match one of them
-		matched := eu.match(call, expectedCalls)
-		// If there's no match, fail
-		if matched == nil {
-			eu.t.T.Fatalf("expected any of %v, but found %s instead", concreteCalls, callString)
-		}
-		// pop the match off of the list.
-		eu.pop(matched)
-		// enforce it. We've already checked that this is the right one, now we just need to make the followup action happen
-		if matched.doPanic {
-			call.Panic(matched.panicValue)
-		} else if call.ReturnValuesChan != nil {
-			call.Return(matched.returns...)
-		}
-		// repeat
-		continue // lolol this line is only here to satisfy the linter yelling about blank last lines ¯\_(ツ)_/¯
-	}
-}
-
-func (eu *ExpectedUnordered) peekNextExpectedCalls() []*ExpectedCall {
-	expectedCalls := []*ExpectedCall{}
-
-	for _, expected := range eu.expected {
-		switch concreteExpectation := expected.(type) {
-		case *ExpectedCall:
-			expectedCalls = append(expectedCalls, concreteExpectation)
-		case *ExpectedUnordered:
-			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
-		case *ExpectedOrdered:
-			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
-		}
-	}
-
-	return expectedCalls
-}
-
-func (eo *ExpectedOrdered) peekNextExpectedCalls() []*ExpectedCall {
-	expectedCalls := []*ExpectedCall{}
-
-	for _, expected := range eo.expected {
-		switch concreteExpectation := expected.(type) {
-		case *ExpectedCall:
-			expectedCalls = append(expectedCalls, concreteExpectation)
-		case *ExpectedUnordered:
-			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
-		case *ExpectedOrdered:
-			expectedCalls = append(expectedCalls, concreteExpectation.peekNextExpectedCalls()...)
-		}
-	}
-
-	return expectedCalls
-}
-
-func (eu *ExpectedUnordered) match(call FuncCall, expectedCalls []*ExpectedCall) *ExpectedCall {
-	for _, expected := range expectedCalls {
-		if expected.id != call.ID {
-			continue
-		}
-
-		if !reflect.DeepEqual(call.Args, expected.args) {
-			continue
-		}
-
-		return expected
-	}
-
-	return nil
-}
-
-func (eu *ExpectedUnordered) pop(matched *ExpectedCall) bool {
-	popped := false
-	newEnforceables := []Enforceable{}
-
-	for _, expected := range eu.expected {
-		if popped {
-			newEnforceables = append(newEnforceables, expected)
-			continue
-		}
-
-		switch concreteExpectation := expected.(type) {
-		case *ExpectedCall:
-			if concreteExpectation.id == matched.id && reflect.DeepEqual(concreteExpectation.args, matched.args) {
-				popped = true
-				continue
-			}
-		case *ExpectedUnordered:
-			popped = concreteExpectation.pop(matched)
-
-			if len(concreteExpectation.expected) == 0 {
-				continue
-			}
-		case *ExpectedOrdered:
-			popped = concreteExpectation.pop(matched)
-
-			if len(concreteExpectation.expected) == 0 {
-				continue
-			}
-		}
-
-		newEnforceables = append(newEnforceables, expected)
-	}
-
-	eu.expected = newEnforceables
-
-	return popped
-}
-
-func (eo *ExpectedOrdered) pop(matched *ExpectedCall) bool {
-	popped := false
-	newEnforceables := []Enforceable{}
-
-	for _, expected := range eo.expected {
-		if popped {
-			newEnforceables = append(newEnforceables, expected)
-			continue
-		}
-
-		switch concreteExpectation := expected.(type) {
-		case *ExpectedCall:
-			if concreteExpectation.id == matched.id && reflect.DeepEqual(concreteExpectation.args, matched.args) {
-				popped = true
-				continue
-			}
-		case *ExpectedUnordered:
-			popped = concreteExpectation.pop(matched)
-
-			if len(concreteExpectation.expected) == 0 {
-				continue
-			}
-		case *ExpectedOrdered:
-			popped = concreteExpectation.pop(matched)
-
-			if len(concreteExpectation.expected) == 0 {
-				continue
-			}
-		}
-
-		newEnforceables = append(newEnforceables, expected)
-	}
-
-	eo.expected = newEnforceables
-
-	return popped
-}
-
-type ExpectedCall struct {
-	t          *FuncTester
-	id         string
-	args       []any
-	returns    []any
-	panicValue any
-	doPanic    bool
-}
-
-func (ec *ExpectedCall) Enforce() {
-	ec.t.T.Helper()
-	call := ec.t.AssertCalled(ec.id, ec.args...)
-
-	if ec.doPanic {
-		call.Panic(ec.panicValue)
-	} else if call.ReturnValuesChan != nil {
-		call.Return(ec.returns...)
-	}
-}
-
-func (t *FuncTester) ExpectCall(id string, args ...any) *ExpectedCall {
-	return &ExpectedCall{
-		t,
-		id,
-		args,
-		nil,
-		nil,
-		false,
-	}
-}
-
-func (ec *ExpectedCall) ForceReturn(values ...any) *ExpectedCall {
-	ec.returns = values
-	return ec
-}
-
-func (t *FuncTester) ExpectReturn(args ...any) *ExpectedCall {
-	return &ExpectedCall{
-		t,
-		t.returnID,
-		args,
-		nil,
-		nil,
-		false,
-	}
-}
-
-type ExpectedOrdered struct {
-	t        *FuncTester
-	expected []Enforceable
-}
-
-func (eo *ExpectedOrdered) Enforce() {
-	eo.t.T.Helper()
-
-	for _, e := range eo.expected {
-		e.Enforce()
-	}
-}
-
-func (t *FuncTester) ExpectOrdered(expected ...Enforceable) *ExpectedOrdered {
-	return &ExpectedOrdered{t, expected}
 }
 
 // Concurrently marks the current size of the call queue, such that assertion
