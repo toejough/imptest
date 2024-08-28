@@ -218,6 +218,19 @@ func (t *FuncTester) nextCall() FuncCall {
 	return actualCall
 }
 
+func (t *FuncTester) AssertNoOrphans() {
+	close(t.Calls)
+
+	if len(t.callQueue[t.queueStartIndex:]) > 0 {
+		t.T.Fatalf("found orphans: %#v", t.callQueue)
+	}
+
+	actualCall, open := <-t.Calls
+	if open {
+		t.T.Fatal("found orphan: %#v", actualCall)
+	}
+}
+
 // AssertReturned asserts that the function under test returned the given values.
 func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	t.T.Helper()

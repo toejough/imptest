@@ -280,7 +280,7 @@ func DoThingsConcurrently(deps doThingsDeps) {
 	}()
 }
 
-func TestDoThingsConcurrentlySync(t *testing.T) {
+func TestDoThingsConcurrently(t *testing.T) {
 	// Given pkg deps replaced
 	t.Parallel()
 
@@ -320,6 +320,7 @@ func TestDoThingsConcurrentlySync(t *testing.T) {
 	}, func() {
 		tester.AssertReturned()
 	})
+	tester.AssertNoOrphans()
 }
 
 // func TestDoThingsConcurrently(t *testing.T) {
