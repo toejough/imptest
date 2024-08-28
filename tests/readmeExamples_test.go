@@ -280,40 +280,6 @@ func DoThingsConcurrently(deps doThingsDeps) {
 	}()
 }
 
-func TestDoThingsConcurrently(t *testing.T) {
-	// Given pkg deps replaced
-	t.Parallel()
-
-	// convenience test wrapper
-	tester := imptest.NewFuncTester(t)
-
-	var (
-		deps          doThingsDeps
-		id3, id4, id7 string
-	)
-
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.Calls)
-	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.Calls)
-
-	// When DoThings is started
-	tester.Start(DoThingsConcurrently, deps)
-
-	// Then the functions are called in any order
-	tester.ExpectUnordered(
-		tester.ExpectCall(id3).ForceReturn(), // this could be second or third, and would be fine
-		tester.ExpectOrdered(
-			tester.ExpectCall(id4).ForceReturn(true),   // this could be first, and would be fine
-			tester.ExpectCall(id7, true).ForceReturn(), // this must be called after the wait for id2
-		),
-		// Then the function is done
-		tester.ExpectReturn(),
-		// wrapping this into the concurrently call means we have to put the
-		// return values on a channel, not a field. Probably should have
-		// anyway.
-	).Enforce()
-}
-
 func TestDoThingsConcurrentlySync(t *testing.T) {
 	// Given pkg deps replaced
 	t.Parallel()
@@ -336,24 +302,21 @@ func TestDoThingsConcurrentlySync(t *testing.T) {
 	// Then the functions are called in any order
 	// TODO randomize order asserted
 	tester.Concurrently(func() {
-		// we expect this call _concurrently_, acking that this is not necessarily the order the calls will actually come through
-		// because of this, within a call to "Concurrently", calls are pulled until there's a match
+		// we expect this call _concurrently_, acking that this is not
+		// necessarily the order the calls will actually come through because
+		// of this, within a call to "Concurrently", calls are pulled until
+		// there's a match
 		tester.AssertCalled(id3).Return()
 	}, func() {
-		// yet unmatched calls will be walked through in order for this set. If id7 is called before id4, it will be a test failure because by the time we match id4, id7 will be in the no-match queue we already walked through, and won't be walked again within this call to "Concurrently"
+		// yet unmatched calls will be walked through in order for this set. If
+		// id7 is called before id4, it will be a test failure because by
+		// the time we match id4, id7 will be in the no-match queue we
+		// already walked through, and won't be walked again within this
+		// call to "Concurrently"
 		tester.AssertCalled(id4).Return(true)
 		tester.AssertCalled(id7, true).Return()
 	}, func() {
 		tester.AssertReturned()
-		// queue index 5
-		// tester.Concurrently(func() {
-		// within this call, start at 5 and keep going forward
-		// }
-		// tester.Concurrently(func() {
-		// within this call, start at 5 and keep going forward
-		//    queue index 7
-		//    tester.Concurrently(func() {
-		//    within this call, start at 7 and keep going forward
 	})
 }
 

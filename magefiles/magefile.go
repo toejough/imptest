@@ -90,8 +90,8 @@ func Check() error {
 		Test,          // verify the stuff you explicitly care about works
 		Lint,          // make it follow the standards you care about
 		CheckNils,     // suss out nils
-		Mutate,        // check for untested code
 		CheckCoverage, // verify desired coverage
+		Mutate,        // check for untested code
 		Fuzz,          // suss out unsafe assumptions about your function inputs
 		TodoCheck,     // look for any fixme's or todos
 	} {
@@ -155,6 +155,8 @@ func Test() error {
 		"go",
 		"test",
 		"-timeout=5s",
+		"-shuffle=on",
+		"-race",
 		"-coverprofile=coverage.out",
 		"-coverpkg=./imptest",
 		"./...",

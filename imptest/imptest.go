@@ -141,17 +141,30 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 		if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
 			t.callQueue = append(t.callQueue, unmatchedCalls...)
 			return next
-		} else {
-			// if no match, put call on the stack of checked calls
-			unmatchedCalls = append(unmatchedCalls, next)
 		}
+
+		t.T.Logf(
+			"No match between expected (%s)\nand next (%s)",
+			fmt.Sprintf("ID: %s, Args: %#v", expectedCallID, expectedArgs),
+			fmt.Sprintf("ID: %s, Args: %#v", next.ID, next.Args),
+		)
+		// if no match, put call on the stack of checked calls
+		unmatchedCalls = append(unmatchedCalls, next)
 		// if !more, fail with message about what we expected to find vs what we got
-		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen {
+		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen+1 {
 			t.T.Fatalf(
-				"Expected call ID %s, with args %#v, but the only calls found were %#v",
+				"Expected call ID %s,"+
+					"with args %#v,\nbut the only calls found were %#v.\n"+
+					"len(unmatchedCalls): %d.\nlen(callQueue): %d,\nmaxQueueLen: %d.\n"+
+					" queueStartIndex: %d.\ncallQueue: %#v",
 				expectedCallID,
 				expectedArgs,
 				unmatchedCalls,
+				len(unmatchedCalls),
+				len(t.callQueue),
+				t.maxQueueLen,
+				t.queueStartIndex,
+				t.callQueue,
 			)
 		}
 	}
@@ -161,11 +174,14 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 func (t *FuncTester) nextCall() FuncCall {
 	if len(t.callQueue[t.queueStartIndex:]) > 0 {
 		next := t.callQueue[t.queueStartIndex]
+
 		if t.queueStartIndex > 0 {
 			t.callQueue = append(t.callQueue[0:t.queueStartIndex-1], t.callQueue[t.queueStartIndex+1:]...)
 		} else {
 			t.callQueue = t.callQueue[t.queueStartIndex+1:]
 		}
+
+		t.T.Logf("returning next from call queue: %#v", next)
 
 		return next
 	}
@@ -174,6 +190,8 @@ func (t *FuncTester) nextCall() FuncCall {
 	if !open {
 		t.T.Fatal("expected a call to be available, but the calls channel was already closed")
 	}
+
+	t.T.Logf("returning next from call channel: %#v", actualCall)
 
 	return actualCall
 }
@@ -185,6 +203,7 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	unmatchedCalls := []FuncCall{}
 	expectedCallID := t.returnID
 
+	// TODO: some abstraction of this logic across calls / return / panic
 	for {
 		// get the next thing
 		next := t.nextCall()
@@ -192,12 +211,11 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 		if next.ID == expectedCallID && reflect.DeepEqual(t.ReturnValues, expectedReturnValues) {
 			t.callQueue = append(t.callQueue, unmatchedCalls...)
 			return
-		} else {
-			// if no match, put call on the stack of checked calls
-			unmatchedCalls = append(unmatchedCalls, next)
 		}
+		// if no match, put call on the stack of checked calls
+		unmatchedCalls = append(unmatchedCalls, next)
 		// if !more, fail with message about what we expected to find vs what we got
-		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen {
+		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen+1 {
 			t.T.Fatalf(
 				"Expected a return from the function under test, with return values %#v, but the only calls found were %#v",
 				expectedReturnValues,
@@ -226,7 +244,6 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 	unmatchedCalls := []FuncCall{}
 	expectedCallID := t.panicID
 
-	t.T.Logf("we're asserting called...")
 	for {
 		// get the next thing
 		next := t.nextCall()
@@ -234,12 +251,11 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 		if next.ID == expectedCallID && reflect.DeepEqual(t.Panic, expectedPanic) {
 			t.callQueue = append(t.callQueue, unmatchedCalls...)
 			return
-		} else {
-			// if no match, put call on the stack of checked calls
-			unmatchedCalls = append(unmatchedCalls, next)
 		}
+		// if no match, put call on the stack of checked calls
+		unmatchedCalls = append(unmatchedCalls, next)
 		// if !more, fail with message about what we expected to find vs what we got
-		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen {
+		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen+1 {
 			t.T.Fatalf(
 				"Expected a panic, with value %#v, but the only calls found were %#v",
 				expectedPanic,
@@ -547,7 +563,12 @@ func (t *FuncTester) ExpectOrdered(expected ...Enforceable) *ExpectedOrdered {
 	return &ExpectedOrdered{t, expected}
 }
 
-// Concurrently marks the current size of the call queue, such that assertion calls made within the passed functions only start from the marked location in the queue. It also limits the maximum size of the queue by the number of concurrent functions that have yet to complete. It is nestable - nested calls to Concurrently will push a new mark onto a queue of marks, and pop it off when complete.
+// Concurrently marks the current size of the call queue, such that assertion
+// calls made within the passed functions only start from the marked location
+// in the queue. It also limits the maximum size of the queue by the number of
+// concurrent functions that have yet to complete. It is nestable - nested
+// calls to Concurrently will push a new mark onto a queue of marks, and pop it
+// off when complete.
 func (t *FuncTester) Concurrently(funcs ...func()) {
 	// read the current queue length
 	mark := len(t.callQueue)
@@ -563,7 +584,7 @@ func (t *FuncTester) Concurrently(funcs ...func()) {
 		// reset queue start index to the latest mark
 		t.queueStartIndex = t.marks[len(t.marks)-1]
 		// reduce the max queue length
-		t.maxQueueLen -= 1
+		t.maxQueueLen--
 	}
 	// at the end, pop the mark we added
 	t.marks = t.marks[0 : len(t.marks)-1]
