@@ -170,7 +170,10 @@ func Mutate() error {
 	return sh.RunV(
 		"go",
 		"test",
+		"-v",
 		"-tags=mutation",
+		"./...",
+		"-run=TestMutation",
 	)
 }
 
@@ -201,7 +204,7 @@ func TestForFail() error {
 	return sh.RunV(
 		"go",
 		"test",
-		"-timeout=5s",
+		"-timeout=1s",
 		"./...",
 		// "-rapid.nofailfile",
 		"-failfast",

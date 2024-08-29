@@ -2,6 +2,7 @@
 package imptest
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 )
@@ -33,10 +34,6 @@ func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 
 		select {
 		case returnValuesReflected := <-returnValuesChan:
-			if len(returnValuesReflected) == 0 {
-				return nil
-			}
-
 			returnValues := make([]reflect.Value, len(returnValuesReflected))
 
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
@@ -81,7 +78,6 @@ func NewFuncTester(t *testing.T) *FuncTester {
 		calls,
 		nil,
 		[]any{},
-		1,
 		returnFunc,
 		panicFunc,
 		returnID,
@@ -99,7 +95,6 @@ type FuncTester struct {
 	Calls           chan FuncCall
 	Panic           any
 	ReturnValues    []any
-	maxGoroutines   int
 	returnFunc      func()
 	panicFunc       func()
 	returnID        string
@@ -196,35 +191,31 @@ func (t *FuncTester) nextCall() FuncCall {
 	if len(t.callQueue[t.queueStartIndex:]) > 0 {
 		next := t.callQueue[t.queueStartIndex]
 
-		if t.queueStartIndex > 0 {
-			t.callQueue = append(t.callQueue[0:t.queueStartIndex], t.callQueue[t.queueStartIndex+1:]...)
-		} else {
-			t.callQueue = t.callQueue[t.queueStartIndex+1:]
-		}
+		t.callQueue = append(t.callQueue[0:t.queueStartIndex], t.callQueue[t.queueStartIndex+1:]...)
 
 		// t.T.Logf("returning next from call queue: %#v", next)
 
 		return next
 	}
 
-	t.T.Logf(
-		"waiting for the next call from the channel\n"+
-			"len(callQueue): %d\n"+
-			"maxQueueLen: %d\n"+
-			"queueStartIndex: %d\n"+
-			"callQueue: %#v",
-		len(t.callQueue),
-		t.maxQueueLen,
-		t.queueStartIndex,
-		t.callQueue,
-	)
+	// t.T.Logf(
+	// 	"waiting for the next call from the channel\n"+
+	// 		"len(callQueue): %d\n"+
+	// 		"maxQueueLen: %d\n"+
+	// 		"queueStartIndex: %d\n"+
+	// 		"callQueue: %#v",
+	// 	len(t.callQueue),
+	// 	t.maxQueueLen,
+	// 	t.queueStartIndex,
+	// 	t.callQueue,
+	// )
 
 	actualCall, open := <-t.Calls
 	if !open {
 		t.T.Fatal("expected a call to be available, but the calls channel was already closed")
 	}
 
-	t.T.Logf("returning next from call channel: %#v", actualCall)
+	// t.T.Logf("returning next from call channel: %#v", actualCall)
 
 	return actualCall
 }
@@ -232,7 +223,7 @@ func (t *FuncTester) nextCall() FuncCall {
 func (t *FuncTester) AssertNoOrphans() {
 	close(t.Calls)
 
-	if len(t.callQueue[t.queueStartIndex:]) > 0 {
+	if len(t.callQueue) > 0 {
 		t.T.Fatalf("found orphans: %#v", t.callQueue)
 	}
 
@@ -322,6 +313,10 @@ func PanicFunc(calls chan FuncCall) (func(), string) {
 // calls to Concurrently will push a new mark onto a queue of marks, and pop it
 // off when complete.
 func (t *FuncTester) Concurrently(funcs ...func()) {
+	// shuffle the funcs
+	rand.Shuffle(len(funcs), func(i, j int) {
+		funcs[i], funcs[j] = funcs[j], funcs[i]
+	})
 	// read the current queue length
 	mark := len(t.callQueue)
 	// add a mark for that length

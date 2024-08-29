@@ -1,6 +1,6 @@
 //go:build mutation
 
-package main_test
+package imptest_test
 
 import (
 	"testing"
@@ -15,5 +15,7 @@ func TestMutation(t *testing.T) {
 		ooze.Parallel(),
 		ooze.IgnoreSourceFiles("^magefiles.*"),
 		ooze.WithMinimumThreshold(0.75),
+		ooze.WithRepositoryRoot(".."),
+		ooze.ForceColors(),
 	)
 }
