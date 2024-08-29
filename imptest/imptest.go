@@ -2,7 +2,6 @@
 package imptest
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -163,11 +162,11 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 			return next
 		}
 
-		t.T.Logf(
-			"No match between expected (%s)\nand next (%s)",
-			fmt.Sprintf("ID: %s, Args: %#v", expectedCallID, expectedArgs),
-			fmt.Sprintf("ID: %s, Args: %#v", actualID, actualArgs),
-		)
+		// t.T.Logf(
+		// 	"No match between expected (%s)\nand next (%s)",
+		// 	fmt.Sprintf("ID: %s, Args: %#v", expectedCallID, expectedArgs),
+		// 	fmt.Sprintf("ID: %s, Args: %#v", actualID, actualArgs),
+		// )
 
 		// if no match, put call on the stack of checked calls
 		unmatchedCalls = append(unmatchedCalls, next)
@@ -198,15 +197,27 @@ func (t *FuncTester) nextCall() FuncCall {
 		next := t.callQueue[t.queueStartIndex]
 
 		if t.queueStartIndex > 0 {
-			t.callQueue = append(t.callQueue[0:t.queueStartIndex-1], t.callQueue[t.queueStartIndex+1:]...)
+			t.callQueue = append(t.callQueue[0:t.queueStartIndex], t.callQueue[t.queueStartIndex+1:]...)
 		} else {
 			t.callQueue = t.callQueue[t.queueStartIndex+1:]
 		}
 
-		t.T.Logf("returning next from call queue: %#v", next)
+		// t.T.Logf("returning next from call queue: %#v", next)
 
 		return next
 	}
+
+	t.T.Logf(
+		"waiting for the next call from the channel\n"+
+			"len(callQueue): %d\n"+
+			"maxQueueLen: %d\n"+
+			"queueStartIndex: %d\n"+
+			"callQueue: %#v",
+		len(t.callQueue),
+		t.maxQueueLen,
+		t.queueStartIndex,
+		t.callQueue,
+	)
 
 	actualCall, open := <-t.Calls
 	if !open {
@@ -227,7 +238,7 @@ func (t *FuncTester) AssertNoOrphans() {
 
 	actualCall, open := <-t.Calls
 	if open {
-		t.T.Fatal("found orphan: %#v", actualCall)
+		t.T.Fatalf("found orphan: %#v", actualCall)
 	}
 }
 

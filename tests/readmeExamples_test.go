@@ -323,49 +323,51 @@ func TestDoThingsConcurrently(t *testing.T) {
 	tester.AssertNoOrphans()
 }
 
-// func TestDoThingsConcurrently(t *testing.T) {
-// 	// Given pkg deps replaced
-// 	t.Parallel()
-//
-// 	// Given pkg deps replaced
-// 	calls := make(chan imptest.FuncCall)
-// 	defer close(calls)
-//
-// 	var (
-// 		deps          doThingsDeps
-// 		id3, id4, id7 string
-// 	)
-//
-// 	deps.thing3, id3 = imptest.WrapFunc(thing3, calls)
-// 	deps.thing4, id4 = imptest.WrapFunc(thing4, calls)
-// 	deps.thing7, id7 = imptest.WrapFunc(thing7, calls)
-// 	returnFunc, returnID := imptest.ReturnFunc(calls)
-// 	// TODO: follow this pattern for panics, too.
-//
-// 	// When DoThings is started
-// 	go func() {
-// 		// record when the func is done so we can test that, too
-// 		DoThingsConcurrently(deps)
-// 		returnFunc()
-// 	}()
-//
-// 	// Then thing3 or thing4 is called, or the function has returned
-// 	funcCall1 := <-calls
-// 	if funcCall1.ID == id3 {
-// 		funcCall1.ReturnValuesChan <- nil
-// 		funcCall2 := <-calls
-// 		if funcCall2.ID == id4 {
-// 			funcCall2.ReturnValuesChan <- []any{true}
-// 			funcCall3 := <-calls
-// 			if funcCall3.ID == id7 && reflect.DeepEqual(funcCall3.Args, []any{true}) {
-// 				funcCall3.ReturnValuesChan <- nil
-// 				funcCall4 := <-calls
-// 				if funcCall4.ID == returnID {
-// 					// pass
-// 				} else {
-// 					t.Fail()
-// 				}
-// 			}
-// 		}
-// 	}
-// }
+func DoThingsConcurrentlyNested(deps doThingsDeps) {
+	go deps.thing3()
+	go func() {
+		z := deps.thing4()
+		deps.thing7(z)
+
+		go deps.thing1()
+		go deps.thing2()
+	}()
+}
+
+func TestNestedConcurrentlies(t *testing.T) {
+	// Given pkg deps replaced
+	t.Parallel()
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t)
+
+	var (
+		deps                    doThingsDeps
+		id1, id2, id3, id4, id7 string
+	)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.Calls)
+	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.Calls)
+
+	// When DoThings is started
+	tester.Start(DoThingsConcurrentlyNested, deps)
+
+	// Then the functions are called in any order
+	tester.Concurrently(func() {
+		tester.AssertCalled(id3).Return()
+	}, func() {
+		tester.AssertCalled(id4).Return(true)
+		tester.AssertCalled(id7, true).Return()
+		tester.Concurrently(func() {
+			tester.AssertCalled(id1).Return()
+		}, func() {
+			tester.AssertCalled(id2).Return()
+		})
+	}, func() {
+		tester.AssertReturned()
+	})
+	tester.AssertNoOrphans()
+}
