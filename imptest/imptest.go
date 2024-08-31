@@ -85,6 +85,11 @@ func NewFuncTester(t *testing.T) *FuncTester {
 		[]int{},
 		[]FuncCall{},
 		0,
+		// TODO: this value literally doesn't matter - it's always overridden.
+		// Mutation testing yells for this, and it's right to - this is useless
+		// code. avoiding it feels like a lot of dumb work, though, making a
+		// blank functester and only setting some values.... probably what we
+		// need to do though?
 		0,
 	}
 }

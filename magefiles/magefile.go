@@ -160,6 +160,7 @@ func Test() error {
 		"-coverprofile=coverage.out",
 		"-coverpkg=./imptest",
 		"./...",
+		// "-test.shuffle 1725130725716799000"
 	)
 }
 
@@ -170,10 +171,11 @@ func Mutate() error {
 	return sh.RunV(
 		"go",
 		"test",
-		"-v",
+		// "-v",
 		"-tags=mutation",
-		"./...",
+		"./tests",
 		"-run=TestMutation",
+		// "-ooze.v",
 	)
 }
 

@@ -378,3 +378,65 @@ func TestNestedConcurrentlies(t *testing.T) {
 // orphaned calls from concurrent calls
 // more calls made early in a concurrent run than the test expected
 // does the testing scale beyond a handful of calls?
+
+func TestOrphanMadeAfterDonePanics(t *testing.T) {
+	t.Parallel()
+
+	tester := imptest.NewFuncTester(t)
+
+	var (
+		deps          doThingsDeps
+		id1, id2, id3 string
+	)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
+
+	orphanReleaseChan := make(chan struct{})
+	testReleaseChan := make(chan struct{})
+
+	DoThingsWithOrphanMadeAfterDone := func(deps doThingsDeps) {
+		deps.thing1()
+		deps.thing2()
+		deps.thing3()
+
+		go func() {
+			defer func() {
+				panicVal := recover()
+				if panicVal == nil {
+					t.Fatal("Expected a 'send on closed channel' panic, but instead got no panic") //nolint:govet
+				}
+
+				if e, ok := panicVal.(error); ok && e.Error() == "send on closed channel" {
+					// the govet concerns about calling t from a non-test goroutine are mitigated by us waiting for test release here.
+					testReleaseChan <- struct{}{}
+					return
+				}
+
+				t.Fatalf("Expected a 'send on closed channel' panic, but instead got a panic of %#v", panicVal) //nolint:govet
+			}()
+			// wait for the test to think it's done
+			<-orphanReleaseChan
+
+			// now call thing3 again
+			deps.thing3()
+		}()
+	}
+
+	tester.Start(DoThingsWithOrphanMadeAfterDone, deps)
+
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id2).Return()
+	tester.AssertCalled(id3).Return()
+	tester.AssertReturned()
+
+	// assert no orphans
+	tester.AssertNoOrphans()
+
+	// let the orphan go
+	orphanReleaseChan <- struct{}{}
+
+	// wait for the test release from the orphan defer
+	<-testReleaseChan
+}
