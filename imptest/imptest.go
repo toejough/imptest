@@ -96,18 +96,18 @@ func NewFuncTester(t *testing.T) *FuncTester {
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
-	T               *testing.T
-	Calls           chan FuncCall
-	Panic           any
-	ReturnValues    []any
-	returnFunc      func()
-	panicFunc       func()
-	returnID        string
-	panicID         string
-	marks           []int
-	callQueue       []FuncCall
-	queueStartIndex int
-	maxQueueLen     int
+	T                  *testing.T
+	Calls              chan FuncCall
+	Panic              any
+	ReturnValues       []any
+	returnFunc         func()
+	panicFunc          func()
+	returnID           string
+	panicID            string
+	marks              []int
+	callQueue          []FuncCall
+	queueStartIndex    int
+	numConcurrentFuncs int
 }
 
 // Start starts the function.
@@ -153,11 +153,8 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 			expectationID = "panic from function under test"
 		}
 
-		// TODO: is this mapping unnecessary?
-		actualID := next.ID
-
 		// if match, shove other checked calls back onto the queue & return
-		if actualID == expectedCallID && reflect.DeepEqual(actualArgs, expectedArgs) {
+		if next.ID == expectedCallID && reflect.DeepEqual(actualArgs, expectedArgs) {
 			t.callQueue = append(t.callQueue, unmatchedCalls...)
 			return next
 		}
@@ -165,14 +162,18 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 		// t.T.Logf(
 		// 	"No match between expected (%s)\nand next (%s)",
 		// 	fmt.Sprintf("ID: %s, Args: %#v", expectedCallID, expectedArgs),
-		// 	fmt.Sprintf("ID: %s, Args: %#v", actualID, actualArgs),
+		// 	fmt.Sprintf("ID: %s, Args: %#v", next.ID, actualArgs),
 		// )
 
 		// if no match, put call on the stack of checked calls
 		unmatchedCalls = append(unmatchedCalls, next)
 
-		// if !more, fail with message about what we expected to find vs what we got
-		if len(unmatchedCalls)+len(t.callQueue) > t.maxQueueLen+1 {
+		// if we have tried and failed to match calls, such that the total
+		// buffered calls are now equal to or greater than the
+		// numConcurrentFuncs, then the function under test has called things
+		// in an unexpected way. One of the calls in unmatchedCalls should've
+		// matched.
+		if len(t.callQueue[t.queueStartIndex:]) == 0 && len(unmatchedCalls)+len(t.callQueue) >= t.numConcurrentFuncs {
 			t.T.Fatalf(
 				"Expected %s,"+
 					"with args %#v,\nbut the only calls found were %#v.\n"+
@@ -183,7 +184,7 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 				unmatchedCalls,
 				len(unmatchedCalls),
 				len(t.callQueue),
-				t.maxQueueLen,
+				t.numConcurrentFuncs,
 				t.queueStartIndex,
 				t.callQueue,
 			)
@@ -324,20 +325,15 @@ func (t *FuncTester) Concurrently(funcs ...func()) {
 	})
 	// read the current queue length
 	mark := len(t.callQueue)
-	// add a mark for that length
-	t.marks = append(t.marks, mark)
-	// reset queue start index to the latest mark
-	t.queueStartIndex = t.marks[len(t.marks)-1]
-	// add len(funcs) -1 as a max for queue length
-	t.maxQueueLen += len(funcs) - 1
+	// add len(funcs) for each func we just added
+	t.numConcurrentFuncs += len(funcs)
 	// run each function.
 	for _, f := range funcs {
+		// reset queue start index the appropriate mark for this level
+		t.queueStartIndex = mark
+		// run the func!
 		f()
-		// reset queue start index to the latest mark
-		t.queueStartIndex = t.marks[len(t.marks)-1]
-		// reduce the max queue length
-		t.maxQueueLen--
+		// reduce the numConcurrentFuncs, now that we're done with this one
+		t.numConcurrentFuncs--
 	}
-	// at the end, pop the mark we added
-	t.marks = t.marks[0 : len(t.marks)-1]
 }

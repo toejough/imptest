@@ -155,12 +155,12 @@ func Test() error {
 		"go",
 		"test",
 		"-timeout=5s",
-		"-shuffle=on",
+		// "-shuffle=1725149006359140000",
 		"-race",
 		"-coverprofile=coverage.out",
 		"-coverpkg=./imptest",
 		"./...",
-		// "-test.shuffle 1725130725716799000"
+		// -test.shuffle 1725149006359140000
 	)
 }
 

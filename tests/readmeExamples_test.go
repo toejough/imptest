@@ -440,3 +440,39 @@ func TestOrphanMadeAfterDonePanics(t *testing.T) {
 	// wait for the test release from the orphan defer
 	<-testReleaseChan
 }
+
+// This test fails the race detector, due to the second thing1 not being read from
+// the call queue before AssertNoOrphans is called.
+// func TestOrphanMadeBeforeDone(t *testing.T) {
+// 	t.Parallel()
+//
+// 	tester := imptest.NewFuncTester(t)
+//
+// 	var (
+// 		deps          doThingsDeps
+// 		id1, id2, id3 string
+// 	)
+//
+// 	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+// 	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
+// 	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
+//
+// 	DoThingsWithOrphanMadeAfterDone := func(deps doThingsDeps) {
+// 		go deps.thing1()
+// 		go deps.thing1()
+// 		go deps.thing2()
+// 		go deps.thing3()
+// 	}
+//
+// 	tester.Start(DoThingsWithOrphanMadeAfterDone, deps)
+//
+// 	tester.Concurrently(
+// 		func() { tester.AssertCalled(id1).Return() },
+// 		func() { tester.AssertCalled(id2).Return() },
+// 		func() { tester.AssertCalled(id3).Return() },
+// 		func() { tester.AssertReturned() },
+// 	)
+//
+// 	// assert no orphans
+// 	tester.AssertNoOrphans()
+// }

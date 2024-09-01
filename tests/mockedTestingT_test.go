@@ -1,6 +1,5 @@
 package imptest_test
 
-//
 // import (
 // 	"fmt"
 // 	"runtime"
