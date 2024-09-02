@@ -1,6 +1,7 @@
 package imptest_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/toejough/protest/imptest"
@@ -334,6 +335,7 @@ func DoThingsConcurrentlyNested(deps doThingsDeps) {
 	}()
 }
 
+// TODO: test a more complex nested case.
 func TestNestedConcurrentlies(t *testing.T) {
 	// Given pkg deps replaced
 	t.Parallel()
@@ -443,36 +445,91 @@ func TestOrphanMadeAfterDonePanics(t *testing.T) {
 
 // This test fails the race detector, due to the second thing1 not being read from
 // the call queue before AssertNoOrphans is called.
-// func TestOrphanMadeBeforeDone(t *testing.T) {
-// 	t.Parallel()
 //
-// 	tester := imptest.NewFuncTester(t)
+//	func TestOrphanMadeBeforeDone(t *testing.T) {
+//		t.Parallel()
 //
-// 	var (
-// 		deps          doThingsDeps
-// 		id1, id2, id3 string
-// 	)
+//		tester := imptest.NewFuncTester(t)
 //
-// 	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
-// 	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
-// 	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
+//		var (
+//			deps          doThingsDeps
+//			id1, id2, id3 string
+//		)
 //
-// 	DoThingsWithOrphanMadeAfterDone := func(deps doThingsDeps) {
-// 		go deps.thing1()
-// 		go deps.thing1()
-// 		go deps.thing2()
-// 		go deps.thing3()
-// 	}
+//		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
+//		deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
+//		deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
 //
-// 	tester.Start(DoThingsWithOrphanMadeAfterDone, deps)
+//		DoThingsWithOrphanMadeAfterDone := func(deps doThingsDeps) {
+//			go deps.thing1()
+//			go deps.thing1()
+//			go deps.thing2()
+//			go deps.thing3()
+//		}
 //
-// 	tester.Concurrently(
-// 		func() { tester.AssertCalled(id1).Return() },
-// 		func() { tester.AssertCalled(id2).Return() },
-// 		func() { tester.AssertCalled(id3).Return() },
-// 		func() { tester.AssertReturned() },
-// 	)
+//		tester.Start(DoThingsWithOrphanMadeAfterDone, deps)
 //
-// 	// assert no orphans
-// 	tester.AssertNoOrphans()
+//		tester.Concurrently(
+//			func() { tester.AssertCalled(id1).Return() },
+//			func() { tester.AssertCalled(id2).Return() },
+//			func() { tester.AssertCalled(id3).Return() },
+//			func() { tester.AssertReturned() },
+//		)
+//
+//		// assert no orphans
+//		tester.AssertNoOrphans()
+
+func TestDoThingsConcurrentlyFails(t *testing.T) {
+	// Given pkg deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		var (
+			deps          doThingsDeps
+			id3, id4, id7 string
+		)
+
+		deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
+		deps.thing4, id4 = imptest.WrapFunc(thing4, tester.Calls)
+		deps.thing7, id7 = imptest.WrapFunc(thing7, tester.Calls)
+
+		// When DoThings is started
+		tester.Start(DoThingsConcurrently, deps)
+
+		// Then the functions are called in any order
+		tester.Concurrently(func() {
+			tester.AssertCalled(id3).Return()
+		}, func() {
+			tester.AssertCalled(id4).Return(false)
+			// expect this call to trigger a failure, as we are looking for
+			// true, but we just made id4 return false, and the function
+			// under test doesn't do the inversion
+			tester.AssertCalled(id7, true).Return()
+		}, func() {
+			tester.AssertReturned()
+		})
+		tester.AssertNoOrphans()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "thing7\n  with args [false]"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
 // }

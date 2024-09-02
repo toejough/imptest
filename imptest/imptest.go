@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
-	"testing"
 )
 
 func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
@@ -68,15 +67,15 @@ type FuncCall struct {
 }
 
 // NewFuncTester returns a newly initialized FuncTester.
-func NewFuncTester(t *testing.T) *FuncTester {
-	t.Helper()
+func NewFuncTester(tester Tester) *FuncTester {
+	tester.Helper()
 
 	calls := make(chan FuncCall)
 	returnFunc, returnID := ReturnFunc(calls)
 	panicFunc, panicID := PanicFunc(calls)
 
 	return &FuncTester{
-		t,
+		tester,
 		calls,
 		nil,
 		[]any{},
@@ -97,9 +96,16 @@ func NewFuncTester(t *testing.T) *FuncTester {
 	}
 }
 
+type Tester interface {
+	Helper()
+	Fatal(args ...any)
+	Fatalf(message string, args ...any)
+	Logf(message string, args ...any)
+}
+
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
-	T                *testing.T
+	T                Tester
 	Calls            chan FuncCall
 	Panic            any
 	ReturnValues     []any
@@ -185,6 +191,8 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 			t.bufferNextIndex,
 		)
 
+		t.T.Logf(logMessage)
+
 		// if we have tried and failed to match calls, such that the total
 		// buffered calls are now equal to or greater than the
 		// numConcurrentFuncs, then the function under test has called things
@@ -199,11 +207,14 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 func formatCalls(calls []FuncCall) string {
 	formatted := []string{}
 
-	for _, fc := range calls {
+	for _, funcCall := range calls {
+		// TODO: mutation reveals no testing here if a break is inserted.
+		// this means we don't have a test for verifying the formatted outputs.
+		// this means we don't have a test for the failure case
 		formattedCall := fmt.Sprintf("\nCall %s\n"+
 			"  with args %v",
-			fc.ID,
-			fc.Args,
+			funcCall.ID,
+			funcCall.Args,
 		)
 		formatted = append(formatted, formattedCall)
 	}
@@ -235,6 +246,7 @@ func (t *FuncTester) nextCall() FuncCall {
 	actualCall, open := <-t.Calls
 	if !open {
 		t.T.Fatal("expected a call to be available, but the calls channel was already closed")
+		panic("only necessary because nilchecker doesn't know what to do with my mocked tester")
 	}
 
 	t.callBuffer = append(t.callBuffer, actualCall)
