@@ -77,8 +77,6 @@ func NewFuncTester(tester Tester) *FuncTester {
 	return &FuncTester{
 		tester,
 		calls,
-		nil,
-		[]any{},
 		returnFunc,
 		panicFunc,
 		returnID,
@@ -106,11 +104,9 @@ type Tester interface {
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
 	T                Tester
-	Calls            chan FuncCall
-	Panic            any
-	ReturnValues     []any
-	returnFunc       func()
-	panicFunc        func()
+	CallChan         chan FuncCall
+	returnFunc       func(...any)
+	panicFunc        func(any)
 	returnID         string
 	panicID          string
 	marks            []int
@@ -124,16 +120,18 @@ type FuncTester struct {
 func (t *FuncTester) Start(function any, args ...any) {
 	// record when the func is done so we can test that, too
 	go func() {
+		var rVals []any
+
 		defer func() {
-			t.Panic = recover()
-			if t.Panic != nil {
-				t.panicFunc()
+			p := recover()
+			if p != nil {
+				t.panicFunc(p)
 			} else {
-				t.returnFunc()
+				t.returnFunc(rVals...)
 			}
 		}()
 
-		t.ReturnValues = callFunc(function, args)
+		rVals = callFunc(function, args)
 	}()
 }
 
@@ -152,19 +150,16 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 		next := t.nextCall()
 
 		// TODO: clean this up in terms of better switching & abstraction
-		actualArgs := next.Args
 		expectationID := "call ID of " + expectedCallID
 
 		if expectedCallID == t.returnID {
-			actualArgs = t.ReturnValues
 			expectationID = "return from function under test"
 		} else if expectedCallID == t.panicID {
-			actualArgs = []any{t.Panic}
 			expectationID = "panic from function under test"
 		}
 
 		// if match, remove from the buffer & return
-		if next.ID == expectedCallID && reflect.DeepEqual(actualArgs, expectedArgs) {
+		if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
 			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
 			return next
 		}
@@ -243,7 +238,7 @@ func (t *FuncTester) nextCall() FuncCall {
 	// 	t.callQueue,
 	// )
 
-	actualCall, open := <-t.Calls
+	actualCall, open := <-t.CallChan
 	if !open {
 		t.T.Fatal("expected a call to be available, but the calls channel was already closed")
 		panic("only necessary because nilchecker doesn't know what to do with my mocked tester")
@@ -257,13 +252,15 @@ func (t *FuncTester) nextCall() FuncCall {
 }
 
 func (t *FuncTester) AssertNoOrphans() {
-	close(t.Calls)
+	close(t.CallChan)
 
 	if len(t.callBuffer) > 0 {
+		// TODO: this fails mutation testing
+		// that means we don't have a test that verifies this orphan failure
 		t.T.Fatalf("found orphans: %#v", t.callBuffer)
 	}
 
-	actualCall, open := <-t.Calls
+	actualCall, open := <-t.CallChan
 	if open {
 		t.T.Fatalf("found orphan: %#v", actualCall)
 	}
@@ -297,7 +294,7 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 
 // TODO: make ID it's own type
 
-func ReturnFunc(calls chan FuncCall) (func(), string) {
+func ReturnFunc(calls chan FuncCall) (func(...any), string) {
 	// creates a unique ID for the function
 	// TODO: allow users to override the ID
 	// TODO: add a random unique element to the end
@@ -306,11 +303,11 @@ func ReturnFunc(calls chan FuncCall) (func(), string) {
 	// create the function, that when called:
 	// * puts its ID onto the call channel
 
-	returnFunc := func() {
+	returnFunc := func(rVals ...any) {
 		// Submit this call to the calls channel
 		calls <- FuncCall{
 			funcID,
-			nil,
+			rVals,
 			nil,
 			nil,
 		}
@@ -320,7 +317,7 @@ func ReturnFunc(calls chan FuncCall) (func(), string) {
 	return returnFunc, funcID
 }
 
-func PanicFunc(calls chan FuncCall) (func(), string) {
+func PanicFunc(calls chan FuncCall) (func(any), string) {
 	// creates a unique ID for the function
 	// TODO: allow users to override the ID
 	// TODO: add a random unique element to the end
@@ -328,11 +325,11 @@ func PanicFunc(calls chan FuncCall) (func(), string) {
 
 	// create the function, that when called:
 	// * puts its ID onto the call channel
-	panicFunc := func() {
+	panicFunc := func(pVal any) {
 		// Submit this call to the calls channel
 		calls <- FuncCall{
 			funcID,
-			nil,
+			[]any{pVal},
 			nil,
 			nil,
 		}
