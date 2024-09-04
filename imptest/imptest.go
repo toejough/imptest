@@ -53,7 +53,7 @@ func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
 	// Ignore the type assertion lint check - we are depending on MakeFunc to
 	// return the correct type, as documented. If it fails to, the only thing
 	// we'd do is panic anyway.
-	wrapped := reflect.MakeFunc(funcType, relayer).Interface().(T) //nolint: forcetypeassert
+	wrapped := reflect.MakeFunc(funcType, relayer).Interface().(T) //nolint:forcetypeassert
 
 	// returns both the wrapped func and the ID
 	return wrapped, funcID
@@ -74,24 +74,16 @@ func NewFuncTester(tester Tester) *FuncTester {
 	returnFunc, returnID := ReturnFunc(calls)
 	panicFunc, panicID := PanicFunc(calls)
 
-	return &FuncTester{
-		tester,
-		calls,
-		returnFunc,
-		panicFunc,
-		returnID,
-		panicID,
-		[]int{},
-		[]FuncCall{},
-		0,
-		// TODO: this value literally doesn't matter - it's always overridden.
-		// Mutation testing yells for this, and it's right to - this is useless
-		// code. avoiding it feels like a lot of dumb work, though, making a
-		// blank functester and only setting some values.... probably what we
-		// need to do though?
-		1,
-		0,
-	}
+	funcTester := new(FuncTester)
+	funcTester.T = tester
+	funcTester.CallChan = calls
+	funcTester.returnFunc = returnFunc
+	funcTester.panicFunc = panicFunc
+	funcTester.returnID = returnID
+	funcTester.panicID = panicID
+	funcTester.bufferMaxLen = 1
+
+	return funcTester
 }
 
 type Tester interface {
@@ -109,7 +101,6 @@ type FuncTester struct {
 	panicFunc        func(any)
 	returnID         string
 	panicID          string
-	marks            []int
 	callBuffer       []FuncCall
 	bufferStartIndex int
 	bufferMaxLen     int
@@ -153,8 +144,12 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 		expectationID := "call ID of " + expectedCallID
 
 		if expectedCallID == t.returnID {
+			// TODO: this fails mutation testing
+			// that means we never fail a return from the function under test.
 			expectationID = "return from function under test"
 		} else if expectedCallID == t.panicID {
+			// TODO: this fails mutation testing
+			// that means we never fail a panic from the function under test.
 			expectationID = "panic from function under test"
 		}
 
@@ -352,6 +347,9 @@ func (t *FuncTester) Concurrently(funcs ...func()) {
 	})
 	// add len(funcs) for each func we just added
 	t.bufferMaxLen += len(funcs)
+	// TODO: this sometimes fails mutation testing with = len(funcs) passing fine
+	// this means we are not reliably testing a case where the desired call is last on the buffer.
+
 	// run each function.
 	for _, concurrentCheck := range funcs {
 		// reduce the t.bufferMaxLen. The expectation for concurrently is that
