@@ -321,7 +321,7 @@ func TestDoThingsConcurrently(t *testing.T) {
 	}, func() {
 		tester.AssertReturned()
 	})
-	tester.AssertNoOrphans()
+	tester.Close()
 }
 
 func DoThingsConcurrentlyNested(deps doThingsDeps) {
@@ -371,7 +371,7 @@ func TestNestedConcurrentlies(t *testing.T) {
 	}, func() {
 		tester.AssertReturned()
 	})
-	tester.AssertNoOrphans()
+	tester.Close()
 }
 
 // those are all positive cases. What about negative cases? What do the error
@@ -381,7 +381,7 @@ func TestNestedConcurrentlies(t *testing.T) {
 // more calls made early in a concurrent run than the test expected
 // does the testing scale beyond a handful of calls?
 
-func TestOrphanMadeAfterDonePanics(t *testing.T) {
+func TestCallAfterDonePanics(t *testing.T) {
 	t.Parallel()
 
 	tester := imptest.NewFuncTester(t)
@@ -434,7 +434,7 @@ func TestOrphanMadeAfterDonePanics(t *testing.T) {
 	tester.AssertReturned()
 
 	// assert no orphans
-	tester.AssertNoOrphans()
+	tester.Close()
 
 	// let the orphan go
 	orphanReleaseChan <- struct{}{}
@@ -442,42 +442,6 @@ func TestOrphanMadeAfterDonePanics(t *testing.T) {
 	// wait for the test release from the orphan defer
 	<-testReleaseChan
 }
-
-// This test fails the race detector, due to the second thing1 not being read from
-// the call queue before AssertNoOrphans is called.
-//
-//	func TestOrphanMadeBeforeDone(t *testing.T) {
-//		t.Parallel()
-//
-//		tester := imptest.NewFuncTester(t)
-//
-//		var (
-//			deps          doThingsDeps
-//			id1, id2, id3 string
-//		)
-//
-//		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.Calls)
-//		deps.thing2, id2 = imptest.WrapFunc(thing2, tester.Calls)
-//		deps.thing3, id3 = imptest.WrapFunc(thing3, tester.Calls)
-//
-//		DoThingsWithOrphanMadeAfterDone := func(deps doThingsDeps) {
-//			go deps.thing1()
-//			go deps.thing1()
-//			go deps.thing2()
-//			go deps.thing3()
-//		}
-//
-//		tester.Start(DoThingsWithOrphanMadeAfterDone, deps)
-//
-//		tester.Concurrently(
-//			func() { tester.AssertCalled(id1).Return() },
-//			func() { tester.AssertCalled(id2).Return() },
-//			func() { tester.AssertCalled(id3).Return() },
-//			func() { tester.AssertReturned() },
-//		)
-//
-//		// assert no orphans
-//		tester.AssertNoOrphans()
 
 func TestDoThingsConcurrentlyFails(t *testing.T) {
 	// Given pkg deps replaced
@@ -513,7 +477,7 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 		}, func() {
 			tester.AssertReturned()
 		})
-		tester.AssertNoOrphans()
+		tester.Close()
 	})
 
 	if !mockTester.Failed() {
@@ -532,4 +496,191 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 	}
 }
 
-// }
+func DoThings3xSync(deps doThingsDeps) {
+	deps.thing1()
+	deps.thing1()
+	deps.thing1()
+}
+
+func TestMoreSyncCallsFails(t *testing.T) {
+	// Given pkg deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		var (
+			deps doThingsDeps
+			id1  string
+		)
+
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+
+		// When DoThings is started
+		tester.Start(DoThings3xSync, deps)
+
+		tester.AssertCalled(id1).Return()
+		tester.AssertReturned()
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "thing1\n  with args []"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
+func TestFewerSyncCallsFails(t *testing.T) {
+	// Given pkg deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		var (
+			deps doThingsDeps
+			id1  string
+		)
+
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+
+		// When DoThings is started
+		tester.Start(DoThings3xSync, deps)
+
+		tester.AssertCalled(id1).Return()
+		tester.AssertCalled(id1).Return()
+		tester.AssertCalled(id1).Return()
+		tester.AssertCalled(id1).Return()
+		tester.AssertReturned()
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "thing1\n  with args []"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
+func DoThings3xAsync(deps doThingsDeps) {
+	go deps.thing1()
+	go deps.thing1()
+	go deps.thing1()
+}
+
+func TestFewerAsyncCallsTimesOut(t *testing.T) {
+	// Given pkg deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		var (
+			deps doThingsDeps
+			id1  string
+		)
+
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+
+		// When DoThings is started
+		tester.Start(DoThings3xAsync, deps)
+
+		tester.Concurrently(
+			func() { tester.AssertCalled(id1).Return() },
+			func() { tester.AssertCalled(id1).Return() },
+			func() { tester.AssertCalled(id1).Return() },
+			func() { tester.AssertCalled(id1).Return() },
+			func() { tester.AssertReturned() },
+		)
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "timed out"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
+func TestAssertAfterReturnFails(t *testing.T) {
+	// Given pkg deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		var (
+			deps doThingsDeps
+			id1  string
+		)
+
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+
+		// When DoThings is started
+		tester.Start(DoThings3xAsync, deps)
+
+		tester.Concurrently(
+			func() { tester.AssertCalled(id1).Return() },
+			func() { tester.AssertCalled(id1).Return() },
+			func() { tester.AssertCalled(id1).Return() },
+			func() { tester.AssertReturned() },
+		)
+		tester.Close()
+		tester.AssertCalled(id1).Return()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "calls channel was already closed"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}

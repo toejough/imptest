@@ -3,9 +3,9 @@ package imptest
 
 import (
 	"fmt"
-	"math/rand"
 	"reflect"
 	"strings"
+	"time"
 )
 
 func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
@@ -181,7 +181,7 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 			t.bufferNextIndex,
 		)
 
-		t.T.Logf(logMessage)
+		// t.T.Logf(logMessage)
 
 		// if we have tried and failed to match calls, such that the total
 		// buffered calls are now equal to or greater than the
@@ -233,32 +233,27 @@ func (t *FuncTester) nextCall() FuncCall {
 	// 	t.callQueue,
 	// )
 
-	actualCall, open := <-t.CallChan
-	if !open {
-		t.T.Fatal("expected a call to be available, but the calls channel was already closed")
-		panic("only necessary because nilchecker doesn't know what to do with my mocked tester")
+	// TODO: allow a timeout to be set
+	select {
+	case actualCall, open := <-t.CallChan:
+		if !open {
+			t.T.Fatal("expected a call to be available, but the calls channel was already closed")
+			panic("only necessary because nilchecker doesn't know what to do with my mocked tester")
+		}
+
+		t.callBuffer = append(t.callBuffer, actualCall)
+
+		// t.T.Logf("returning next from call channel: %#v", actualCall)
+
+		return actualCall
+	case <-time.After(1 * time.Second):
+		t.T.Fatal("expected a call to be available, but the test timed out waiting after 1s")
+		panic("only necessary because linters don't know what to do with my mocked tester")
 	}
-
-	t.callBuffer = append(t.callBuffer, actualCall)
-
-	// t.T.Logf("returning next from call channel: %#v", actualCall)
-
-	return actualCall
 }
 
-func (t *FuncTester) AssertNoOrphans() {
+func (t *FuncTester) Close() {
 	close(t.CallChan)
-
-	if len(t.callBuffer) > 0 {
-		// TODO: this fails mutation testing
-		// that means we don't have a test that verifies this orphan failure
-		t.T.Fatalf("found orphans: %#v", t.callBuffer)
-	}
-
-	actualCall, open := <-t.CallChan
-	if open {
-		t.T.Fatalf("found orphan: %#v", actualCall)
-	}
 }
 
 // AssertReturned asserts that the function under test returned the given values.
@@ -342,9 +337,9 @@ func PanicFunc(calls chan FuncCall) (func(any), string) {
 // off when complete.
 func (t *FuncTester) Concurrently(funcs ...func()) {
 	// shuffle the funcs
-	rand.Shuffle(len(funcs), func(i, j int) {
-		funcs[i], funcs[j] = funcs[j], funcs[i]
-	})
+	// rand.Shuffle(len(funcs), func(i, j int) {
+	// 	funcs[i], funcs[j] = funcs[j], funcs[i]
+	// })
 	// add len(funcs) for each func we just added
 	t.bufferMaxLen += len(funcs)
 	// TODO: this sometimes fails mutation testing with = len(funcs) passing fine

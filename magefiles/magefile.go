@@ -68,6 +68,7 @@ func Monitor() error {
 			return fmt.Errorf("unable to monitor effectively due to error checking for path updates: %w", err)
 		}
 
+		// todo: context cancellation if there are more changes?
 		if changeDetected {
 			fmt.Println("Change detected...")
 			err = Check()
