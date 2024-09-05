@@ -7,7 +7,6 @@ import (
 	"github.com/toejough/protest/imptest"
 )
 
-// TODO: context deps?
 // DoThings now calls functions from a dependencies struct.
 func DoThings(deps doThingsDeps) {
 	deps.thing1()
@@ -301,9 +300,6 @@ func TestDoThingsConcurrently(t *testing.T) {
 	tester.Start(DoThingsConcurrently, deps)
 
 	// Then the functions are called in any order
-	// TODO randomize order asserted
-	// TODO add a way to verify that nothing _unexpected_ landed in the call
-	// queue after we finish our tests. tester.AssertNoOrphanedCalls()?
 	tester.Concurrently(func() {
 		// we expect this call _concurrently_, acking that this is not
 		// necessarily the order the calls will actually come through because

@@ -140,17 +140,15 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 		// get the next thing
 		next := t.nextCall()
 
-		// TODO: clean this up in terms of better switching & abstraction
-		expectationID := "call ID of " + expectedCallID
+		var expectation string
 
-		if expectedCallID == t.returnID {
-			// TODO: this fails mutation testing
-			// that means we never fail a return from the function under test.
-			expectationID = "return from function under test"
-		} else if expectedCallID == t.panicID {
-			// TODO: this fails mutation testing
-			// that means we never fail a panic from the function under test.
-			expectationID = "panic from function under test"
+		switch expectedCallID {
+		case t.returnID:
+			expectation = "return from function under test"
+		case t.panicID:
+			expectation = "panic from function under test"
+		default:
+			expectation = "call ID of " + expectedCallID
 		}
 
 		// if match, remove from the buffer & return
@@ -173,7 +171,7 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 				"bufferMaxLen: %d.\n"+
 				"bufferStartIndex: %d\n"+
 				"bufferNextIndex: %d",
-			expectationID,
+			expectation,
 			expectedArgs,
 			formatCalls(t.callBuffer),
 			t.bufferMaxLen,
@@ -198,9 +196,6 @@ func formatCalls(calls []FuncCall) string {
 	formatted := []string{}
 
 	for _, funcCall := range calls {
-		// TODO: mutation reveals no testing here if a break is inserted.
-		// this means we don't have a test for verifying the formatted outputs.
-		// this means we don't have a test for the failure case
 		formattedCall := fmt.Sprintf("\nCall %s\n"+
 			"  with args %v",
 			funcCall.ID,
@@ -309,8 +304,6 @@ func ReturnFunc(calls chan FuncCall) (func(...any), string) {
 
 func PanicFunc(calls chan FuncCall) (func(any), string) {
 	// creates a unique ID for the function
-	// TODO: allow users to override the ID
-	// TODO: add a random unique element to the end
 	funcID := "panicFunc"
 
 	// create the function, that when called:
@@ -336,14 +329,8 @@ func PanicFunc(calls chan FuncCall) (func(any), string) {
 // calls to Concurrently will push a new mark onto a queue of marks, and pop it
 // off when complete.
 func (t *FuncTester) Concurrently(funcs ...func()) {
-	// shuffle the funcs
-	// rand.Shuffle(len(funcs), func(i, j int) {
-	// 	funcs[i], funcs[j] = funcs[j], funcs[i]
-	// })
 	// add len(funcs) for each func we just added
 	t.bufferMaxLen += len(funcs)
-	// TODO: this sometimes fails mutation testing with = len(funcs) passing fine
-	// this means we are not reliably testing a case where the desired call is last on the buffer.
 
 	// run each function.
 	for _, concurrentCheck := range funcs {
