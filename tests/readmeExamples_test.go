@@ -367,9 +367,6 @@ func DoThingsConcurrentlyNested(deps doThingsDeps) {
 	}()
 }
 
-// TODO: test a more complex nested case.
-// TODO: any property-based tests to run?
-// TODO: any Fuzz tests to run?
 func TestNestedConcurrentlies(t *testing.T) {
 	// Given pkg deps replaced
 	t.Parallel()
