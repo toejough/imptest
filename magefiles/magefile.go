@@ -167,17 +167,28 @@ func Test() error {
 
 // Run the mutation tests
 func Mutate() error {
-	// TODO: add a run of the testForFail func, which is what the mutator runs
 	fmt.Println("Running mutation tests...")
-	return sh.RunV(
-		"go",
-		"test",
-		// "-v",
-		"-tags=mutation",
-		"./tests",
-		"-run=TestMutation",
-		// "-ooze.v",
-	)
+	for _, cmd := range []func() error{
+		TestForFail,
+		func() error {
+			return sh.RunV(
+				"go",
+				"test",
+				// "-v",
+				"-tags=mutation",
+				"./tests",
+				"-run=TestMutation",
+				// "-ooze.v",
+			)
+		},
+	} {
+		err := cmd()
+		if err != nil {
+			return fmt.Errorf("unable to finish checking: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func CheckCoverage() error {

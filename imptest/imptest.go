@@ -8,10 +8,20 @@ import (
 	"time"
 )
 
-func WrapFunc[T any](function T, calls chan FuncCall) (T, string) {
+func WithName(name string) func(string) string {
+	return func(_ string) string {
+		return name
+	}
+}
+
+type WrapOption func(string) string
+
+func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T, string) {
 	// creates a unique ID for the function
-	// TODO: allow users to override the ID
 	funcID := GetFuncName(function)
+	for _, o := range options {
+		funcID = o(funcID)
+	}
 
 	// create the function, that when called:
 	// * puts its ID and args onto the call channel along with a return channel
@@ -67,7 +77,7 @@ type FuncCall struct {
 }
 
 // NewFuncTester returns a newly initialized FuncTester.
-func NewFuncTester(tester Tester) *FuncTester {
+func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	tester.Helper()
 
 	calls := make(chan FuncCall)
@@ -82,8 +92,22 @@ func NewFuncTester(tester Tester) *FuncTester {
 	funcTester.returnID = returnID
 	funcTester.panicID = panicID
 	funcTester.bufferMaxLen = 1
+	funcTester.timeout = 1 * time.Second
+
+	for _, o := range options {
+		funcTester = o(funcTester)
+	}
 
 	return funcTester
+}
+
+type FuncTesterOption func(*FuncTester) *FuncTester
+
+func WithTimeout(timeout time.Duration) FuncTesterOption {
+	return func(ft *FuncTester) *FuncTester {
+		ft.timeout = timeout
+		return ft
+	}
 }
 
 type Tester interface {
@@ -105,6 +129,7 @@ type FuncTester struct {
 	bufferStartIndex int
 	bufferMaxLen     int
 	bufferNextIndex  int
+	timeout          time.Duration
 }
 
 // Start starts the function.
@@ -216,19 +241,6 @@ func (t *FuncTester) nextCall() FuncCall {
 		return next
 	}
 
-	// t.T.Logf(
-	// 	"waiting for the next call from the channel\n"+
-	// 		"len(callQueue): %d\n"+
-	// 		"maxQueueLen: %d\n"+
-	// 		"queueStartIndex: %d\n"+
-	// 		"callQueue: %#v",
-	// 	len(t.callQueue),
-	// 	t.maxQueueLen,
-	// 	t.queueStartIndex,
-	// 	t.callQueue,
-	// )
-
-	// TODO: allow a timeout to be set
 	select {
 	case actualCall, open := <-t.CallChan:
 		if !open {
@@ -241,8 +253,8 @@ func (t *FuncTester) nextCall() FuncCall {
 		// t.T.Logf("returning next from call channel: %#v", actualCall)
 
 		return actualCall
-	case <-time.After(1 * time.Second):
-		t.T.Fatal("expected a call to be available, but the test timed out waiting after 1s")
+	case <-time.After(t.timeout):
+		t.T.Fatalf("expected a call to be available, but the test timed out waiting after %v", t.timeout)
 		panic("only necessary because linters don't know what to do with my mocked tester")
 	}
 }
@@ -277,12 +289,8 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 	t.assertMatch(t.panicID, []any{expectedPanic})
 }
 
-// TODO: make ID it's own type
-
 func ReturnFunc(calls chan FuncCall) (func(...any), string) {
 	// creates a unique ID for the function
-	// TODO: allow users to override the ID
-	// TODO: add a random unique element to the end
 	funcID := "returnFunc"
 
 	// create the function, that when called:

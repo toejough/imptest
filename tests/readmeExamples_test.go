@@ -3,6 +3,7 @@ package imptest_test
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/toejough/protest/imptest"
 )
@@ -107,6 +108,41 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	)
 
 	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThings, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id2).Return()
+	tester.AssertCalled(id3).Return()
+
+	// Then the function returned
+	tester.AssertReturned()
+}
+
+func TestDoThingsCustom(t *testing.T) {
+	t.Parallel()
+
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(
+		t,
+		imptest.WithTimeout(10*time.Second),
+	)
+
+	// Given pkg deps replaced
+	var (
+		id1, id2, id3 string
+		deps          doThingsDeps
+	)
+
+	deps.thing1, id1 = imptest.WrapFunc(
+		thing1,
+		tester.CallChan,
+		imptest.WithName("first"),
+	)
 	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
 	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
 
@@ -332,6 +368,8 @@ func DoThingsConcurrentlyNested(deps doThingsDeps) {
 }
 
 // TODO: test a more complex nested case.
+// TODO: any property-based tests to run?
+// TODO: any Fuzz tests to run?
 func TestNestedConcurrentlies(t *testing.T) {
 	// Given pkg deps replaced
 	t.Parallel()
