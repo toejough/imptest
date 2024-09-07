@@ -374,4 +374,4 @@ Why not https://github.com/stretchr/testify/blob/master/README.md#mock-package?
 
 In the straightforward use cases, you only get to specify simple call/return behavior, with no guarantees about ordering, and you need to unset handlers for repeated calls for the same function.
 
-On the other hand, there's https://github.com/stretchr/testify/issues/741, which calls some of this out, and which is answered by the author with some additional syntax and functionality. I still found this somewhat confusing, overly verbose, and non-obvious that the functionality even existed, so I set out to see if I could do any better, mostly out of curiosity, and to learn. Having done so, I'm happy with what I came up with.
+On the other hand, there's https://github.com/stretchr/testify/issues/741, which calls some of this out, and which is answered by the author with some additional syntax and functionality. I still found myself wondering if something with what I considered simpler syntax was possible, mostly out of curiosity, and to learn.
