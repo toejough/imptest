@@ -36,8 +36,10 @@ func thing7(bool)       {}
 // The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	t.Parallel()
-	// Given pkg deps replaced
+	// Given a call channel to track the calls
 	calls := make(chan imptest.FuncCall)
+
+	// Given the dependencies are replaced by functions which place their calls on the channel
 
 	// WrapFunc returns a function of the same signature, but which:
 	// * puts the given function on the calls channel for test validation
@@ -101,7 +103,7 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	// Given convenience test wrapper
 	tester := imptest.NewFuncTester(t)
 
-	// Given pkg deps replaced
+	// Given deps replaced
 	var (
 		id1, id2, id3 string
 		deps          doThingsDeps
@@ -132,7 +134,7 @@ func TestDoThingsCustom(t *testing.T) {
 		imptest.WithTimeout(10*time.Second),
 	)
 
-	// Given pkg deps replaced
+	// Given deps replaced
 	var (
 		id1, id2, id3 string
 		deps          doThingsDeps
@@ -172,7 +174,7 @@ func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
 	// Given convenience test wrapper
 	tester := imptest.NewFuncTester(t)
 
-	// Given pkg deps replaced
+	// Given deps replaced
 	var (
 		id1, id4 string
 		deps     doThingsDeps
@@ -198,7 +200,7 @@ func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
 	// Given convenience test wrapper
 	tester := imptest.NewFuncTester(t)
 
-	// Given pkg deps replaced
+	// Given deps replaced
 	var (
 		id1, id2, id4 string
 		deps          doThingsDeps
@@ -231,7 +233,7 @@ func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
 	// Given convenience test wrapper
 	tester := imptest.NewFuncTester(t)
 
-	// Given pkg deps replaced
+	// Given deps replaced
 	var (
 		id5, id6 string
 		deps     doThingsDeps
@@ -317,7 +319,7 @@ func DoThingsConcurrently(deps doThingsDeps) {
 }
 
 func TestDoThingsConcurrently(t *testing.T) {
-	// Given pkg deps replaced
+	// Given deps replaced
 	t.Parallel()
 
 	// convenience test wrapper
@@ -368,7 +370,7 @@ func DoThingsConcurrentlyNested(deps doThingsDeps) {
 }
 
 func TestNestedConcurrentlies(t *testing.T) {
-	// Given pkg deps replaced
+	// Given deps replaced
 	t.Parallel()
 
 	// convenience test wrapper
@@ -405,6 +407,9 @@ func TestNestedConcurrentlies(t *testing.T) {
 	tester.Close()
 }
 
+// TODO: create & test called, returned, panicked functions
+// TODO: put return/panic on own channels and select between
+// TODO: allow own comparison func to be set as an option on the tester
 // those are all positive cases. What about negative cases? What do the error
 // messages from this library look like when things go wrong?
 // orphaned calls from sync calls
@@ -475,7 +480,7 @@ func TestCallAfterDonePanics(t *testing.T) {
 }
 
 func TestDoThingsConcurrentlyFails(t *testing.T) {
-	// Given pkg deps replaced
+	// Given deps replaced
 	t.Parallel()
 
 	mockTester := newMockedTestingT()
@@ -534,7 +539,7 @@ func DoThings3xSync(deps doThingsDeps) {
 }
 
 func TestMoreSyncCallsFails(t *testing.T) {
-	// Given pkg deps replaced
+	// Given deps replaced
 	t.Parallel()
 
 	mockTester := newMockedTestingT()
@@ -575,7 +580,7 @@ func TestMoreSyncCallsFails(t *testing.T) {
 }
 
 func TestFewerSyncCallsFails(t *testing.T) {
-	// Given pkg deps replaced
+	// Given deps replaced
 	t.Parallel()
 
 	mockTester := newMockedTestingT()
@@ -625,7 +630,7 @@ func DoThings3xAsync(deps doThingsDeps) {
 }
 
 func TestFewerAsyncCallsTimesOut(t *testing.T) {
-	// Given pkg deps replaced
+	// Given deps replaced
 	t.Parallel()
 
 	mockTester := newMockedTestingT()
@@ -671,7 +676,7 @@ func TestFewerAsyncCallsTimesOut(t *testing.T) {
 }
 
 func TestAssertAfterReturnFails(t *testing.T) {
-	// Given pkg deps replaced
+	// Given deps replaced
 	t.Parallel()
 
 	mockTester := newMockedTestingT()

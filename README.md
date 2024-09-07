@@ -2,9 +2,13 @@
 
 An IMPure function TEST tool.
 
-I find that most test suites are written assuming pure functions: Inputs -> Outputs. 
+There are plenty of test tools written to facilitate testing pure functions: Inputs -> Outputs. 
 
-Impure functions, on the other hand, are characterized by calls to _other_ functions. The whole point of some functions is that they coordinate calls to other functions. We often don't want to validate what those other functions _do_, as we already have tests for them, or they're 3rd parties that we trust. If we _do_ care about the end-to-end functionality, we can use integration tests or end-to-end testing. This library is here to help where we really do just want to test that the function-under-test makes the calls it's supposed to, in the right order, shuffling inputs and outputs between them correctly.
+Impure functions, on the other hand, are characterized by calls to _other_ functions. The whole point of some functions is that they coordinate calls to other functions. 
+
+We often don't want to validate what those other functions _do_, as we already have tests for them, or they're 3rd parties that we trust. If we _do_ care about the end-to-end functionality, we can use integration tests or end-to-end testing. 
+
+This library is here to help where we really do just want to test that the function-under-test makes the calls it's supposed to, in the right order, shuffling inputs and outputs between them correctly.
 
 Let's start with an example that has no arguments or returns. It's... purely impure.
 
@@ -50,13 +54,19 @@ type doThingsDeps struct {
 	thing1 func()
 	thing2 func()
 	thing3 func()
+	thing4 func() bool
+	thing5 func(int) string
+	thing6 func(string) int
 }
 
 // The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	t.Parallel()
-	// Given pkg deps replaced
+	// Given a call channel to track the calls
 	calls := make(chan imptest.FuncCall)
+
+	// Given the dependencies are replaced by functions which place their calls on the channel
+
 	// WrapFunc returns a function of the same signature, but which:
 	// * puts the given function on the calls channel for test validation
 	// * waits for the test to tell it to return before returning
@@ -67,12 +77,9 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 		deps          doThingsDeps
 	)
 
-	// since WrapFunc returns a function of the same signature, we don't even
-	// need a concrete function to emulate, we can just use the zero value
-	// functions from the dependency struct to build the test function from
-	deps.thing1, id1 = imptest.WrapFunc(deps.thing1, calls)
-	deps.thing2, id2 = imptest.WrapFunc(deps.thing2, calls)
-	deps.thing3, id3 = imptest.WrapFunc(deps.thing3, calls)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, calls)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, calls)
 
 	// When DoThings is started
 	go func() {
@@ -118,45 +125,46 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 
 A slightly less verbose version of the test is generally helpful for parsing and understanding, so Imptest provides some syntactic sugar.
 
-TODO: also wrap the function under test into the tester.
-
 ```go
-// The test replaces those functions in order to test they are called
-func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
-    // Given pkg deps replaced
-    tester := imptest.NewTester(t, DoThings)
-    // WrapFunc returns a function of the same signature, but which:
-    // * puts the given function on the relay for test validation
-    // * waits for the test to tell it to return before returning
-    // It also returns an ID, to compare against, because go does not allow    
-    // us to compare functions.
-    pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
-    pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
+// The test replaces those functions in order to test they are called.
+func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
+	t.Parallel()
 
-    // When DoThings is started
-    tester.Start()
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-    // Then the functions are called in the following order
-    tester.AssertCalled(id1).Return()
-    tester.AssertCalled(id2).Return()
-    tester.AssertCalled(id3).Return()
+	// Given deps replaced
+	var (
+		id1, id2, id3 string
+		deps          doThingsDeps
+	)
 
-    // Then the function returned
-    tester.AssertReturned()
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThings, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id2).Return()
+	tester.AssertCalled(id3).Return()
+
+	// Then the function returned
+	tester.AssertReturned()
 }
 ```
-
-The `AssertReturned()` function has a partner `Returned()` func that simply returns the returned values in an array for you to inspect.
 
 Let's explore a more complex example, where we have a more interesting function, which acts on returns from the subfunctions.
 
 ```go
-func DoThings() {
-    pkgDeps.thing1()
-    if pkgDeps.thing2() {
-        pkgDeps.thing3() 
-    }
+func DoThingsWithBranch(deps doThingsDeps) {
+	deps.thing1()
+
+	if deps.thing4() {
+		deps.thing2()
+	}
 }
 ```
 
@@ -168,84 +176,96 @@ Now we would like two tests:
 ```go
 // The test replaces those functions in order to test they are called
 func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
-    // Given pkg deps replaced
-    tester := imptest.NewTester(t)
-    // WrapFunc returns a function of the same signature, but which:
-    // * puts the given function on the relay for test validation
-    // * waits for the test to tell it to return before returning
-    // It also returns an ID, to compare against, because go does not allow    
-    // us to compare functions.
-    pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
-    pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
+	t.Parallel()
 
-    // When DoThings is started
-    tester.Start(DoThings)
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-    // Then the functions are called in the following order
-    tester.AssertCalled(id1).Return()
-    tester.AssertCalled(id2).Return(false)
+	// Given deps replaced
+	var (
+		id1, id4 string
+		deps     doThingsDeps
+	)
 
-    // Then the function is done
-    tester.AssertReturned()
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithBranch, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id4).Return(false)
+
+	// Then the function is done
+	tester.AssertReturned()
 }
 
 func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
-    // Given pkg deps replaced
-    tester := imptest.NewTester(t)
-    // WrapFunc returns a function of the same signature, but which:
-    // * puts the given function on the relay for test validation
-    // * waits for the test to tell it to return before returning
-    // It also returns an ID, to compare against, because go does not allow    
-    // us to compare functions.
-    pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
-    pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
+	t.Parallel()
 
-    // When DoThings is started
-    tester.Start(DoThings)
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-    // Then the functions are called in the following order
-    tester.AssertCalled(id1).Return()
-    tester.AssertCalled(id2).Return(true)
-    tester.AssertCalled(id3).Return()
+	// Given deps replaced
+	var (
+		id1, id2, id4 string
+		deps          doThingsDeps
+	)
 
-    // Then the function is done
-    tester.AssertReturned()
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithBranch, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id1).Return()
+	tester.AssertCalled(id4).Return(true)
+	tester.AssertCalled(id2).Return()
+
+	// Then the function is done
+	tester.AssertReturned()
 }
 ```
 
 Adding arguments and more returns is fairly trivial.
 
 ```go
-func DoThings(int x) int {
-    y := pkgDeps.thing1(x)
-    return pkgDeps.thing2(y) {
+func DoThingsWithArgs(x int, deps doThingsDeps) int {
+	y := deps.thing5(x)
+	return deps.thing6(y)
 }
 
-func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
-    // Given pkg deps replaced
-    tester := imptest.NewTester(t)
-    // WrapFunc returns a function of the same signature, but which:
-    // * puts the given function on the relay for test validation
-    // * waits for the test to tell it to return before returning
-    // It also returns an ID, to compare against, because go does not allow    
-    // us to compare functions.
-    pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
+func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
+	t.Parallel()
 
-    // When DoThings is started
-    tester.Start(func(){DoThings(1)})
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-    // Then the functions are called in the following order
-    tester.AssertCalled(id1, 1).Return(2)
-    tester.AssertCalled(id2, 2).Return(3)
+	// Given deps replaced
+	var (
+		id5, id6 string
+		deps     doThingsDeps
+	)
 
-    // Then the function returned as expected
-    tester.AssertReturned(3)
+	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.CallChan)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithArgs, 1, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id5, 1).Return("hi")
+	tester.AssertCalled(id6, "hi").Return(2)
+
+	// Then the function returned as expected
+	tester.AssertReturned(2)
 }
 ```
 
+========>MADE IT HERE WITH README UPDATES<========
 Functions don't only call other functions - they can also panic and kick off other goroutines to run things in parallel. Let's examine each scenario.
 
 Panics are actually fairly easy to capture.
@@ -260,7 +280,7 @@ func DoThings() {
 
 // The test replaces those functions in order to test they are called
 func TestDoThingsIsFineIfThing2ReturnsFalse(t *testing.T) {
-    // Given pkg deps replaced
+    // Given deps replaced
     tester := imptest.NewTester(t)
     // WrapFunc returns a function of the same signature, but which:
     // * puts the given function on the relay for test validation
@@ -283,7 +303,7 @@ func TestDoThingsIsFineIfThing2ReturnsFalse(t *testing.T) {
 }
 
 func TestDoThingsPanicsIfThings2ReturnsTrue(t *testing.T) {
-    // Given pkg deps replaced
+    // Given deps replaced
     tester := imptest.NewTester(t)
     // WrapFunc returns a function of the same signature, but which:
     // * puts the given function on the relay for test validation
@@ -321,7 +341,7 @@ func DoThings(x, y int) {
 }
 
 func TestDoThingsConcurrently(t *testing.T) {
-    // Given pkg deps replaced
+    // Given deps replaced
     tester := imptest.NewTester(t)
     pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
     pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
