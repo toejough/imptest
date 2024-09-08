@@ -364,7 +364,6 @@ func TestNestedConcurrentlies(t *testing.T) {
 	tester.Close()
 }
 
-// TODO: create & test called, returned, panicked functions
 // TODO: put return/panic on own channels and select between
 // TODO: allow own comparison func to be set as an option on the tester
 // those are all positive cases. What about negative cases? What do the error

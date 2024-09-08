@@ -283,7 +283,6 @@ func (t *FuncTester) Returned() []any {
 		return t.returnedVals
 	}
 
-	// TODO: we should not return a FuncCall, we should just return the value...
 	expectedCallID := t.returnID
 
 	t.bufferNextIndex = 0
