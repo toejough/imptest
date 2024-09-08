@@ -271,105 +271,118 @@ Functions don't only call other functions - they can also panic and kick off oth
 Panics are actually fairly easy to capture.
 
 ```go
-func DoThings() {
-    pkgDeps.thing1()
-    if pkgDeps.thing2() {
-        panic("on purpose?!") 
-    }
+func DoThingsThatPanic() {
+	panic("on purpose?!")
 }
 
-// The test replaces those functions in order to test they are called
-func TestDoThingsIsFineIfThing2ReturnsFalse(t *testing.T) {
-    // Given deps replaced
-    tester := imptest.NewTester(t)
-    // WrapFunc returns a function of the same signature, but which:
-    // * puts the given function on the relay for test validation
-    // * waits for the test to tell it to return before returning
-    // It also returns an ID, to compare against, because go does not allow    
-    // us to compare functions.
-    pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
-    pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
+func TestDoThingsThatPanic(t *testing.T) {
+	t.Parallel()
 
-    // When DoThings is started
-    tester.Start(func(){DoThings()})
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
 
-    // Then the functions are called in the following order
-    tester.AssertCalled(id1).Return()
-    tester.AssertCalled(id2).Return(false)
-
-    // Then the function is done
-    tester.AssertReturned()
-}
-
-func TestDoThingsPanicsIfThings2ReturnsTrue(t *testing.T) {
-    // Given deps replaced
-    tester := imptest.NewTester(t)
-    // WrapFunc returns a function of the same signature, but which:
-    // * puts the given function on the relay for test validation
-    // * waits for the test to tell it to return before returning
-    // It also returns an ID, to compare against, because go does not allow    
-    // us to compare functions.
-    pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
-    pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
-
-    // When DoThings is started
-    tester.Start(func(){DoThings()})
-
-    // Then the functions are called in the following order
-    tester.AssertCalled(id1).Return()
-    tester.AssertCalled(id2).Return(true)
-    tester.AssertPanicked("on purpose?!")
-
-    // Then the function is done
-    tester.AssertReturned()
+	// When DoThings is started
+	tester.Start(DoThingsThatPanic)
+	tester.AssertPanicked("on purpose?!")
 }
 ```
 
-The `AssertPanicked` function has a partner `Panicked` which returns the content of the panic.
+Imptest can also handle _injecting_ panics.
+
+``` go
+func DoThingsWithPanic(deps doThingsDeps) (panicVal string) {
+	defer func() {
+		if r := recover(); r != nil {
+			var ok bool
+
+			panicVal, ok = r.(string)
+			if !ok {
+				panic(r)
+			}
+		}
+	}()
+
+	deps.thing1()
+
+	return
+}
+
+// The test replaces those functions in order to test they are called.
+func TestDoThingsWithPanic(t *testing.T) {
+	t.Parallel()
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t)
+
+	var (
+		deps doThingsDeps
+		id1  string
+	)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithPanic, deps)
+
+	// Then id7 is called. When it panics...
+	tester.AssertCalled(id1).Panic("omg what?")
+
+	// Then the function returns the panic message
+	tester.AssertReturned("omg what?")
+}
+```
 
 Concurrent calls fired off by goroutines are more difficult to capture, but not by much.
 
 ```go
-func DoThings(x, y int) {
-    go pkgDeps.thing1(x)
-    go func() {
-        z := pkgDeps.thing2(y)
-        pkgDeps.thing3(z)
-    }()
+func DoThingsConcurrently(deps doThingsDeps) {
+	go deps.thing3()
+	go func() {
+		z := deps.thing4()
+		deps.thing7(z)
+	}()
 }
 
 func TestDoThingsConcurrently(t *testing.T) {
-    // Given deps replaced
-    tester := imptest.NewTester(t)
-    pkgDeps.thing1, id1 = tester.WrapFunc(thing1)
-    pkgDeps.thing2, id2 = tester.WrapFunc(thing2)
-    pkgDeps.thing3, id3 = tester.WrapFunc(thing3)
+	t.Parallel()
 
-    // When DoThings is started
-    tester.Start(func(){DoThings(1, 2)})
+	// Given deps replaced
+	tester := imptest.NewFuncTester(t)
 
-    // Then the functions are called in any order
-    // SetGoroutines tells the tester that it should pull up to the number given calls off of the 
-    // relay. Each call to AssertCalled will pull up to that many calls off of the relay before asserting
-    // that one of them matches. 
-    tester.SetGoroutines(2) 
-    tester.AssertCalled(id1, 1).Return() // this could be second or third, and would be fine
-    tester.AssertCalled(id2, 2).Return(3) // this could be first, and would be fine
-    tester.AssertCalled(id3, 3).Return() // this must be called after the wait for id2
+	var (
+		deps          doThingsDeps
+		id3, id4, id7 string
+	)
 
-    // Then the function is done
-    tester.AssertReturned()
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
+	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsConcurrently, deps)
+
+	// Then the functions are called in any order
+	tester.Concurrently(func() {
+		tester.AssertCalled(id3).Return()
+	}, func() {
+		tester.AssertCalled(id4).Return(true)
+		tester.AssertCalled(id7, true).Return()
+	}, func() {
+		tester.AssertReturned()
+	})
+	tester.Close()
 }
 ```
 
-Some other niceties:
+## Customization
 
-* `SetGoroutines(0)` will allow an arbitrary number of goroutines, if you don't care to track their count.
-* `Timeout(duration)` will set the timeout for all future assertions/next calls. The default is 1s.
+The test helper makes some assumptions, each of which you can override:
+* timeouts for waiting for a call are defaulted to 500ms. You can override with `NewFuncTester(t, imptest.WithTimeout(duration))`.
+* names for mocked functions are defaulted to `runtime.FuncForPC(...).Name()`. You can override with `WrapFunc(f, callsChan, WithName(name))`.
 
-# alternatives/inspirations
+For custom inspection and comparison of calls, returns, and panics, you can use `Called`, `Returned`, or `Panicked` in place of their `Assert[Called|Returned|Panicked]` functions. Doing so will get you the underlying FuncCall, return value list, or panic value, respectively.
+
+## alternatives/inspirations
 Why not https://github.com/stretchr/testify/blob/master/README.md#mock-package?
 
 In the straightforward use cases, you only get to specify simple call/return behavior, with no guarantees about ordering, and you need to unset handlers for repeated calls for the same function.

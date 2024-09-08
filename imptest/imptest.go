@@ -20,6 +20,7 @@ func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T,
 	// creates a unique ID for the function
 	funcID := GetFuncName(function)
 	for _, o := range options {
+		// TODO: fails mutation testing. Need a test that verifies we actually run the options passed in.
 		funcID = o(funcID)
 	}
 
@@ -92,7 +93,9 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.returnID = returnID
 	funcTester.panicID = panicID
 	funcTester.bufferMaxLen = 1
-	funcTester.timeout = 1 * time.Second
+	// I want this to be a magic number, it's half a second
+	// TODO: add an internal test to validate this stays 500? That would satisfy mutation tester. Would be kind of dumb, but would be a stronger "are you sure" moment. IDK. call it a clippy test?
+	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
 
 	for _, o := range options {
 		funcTester = o(funcTester)
@@ -119,17 +122,20 @@ type Tester interface {
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
-	T                Tester
-	CallChan         chan FuncCall
-	returnFunc       func(...any)
-	panicFunc        func(any)
-	returnID         string
-	panicID          string
-	callBuffer       []FuncCall
-	bufferStartIndex int
-	bufferMaxLen     int
-	bufferNextIndex  int
-	timeout          time.Duration
+	T               Tester
+	CallChan        chan FuncCall
+	returnFunc      func(...any)
+	panicFunc       func(any)
+	returnID        string
+	panicID         string
+	callBuffer      []FuncCall
+	bufferMaxLen    int
+	bufferNextIndex int
+	timeout         time.Duration
+	hasReturned     bool
+	returnedVals    []any
+	hasPanicked     bool
+	panickedVal     any
 }
 
 // Start starts the function.
@@ -149,6 +155,15 @@ func (t *FuncTester) Start(function any, args ...any) {
 
 		rVals = callFunc(function, args)
 	}()
+}
+
+// Called returns the FuncCall for inspection by the test.
+func (t *FuncTester) Called() FuncCall {
+	t.bufferNextIndex = 0
+	next := t.nextCall()
+	t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
+
+	return next
 }
 
 // AssertCalled asserts that the passed in fuction and args match.
@@ -194,13 +209,11 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 				"  with args %v,\n"+
 				"but the only calls found were %s.\n"+
 				"bufferMaxLen: %d.\n"+
-				"bufferStartIndex: %d\n"+
 				"bufferNextIndex: %d",
 			expectation,
 			expectedArgs,
 			formatCalls(t.callBuffer),
 			t.bufferMaxLen,
-			t.bufferStartIndex,
 			t.bufferNextIndex,
 		)
 
@@ -263,6 +276,53 @@ func (t *FuncTester) Close() {
 	close(t.CallChan)
 }
 
+func (t *FuncTester) Returned() []any {
+	t.T.Helper()
+
+	if t.hasReturned {
+		return t.returnedVals
+	}
+
+	// TODO: we should not return a FuncCall, we should just return the value...
+	expectedCallID := t.returnID
+
+	t.bufferNextIndex = 0
+
+	for {
+		// get the next thing
+		next := t.nextCall()
+
+		expectation := "return from function under test"
+
+		// if match, remove from the buffer & return
+		if next.ID == expectedCallID {
+			// TODO: this fails mutation testing with decrement, which would _not_ remove the call. Add a test for the concurrent case where we expect a return, and then possibly one more call after?
+			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
+			t.hasReturned = true
+			t.returnedVals = next.Args
+
+			return t.returnedVals
+		}
+
+		t.bufferNextIndex++
+		logMessage := fmt.Sprintf(
+			"\n"+
+				"Looking for %s\n"+
+				"but the only calls found were %s.\n"+
+				"bufferMaxLen: %d.\n"+
+				"bufferNextIndex: %d",
+			expectation,
+			formatCalls(t.callBuffer),
+			t.bufferMaxLen,
+			t.bufferNextIndex,
+		)
+
+		if t.bufferNextIndex >= t.bufferMaxLen {
+			t.T.Fatal(logMessage)
+		}
+	}
+}
+
 // AssertReturned asserts that the function under test returned the given values.
 func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	t.T.Helper()
@@ -280,6 +340,52 @@ func (c FuncCall) Return(returnVals ...any) {
 func (c FuncCall) Panic(panicVal any) {
 	c.PanicValueChan <- panicVal
 	close(c.PanicValueChan)
+}
+
+// Panicked returns the panicked value.
+func (t *FuncTester) Panicked() any {
+	t.T.Helper()
+
+	if t.hasPanicked {
+		return t.panickedVal
+	}
+
+	expectedCallID := t.panicID
+	t.bufferNextIndex = 0
+
+	for {
+		// get the next thing
+		next := t.nextCall()
+
+		expectation := "panic from function under test"
+
+		// if match, remove from the buffer & return
+		if next.ID == expectedCallID {
+			// TODO: this fails mutation testing with decrement, which would _not_ remove the call. Add a test for the concurrent case where we expect a return, and then possibly one more call after?
+			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
+			t.hasPanicked = true
+			t.panickedVal = next.Args[0]
+
+			return t.panickedVal
+		}
+
+		t.bufferNextIndex++
+		logMessage := fmt.Sprintf(
+			"\n"+
+				"Looking for %s\n"+
+				"but the only calls found were %s.\n"+
+				"bufferMaxLen: %d.\n"+
+				"bufferNextIndex: %d",
+			expectation,
+			formatCalls(t.callBuffer),
+			t.bufferMaxLen,
+			t.bufferNextIndex,
+		)
+
+		if t.bufferNextIndex >= t.bufferMaxLen {
+			t.T.Fatal(logMessage)
+		}
+	}
 }
 
 // AssertPanicked asserts that the function under test paniced with the given value.

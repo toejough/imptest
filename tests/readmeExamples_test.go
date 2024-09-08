@@ -1,6 +1,7 @@
 package imptest_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -110,41 +111,6 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	)
 
 	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
-
-	// When DoThings is started
-	tester.Start(DoThings, deps)
-
-	// Then the functions are called in the following order
-	tester.AssertCalled(id1).Return()
-	tester.AssertCalled(id2).Return()
-	tester.AssertCalled(id3).Return()
-
-	// Then the function returned
-	tester.AssertReturned()
-}
-
-func TestDoThingsCustom(t *testing.T) {
-	t.Parallel()
-
-	// Given convenience test wrapper
-	tester := imptest.NewFuncTester(
-		t,
-		imptest.WithTimeout(10*time.Second),
-	)
-
-	// Given deps replaced
-	var (
-		id1, id2, id3 string
-		deps          doThingsDeps
-	)
-
-	deps.thing1, id1 = imptest.WrapFunc(
-		thing1,
-		tester.CallChan,
-		imptest.WithName("first"),
-	)
 	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
 	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
 
@@ -319,10 +285,9 @@ func DoThingsConcurrently(deps doThingsDeps) {
 }
 
 func TestDoThingsConcurrently(t *testing.T) {
-	// Given deps replaced
 	t.Parallel()
 
-	// convenience test wrapper
+	// Given deps replaced
 	tester := imptest.NewFuncTester(t)
 
 	var (
@@ -339,17 +304,8 @@ func TestDoThingsConcurrently(t *testing.T) {
 
 	// Then the functions are called in any order
 	tester.Concurrently(func() {
-		// we expect this call _concurrently_, acking that this is not
-		// necessarily the order the calls will actually come through because
-		// of this, within a call to "Concurrently", calls are pulled until
-		// there's a match
 		tester.AssertCalled(id3).Return()
 	}, func() {
-		// yet unmatched calls will be walked through in order for this set. If
-		// id7 is called before id4, it will be a test failure because by
-		// the time we match id4, id7 will be in the no-match queue we
-		// already walked through, and won't be walked again within this
-		// call to "Concurrently"
 		tester.AssertCalled(id4).Return(true)
 		tester.AssertCalled(id7, true).Return()
 	}, func() {
@@ -358,6 +314,7 @@ func TestDoThingsConcurrently(t *testing.T) {
 	tester.Close()
 }
 
+// not in the README - move to a different test file.
 func DoThingsConcurrentlyNested(deps doThingsDeps) {
 	go deps.thing3()
 	go func() {
@@ -710,6 +667,110 @@ func TestAssertAfterReturnFails(t *testing.T) {
 	}
 
 	expected := "calls channel was already closed"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
+func TestDoThingsCustom(t *testing.T) {
+	t.Parallel()
+
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(
+		t,
+		imptest.WithTimeout(10*time.Second),
+	)
+
+	// Given deps replaced
+	var (
+		id6  string
+		deps doThingsDeps
+	)
+
+	deps.thing5, _ = imptest.WrapFunc(
+		thing5,
+		tester.CallChan,
+		imptest.WithName("thing5"),
+	)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithArgs, 5, deps)
+
+	// Then the functions are called in the following order
+	called := tester.Called()
+	if called.ID != "thing5" {
+		t.Fatalf(
+			"Expected the function 'thing5' to be called, but '%s' was called instead, with args %v",
+			called.ID,
+			called.Args,
+		)
+	}
+
+	if !reflect.DeepEqual(called.Args, []any{5}) {
+		t.Fatalf("Expected args to be empty, but they were %v instead", called.Args)
+	}
+
+	called.Return("five")
+	tester.AssertCalled(id6, "five").Return(6)
+
+	// Then the function returned
+	if !reflect.DeepEqual(tester.Returned(), []any{6}) {
+		t.Fatalf("Expected returns to be []any{6}, but were %v instead", tester.Returned())
+	}
+}
+
+func TestDoThingsThatPanicCustom(t *testing.T) {
+	t.Parallel()
+
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t)
+
+	// When DoThings is started
+	tester.Start(DoThingsThatPanic)
+
+	if !reflect.DeepEqual(tester.Panicked(), "on purpose?!") {
+		t.Fatalf("Expected panic with 'on purpose?!', but panicked with %v instead", tester.Panicked())
+	}
+}
+
+func TestEarlyReturnFails(t *testing.T) {
+	// Given deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		var (
+			deps doThingsDeps
+			id1  string
+		)
+
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+
+		// When DoThings is started
+		tester.Start(DoThings3xSync, deps)
+
+		tester.AssertCalled(id1).Return()
+		tester.AssertCalled(id1).Return()
+		tester.Returned()
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "return"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
