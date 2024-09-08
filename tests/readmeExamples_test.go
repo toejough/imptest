@@ -523,7 +523,7 @@ func TestMoreSyncCallsFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "thing1\n  with args []"
+	expected := "expected a return"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -567,7 +567,7 @@ func TestFewerSyncCallsFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "thing1\n  with args []"
+	expected := "test timed out"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {

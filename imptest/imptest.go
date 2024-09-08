@@ -93,6 +93,8 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.returnID = returnID
 	funcTester.panicID = panicID
 	funcTester.bufferMaxLen = 1
+	funcTester.panicChan = make(chan any)
+	funcTester.returnChan = make(chan []any)
 	// I want this to be a magic number, it's half a second
 	// TODO: add an internal test to validate this stays 500? That would satisfy mutation tester. Would be kind of dumb, but would be a stronger "are you sure" moment. IDK. call it a clippy test?
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
@@ -136,6 +138,8 @@ type FuncTester struct {
 	returnedVals    []any
 	hasPanicked     bool
 	panickedVal     any
+	panicChan       chan any
+	returnChan      chan []any
 }
 
 // Start starts the function.
@@ -147,8 +151,10 @@ func (t *FuncTester) Start(function any, args ...any) {
 		defer func() {
 			p := recover()
 			if p != nil {
+				t.panicChan <- p
 				t.panicFunc(p)
 			} else {
+				t.returnChan <- rVals
 				t.returnFunc(rVals...)
 			}
 		}()
@@ -174,22 +180,34 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 }
 
 func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) FuncCall {
+	t.T.Helper()
 	t.bufferNextIndex = 0
+
+	var expectation string
+	switch expectedCallID {
+	case t.returnID:
+		expectation = "return from function under test"
+		select {
+		case t.returnedVals = <-t.returnChan:
+		case <-time.After(t.timeout):
+			t.T.Fatalf("expected a return to be available, but the test timed out waiting after %v", t.timeout)
+			panic("only necessary because linters don't know what to do with my mocked tester")
+		}
+	case t.panicID:
+		expectation = "panic from function under test"
+		select {
+		case t.panickedVal = <-t.panicChan:
+		case <-time.After(t.timeout):
+			t.T.Fatalf("expected a panic to be available, but the test timed out waiting after %v", t.timeout)
+			panic("only necessary because linters don't know what to do with my mocked tester")
+		}
+	default:
+		expectation = "call ID of " + expectedCallID
+	}
 
 	for {
 		// get the next thing
 		next := t.nextCall()
-
-		var expectation string
-
-		switch expectedCallID {
-		case t.returnID:
-			expectation = "return from function under test"
-		case t.panicID:
-			expectation = "panic from function under test"
-		default:
-			expectation = "call ID of " + expectedCallID
-		}
 
 		// if match, remove from the buffer & return
 		if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
@@ -217,7 +235,7 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 			t.bufferNextIndex,
 		)
 
-		// t.T.Logf(logMessage)
+		t.T.Logf(logMessage)
 
 		// if we have tried and failed to match calls, such that the total
 		// buffered calls are now equal to or greater than the
@@ -247,6 +265,7 @@ func formatCalls(calls []FuncCall) string {
 
 // nextCall gets the next call from the queue or the calls.
 func (t *FuncTester) nextCall() FuncCall {
+	t.T.Helper()
 	if t.bufferNextIndex < len(t.callBuffer) {
 		next := t.callBuffer[t.bufferNextIndex]
 		// t.T.Logf("returning next from call queue: %#v", next)
@@ -267,7 +286,21 @@ func (t *FuncTester) nextCall() FuncCall {
 
 		return actualCall
 	case <-time.After(t.timeout):
-		t.T.Fatalf("expected a call to be available, but the test timed out waiting after %v", t.timeout)
+		logMessage := fmt.Sprintf(
+			"\n"+
+				"Looking for a call\n"+
+				"but the test timed out with a queue with %s.\n"+
+				"bufferMaxLen: %d.\n"+
+				"bufferNextIndex: %d\n"+
+				"timeout: %v",
+			formatCalls(t.callBuffer),
+			t.bufferMaxLen,
+			t.bufferNextIndex,
+			t.timeout,
+		)
+
+		t.T.Fatalf(logMessage)
+		// t.T.Fatalf("expected a call to be available, but the test timed out waiting after %v", t.timeout)
 		panic("only necessary because linters don't know what to do with my mocked tester")
 	}
 }
@@ -287,6 +320,12 @@ func (t *FuncTester) Returned() []any {
 
 	t.bufferNextIndex = 0
 
+	select {
+	case t.returnedVals = <-t.returnChan:
+	case <-time.After(t.timeout):
+		t.T.Fatalf("expected a return to be available, but the test timed out waiting after %v", t.timeout)
+		panic("only necessary because linters don't know what to do with my mocked tester")
+	}
 	for {
 		// get the next thing
 		next := t.nextCall()
@@ -298,6 +337,9 @@ func (t *FuncTester) Returned() []any {
 			// TODO: this fails mutation testing with decrement, which would _not_ remove the call. Add a test for the concurrent case where we expect a return, and then possibly one more call after?
 			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
 			t.hasReturned = true
+			if !reflect.DeepEqual(next.Args, t.returnedVals) {
+				t.T.Logf("expected the returnchan to have the same data as the call chan, but it didn't. returnchan: %v, callchan: %v", t.returnedVals, next.Args)
+			}
 			t.returnedVals = next.Args
 
 			return t.returnedVals
@@ -352,6 +394,13 @@ func (t *FuncTester) Panicked() any {
 	expectedCallID := t.panicID
 	t.bufferNextIndex = 0
 
+	select {
+	case t.panickedVal = <-t.panicChan:
+	case <-time.After(t.timeout):
+		t.T.Fatalf("expected a panic to be available, but the test timed out waiting after %v", t.timeout)
+		panic("only necessary because linters don't know what to do with my mocked tester")
+	}
+
 	for {
 		// get the next thing
 		next := t.nextCall()
@@ -363,6 +412,9 @@ func (t *FuncTester) Panicked() any {
 			// TODO: this fails mutation testing with decrement, which would _not_ remove the call. Add a test for the concurrent case where we expect a return, and then possibly one more call after?
 			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
 			t.hasPanicked = true
+			if !reflect.DeepEqual(next.Args[0], t.panickedVal) {
+				t.T.Logf("expected the panicchan to have the same data as the call chan, but it didn't. panicchan: %v, callchan: %v", t.panickedVal, next.Args[0])
+			}
 			t.panickedVal = next.Args[0]
 
 			return t.panickedVal
