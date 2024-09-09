@@ -155,7 +155,6 @@ func (t *FuncTester) Start(function any, args ...any) {
 				t.panicFunc(p)
 			} else {
 				t.returnChan <- rVals
-				t.returnFunc(rVals...)
 			}
 		}()
 
@@ -185,14 +184,6 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 
 	var expectation string
 	switch expectedCallID {
-	case t.returnID:
-		expectation = "return from function under test"
-		select {
-		case t.returnedVals = <-t.returnChan:
-		case <-time.After(t.timeout):
-			t.T.Fatalf("expected a return to be available, but the test timed out waiting after %v", t.timeout)
-			panic("only necessary because linters don't know what to do with my mocked tester")
-		}
 	case t.panicID:
 		expectation = "panic from function under test"
 		select {
@@ -316,51 +307,16 @@ func (t *FuncTester) Returned() []any {
 		return t.returnedVals
 	}
 
-	expectedCallID := t.returnID
-
 	t.bufferNextIndex = 0
 
 	select {
 	case t.returnedVals = <-t.returnChan:
+		t.hasReturned = true
+
+		return t.returnedVals
 	case <-time.After(t.timeout):
 		t.T.Fatalf("expected a return to be available, but the test timed out waiting after %v", t.timeout)
 		panic("only necessary because linters don't know what to do with my mocked tester")
-	}
-	for {
-		// get the next thing
-		next := t.nextCall()
-
-		expectation := "return from function under test"
-
-		// if match, remove from the buffer & return
-		if next.ID == expectedCallID {
-			// TODO: this fails mutation testing with decrement, which would _not_ remove the call. Add a test for the concurrent case where we expect a return, and then possibly one more call after?
-			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
-			t.hasReturned = true
-			if !reflect.DeepEqual(next.Args, t.returnedVals) {
-				t.T.Logf("expected the returnchan to have the same data as the call chan, but it didn't. returnchan: %v, callchan: %v", t.returnedVals, next.Args)
-			}
-			t.returnedVals = next.Args
-
-			return t.returnedVals
-		}
-
-		t.bufferNextIndex++
-		logMessage := fmt.Sprintf(
-			"\n"+
-				"Looking for %s\n"+
-				"but the only calls found were %s.\n"+
-				"bufferMaxLen: %d.\n"+
-				"bufferNextIndex: %d",
-			expectation,
-			formatCalls(t.callBuffer),
-			t.bufferMaxLen,
-			t.bufferNextIndex,
-		)
-
-		if t.bufferNextIndex >= t.bufferMaxLen {
-			t.T.Fatal(logMessage)
-		}
 	}
 }
 
@@ -368,7 +324,17 @@ func (t *FuncTester) Returned() []any {
 func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	t.T.Helper()
 
-	t.assertMatch(t.returnID, expectedReturnValues)
+	returnVals := t.Returned()
+
+	if !reflect.DeepEqual(expectedReturnValues, returnVals) {
+		t.T.Fatalf("\n"+
+			"Looking for the function to return\n"+
+			"  with %#v,\n"+
+			"but it returned with %#v instead.\n",
+			expectedReturnValues,
+			returnVals,
+		)
+	}
 }
 
 // Return returns the given values in the func call.
