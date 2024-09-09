@@ -82,21 +82,17 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	tester.Helper()
 
 	calls := make(chan FuncCall)
-	returnFunc, returnID := ReturnFunc(calls)
-	panicFunc, panicID := PanicFunc(calls)
 
 	funcTester := new(FuncTester)
 	funcTester.T = tester
 	funcTester.CallChan = calls
-	funcTester.returnFunc = returnFunc
-	funcTester.panicFunc = panicFunc
-	funcTester.returnID = returnID
-	funcTester.panicID = panicID
 	funcTester.bufferMaxLen = 1
 	funcTester.panicChan = make(chan any)
 	funcTester.returnChan = make(chan []any)
 	// I want this to be a magic number, it's half a second
-	// TODO: add an internal test to validate this stays 500? That would satisfy mutation tester. Would be kind of dumb, but would be a stronger "are you sure" moment. IDK. call it a clippy test?
+	// TODO: add an internal test to validate this stays 500? That would
+	// satisfy mutation tester. Would be kind of dumb, but would be a stronger "are
+	// you sure" moment. IDK. call it a clippy test?
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
 
 	for _, o := range options {
@@ -126,10 +122,6 @@ type Tester interface {
 type FuncTester struct {
 	T               Tester
 	CallChan        chan FuncCall
-	returnFunc      func(...any)
-	panicFunc       func(any)
-	returnID        string
-	panicID         string
 	callBuffer      []FuncCall
 	bufferMaxLen    int
 	bufferNextIndex int
@@ -152,7 +144,6 @@ func (t *FuncTester) Start(function any, args ...any) {
 			p := recover()
 			if p != nil {
 				t.panicChan <- p
-				t.panicFunc(p)
 			} else {
 				t.returnChan <- rVals
 			}
@@ -175,6 +166,9 @@ func (t *FuncTester) Called() FuncCall {
 func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncCall {
 	t.T.Helper()
 
+	// TODO: is there some way to make assertCalled more like
+	// AssertReturned/AssertPanicked, in that they call the underlying
+	// Returned/Panicked functions and check the restuls?
 	return t.assertMatch(expectedCallID, expectedArgs)
 }
 
@@ -182,19 +176,7 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 	t.T.Helper()
 	t.bufferNextIndex = 0
 
-	var expectation string
-	switch expectedCallID {
-	case t.panicID:
-		expectation = "panic from function under test"
-		select {
-		case t.panickedVal = <-t.panicChan:
-		case <-time.After(t.timeout):
-			t.T.Fatalf("expected a panic to be available, but the test timed out waiting after %v", t.timeout)
-			panic("only necessary because linters don't know what to do with my mocked tester")
-		}
-	default:
-		expectation = "call ID of " + expectedCallID
-	}
+	expectation := "call ID of " + expectedCallID
 
 	for {
 		// get the next thing
@@ -206,11 +188,6 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 			return next
 		}
 
-		// t.T.Logf(
-		// 	"No match between expected (%s)\nand next (%s)",
-		// 	fmt.Sprintf("ID: %s, Args: %#v", expectedCallID, expectedArgs),
-		// 	fmt.Sprintf("ID: %s, Args: %#v", next.ID, actualArgs),
-		// )
 		t.bufferNextIndex++
 		logMessage := fmt.Sprintf(
 			"\n"+
@@ -226,7 +203,7 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 			t.bufferNextIndex,
 		)
 
-		t.T.Logf(logMessage)
+		// t.T.Logf(logMessage)
 
 		// if we have tried and failed to match calls, such that the total
 		// buffered calls are now equal to or greater than the
@@ -257,6 +234,7 @@ func formatCalls(calls []FuncCall) string {
 // nextCall gets the next call from the queue or the calls.
 func (t *FuncTester) nextCall() FuncCall {
 	t.T.Helper()
+
 	if t.bufferNextIndex < len(t.callBuffer) {
 		next := t.callBuffer[t.bufferNextIndex]
 		// t.T.Logf("returning next from call queue: %#v", next)
@@ -307,8 +285,6 @@ func (t *FuncTester) Returned() []any {
 		return t.returnedVals
 	}
 
-	t.bufferNextIndex = 0
-
 	select {
 	case t.returnedVals = <-t.returnChan:
 		t.hasReturned = true
@@ -357,51 +333,13 @@ func (t *FuncTester) Panicked() any {
 		return t.panickedVal
 	}
 
-	expectedCallID := t.panicID
-	t.bufferNextIndex = 0
-
 	select {
 	case t.panickedVal = <-t.panicChan:
+		t.hasPanicked = true
+		return t.panickedVal
 	case <-time.After(t.timeout):
 		t.T.Fatalf("expected a panic to be available, but the test timed out waiting after %v", t.timeout)
 		panic("only necessary because linters don't know what to do with my mocked tester")
-	}
-
-	for {
-		// get the next thing
-		next := t.nextCall()
-
-		expectation := "panic from function under test"
-
-		// if match, remove from the buffer & return
-		if next.ID == expectedCallID {
-			// TODO: this fails mutation testing with decrement, which would _not_ remove the call. Add a test for the concurrent case where we expect a return, and then possibly one more call after?
-			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
-			t.hasPanicked = true
-			if !reflect.DeepEqual(next.Args[0], t.panickedVal) {
-				t.T.Logf("expected the panicchan to have the same data as the call chan, but it didn't. panicchan: %v, callchan: %v", t.panickedVal, next.Args[0])
-			}
-			t.panickedVal = next.Args[0]
-
-			return t.panickedVal
-		}
-
-		t.bufferNextIndex++
-		logMessage := fmt.Sprintf(
-			"\n"+
-				"Looking for %s\n"+
-				"but the only calls found were %s.\n"+
-				"bufferMaxLen: %d.\n"+
-				"bufferNextIndex: %d",
-			expectation,
-			formatCalls(t.callBuffer),
-			t.bufferMaxLen,
-			t.bufferNextIndex,
-		)
-
-		if t.bufferNextIndex >= t.bufferMaxLen {
-			t.T.Fatal(logMessage)
-		}
 	}
 }
 
@@ -409,48 +347,17 @@ func (t *FuncTester) Panicked() any {
 func (t *FuncTester) AssertPanicked(expectedPanic any) {
 	t.T.Helper()
 
-	t.assertMatch(t.panicID, []any{expectedPanic})
-}
+	panicVal := t.Panicked()
 
-func ReturnFunc(calls chan FuncCall) (func(...any), string) {
-	// creates a unique ID for the function
-	funcID := "returnFunc"
-
-	// create the function, that when called:
-	// * puts its ID onto the call channel
-
-	returnFunc := func(rVals ...any) {
-		// Submit this call to the calls channel
-		calls <- FuncCall{
-			funcID,
-			rVals,
-			nil,
-			nil,
-		}
+	if !reflect.DeepEqual(expectedPanic, panicVal) {
+		t.T.Fatalf("\n"+
+			"Looking for the function to panic\n"+
+			"  with %#v,\n"+
+			"but it panicked with %#v instead.\n",
+			expectedPanic,
+			panicVal,
+		)
 	}
-
-	// returns both the wrapped func and the ID
-	return returnFunc, funcID
-}
-
-func PanicFunc(calls chan FuncCall) (func(any), string) {
-	// creates a unique ID for the function
-	funcID := "panicFunc"
-
-	// create the function, that when called:
-	// * puts its ID onto the call channel
-	panicFunc := func(pVal any) {
-		// Submit this call to the calls channel
-		calls <- FuncCall{
-			funcID,
-			[]any{pVal},
-			nil,
-			nil,
-		}
-	}
-
-	// returns both the wrapped func and the ID
-	return panicFunc, funcID
 }
 
 // Concurrently marks the current size of the call queue, such that assertion
