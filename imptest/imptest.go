@@ -20,7 +20,6 @@ func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T,
 	// creates a unique ID for the function
 	funcID := GetFuncName(function)
 	for _, o := range options {
-		// TODO: fails mutation testing. Need a test that verifies we actually run the options passed in.
 		funcID = o(funcID)
 	}
 
@@ -87,6 +86,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.T = tester
 	funcTester.CallChan = calls
 	funcTester.bufferMaxLen = 1
+	// TODO: this fails mutation testing, implying that we have no test that fails if the bufferMaxLen starts out too high. Think about what this means, and write a test to validate this.
 	funcTester.panicChan = make(chan any)
 	funcTester.returnChan = make(chan []any)
 	// I want this to be a magic number, it's half a second
@@ -96,6 +96,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
 
 	for _, o := range options {
+		// TODO: fails mutation testing. Need a test that verifies we actually run the options passed in.
 		funcTester = o(funcTester)
 	}
 
@@ -211,6 +212,7 @@ func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) Func
 		// in an unexpected way. One of the calls in unmatchedCalls should've
 		// matched.
 		if t.bufferNextIndex >= t.bufferMaxLen {
+			// TODO: this fails mutation testing, implying that we have no test that would fail if we kept looping after the bufferNextIndex was equal to the bufferMaxLen. Re-evaluate this comparison & write a test either way
 			t.T.Fatal(logMessage)
 		}
 	}

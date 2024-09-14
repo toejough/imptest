@@ -761,7 +761,7 @@ func TestEarlyReturnFails(t *testing.T) {
 
 		tester.AssertCalled(id1).Return()
 		tester.AssertCalled(id1).Return()
-		tester.Returned()
+		tester.AssertReturned()
 		tester.Close()
 	})
 
@@ -779,4 +779,211 @@ func TestEarlyReturnFails(t *testing.T) {
 			expected, actual,
 		)
 	}
+}
+
+func TestWrongReturnFails(t *testing.T) {
+	// Given deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	testFunc := func() int { return 5 }
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		tester.Start(testFunc)
+
+		// should fail - this is the wrong return
+		tester.AssertReturned(4)
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "return"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
+func TestWrongPanicFails(t *testing.T) {
+	// Given deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	testFunc := func() { panic("a message") }
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		tester.Start(testFunc)
+
+		// should fail - this is the wrong return
+		tester.AssertPanicked("a different message")
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "panicked with \"a message\" instead"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
+func TestPanicCustom(t *testing.T) {
+	// Given deps replaced
+	t.Parallel()
+
+	testFunc := func() { panic("a message") }
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t)
+
+	tester.Start(testFunc)
+
+	// type assertion failure will just fail the test, it's fine
+	actual := tester.Panicked().(string) //nolint:forcetypeassert
+	tester.Close()
+
+	expected := "a message"
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't panic with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected,
+			// type assertion failure will just fail the test, it's fine
+			tester.Panicked().(string), //nolint:forcetypeassert
+		)
+	}
+}
+
+func TestPanicTimeout(t *testing.T) {
+	t.Parallel()
+
+	// Given convenience test wrapper
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		tester := imptest.NewFuncTester(mockedT, imptest.WithTimeout(1*time.Microsecond))
+		tester.Start(func() {})
+		tester.AssertPanicked(nil)
+	})
+
+	if !mockedT.Failed() {
+		t.Fatalf("expected to time out instead of validating the panic")
+	}
+
+	expected := "timed out"
+	actual := mockedT.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
+}
+
+func TestOptionCalled(t *testing.T) {
+	t.Parallel()
+
+	called := false
+	option := func() imptest.FuncTesterOption {
+		return func(ft *imptest.FuncTester) *imptest.FuncTester {
+			called = true
+			return ft
+		}
+	}
+
+	// Given convenience test wrapper
+	imptest.NewFuncTester(t, option())
+
+	if !called {
+		t.Fatalf("Expected the option function to be called, but it was not")
+	}
+}
+
+func DoThingsConcurrentlyNested2(deps doThingsDeps) {
+	deps.thing1()
+
+	go func() {
+		z := deps.thing4()
+		deps.thing7(z)
+
+		go func() {
+			a := deps.thing5(2)
+			deps.thing6(a)
+		}()
+
+		deps.thing5(4)
+		deps.thing5(5)
+	}()
+	deps.thing2()
+
+	go deps.thing3()
+}
+
+func TestNestedConcurrentlies2(t *testing.T) {
+	// Given deps replaced
+	t.Parallel()
+
+	// convenience test wrapper
+	tester := imptest.NewFuncTester(t)
+
+	var (
+		deps                              doThingsDeps
+		id1, id2, id3, id4, id5, id6, id7 string
+	)
+
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
+	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.CallChan)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.CallChan)
+	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.CallChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsConcurrentlyNested2, deps)
+
+	// Then the functions are called in any order
+	tester.AssertCalled(id1).Return()
+	tester.Concurrently(func() {
+		tester.AssertCalled(id4).Return(true)
+		tester.AssertCalled(id7, true).Return()
+		tester.Concurrently(func() {
+			tester.AssertCalled(id5, 2).Return("two")
+		}, func() {
+			tester.AssertCalled(id6, "two").Return(2)
+		}, func() {
+			tester.AssertCalled(id5, 4).Return("four")
+			tester.AssertCalled(id5, 5).Return("five")
+		})
+	}, func() {
+		tester.AssertCalled(id2).Return()
+		tester.Concurrently(func() {
+			tester.AssertCalled(id3).Return()
+		}, func() {
+			tester.AssertReturned()
+		})
+	})
+	tester.Close()
 }
