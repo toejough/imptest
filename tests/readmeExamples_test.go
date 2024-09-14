@@ -486,6 +486,16 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 			expected, actual,
 		)
 	}
+
+	expected = "the only things found were"
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
 }
 
 func DoThings3xSync(deps doThingsDeps) {

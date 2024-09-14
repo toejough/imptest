@@ -289,6 +289,8 @@ func (t *FuncTester) Returned() []any {
 
 	select {
 	case t.returnedVals = <-t.returnChan:
+		// effectively we should be consuming a callBuffer space, but we aren't. reduce the bufferMaxLen instead.
+		t.bufferMaxLen--
 		t.hasReturned = true
 
 		return t.returnedVals
@@ -337,6 +339,8 @@ func (t *FuncTester) Panicked() any {
 
 	select {
 	case t.panickedVal = <-t.panicChan:
+		// effectively we should be consuming a callBuffer space, but we aren't. reduce the bufferMaxLen instead.
+		t.bufferMaxLen--
 		t.hasPanicked = true
 		return t.panickedVal
 	case <-time.After(t.timeout):
