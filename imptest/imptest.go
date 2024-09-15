@@ -133,20 +133,10 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.T = tester
 	funcTester.OutputChan = calls
 	funcTester.bufferMaxLen = 1
-	// TODO: this fails mutation testing, implying that we have no test that
-	// fails if the bufferMaxLen starts out too high. Think about what this means,
-	// and write a test to validate this.
-	funcTester.panicChan = make(chan any)
-	funcTester.returnChan = make(chan []any)
 	// I want this to be a magic number, it's half a second
-	// TODO: add an internal test to validate this stays 500? That would
-	// satisfy mutation tester. Would be kind of dumb, but would be a stronger "are
-	// you sure" moment. IDK. call it a clippy test?
-
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
 
 	for _, o := range options {
-		// TODO: fails mutation testing. Need a test that verifies we actually run the options passed in.
 		funcTester = o(funcTester)
 	}
 
@@ -181,8 +171,6 @@ type FuncTester struct {
 	returnedVals    []any
 	hasPanicked     bool
 	panickedVal     any
-	panicChan       chan any
-	returnChan      chan []any
 }
 
 func (t *FuncTester) Timeout() time.Duration {
@@ -224,44 +212,34 @@ func (t *FuncTester) Start(function any, args ...any) {
 
 // Called returns the FuncCall for inspection by the test.
 func (t *FuncTester) Called() FuncOutput {
-	t.bufferNextIndex = 0
-	// TODO: there's got to be something we can do here with iterator syntax!
-	for {
-		next := t.nextOutput()
+	for next := range t.iterOut() {
 		if next.Type == "call" {
-			t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
-
 			return next
 		}
-
-		t.bufferNextIndex++
 	}
+
+	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
 // AssertCalled asserts that the passed in fuction and args match.
 func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncOutput {
 	t.T.Helper()
 
-	t.bufferNextIndex = 0
-
-	for {
-		next := t.nextOutput()
+	for next := range t.iterOut() {
 		if next.Type == "call" {
 			if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
-				t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
 				return next
 			}
 		}
-
-		t.bufferNextIndex++
 	}
+
+	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
 func formatOutput(outputs []FuncOutput) string {
 	formatted := []string{}
 
 	for _, funcOut := range outputs {
-		// TODO: this is failing mutation testing, implying that no test validates this :-(
 		formatted = append(formatted, funcOut.String())
 	}
 
@@ -289,21 +267,6 @@ func (t *FuncTester) Returned() []any {
 		return t.returnedVals
 	}
 
-	// TODO: there's got to be something we can do here with iterator syntax!
-	// t.bufferNextIndex = 0
-	//
-	// for {
-	// 	next := t.nextOutput()
-	// 	if next.Type == "return" {
-	// 		t.returnedVals = next.returnVals
-	// 		t.hasReturned = true
-	// 		t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
-	//
-	// 		return t.returnedVals
-	// 	}
-	//
-	// 	t.bufferNextIndex++
-	// }
 	for next := range t.iterOut() {
 		if next.Type == "return" {
 			t.returnedVals = next.returnVals

@@ -364,14 +364,7 @@ func TestNestedConcurrentlies(t *testing.T) {
 	tester.Close()
 }
 
-// TODO: put return/panic on own channels and select between
 // TODO: allow own comparison func to be set as an option on the tester
-// those are all positive cases. What about negative cases? What do the error
-// messages from this library look like when things go wrong?
-// orphaned calls from sync calls
-// orphaned calls from concurrent calls
-// more calls made early in a concurrent run than the test expected
-// does the testing scale beyond a handful of calls?
 
 func TestCallAfterDonePanics(t *testing.T) {
 	t.Parallel()
