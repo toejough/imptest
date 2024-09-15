@@ -29,33 +29,33 @@ func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T,
 	funcType := reflect.TypeOf(function)
 
 	relayer := func(args []reflect.Value) []reflect.Value {
-		// Create a channel to receive return values on
-		returnValuesChan := make(chan []any)
-
-		// Create a channel to receive a panic value on
-		panicValueChan := make(chan any)
+		// Create a channel to receive output values on
+		outputValuesChan := make(chan outputValue)
 
 		// Submit this call to the calls channel
 		calls <- FuncCall{
 			funcID,
 			unreflectValues(args),
-			returnValuesChan,
-			panicValueChan,
+			outputValuesChan,
 		}
 
-		select {
-		case returnValuesReflected := <-returnValuesChan:
-			returnValues := make([]reflect.Value, len(returnValuesReflected))
+		outputV := <-outputValuesChan
+
+		switch outputV.Type {
+		case "return":
+			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
 
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
-			for i, a := range returnValuesReflected {
+			for i, a := range outputV.ReturnValues {
 				returnValues[i] = reflect.ValueOf(a)
 			}
 
 			return returnValues
 		// if we're supposed to panic, do.
-		case panicValue := <-panicValueChan:
-			panic(panicValue)
+		case "panic":
+			panic(outputV.PanicValue)
+		default:
+			panic("imptest failure - unrecognized outputValue type was passed")
 		}
 	}
 
@@ -69,11 +69,16 @@ func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T,
 	return wrapped, funcID
 }
 
+type outputValue struct {
+	Type         string
+	ReturnValues []any
+	PanicValue   any
+}
+
 type FuncCall struct {
-	ID               string
-	Args             []any
-	ReturnValuesChan chan []any
-	PanicValueChan   chan any
+	ID              string
+	Args            []any
+	outputValueChan chan outputValue
 }
 
 // NewFuncTester returns a newly initialized FuncTester.
@@ -319,14 +324,22 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 
 // Return returns the given values in the func call.
 func (c FuncCall) Return(returnVals ...any) {
-	c.ReturnValuesChan <- returnVals
-	close(c.ReturnValuesChan)
+	c.outputValueChan <- outputValue{
+		"return",
+		returnVals,
+		nil,
+	}
+	close(c.outputValueChan)
 }
 
 // Panic makes the func call result in a panic with the given value.
 func (c FuncCall) Panic(panicVal any) {
-	c.PanicValueChan <- panicVal
-	close(c.PanicValueChan)
+	c.outputValueChan <- outputValue{
+		"panic",
+		nil,
+		panicVal,
+	}
+	close(c.outputValueChan)
 }
 
 // Panicked returns the panicked value.

@@ -70,7 +70,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	}
 
 	// When thing1 returns
-	funcCall1.ReturnValuesChan <- []any{} // no returns
+	funcCall1.Return()
 
 	// Then thing2 is called
 	funcCall2 := <-calls
@@ -79,7 +79,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	}
 
 	// When thing2 returns
-	funcCall2.ReturnValuesChan <- nil // for no returns, can also inject nil
+	funcCall2.Return()
 
 	// Then thing3 is called
 	funcCall3 := <-calls
@@ -88,7 +88,7 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	}
 
 	// When thing3 returns
-	funcCall3.ReturnValuesChan <- nil
+	funcCall3.Return()
 
 	// Then there are no more calls
 	_, open := <-calls
