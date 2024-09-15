@@ -1002,3 +1002,15 @@ func TestNestedConcurrentlies2(t *testing.T) {
 	})
 	tester.Close()
 }
+
+func TestDefaultTimeout(t *testing.T) {
+	t.Parallel()
+
+	tester := imptest.NewFuncTester(t)
+	actual := tester.Timeout()
+	expected := 500 * time.Millisecond
+
+	if actual != expected {
+		t.Fatalf("Expected the default timeout to be %v, but it was %v instead", expected, actual)
+	}
+}

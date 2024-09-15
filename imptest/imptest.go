@@ -142,6 +142,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	// TODO: add an internal test to validate this stays 500? That would
 	// satisfy mutation tester. Would be kind of dumb, but would be a stronger "are
 	// you sure" moment. IDK. call it a clippy test?
+
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
 
 	for _, o := range options {
@@ -182,6 +183,10 @@ type FuncTester struct {
 	panickedVal     any
 	panicChan       chan any
 	returnChan      chan []any
+}
+
+func (t *FuncTester) Timeout() time.Duration {
+	return t.timeout
 }
 
 // Start starts the function.
