@@ -16,7 +16,7 @@ func WithName(name string) func(string) string {
 
 type WrapOption func(string) string
 
-func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T, string) {
+func WrapFunc[T any](function T, calls chan FuncOutput, options ...WrapOption) (T, string) {
 	// creates a unique ID for the function
 	funcID := GetFuncName(function)
 	for _, o := range options {
@@ -33,16 +33,19 @@ func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T,
 		outputValuesChan := make(chan outputValue)
 
 		// Submit this call to the calls channel
-		calls <- FuncCall{
+		calls <- FuncOutput{
+			"call",
 			funcID,
 			unreflectValues(args),
+			nil,
+			nil,
 			outputValuesChan,
 		}
 
 		outputV := <-outputValuesChan
 
 		switch outputV.Type {
-		case "return":
+		case RETURN:
 			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
 
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
@@ -52,7 +55,7 @@ func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T,
 
 			return returnValues
 		// if we're supposed to panic, do.
-		case "panic":
+		case PANIC:
 			panic(outputV.PanicValue)
 		default:
 			panic("imptest failure - unrecognized outputValue type was passed")
@@ -69,29 +72,68 @@ func WrapFunc[T any](function T, calls chan FuncCall, options ...WrapOption) (T,
 	return wrapped, funcID
 }
 
+const (
+	RETURN = "return"
+	PANIC  = "panic"
+	CALL   = "call"
+)
+
 type outputValue struct {
 	Type         string
 	ReturnValues []any
 	PanicValue   any
 }
 
-type FuncCall struct {
+type FuncOutput struct {
+	// TODO: make this an enum
+	Type            string
 	ID              string
 	Args            []any
+	panicVal        any
+	returnVals      []any
 	outputValueChan chan outputValue
+}
+
+func (out *FuncOutput) String() string {
+	switch out.Type {
+	case CALL:
+		return strings.Join([]string{
+			"call",
+			"with name",
+			out.ID,
+			"with args",
+			fmt.Sprintf("%#v", out.Args),
+		}, "\n")
+	case RETURN:
+		return strings.Join([]string{
+			"return",
+			"with values",
+			fmt.Sprintf("%#v", out.returnVals),
+		}, "\n")
+	case PANIC:
+		return strings.Join([]string{
+			"panic",
+			"with value",
+			fmt.Sprintf("%#v", out.panicVal),
+		}, "\n")
+	default:
+		panic("got an unexpected output type")
+	}
 }
 
 // NewFuncTester returns a newly initialized FuncTester.
 func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	tester.Helper()
 
-	calls := make(chan FuncCall)
+	calls := make(chan FuncOutput)
 
 	funcTester := new(FuncTester)
 	funcTester.T = tester
-	funcTester.CallChan = calls
+	funcTester.OutputChan = calls
 	funcTester.bufferMaxLen = 1
-	// TODO: this fails mutation testing, implying that we have no test that fails if the bufferMaxLen starts out too high. Think about what this means, and write a test to validate this.
+	// TODO: this fails mutation testing, implying that we have no test that
+	// fails if the bufferMaxLen starts out too high. Think about what this means,
+	// and write a test to validate this.
 	funcTester.panicChan = make(chan any)
 	funcTester.returnChan = make(chan []any)
 	// I want this to be a magic number, it's half a second
@@ -127,8 +169,8 @@ type Tester interface {
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
 	T               Tester
-	CallChan        chan FuncCall
-	callBuffer      []FuncCall
+	OutputChan      chan FuncOutput
+	outputBuffer    []FuncOutput
 	bufferMaxLen    int
 	bufferNextIndex int
 	timeout         time.Duration
@@ -147,11 +189,25 @@ func (t *FuncTester) Start(function any, args ...any) {
 		var rVals []any
 
 		defer func() {
-			p := recover()
-			if p != nil {
-				t.panicChan <- p
+			panicVal := recover()
+			if panicVal != nil {
+				t.OutputChan <- FuncOutput{
+					"panic",
+					"",
+					nil,
+					panicVal,
+					nil,
+					nil,
+				}
 			} else {
-				t.returnChan <- rVals
+				t.OutputChan <- FuncOutput{
+					"return",
+					"",
+					nil,
+					nil,
+					rVals,
+					nil,
+				}
 			}
 		}()
 
@@ -160,129 +216,62 @@ func (t *FuncTester) Start(function any, args ...any) {
 }
 
 // Called returns the FuncCall for inspection by the test.
-func (t *FuncTester) Called() FuncCall {
+func (t *FuncTester) Called() FuncOutput {
 	t.bufferNextIndex = 0
-	next := t.nextCall()
-	t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
-
-	return next
-}
-
-// AssertCalled asserts that the passed in fuction and args match.
-func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncCall {
-	t.T.Helper()
-
-	// TODO: is there some way to make assertCalled more like
-	// AssertReturned/AssertPanicked, in that they call the underlying
-	// Returned/Panicked functions and check the restuls?
-	return t.assertMatch(expectedCallID, expectedArgs)
-}
-
-func (t *FuncTester) assertMatch(expectedCallID string, expectedArgs []any) FuncCall {
-	t.T.Helper()
-	t.bufferNextIndex = 0
-
-	expectation := "call ID of " + expectedCallID
-
+	// TODO: there's got to be something we can do here with iterator syntax!
 	for {
-		// get the next thing
-		next := t.nextCall()
+		next := t.nextOutput()
+		if next.Type == "call" {
+			t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
 
-		// if match, remove from the buffer & return
-		if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
-			t.callBuffer = append(t.callBuffer[:t.bufferNextIndex], t.callBuffer[t.bufferNextIndex+1:]...)
 			return next
 		}
 
 		t.bufferNextIndex++
-		logMessage := fmt.Sprintf(
-			"\n"+
-				"Looking for %s\n"+
-				"  with args %v,\n"+
-				"but the only calls found were %s.\n"+
-				"bufferMaxLen: %d.\n"+
-				"bufferNextIndex: %d",
-			expectation,
-			expectedArgs,
-			formatCalls(t.callBuffer),
-			t.bufferMaxLen,
-			t.bufferNextIndex,
-		)
-
-		// t.T.Logf(logMessage)
-
-		// if we have tried and failed to match calls, such that the total
-		// buffered calls are now equal to or greater than the
-		// numConcurrentFuncs, then the function under test has called things
-		// in an unexpected way. One of the calls in unmatchedCalls should've
-		// matched.
-		if t.bufferNextIndex >= t.bufferMaxLen {
-			// TODO: this fails mutation testing, implying that we have no test that would fail if we kept looping after the bufferNextIndex was equal to the bufferMaxLen. Re-evaluate this comparison & write a test either way
-			t.T.Fatal(logMessage)
-		}
 	}
 }
 
-func formatCalls(calls []FuncCall) string {
-	formatted := []string{}
-
-	for _, funcCall := range calls {
-		formattedCall := fmt.Sprintf("\nCall %s\n"+
-			"  with args %v",
-			funcCall.ID,
-			funcCall.Args,
-		)
-		formatted = append(formatted, formattedCall)
-	}
-
-	return strings.Join(formatted, "")
-}
-
-// nextCall gets the next call from the queue or the calls.
-func (t *FuncTester) nextCall() FuncCall {
+// AssertCalled asserts that the passed in fuction and args match.
+func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncOutput {
 	t.T.Helper()
 
-	if t.bufferNextIndex < len(t.callBuffer) {
-		next := t.callBuffer[t.bufferNextIndex]
-		// t.T.Logf("returning next from call queue: %#v", next)
+	t.bufferNextIndex = 0
 
-		return next
-	}
-
-	select {
-	case actualCall, open := <-t.CallChan:
-		if !open {
-			t.T.Fatal("expected a call to be available, but the calls channel was already closed")
-			panic("only necessary because nilchecker doesn't know what to do with my mocked tester")
+	for {
+		next := t.nextOutput()
+		if next.Type == "call" {
+			if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
+				t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
+				return next
+			}
 		}
 
-		t.callBuffer = append(t.callBuffer, actualCall)
-
-		// t.T.Logf("returning next from call channel: %#v", actualCall)
-
-		return actualCall
-	case <-time.After(t.timeout):
-		logMessage := fmt.Sprintf(
-			"\n"+
-				"Looking for a call\n"+
-				"but the test timed out with a queue with %s.\n"+
-				"bufferMaxLen: %d.\n"+
-				"bufferNextIndex: %d\n"+
-				"timeout: %v",
-			formatCalls(t.callBuffer),
-			t.bufferMaxLen,
-			t.bufferNextIndex,
-			t.timeout,
-		)
-
-		t.T.Fatalf(logMessage)
-		// t.T.Fatalf("expected a call to be available, but the test timed out waiting after %v", t.timeout)
-		panic("only necessary because linters don't know what to do with my mocked tester")
+		t.bufferNextIndex++
 	}
+}
+
+func formatOutput(outputs []FuncOutput) string {
+	formatted := []string{}
+
+	for _, funcOut := range outputs {
+		formatted = append(formatted, funcOut.String())
+	}
+
+	return strings.Join(formatted, "\n")
 }
 
 func (t *FuncTester) Close() {
-	close(t.CallChan)
+	close(t.OutputChan)
+}
+
+// Return returns the given values in the func call.
+func (out FuncOutput) Return(returnVals ...any) {
+	out.outputValueChan <- outputValue{
+		"return",
+		returnVals,
+		nil,
+	}
+	close(out.outputValueChan)
 }
 
 func (t *FuncTester) Returned() []any {
@@ -292,16 +281,20 @@ func (t *FuncTester) Returned() []any {
 		return t.returnedVals
 	}
 
-	select {
-	case t.returnedVals = <-t.returnChan:
-		// effectively we should be consuming a callBuffer space, but we aren't. reduce the bufferMaxLen instead.
-		t.bufferMaxLen--
-		t.hasReturned = true
+	// TODO: there's got to be something we can do here with iterator syntax!
+	t.bufferNextIndex = 0
 
-		return t.returnedVals
-	case <-time.After(t.timeout):
-		t.T.Fatalf("expected a return to be available, but the test timed out waiting after %v", t.timeout)
-		panic("only necessary because linters don't know what to do with my mocked tester")
+	for {
+		next := t.nextOutput()
+		if next.Type == "return" {
+			t.returnedVals = next.returnVals
+			t.hasReturned = true
+			t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
+
+			return t.returnedVals
+		}
+
+		t.bufferNextIndex++
 	}
 }
 
@@ -322,24 +315,14 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	}
 }
 
-// Return returns the given values in the func call.
-func (c FuncCall) Return(returnVals ...any) {
-	c.outputValueChan <- outputValue{
-		"return",
-		returnVals,
-		nil,
-	}
-	close(c.outputValueChan)
-}
-
 // Panic makes the func call result in a panic with the given value.
-func (c FuncCall) Panic(panicVal any) {
-	c.outputValueChan <- outputValue{
+func (out FuncOutput) Panic(panicVal any) {
+	out.outputValueChan <- outputValue{
 		"panic",
 		nil,
 		panicVal,
 	}
-	close(c.outputValueChan)
+	close(out.outputValueChan)
 }
 
 // Panicked returns the panicked value.
@@ -350,15 +333,20 @@ func (t *FuncTester) Panicked() any {
 		return t.panickedVal
 	}
 
-	select {
-	case t.panickedVal = <-t.panicChan:
-		// effectively we should be consuming a callBuffer space, but we aren't. reduce the bufferMaxLen instead.
-		t.bufferMaxLen--
-		t.hasPanicked = true
-		return t.panickedVal
-	case <-time.After(t.timeout):
-		t.T.Fatalf("expected a panic to be available, but the test timed out waiting after %v", t.timeout)
-		panic("only necessary because linters don't know what to do with my mocked tester")
+	// TODO: there's got to be something we can do here with iterator syntax!
+	t.bufferNextIndex = 0
+
+	for {
+		next := t.nextOutput()
+		if next.Type == "panic" {
+			t.panickedVal = next.panicVal
+			t.hasPanicked = true
+			t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
+
+			return t.panickedVal
+		}
+
+		t.bufferNextIndex++
 	}
 }
 
@@ -377,6 +365,62 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 			panicVal,
 		)
 	}
+}
+
+// nextOutput gets the next output from the queue or the func outputs.
+func (t *FuncTester) nextOutput() FuncOutput {
+	t.T.Helper()
+
+	if t.bufferNextIndex < len(t.outputBuffer) {
+		return t.outputBuffer[t.bufferNextIndex]
+	}
+
+	for len(t.outputBuffer) < t.bufferMaxLen {
+		select {
+		case actualOutput, open := <-t.OutputChan:
+			if !open {
+				t.T.Fatal("expected an output to be available, but the outputs channel was already closed")
+				panic("only necessary because nilchecker doesn't know what to do with my mocked tester")
+			}
+
+			t.outputBuffer = append(t.outputBuffer, actualOutput)
+
+			return actualOutput
+		case <-time.After(t.timeout):
+			logMessage := fmt.Sprintf(
+				"\n"+
+					"Looking for output\n"+
+					"but the test timed out with a queue with %s.\n"+
+					"bufferMaxLen: %d.\n"+
+					"bufferNextIndex: %d\n"+
+					"timeout: %v",
+				formatOutput(t.outputBuffer),
+				t.bufferMaxLen,
+				t.bufferNextIndex,
+				t.timeout,
+			)
+
+			t.T.Fatalf(logMessage)
+			// t.T.Fatalf("expected a call to be available, but the test timed out waiting after %v", t.timeout)
+			panic("only necessary because linters don't know what to do with my mocked tester")
+		}
+	}
+
+	// TODO: for assertion functions, make it clear what output was being looked for
+	// TODO: for normal getter functions, make it clear what kind of output was being looked for
+	t.T.Fatalf(
+		"\n"+
+			"Looking for an output\n"+
+			"but it was not found with a queue with %s.\n"+
+			"bufferMaxLen: %d.\n"+
+			"bufferNextIndex: %d\n"+
+			"timeout: %v",
+		formatOutput(t.outputBuffer),
+		t.bufferMaxLen,
+		t.bufferNextIndex,
+		t.timeout,
+	)
+	panic("this is only necessary because nothing knows what to do with the mocked test type")
 }
 
 // Concurrently marks the current size of the call queue, such that assertion

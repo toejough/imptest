@@ -38,7 +38,7 @@ func thing7(bool)       {}
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	t.Parallel()
 	// Given a call channel to track the calls
-	calls := make(chan imptest.FuncCall)
+	calls := make(chan imptest.FuncOutput)
 
 	// Given the dependencies are replaced by functions which place their calls on the channel
 
@@ -110,9 +110,9 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 		deps          doThingsDeps
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThings, deps)
@@ -146,8 +146,8 @@ func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
 		deps     doThingsDeps
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithBranch, deps)
@@ -172,9 +172,9 @@ func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
 		deps          doThingsDeps
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithBranch, deps)
@@ -205,8 +205,8 @@ func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
 		deps     doThingsDeps
 	)
 
-	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.CallChan)
-	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.CallChan)
+	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.OutputChan)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithArgs, 1, deps)
@@ -264,7 +264,7 @@ func TestDoThingsWithPanic(t *testing.T) {
 		id1  string
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithPanic, deps)
@@ -295,9 +295,9 @@ func TestDoThingsConcurrently(t *testing.T) {
 		id3, id4, id7 string
 	)
 
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
-	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.CallChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.OutputChan)
+	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsConcurrently, deps)
@@ -338,11 +338,11 @@ func TestNestedConcurrentlies(t *testing.T) {
 		id1, id2, id3, id4, id7 string
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
-	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.CallChan)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.OutputChan)
+	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsConcurrentlyNested, deps)
@@ -383,9 +383,9 @@ func TestCallAfterDonePanics(t *testing.T) {
 		id1, id2, id3 string
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
 
 	orphanReleaseChan := make(chan struct{})
 	testReleaseChan := make(chan struct{})
@@ -450,9 +450,9 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 			id3, id4, id7 string
 		)
 
-		deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
-		deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
-		deps.thing7, id7 = imptest.WrapFunc(thing7, tester.CallChan)
+		deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
+		deps.thing4, id4 = imptest.WrapFunc(thing4, tester.OutputChan)
+		deps.thing7, id7 = imptest.WrapFunc(thing7, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThingsConcurrently, deps)
@@ -476,7 +476,7 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "thing7\n  with args [false]"
+	expected := NOTFOUNDMESSAGE
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -486,17 +486,9 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 			expected, actual,
 		)
 	}
-
-	expected = "the only things found were"
-
-	if !strings.Contains(actual, expected) {
-		t.Fatalf("Test didn't fail with the expected message.\n"+
-			"Expected '%s'.\n"+
-			"Got '%s'",
-			expected, actual,
-		)
-	}
 }
+
+const NOTFOUNDMESSAGE = "it was not found"
 
 func DoThings3xSync(deps doThingsDeps) {
 	deps.thing1()
@@ -519,7 +511,7 @@ func TestMoreSyncCallsFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xSync, deps)
@@ -533,7 +525,7 @@ func TestMoreSyncCallsFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "expected a return"
+	expected := NOTFOUNDMESSAGE
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -560,7 +552,7 @@ func TestFewerSyncCallsFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xSync, deps)
@@ -577,7 +569,7 @@ func TestFewerSyncCallsFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "test timed out"
+	expected := "it was not found"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -610,7 +602,7 @@ func TestFewerAsyncCallsTimesOut(t *testing.T) {
 			id1  string
 		)
 
-		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xAsync, deps)
@@ -656,7 +648,7 @@ func TestAssertAfterReturnFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xAsync, deps)
@@ -675,7 +667,7 @@ func TestAssertAfterReturnFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "calls channel was already closed"
+	expected := "outputs channel was already closed"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -704,10 +696,10 @@ func TestDoThingsCustom(t *testing.T) {
 
 	deps.thing5, _ = imptest.WrapFunc(
 		thing5,
-		tester.CallChan,
+		tester.OutputChan,
 		imptest.WithName("thing5"),
 	)
-	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.CallChan)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithArgs, 5, deps)
@@ -764,7 +756,7 @@ func TestEarlyReturnFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
+		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xSync, deps)
@@ -779,7 +771,7 @@ func TestEarlyReturnFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "return"
+	expected := "it was not found"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -892,11 +884,13 @@ func TestPanicCustom(t *testing.T) {
 func TestPanicTimeout(t *testing.T) {
 	t.Parallel()
 
+	holdChan := make(chan struct{})
+
 	// Given convenience test wrapper
 	mockedT := newMockedTestingT()
 	mockedT.Wrap(func() {
 		tester := imptest.NewFuncTester(mockedT, imptest.WithTimeout(1*time.Microsecond))
-		tester.Start(func() {})
+		tester.Start(func() { <-holdChan })
 		tester.AssertPanicked(nil)
 	})
 
@@ -910,6 +904,7 @@ func TestPanicTimeout(t *testing.T) {
 	if !strings.Contains(actual, expected) {
 		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
 	}
+	holdChan <- struct{}{}
 }
 
 func TestOptionCalled(t *testing.T) {
@@ -963,13 +958,13 @@ func TestNestedConcurrentlies2(t *testing.T) {
 		id1, id2, id3, id4, id5, id6, id7 string
 	)
 
-	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.CallChan)
-	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.CallChan)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.CallChan)
-	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.CallChan)
-	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.CallChan)
-	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.CallChan)
-	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.CallChan)
+	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
+	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
+	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
+	deps.thing4, id4 = imptest.WrapFunc(thing4, tester.OutputChan)
+	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.OutputChan)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.OutputChan)
+	deps.thing7, id7 = imptest.WrapFunc(thing7, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsConcurrentlyNested2, deps)
