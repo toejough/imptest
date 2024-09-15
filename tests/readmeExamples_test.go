@@ -579,6 +579,16 @@ func TestFewerSyncCallsFails(t *testing.T) {
 			expected, actual,
 		)
 	}
+
+	expected = "with return"
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
 }
 
 func DoThings3xAsync(deps doThingsDeps) {

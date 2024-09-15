@@ -3,7 +3,9 @@ package imptest
 
 import (
 	"fmt"
+	"iter"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 )
@@ -254,6 +256,7 @@ func formatOutput(outputs []FuncOutput) string {
 	formatted := []string{}
 
 	for _, funcOut := range outputs {
+		// TODO: this is failing mutation testing, implying that no test validates this :-(
 		formatted = append(formatted, funcOut.String())
 	}
 
@@ -282,20 +285,30 @@ func (t *FuncTester) Returned() []any {
 	}
 
 	// TODO: there's got to be something we can do here with iterator syntax!
-	t.bufferNextIndex = 0
-
-	for {
-		next := t.nextOutput()
+	// t.bufferNextIndex = 0
+	//
+	// for {
+	// 	next := t.nextOutput()
+	// 	if next.Type == "return" {
+	// 		t.returnedVals = next.returnVals
+	// 		t.hasReturned = true
+	// 		t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
+	//
+	// 		return t.returnedVals
+	// 	}
+	//
+	// 	t.bufferNextIndex++
+	// }
+	for next := range t.iterOut() {
 		if next.Type == "return" {
 			t.returnedVals = next.returnVals
 			t.hasReturned = true
-			t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
 
 			return t.returnedVals
 		}
-
-		t.bufferNextIndex++
 	}
+
+	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
 // AssertReturned asserts that the function under test returned the given values.
@@ -333,20 +346,31 @@ func (t *FuncTester) Panicked() any {
 		return t.panickedVal
 	}
 
-	// TODO: there's got to be something we can do here with iterator syntax!
-	t.bufferNextIndex = 0
-
-	for {
-		next := t.nextOutput()
+	for next := range t.iterOut() {
 		if next.Type == "panic" {
 			t.panickedVal = next.panicVal
 			t.hasPanicked = true
-			t.outputBuffer = append(t.outputBuffer[:t.bufferNextIndex], t.outputBuffer[t.bufferNextIndex+1:]...)
 
 			return t.panickedVal
 		}
+	}
 
-		t.bufferNextIndex++
+	panic("should never get here - the code within the iterator will panic if we can't get a good value")
+}
+
+func (t *FuncTester) iterOut() iter.Seq[FuncOutput] {
+	return func(yield func(FuncOutput) bool) {
+		t.bufferNextIndex = 0
+
+		for {
+			next := t.nextOutput()
+			if !yield(next) {
+				t.outputBuffer = slices.Delete(t.outputBuffer, t.bufferNextIndex, t.bufferNextIndex+1)
+				return
+			}
+
+			t.bufferNextIndex++
+		}
 	}
 }
 
