@@ -18,7 +18,7 @@ func WithName(name string) func(string) string {
 
 type WrapOption func(string) string
 
-func WrapFunc[T any](function T, calls chan FuncOutput, options ...WrapOption) (T, string) {
+func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption) (T, string) {
 	// creates a unique ID for the function
 	funcID := GetFuncName(function)
 	for _, o := range options {
@@ -32,11 +32,11 @@ func WrapFunc[T any](function T, calls chan FuncOutput, options ...WrapOption) (
 
 	relayer := func(args []reflect.Value) []reflect.Value {
 		// Create a channel to receive output values on
-		outputValuesChan := make(chan outputValue)
+		outputValuesChan := make(chan injectedValue)
 
 		// Submit this call to the calls channel
-		calls <- FuncOutput{
-			"call",
+		calls <- YieldedValue{
+			YieldedCall,
 			funcID,
 			unreflectValues(args),
 			nil,
@@ -47,7 +47,7 @@ func WrapFunc[T any](function T, calls chan FuncOutput, options ...WrapOption) (
 		outputV := <-outputValuesChan
 
 		switch outputV.Type {
-		case RETURN:
+		case InjectedReturn:
 			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
 
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
@@ -57,7 +57,7 @@ func WrapFunc[T any](function T, calls chan FuncOutput, options ...WrapOption) (
 
 			return returnValues
 		// if we're supposed to panic, do.
-		case PANIC:
+		case InjectedPanic:
 			panic(outputV.PanicValue)
 		default:
 			panic("imptest failure - unrecognized outputValue type was passed")
@@ -74,31 +74,39 @@ func WrapFunc[T any](function T, calls chan FuncOutput, options ...WrapOption) (
 	return wrapped, funcID
 }
 
+type yieldType int
+
 const (
-	RETURN = "return"
-	PANIC  = "panic"
-	CALL   = "call"
+	YieldedReturn yieldType = iota
+	YieldedPanic  yieldType = iota
+	YieldedCall   yieldType = iota
 )
 
-type outputValue struct {
-	Type         string
+type injectionType int
+
+const (
+	InjectedReturn injectionType = iota
+	InjectedPanic  injectionType = iota
+)
+
+type injectedValue struct {
+	Type         injectionType
 	ReturnValues []any
 	PanicValue   any
 }
 
-type FuncOutput struct {
-	// TODO: make this an enum
-	Type            string
+type YieldedValue struct {
+	Type            yieldType
 	ID              string
 	Args            []any
 	panicVal        any
 	returnVals      []any
-	outputValueChan chan outputValue
+	outputValueChan chan injectedValue
 }
 
-func (out *FuncOutput) String() string {
+func (out *YieldedValue) String() string {
 	switch out.Type {
-	case CALL:
+	case YieldedCall:
 		return strings.Join([]string{
 			"call",
 			"with name",
@@ -106,13 +114,13 @@ func (out *FuncOutput) String() string {
 			"with args",
 			fmt.Sprintf("%#v", out.Args),
 		}, "\n")
-	case RETURN:
+	case YieldedReturn:
 		return strings.Join([]string{
 			"return",
 			"with values",
 			fmt.Sprintf("%#v", out.returnVals),
 		}, "\n")
-	case PANIC:
+	case YieldedPanic:
 		return strings.Join([]string{
 			"panic",
 			"with value",
@@ -127,7 +135,7 @@ func (out *FuncOutput) String() string {
 func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	tester.Helper()
 
-	calls := make(chan FuncOutput)
+	calls := make(chan YieldedValue)
 
 	funcTester := new(FuncTester)
 	funcTester.T = tester
@@ -170,8 +178,8 @@ type Tester interface {
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
 	T               Tester
-	OutputChan      chan FuncOutput
-	outputBuffer    []FuncOutput
+	OutputChan      chan YieldedValue
+	outputBuffer    []YieldedValue
 	bufferMaxLen    int
 	bufferNextIndex int
 	timeout         time.Duration
@@ -195,8 +203,8 @@ func (t *FuncTester) Start(function any, args ...any) {
 		defer func() {
 			panicVal := recover()
 			if panicVal != nil {
-				t.OutputChan <- FuncOutput{
-					"panic",
+				t.OutputChan <- YieldedValue{
+					YieldedPanic,
 					"",
 					nil,
 					panicVal,
@@ -204,8 +212,8 @@ func (t *FuncTester) Start(function any, args ...any) {
 					nil,
 				}
 			} else {
-				t.OutputChan <- FuncOutput{
-					"return",
+				t.OutputChan <- YieldedValue{
+					YieldedReturn,
 					"",
 					nil,
 					nil,
@@ -220,9 +228,9 @@ func (t *FuncTester) Start(function any, args ...any) {
 }
 
 // Called returns the FuncCall for inspection by the test.
-func (t *FuncTester) Called() FuncOutput {
+func (t *FuncTester) Called() YieldedValue {
 	for next := range t.iterOut() {
-		if next.Type == "call" {
+		if next.Type == YieldedCall {
 			return next
 		}
 	}
@@ -231,11 +239,11 @@ func (t *FuncTester) Called() FuncOutput {
 }
 
 // AssertCalled asserts that the passed in fuction and args match.
-func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) FuncOutput {
+func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) YieldedValue {
 	t.T.Helper()
 
 	for next := range t.iterOut() {
-		if next.Type == "call" {
+		if next.Type == YieldedCall {
 			if next.ID == expectedCallID && t.comparator(next.Args, expectedArgs) {
 				return next
 			}
@@ -245,7 +253,7 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
-func formatOutput(outputs []FuncOutput) string {
+func formatOutput(outputs []YieldedValue) string {
 	formatted := []string{}
 
 	for _, funcOut := range outputs {
@@ -260,9 +268,9 @@ func (t *FuncTester) Close() {
 }
 
 // Return returns the given values in the func call.
-func (out FuncOutput) Return(returnVals ...any) {
-	out.outputValueChan <- outputValue{
-		"return",
+func (out YieldedValue) Return(returnVals ...any) {
+	out.outputValueChan <- injectedValue{
+		InjectedReturn,
 		returnVals,
 		nil,
 	}
@@ -277,7 +285,7 @@ func (t *FuncTester) Returned() []any {
 	}
 
 	for next := range t.iterOut() {
-		if next.Type == "return" {
+		if next.Type == YieldedReturn {
 			t.returnedVals = next.returnVals
 			t.hasReturned = true
 
@@ -306,9 +314,9 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 }
 
 // Panic makes the func call result in a panic with the given value.
-func (out FuncOutput) Panic(panicVal any) {
-	out.outputValueChan <- outputValue{
-		"panic",
+func (out YieldedValue) Panic(panicVal any) {
+	out.outputValueChan <- injectedValue{
+		InjectedPanic,
 		nil,
 		panicVal,
 	}
@@ -324,7 +332,7 @@ func (t *FuncTester) Panicked() any {
 	}
 
 	for next := range t.iterOut() {
-		if next.Type == "panic" {
+		if next.Type == YieldedPanic {
 			t.panickedVal = next.panicVal
 			t.hasPanicked = true
 
@@ -335,8 +343,8 @@ func (t *FuncTester) Panicked() any {
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
-func (t *FuncTester) iterOut() iter.Seq[FuncOutput] {
-	return func(yield func(FuncOutput) bool) {
+func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
+	return func(yield func(YieldedValue) bool) {
 		t.T.Helper()
 		t.bufferNextIndex = 0
 
@@ -370,7 +378,7 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 }
 
 // nextOutput gets the next output from the queue or the func outputs.
-func (t *FuncTester) nextOutput() FuncOutput {
+func (t *FuncTester) nextOutput() YieldedValue {
 	t.T.Helper()
 
 	if t.bufferNextIndex < len(t.outputBuffer) {

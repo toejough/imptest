@@ -38,7 +38,7 @@ func thing7(bool)       {}
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	t.Parallel()
 	// Given a call channel to track the calls
-	calls := make(chan imptest.FuncOutput)
+	calls := make(chan imptest.YieldedValue)
 
 	// Given the dependencies are replaced by functions which place their calls on the channel
 
@@ -363,8 +363,6 @@ func TestNestedConcurrentlies(t *testing.T) {
 	})
 	tester.Close()
 }
-
-// TODO: allow own comparison func to be set as an option on the tester
 
 func TestCallAfterDonePanics(t *testing.T) {
 	t.Parallel()
