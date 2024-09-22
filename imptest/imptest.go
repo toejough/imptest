@@ -135,6 +135,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.bufferMaxLen = 1
 	// I want this to be a magic number, it's half a second
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
+	funcTester.comparator = reflect.DeepEqual
 
 	for _, o := range options {
 		funcTester = o(funcTester)
@@ -148,6 +149,13 @@ type FuncTesterOption func(*FuncTester) *FuncTester
 func WithTimeout(timeout time.Duration) FuncTesterOption {
 	return func(ft *FuncTester) *FuncTester {
 		ft.timeout = timeout
+		return ft
+	}
+}
+
+func WithComparator(comp func(any, any) bool) FuncTesterOption {
+	return func(ft *FuncTester) *FuncTester {
+		ft.comparator = comp
 		return ft
 	}
 }
@@ -171,6 +179,7 @@ type FuncTester struct {
 	returnedVals    []any
 	hasPanicked     bool
 	panickedVal     any
+	comparator      func(any, any) bool
 }
 
 func (t *FuncTester) Timeout() time.Duration {
@@ -227,7 +236,7 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Fu
 
 	for next := range t.iterOut() {
 		if next.Type == "call" {
-			if next.ID == expectedCallID && reflect.DeepEqual(next.Args, expectedArgs) {
+			if next.ID == expectedCallID && t.comparator(next.Args, expectedArgs) {
 				return next
 			}
 		}
@@ -285,7 +294,7 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 
 	returnVals := t.Returned()
 
-	if !reflect.DeepEqual(expectedReturnValues, returnVals) {
+	if !t.comparator(expectedReturnValues, returnVals) {
 		t.T.Fatalf("\n"+
 			"Looking for the function to return\n"+
 			"  with %#v,\n"+
@@ -328,6 +337,7 @@ func (t *FuncTester) Panicked() any {
 
 func (t *FuncTester) iterOut() iter.Seq[FuncOutput] {
 	return func(yield func(FuncOutput) bool) {
+		t.T.Helper()
 		t.bufferNextIndex = 0
 
 		for {
@@ -348,7 +358,7 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 
 	panicVal := t.Panicked()
 
-	if !reflect.DeepEqual(expectedPanic, panicVal) {
+	if !t.comparator(expectedPanic, panicVal) {
 		t.T.Fatalf("\n"+
 			"Looking for the function to panic\n"+
 			"  with %#v,\n"+

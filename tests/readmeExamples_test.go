@@ -1007,3 +1007,73 @@ func TestDefaultTimeout(t *testing.T) {
 		t.Fatalf("Expected the default timeout to be %v, but it was %v instead", expected, actual)
 	}
 }
+
+func customComparator(a, b any) bool {
+	// expect a and b are arrays of args
+	aarray, aarrayok := a.([]any)
+	barray, barrayok := b.([]any)
+
+	// if not, not equal
+	if !(aarrayok && barrayok) {
+		return false
+	}
+
+	// if not same length, not equal
+	if len(aarray) != len(barray) {
+		return false
+	}
+
+	// check equality of all args
+	for argNum := range aarray {
+		// compare strings
+		_, astringok := aarray[argNum].(string)
+		_, bstringok := barray[argNum].(string)
+
+		// if they're strings, call them equal
+		if astringok && bstringok {
+			continue
+		}
+
+		// compare ints
+		aint, aintok := aarray[argNum].(int)
+		bint, bintok := barray[argNum].(int)
+
+		// ints have to be equivalent
+		if aintok && bintok && aint == bint {
+			continue
+		}
+
+		// anything else is not equal
+		return false
+	}
+
+	// if we made it through, including if array is zero length, call it equal
+	return true
+}
+
+func TestDoThingsWithCustomComparator(t *testing.T) {
+	t.Parallel()
+
+	// Given convenience test wrapper
+	tester := imptest.NewFuncTester(t, imptest.WithComparator(customComparator))
+
+	// Given deps replaced
+	var (
+		id5, id6 string
+		deps     doThingsDeps
+	)
+
+	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.OutputChan)
+	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.OutputChan)
+
+	// When DoThings is started
+	tester.Start(DoThingsWithArgs, 1, deps)
+
+	// Then the functions are called in the following order
+	tester.AssertCalled(id5, 1).Return("hi")
+	// no failure here - we would normally expect to see "hi", but our custom comparator doesn't care.
+	tester.AssertCalled(id6, "bye").Return(2)
+
+	// Then the function returned as expected
+	tester.AssertReturned(2)
+}
