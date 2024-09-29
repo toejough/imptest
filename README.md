@@ -10,7 +10,7 @@ We often don't want to validate what those other functions _do_, as we already h
 
 This library is here to help where we really do just want to test that the function-under-test makes the calls it's supposed to, in the right order, shuffling inputs and outputs between them correctly.
 
-Let's start with an example that has no arguments or returns. It's... purely impure.
+Let's start with an example that has no arguments or returns. It's... purely impure. Imagine each of these functions performs some expensive, non-idempotent, difficult-to-verify 3rd party action. Mostly you trust that when called, these do what they're supposed to, and you want an easy way to test that _your_ code makes the correct calls.
 
 ```go
 func DoThings() {
@@ -22,11 +22,11 @@ func DoThings() {
 
 We want one test:
 
-* DoThingsRunsExpectedFuncsInOrder
-    * thing1() is called
-    * thing2() is called
-    * thing3() is called
-    * function returns
+* `DoThingsRunsExpectedFuncsInOrder`
+    * `thing1()` is called
+    * `thing2()` is called
+    * `thing3()` is called
+    * your function returns
 
 We literally don't care about the underlying functionality, we just want to ensure proper ordering and conditions at the DoThings level of abstraction. How do we test that? 
 
@@ -54,9 +54,6 @@ type doThingsDeps struct {
 	thing1 func()
 	thing2 func()
 	thing3 func()
-	thing4 func() bool
-	thing5 func(int) string
-	thing6 func(string) int
 }
 
 // The test replaces those functions in order to test they are called.
@@ -130,7 +127,7 @@ A slightly less verbose version of the test is generally helpful for parsing and
 func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	t.Parallel()
 
-	// Given convenience test wrapper
+	// Given convenience test wrapper that includes the call channel
 	tester := imptest.NewFuncTester(t)
 
 	// Given deps replaced
@@ -174,6 +171,13 @@ Now we would like two tests:
 * when `thing2` returns `true`, we should expect to call all three functions before returning.
 
 ```go
+type doThingsDeps struct {
+	thing1 func()
+	thing2 func()
+	thing3 func()
+	thing4 func() bool
+}
+
 // The test replaces those functions in order to test they are called
 func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
 	t.Parallel()
@@ -233,6 +237,15 @@ func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
 Adding arguments and more returns is fairly trivial.
 
 ```go
+type doThingsDeps struct {
+	thing1 func()
+	thing2 func()
+	thing3 func()
+	thing4 func() bool
+	thing5 func(int) string
+	thing6 func(string) int
+}
+
 func DoThingsWithArgs(x int, deps doThingsDeps) int {
 	y := deps.thing5(x)
 	return deps.thing6(y)
@@ -265,7 +278,6 @@ func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
 }
 ```
 
-========>MADE IT HERE WITH README UPDATES<========
 Functions don't only call other functions - they can also panic and kick off other goroutines to run things in parallel. Let's examine each scenario.
 
 Panics are actually fairly easy to capture.
@@ -332,9 +344,19 @@ func TestDoThingsWithPanic(t *testing.T) {
 }
 ```
 
-Concurrent calls fired off by goroutines are more difficult to capture, but not by much.
+Concurrent calls fired off by goroutines are more difficult to capture, but imptest can handle this, too.
 
 ```go
+type doThingsDeps struct {
+	thing1 func()
+	thing2 func()
+	thing3 func()
+	thing4 func() bool
+	thing5 func(int) string
+	thing6 func(string) int
+	thing7 func(bool) 
+}
+
 func DoThingsConcurrently(deps doThingsDeps) {
 	go deps.thing3()
 	go func() {
@@ -379,12 +401,11 @@ func TestDoThingsConcurrently(t *testing.T) {
 The test helper makes some assumptions, each of which you can override:
 * timeouts for waiting for a call are defaulted to 500ms. You can override with `NewFuncTester(t, imptest.WithTimeout(duration))`.
 * names for mocked functions are defaulted to `runtime.FuncForPC(...).Name()`. You can override with `WrapFunc(f, callsChan, WithName(name))`.
+* by default, the test helper performs comparisons with `runtime.DeepEqual`. You can override with `NewFuncTester(t, imptest.WithComparator(comparisonFunc))`.
 
-For custom inspection and comparison of calls, returns, and panics, you can use `Called`, `Returned`, or `Panicked` in place of their `Assert[Called|Returned|Panicked]` functions. Doing so will get you the underlying FuncCall, return value list, or panic value, respectively.
+For even more custom inspection, comparison, and diffing of calls, returns, and panics, you can use `Called`, `Returned`, or `Panicked` in place of their `Assert[Called|Returned|Panicked]` functions. Doing so will get you the underlying FuncCall, return value list, or panic value, respectively.
 
 ## alternatives/inspirations
 Why not https://github.com/stretchr/testify/blob/master/README.md#mock-package?
 
-In the straightforward use cases, you only get to specify simple call/return behavior, with no guarantees about ordering, and you need to unset handlers for repeated calls for the same function.
-
-On the other hand, there's https://github.com/stretchr/testify/issues/741, which calls some of this out, and which is answered by the author with some additional syntax and functionality. I still found myself wondering if something with what I considered simpler syntax was possible, mostly out of curiosity, and to learn.
+https://github.com/stretchr/testify/issues/741, highlights some challenges, and is answered by the author with some additional syntax and functionality. I still found myself wondering if something with what I considered simpler syntax was possible, mostly out of curiosity, and to learn.
