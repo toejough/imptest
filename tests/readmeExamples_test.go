@@ -2,6 +2,7 @@ package imptest_test
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -467,7 +468,7 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := NOTFOUNDMESSAGE
+	expected := "Expected a call matching github.com/toejough/protest/tests_test.thing7 with [true] args"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -516,7 +517,7 @@ func TestMoreSyncCallsFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := NOTFOUNDMESSAGE
+	expected := "Expected a return, but none was found"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
@@ -560,20 +561,10 @@ func TestFewerSyncCallsFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "it was not found"
+	expected := `Expected a call matching .*thing1 with \[] args, but none was found`
 	actual := mockTester.Failure()
 
-	if !strings.Contains(actual, expected) {
-		t.Fatalf("Test didn't fail with the expected message.\n"+
-			"Expected '%s'.\n"+
-			"Got '%s'",
-			expected, actual,
-		)
-	}
-
-	expected = "with return"
-
-	if !strings.Contains(actual, expected) {
+	if !regexp.MustCompile(expected).MatchString(actual) {
 		t.Fatalf("Test didn't fail with the expected message.\n"+
 			"Expected '%s'.\n"+
 			"Got '%s'",
@@ -772,12 +763,23 @@ func TestEarlyReturnFails(t *testing.T) {
 		t.Fatal("Test didn't fail, but we expected it to.")
 	}
 
-	expected := "it was not found"
+	expected := "Expected a return, but none was found"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {
 		t.Fatalf("Test didn't fail with the expected message.\n"+
 			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+
+	expected = `(?s:.*Yielded outputs.*call.*with name.*thing1.*with args.*\[])`
+	actual = mockTester.Failure()
+
+	if !regexp.MustCompile(expected).MatchString(actual) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected regexp match for '%s'.\n"+
 			"Got '%s'",
 			expected, actual,
 		)
@@ -876,7 +878,7 @@ func TestPanicCustom(t *testing.T) {
 			"Expected '%s'.\n"+
 			"Got '%s'",
 			expected,
-			// type assertion failure will just fail the test, it's fine
+			// type assertion failure wit's fine
 			tester.Panicked().(string), //nolint:forcetypeassert
 		)
 	}

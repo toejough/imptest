@@ -235,6 +235,8 @@ func (t *FuncTester) Called() YieldedValue {
 		}
 	}
 
+	t.T.Fatalf("Expected a call, but none was found. Yielded outputs from the function: %s", formatOutput(t.outputBuffer))
+
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
@@ -249,6 +251,11 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Yi
 			}
 		}
 	}
+
+	t.T.Fatalf(
+		"Expected a call matching %v with %v args, but none was found. Yielded outputs from the function: %s",
+		expectedCallID, expectedArgs, formatOutput(t.outputBuffer),
+	)
 
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
@@ -280,20 +287,30 @@ func (out YieldedValue) Return(returnVals ...any) {
 func (t *FuncTester) Returned() []any {
 	t.T.Helper()
 
+	// if we already registered a return, then just return that
 	if t.hasReturned {
 		return t.returnedVals
 	}
 
+	// iterate through the outputs from the function under test, until we find a return
 	for next := range t.iterOut() {
 		if next.Type == YieldedReturn {
+			// register the return
 			t.returnedVals = next.returnVals
 			t.hasReturned = true
 
+			// return the return!
 			return t.returnedVals
 		}
 	}
 
-	panic("should never get here - the code within the iterator will panic if we can't get a good value")
+	// error if there was no return
+	t.T.Fatalf(
+		"Expected a return, but none was found. Yielded outputs from the function: %s",
+		formatOutput(t.outputBuffer),
+	)
+
+	panic("should never get here - linters just can't know that the test functions will panic")
 }
 
 // AssertReturned asserts that the function under test returned the given values.
@@ -349,9 +366,15 @@ func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
 		t.bufferNextIndex = 0
 
 		for {
-			next := t.nextOutput()
+			next, ok := t.nextOutput()
+			if !ok {
+				return
+			}
+
 			if !yield(next) {
+				// if we don't want to keep going, we've found the match we want. remove it from the buffer!
 				t.outputBuffer = slices.Delete(t.outputBuffer, t.bufferNextIndex, t.bufferNextIndex+1)
+
 				return
 			}
 
@@ -378,13 +401,15 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 }
 
 // nextOutput gets the next output from the queue or the func outputs.
-func (t *FuncTester) nextOutput() YieldedValue {
+func (t *FuncTester) nextOutput() (YieldedValue, bool) {
 	t.T.Helper()
 
+	// if we have more items in the buffer, return the next one.
 	if t.bufferNextIndex < len(t.outputBuffer) {
-		return t.outputBuffer[t.bufferNextIndex]
+		return t.outputBuffer[t.bufferNextIndex], true
 	}
 
+	// if we're allowed to pull more, pull, add to the buffer, and return what was pulled.
 	for len(t.outputBuffer) < t.bufferMaxLen {
 		select {
 		case actualOutput, open := <-t.OutputChan:
@@ -395,7 +420,7 @@ func (t *FuncTester) nextOutput() YieldedValue {
 
 			t.outputBuffer = append(t.outputBuffer, actualOutput)
 
-			return actualOutput
+			return actualOutput, true
 		case <-time.After(t.timeout):
 			logMessage := fmt.Sprintf(
 				"\n"+
@@ -416,21 +441,8 @@ func (t *FuncTester) nextOutput() YieldedValue {
 		}
 	}
 
-	// TODO: for assertion functions, make it clear what output was being looked for
-	// TODO: for normal getter functions, make it clear what kind of output was being looked for
-	t.T.Fatalf(
-		"\n"+
-			"Looking for an output\n"+
-			"but it was not found with a queue with %s.\n"+
-			"bufferMaxLen: %d.\n"+
-			"bufferNextIndex: %d\n"+
-			"timeout: %v",
-		formatOutput(t.outputBuffer),
-		t.bufferMaxLen,
-		t.bufferNextIndex,
-		t.timeout,
-	)
-	panic("this is only necessary because nothing knows what to do with the mocked test type")
+	// if we're not allowed to pull any more, return _not ok_
+	return YieldedValue{}, false //nolint:exhaustruct // we're intentionally returning a nil value
 }
 
 // Concurrently marks the current size of the call queue, such that assertion
