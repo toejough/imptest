@@ -1064,8 +1064,6 @@ func customDiffArrays(aarray []any, barray []any) string {
 	return ""
 }
 
-// TODO switch to differ (from comparator)
-
 func TestDoThingsWithCustomDiffer(t *testing.T) {
 	t.Parallel()
 
