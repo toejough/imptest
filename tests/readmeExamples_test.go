@@ -1008,7 +1008,7 @@ func TestDefaultTimeout(t *testing.T) {
 	}
 }
 
-func customComparator(a, b any) bool {
+func customDiffer(a, b any) bool {
 	// expect a and b are arrays of args
 	aarray, aarrayok := a.([]any)
 	barray, barrayok := b.([]any)
@@ -1051,29 +1051,42 @@ func customComparator(a, b any) bool {
 	return true
 }
 
-func TestDoThingsWithCustomComparator(t *testing.T) {
+// TODO switch to differ (from comparator)
+
+func TestDoThingsWithCustomDiffer(t *testing.T) {
 	t.Parallel()
 
 	// Given convenience test wrapper
-	tester := imptest.NewFuncTester(t, imptest.WithComparator(customComparator))
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		tester := imptest.NewFuncTester(t, imptest.WithDiffer(customDiffer))
 
-	// Given deps replaced
-	var (
-		id5, id6 string
-		deps     doThingsDeps
-	)
+		// Given deps replaced
+		var (
+			id5, id6 string
+			deps     doThingsDeps
+		)
 
-	deps.thing5, id5 = imptest.WrapFunc(thing5, tester.OutputChan)
-	deps.thing6, id6 = imptest.WrapFunc(thing6, tester.OutputChan)
+		deps.thing5, id5 = imptest.WrapFunc(thing5, tester.OutputChan)
+		deps.thing6, id6 = imptest.WrapFunc(thing6, tester.OutputChan)
 
-	// When DoThings is started
-	tester.Start(DoThingsWithArgs, 1, deps)
+		// When DoThings is started
+		tester.Start(DoThingsWithArgs, 1, deps)
 
-	// Then the functions are called in the following order
-	tester.AssertCalled(id5, 1).Return("hi")
-	// no failure here - we would normally expect to see "hi", but our custom comparator doesn't care.
-	tester.AssertCalled(id6, "bye").Return(2)
+		// Then the functions are called in the following order
+		tester.AssertCalled(id5, 1).Return("hi")
+		// no failure here - we would normally expect to see "hi", but our custom comparator doesn't care.
+		tester.AssertCalled(id6, "Hi").Return(2)
+	})
 
-	// Then the function returned as expected
-	tester.AssertReturned(2)
+	if !mockedT.Failed() {
+		t.Fatalf("expected to fail instead of passing")
+	}
+
+	expected := "capitalization mismatch"
+	actual := mockedT.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
 }
