@@ -1030,7 +1030,7 @@ func customDiffer(a, b any) string {
 		astring, astringok := aarray[argNum].(string)
 		bstring, bstringok := barray[argNum].(string)
 
-		// if they're not equal, but they are case-insensitve equal, say that.
+		// if they're not equal, but they are case-insensitive equal, say that.
 		if astringok && bstringok {
 			if astring == bstring {
 				continue
@@ -1040,7 +1040,7 @@ func customDiffer(a, b any) string {
 			lowBString := strings.ToLower(bstring)
 
 			if lowAString == lowBString {
-				return fmt.Sprintf("strings were not the same case: %s vs %s", astring, bstring)
+				return fmt.Sprintf("capitalization mismatch: %s vs %s", astring, bstring)
 			}
 		}
 
@@ -1054,7 +1054,7 @@ func customDiffer(a, b any) string {
 		}
 
 		// anything else is not equal
-		return fmt.Sprint("%#v and %#v are not equal", aarray[argNum], barray[argNum])
+		return fmt.Sprintf("%#v and %#v are not equal", aarray[argNum], barray[argNum])
 	}
 
 	// if we made it through, including if array is zero length, call it equal
@@ -1069,7 +1069,7 @@ func TestDoThingsWithCustomDiffer(t *testing.T) {
 	// Given convenience test wrapper
 	mockedT := newMockedTestingT()
 	mockedT.Wrap(func() {
-		tester := imptest.NewFuncTester(t, imptest.WithDiffer(customDiffer))
+		tester := imptest.NewFuncTester(mockedT, imptest.WithDiffer(customDiffer))
 
 		// Given deps replaced
 		var (

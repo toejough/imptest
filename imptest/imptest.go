@@ -144,7 +144,12 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.bufferMaxLen = 1
 	// I want this to be a magic number, it's half a second
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
-	funcTester.comparator = reflect.DeepEqual
+	funcTester.differ = func(a, b any) string {
+		if !reflect.DeepEqual(a, b) {
+			return fmt.Sprintf("%#v != %#v", a, b)
+		}
+		return ""
+	}
 
 	for _, o := range options {
 		funcTester = o(funcTester)
@@ -162,9 +167,9 @@ func WithTimeout(timeout time.Duration) FuncTesterOption {
 	}
 }
 
-func WithComparator(comp func(any, any) bool) FuncTesterOption {
+func WithDiffer(differ func(any, any) string) FuncTesterOption {
 	return func(ft *FuncTester) *FuncTester {
-		ft.comparator = comp
+		ft.differ = differ
 		return ft
 	}
 }
@@ -188,7 +193,7 @@ type FuncTester struct {
 	returnedVals    []any
 	hasPanicked     bool
 	panickedVal     any
-	comparator      func(any, any) bool
+	differ          func(any, any) string
 }
 
 func (t *FuncTester) Timeout() time.Duration {
@@ -245,17 +250,28 @@ func (t *FuncTester) Called() YieldedValue {
 func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) YieldedValue {
 	t.T.Helper()
 
+	diffs := []string{}
+
 	for next := range t.iterOut() {
 		if next.Type == YieldedCall {
-			if next.ID == expectedCallID && t.comparator(next.Args, expectedArgs) {
-				return next
+			if next.ID == expectedCallID {
+				diff := t.differ(next.Args, expectedArgs)
+				if diff == "" {
+					return next
+				}
+				diffs = append(diffs, diff)
 			}
 		}
 	}
 
 	t.T.Fatalf(
-		"Expected a call matching %v with %v args, but none was found. Yielded outputs from the function: %s",
-		expectedCallID, expectedArgs, formatOutput(t.outputBuffer),
+		"Expected a call matching %v with %v args, but none was found. \n"+
+			"Yielded outputs from the function: %s\n"+
+			"diffs for matching func ID's: %s",
+		expectedCallID,
+		expectedArgs,
+		formatOutput(t.outputBuffer),
+		strings.Join(diffs, "\n"),
 	)
 
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
@@ -320,13 +336,16 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 
 	returnVals := t.Returned()
 
-	if !t.comparator(expectedReturnValues, returnVals) {
+	diff := t.differ(expectedReturnValues, returnVals)
+	if diff != "" {
 		t.T.Fatalf("\n"+
 			"Looking for the function to return\n"+
 			"  with %#v,\n"+
-			"but it returned with %#v instead.\n",
+			"but it returned with %#v instead.\n"+
+			"diff: %s",
 			expectedReturnValues,
 			returnVals,
+			diff,
 		)
 	}
 }
@@ -390,13 +409,16 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 
 	panicVal := t.Panicked()
 
-	if !t.comparator(expectedPanic, panicVal) {
+	diff := t.differ(expectedPanic, panicVal)
+	if diff != "" {
 		t.T.Fatalf("\n"+
 			"Looking for the function to panic\n"+
 			"  with %#v,\n"+
-			"but it panicked with %#v instead.\n",
+			"but it panicked with %#v instead.\n"+
+			"diff: %s",
 			expectedPanic,
 			panicVal,
+			diff,
 		)
 	}
 }
