@@ -1,6 +1,7 @@
 package imptest_test
 
 import (
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -1008,30 +1009,39 @@ func TestDefaultTimeout(t *testing.T) {
 	}
 }
 
-func customDiffer(a, b any) bool {
+func customDiffer(a, b any) string {
 	// expect a and b are arrays of args
 	aarray, aarrayok := a.([]any)
 	barray, barrayok := b.([]any)
 
 	// if not, not equal
 	if !(aarrayok && barrayok) {
-		return false
+		panic(fmt.Sprintf("arguments were not arrays of args: diffing %#v against %#v", aarray, barray))
 	}
 
 	// if not same length, not equal
 	if len(aarray) != len(barray) {
-		return false
+		return fmt.Sprintf("arrays were different lengths: %d vs %d", len(aarray), len(barray))
 	}
 
 	// check equality of all args
 	for argNum := range aarray {
 		// compare strings
-		_, astringok := aarray[argNum].(string)
-		_, bstringok := barray[argNum].(string)
+		astring, astringok := aarray[argNum].(string)
+		bstring, bstringok := barray[argNum].(string)
 
-		// if they're strings, call them equal
+		// if they're not equal, but they are case-insensitve equal, say that.
 		if astringok && bstringok {
-			continue
+			if astring == bstring {
+				continue
+			}
+
+			lowAString := strings.ToLower(astring)
+			lowBString := strings.ToLower(bstring)
+
+			if lowAString == lowBString {
+				return fmt.Sprintf("strings were not the same case: %s vs %s", astring, bstring)
+			}
 		}
 
 		// compare ints
@@ -1044,11 +1054,11 @@ func customDiffer(a, b any) bool {
 		}
 
 		// anything else is not equal
-		return false
+		return fmt.Sprint("%#v and %#v are not equal", aarray[argNum], barray[argNum])
 	}
 
 	// if we made it through, including if array is zero length, call it equal
-	return true
+	return ""
 }
 
 // TODO switch to differ (from comparator)
