@@ -1024,14 +1024,18 @@ func customDiffer(a, b any) string {
 		return fmt.Sprintf("arrays were different lengths: %d vs %d", len(aarray), len(barray))
 	}
 
+	return customDiffArrays(aarray, barray)
+}
+
+func customDiffArrays(aarray []any, barray []any) string {
 	// check equality of all args
 	for argNum := range aarray {
 		// compare strings
 		astring, astringok := aarray[argNum].(string)
 		bstring, bstringok := barray[argNum].(string)
 
-		// if they're not equal, but they are case-insensitive equal, say that.
 		if astringok && bstringok {
+			// if they're not equal, but they are case-insensitive equal, say that.
 			if astring == bstring {
 				continue
 			}
@@ -1048,7 +1052,6 @@ func customDiffer(a, b any) string {
 		aint, aintok := aarray[argNum].(int)
 		bint, bintok := barray[argNum].(int)
 
-		// ints have to be equivalent
 		if aintok && bintok && aint == bint {
 			continue
 		}

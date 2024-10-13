@@ -148,6 +148,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 		if !reflect.DeepEqual(a, b) {
 			return fmt.Sprintf("%#v != %#v", a, b)
 		}
+
 		return ""
 	}
 
@@ -259,6 +260,7 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Yi
 				if diff == "" {
 					return next
 				}
+
 				diffs = append(diffs, diff)
 			}
 		}
