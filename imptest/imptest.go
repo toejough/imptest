@@ -385,6 +385,8 @@ func (t *FuncTester) Panicked() any {
 func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
 	return func(yield func(YieldedValue) bool) {
 		t.T.Helper()
+		// TODO: does this need to be global?
+		// ... could pass that through with nextOutput..
 		t.bufferNextIndex = 0
 
 		for {

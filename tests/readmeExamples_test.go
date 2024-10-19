@@ -1064,13 +1064,21 @@ func customDiffArrays(aarray []any, barray []any) string {
 	return ""
 }
 
+// TODO: AssertCalled/Panic/ReturnWith?
+// this is for the cases where people want custom assertion libraries... but can I honestly even support that?
+// not really. Most assertion libraries expect to pass t in, and if I do that and I don't fail the test on the first assertion (looking at you, concurrent testing), then that's both complicated and breaks expectations.
+// Need to just depend on people using the getters and managing their own state? that's difficult for callers, too...
+// TODO: MatchCall/Panic/ReturnWith?
+// this allows custom assertion/matching libraries. Set an expectation that this is _not_ an assertion, just a matcher - if you want assertion, _you_ do it. Still provides the concurrent/multiple matching...
+
 func TestDoThingsWithCustomDiffer(t *testing.T) {
 	t.Parallel()
 
 	// Given convenience test wrapper
 	mockedT := newMockedTestingT()
 	mockedT.Wrap(func() {
-		tester := imptest.NewFuncTester(mockedT, imptest.WithDiffer(customDiffer))
+		tester := imptest.NewFuncTester(mockedT)
+		tester.SwapDiffer(customDiffer)
 
 		// Given deps replaced
 		var (
@@ -1086,7 +1094,7 @@ func TestDoThingsWithCustomDiffer(t *testing.T) {
 
 		// Then the functions are called in the following order
 		tester.AssertCalled(id5, 1).Return("hi")
-		// no failure here - we would normally expect to see "hi", but our custom comparator doesn't care.
+		// Fail with a custom case-sensitivity message
 		tester.AssertCalled(id6, "Hi").Return(2)
 	})
 
