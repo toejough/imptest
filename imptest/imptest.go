@@ -144,7 +144,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.bufferMaxLen = 1
 	// I want this to be a magic number, it's half a second
 	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
-	funcTester.differ = func(a, b any) string {
+	funcTester.Differ = func(a, b any) string {
 		if !reflect.DeepEqual(a, b) {
 			return fmt.Sprintf("%#v != %#v", a, b)
 		}
@@ -170,7 +170,7 @@ func WithTimeout(timeout time.Duration) FuncTesterOption {
 
 func WithDiffer(differ func(any, any) string) FuncTesterOption {
 	return func(ft *FuncTester) *FuncTester {
-		ft.differ = differ
+		ft.Differ = differ
 		return ft
 	}
 }
@@ -194,12 +194,12 @@ type FuncTester struct {
 	returnedVals    []any
 	hasPanicked     bool
 	panickedVal     any
-	differ          Differ
+	Differ          Differ
 }
 
 func (t *FuncTester) SwapDiffer(d Differ) Differ {
-	pd := t.differ
-	t.differ = d
+	pd := t.Differ
+	t.Differ = d
 
 	return pd
 }
@@ -265,7 +265,7 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Yi
 	for next := range t.iterOut() {
 		if next.Type == YieldedCall {
 			if next.ID == expectedCallID {
-				diff := t.differ(next.Args, expectedArgs)
+				diff := t.Differ(next.Args, expectedArgs)
 				if diff == "" {
 					return next
 				}
@@ -347,7 +347,7 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 
 	returnVals := t.Returned()
 
-	diff := t.differ(expectedReturnValues, returnVals)
+	diff := t.Differ(expectedReturnValues, returnVals)
 	if diff != "" {
 		t.T.Fatalf("\n"+
 			"Looking for the function to return\n"+
@@ -422,7 +422,7 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 
 	panicVal := t.Panicked()
 
-	diff := t.differ(expectedPanic, panicVal)
+	diff := t.Differ(expectedPanic, panicVal)
 	if diff != "" {
 		t.T.Fatalf("\n"+
 			"Looking for the function to panic\n"+

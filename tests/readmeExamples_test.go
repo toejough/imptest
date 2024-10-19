@@ -1071,7 +1071,7 @@ func TestDoThingsWithCustomDiffer(t *testing.T) {
 	mockedT := newMockedTestingT()
 	mockedT.Wrap(func() {
 		tester := imptest.NewFuncTester(mockedT)
-		tester.SwapDiffer(customDiffer)
+		tester.Differ = customDiffer
 
 		// Given deps replaced
 		var (
