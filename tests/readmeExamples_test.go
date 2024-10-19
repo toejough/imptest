@@ -936,6 +936,41 @@ func TestPanicInsteadOfReturn(t *testing.T) {
 	}
 }
 
+func TestReturnInsteadOfPanic(t *testing.T) {
+	// Given deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	testFunc := func() int { return 5 }
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		tester.Start(testFunc)
+
+		// should fail - this is the wrong return
+		tester.AssertPanicked(4)
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "panic"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
 func TestPanicCustom(t *testing.T) {
 	// Given deps replaced
 	t.Parallel()
