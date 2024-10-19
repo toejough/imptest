@@ -194,8 +194,17 @@ type FuncTester struct {
 	returnedVals    []any
 	hasPanicked     bool
 	panickedVal     any
-	differ          func(any, any) string
+	differ          Differ
 }
+
+func (t *FuncTester) SwapDiffer(d Differ) Differ {
+	pd := t.differ
+	t.differ = d
+
+	return pd
+}
+
+type Differ func(any, any) string
 
 func (t *FuncTester) Timeout() time.Duration {
 	return t.timeout
