@@ -676,10 +676,8 @@ func TestDoThingsCustom(t *testing.T) {
 	t.Parallel()
 
 	// Given convenience test wrapper
-	tester := imptest.NewFuncTester(
-		t,
-		imptest.WithTimeout(10*time.Second),
-	)
+	tester := imptest.NewFuncTester(t)
+	tester.Timeout = 10 * time.Second
 
 	// Given deps replaced
 	var (
@@ -1001,7 +999,7 @@ func TestDefaultTimeout(t *testing.T) {
 	t.Parallel()
 
 	tester := imptest.NewFuncTester(t)
-	actual := tester.Timeout()
+	actual := tester.Timeout
 	expected := 500 * time.Millisecond
 
 	if actual != expected {
