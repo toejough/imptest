@@ -128,6 +128,41 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	tester.AssertReturned()
 }
 
+// The test replaces those functions in order to test they are called.
+// func TestDoThingsRunsExpectedFuncsInOrderNoAssert(t *testing.T) {
+// 	t.Parallel()
+//
+// 	// Given convenience test wrapper
+// 	tester := imptest.NewFuncTester(t)
+//
+// 	// Given deps replaced
+// 	var (
+// 		id1, id2, id3 string
+// 		deps          doThingsDeps
+// 	)
+//
+// 	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
+// 	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
+// 	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
+//
+// 	// When DoThings is started
+// 	tester.Start(DoThings, deps)
+//
+// 	// Then the functions are called in the following order
+// 	tester.AssertCalled(id1).Return()
+// 	tester.AssertCalled(id2).Return()
+// 	called := tester.Called()
+//
+// 	if called.ID != id3 {
+// 		t.Fatalf("wrong function called. Expected %s, but got %s", id3, called.ID)
+// 	}
+//
+// 	called.Return()
+//
+// 	// Then the function returned
+// 	tester.AssertReturned()
+// }
+
 func DoThingsWithBranch(deps doThingsDeps) {
 	deps.thing1()
 
@@ -844,6 +879,41 @@ func TestWrongPanicFails(t *testing.T) {
 	}
 
 	expected := "panicked with \"a message\" instead"
+	actual := mockTester.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("Test didn't fail with the expected message.\n"+
+			"Expected '%s'.\n"+
+			"Got '%s'",
+			expected, actual,
+		)
+	}
+}
+
+func TestPanicInsteadOfReturn(t *testing.T) {
+	// Given deps replaced
+	t.Parallel()
+
+	mockTester := newMockedTestingT()
+
+	testFunc := func() int { panic(5) }
+
+	mockTester.Wrap(func() {
+		// convenience test wrapper
+		tester := imptest.NewFuncTester(mockTester)
+
+		tester.Start(testFunc)
+
+		// should fail - this is the wrong return
+		tester.AssertReturned(4)
+		tester.Close()
+	})
+
+	if !mockTester.Failed() {
+		t.Fatal("Test didn't fail, but we expected it to.")
+	}
+
+	expected := "return"
 	actual := mockTester.Failure()
 
 	if !strings.Contains(actual, expected) {

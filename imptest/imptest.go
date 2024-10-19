@@ -161,20 +161,6 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 
 type FuncTesterOption func(*FuncTester) *FuncTester
 
-func WithTimeout(timeout time.Duration) FuncTesterOption {
-	return func(ft *FuncTester) *FuncTester {
-		ft.Timeout = timeout
-		return ft
-	}
-}
-
-func WithDiffer(differ func(any, any) string) FuncTesterOption {
-	return func(ft *FuncTester) *FuncTester {
-		ft.Differ = differ
-		return ft
-	}
-}
-
 type Tester interface {
 	Helper()
 	Fatal(args ...any)
@@ -194,13 +180,6 @@ type FuncTester struct {
 	hasPanicked  bool
 	panickedVal  any
 	Differ       Differ
-}
-
-func (t *FuncTester) SwapDiffer(d Differ) Differ {
-	pd := t.Differ
-	t.Differ = d
-
-	return pd
 }
 
 type Differ func(any, any) string
@@ -382,6 +361,12 @@ func (t *FuncTester) Panicked() any {
 			return t.panickedVal
 		}
 	}
+
+	// error if there was no panic
+	t.T.Fatalf(
+		"Expected a panic, but none was found. Yielded outputs from the function: %s",
+		formatOutput(t.outputBuffer),
+	)
 
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
