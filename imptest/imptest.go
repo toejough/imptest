@@ -217,6 +217,7 @@ func (t *FuncTester) Start(function any, args ...any) {
 	}()
 }
 
+// TODO: output a call type, not a YieldedValue
 // Called returns the FuncCall for inspection by the test.
 func (t *FuncTester) Called() YieldedValue {
 	for next := range t.iterOut() {
@@ -457,7 +458,7 @@ func (t *FuncTester) nextOutput(nextIndex int) (YieldedValue, bool) {
 	}
 
 	// if we're not allowed to pull any more, return _not ok_
-	return YieldedValue{}, false //nolint:exhaustruct // we're intentionally returning a nil value
+	return YieldedValue{}, false //nolint:exhaustruct
 }
 
 // Concurrently marks the current size of the call queue, such that assertion
