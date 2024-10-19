@@ -143,7 +143,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	funcTester.OutputChan = calls
 	funcTester.bufferMaxLen = 1
 	// I want this to be a magic number, it's half a second
-	funcTester.timeout = 500 * time.Millisecond //nolint:mnd,gomnd
+	funcTester.Timeout = 500 * time.Millisecond //nolint:mnd,gomnd
 	funcTester.Differ = func(a, b any) string {
 		if !reflect.DeepEqual(a, b) {
 			return fmt.Sprintf("%#v != %#v", a, b)
@@ -163,7 +163,7 @@ type FuncTesterOption func(*FuncTester) *FuncTester
 
 func WithTimeout(timeout time.Duration) FuncTesterOption {
 	return func(ft *FuncTester) *FuncTester {
-		ft.timeout = timeout
+		ft.Timeout = timeout
 		return ft
 	}
 }
@@ -184,17 +184,16 @@ type Tester interface {
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
-	T               Tester
-	OutputChan      chan YieldedValue
-	outputBuffer    []YieldedValue
-	bufferMaxLen    int
-	bufferNextIndex int
-	timeout         time.Duration
-	hasReturned     bool
-	returnedVals    []any
-	hasPanicked     bool
-	panickedVal     any
-	Differ          Differ
+	T            Tester
+	OutputChan   chan YieldedValue
+	outputBuffer []YieldedValue
+	bufferMaxLen int
+	Timeout      time.Duration
+	hasReturned  bool
+	returnedVals []any
+	hasPanicked  bool
+	panickedVal  any
+	Differ       Differ
 }
 
 func (t *FuncTester) SwapDiffer(d Differ) Differ {
@@ -205,10 +204,6 @@ func (t *FuncTester) SwapDiffer(d Differ) Differ {
 }
 
 type Differ func(any, any) string
-
-func (t *FuncTester) Timeout() time.Duration {
-	return t.timeout
-}
 
 // Start starts the function.
 func (t *FuncTester) Start(function any, args ...any) {
@@ -394,24 +389,23 @@ func (t *FuncTester) Panicked() any {
 func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
 	return func(yield func(YieldedValue) bool) {
 		t.T.Helper()
-		// TODO: does this need to be global?
-		// ... could pass that through with nextOutput..
-		t.bufferNextIndex = 0
+
+		nextIndex := 0
 
 		for {
-			next, ok := t.nextOutput()
+			next, ok := t.nextOutput(nextIndex)
 			if !ok {
 				return
 			}
 
 			if !yield(next) {
 				// if we don't want to keep going, we've found the match we want. remove it from the buffer!
-				t.outputBuffer = slices.Delete(t.outputBuffer, t.bufferNextIndex, t.bufferNextIndex+1)
+				t.outputBuffer = slices.Delete(t.outputBuffer, nextIndex, nextIndex+1)
 
 				return
 			}
 
-			t.bufferNextIndex++
+			nextIndex++
 		}
 	}
 }
@@ -437,12 +431,12 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 }
 
 // nextOutput gets the next output from the queue or the func outputs.
-func (t *FuncTester) nextOutput() (YieldedValue, bool) {
+func (t *FuncTester) nextOutput(nextIndex int) (YieldedValue, bool) {
 	t.T.Helper()
 
 	// if we have more items in the buffer, return the next one.
-	if t.bufferNextIndex < len(t.outputBuffer) {
-		return t.outputBuffer[t.bufferNextIndex], true
+	if nextIndex < len(t.outputBuffer) {
+		return t.outputBuffer[nextIndex], true
 	}
 
 	// if we're allowed to pull more, pull, add to the buffer, and return what was pulled.
@@ -457,7 +451,7 @@ func (t *FuncTester) nextOutput() (YieldedValue, bool) {
 			t.outputBuffer = append(t.outputBuffer, actualOutput)
 
 			return actualOutput, true
-		case <-time.After(t.timeout):
+		case <-time.After(t.Timeout):
 			logMessage := fmt.Sprintf(
 				"\n"+
 					"Looking for output\n"+
@@ -467,8 +461,8 @@ func (t *FuncTester) nextOutput() (YieldedValue, bool) {
 					"timeout: %v",
 				formatOutput(t.outputBuffer),
 				t.bufferMaxLen,
-				t.bufferNextIndex,
-				t.timeout,
+				nextIndex,
+				t.Timeout,
 			)
 
 			t.T.Fatalf(logMessage)

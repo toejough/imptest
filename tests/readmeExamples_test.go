@@ -891,7 +891,8 @@ func TestPanicTimeout(t *testing.T) {
 	// Given convenience test wrapper
 	mockedT := newMockedTestingT()
 	mockedT.Wrap(func() {
-		tester := imptest.NewFuncTester(mockedT, imptest.WithTimeout(1*time.Microsecond))
+		tester := imptest.NewFuncTester(mockedT)
+		tester.Timeout = 1 * time.Microsecond
 		tester.Start(func() { <-holdChan })
 		tester.AssertPanicked(nil)
 	})
