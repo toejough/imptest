@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -58,7 +59,7 @@ func Watch() error {
 	checkFunc := func(c context.Context) {
 		err := Check(c)
 		if err != nil {
-			fmt.Printf("continuing to watch after check failure: %s\n", err)
+			fmt.Printf("continuing to watch after check failure: \n  %s\n", err)
 		} else {
 			fmt.Println("continuing to watch after all checks passed!")
 		}
@@ -255,15 +256,46 @@ func CheckCoverage(c context.Context) error {
 	}
 	fmt.Println(out)
 	lines := strings.Split(out, "\n")
-	lastLine := lines[len(lines)-1]
-	percentString := regexp.MustCompile(`\d+\.\d`).FindString(lastLine)
+	linesAndCoverage := []lineAndCoverage{}
+	for _, line := range lines {
+		percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
+		percent, err := strconv.ParseFloat(percentString, 64)
+		if err != nil {
+			return err
+		}
+		linesAndCoverage = append(linesAndCoverage, lineAndCoverage{line, percent})
+	}
+	slices.SortStableFunc(linesAndCoverage, func(a, b lineAndCoverage) int {
+		if a.coverage < b.coverage {
+			return -1
+		}
+		if a.coverage > b.coverage {
+			return 1
+		}
+		return 0
+	})
+	lc := linesAndCoverage[0]
+	coverage := 80.0
+	if lc.coverage < coverage {
+		return fmt.Errorf("function coverage was less than the limit of %.1f:\n  %s", coverage, lc.line)
+	}
+	return nil
+}
+
+type lineAndCoverage struct {
+	line     string
+	coverage float64
+}
+
+func errorIfBadCoverage(line string) error {
+	percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
 	percent, err := strconv.ParseFloat(percentString, 64)
 	if err != nil {
 		return err
 	}
 	coverage := 80.0
 	if percent < coverage {
-		return fmt.Errorf("coverage was less than the limit of %d%%", coverage)
+		return fmt.Errorf("coverage was less than the limit of %.1f:\n  %s", coverage, line)
 	}
 	return nil
 }
