@@ -15,7 +15,6 @@ import (
 func DoThings(deps doThingsDeps) {
 	deps.thing1()
 	deps.thing2()
-	deps.thing3()
 }
 
 type doThingsDeps struct {
@@ -50,13 +49,12 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	// It also returns an ID, to compare against, because go does not allow us
 	// to compare functions.
 	var (
-		id1, id2, id3 string
-		deps          doThingsDeps
+		id1, id2 string
+		deps     doThingsDeps
 	)
 
 	deps.thing1, id1 = imptest.WrapFunc(thing1, calls)
 	deps.thing2, id2 = imptest.WrapFunc(thing2, calls)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, calls)
 
 	// When DoThings is started
 	go func() {
@@ -67,30 +65,29 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 
 	// Then thing1 is called
 	funcCall1 := <-calls
-	if funcCall1.ID != id1 {
+	if funcCall1.Type != imptest.YieldedCall {
+		t.Fail()
+	}
+
+	if funcCall1.Call.ID != id1 {
 		t.Fail()
 	}
 
 	// When thing1 returns
-	funcCall1.Return()
+	funcCall1.Call.Return()
 
 	// Then thing2 is called
 	funcCall2 := <-calls
-	if funcCall2.ID != id2 {
+	if funcCall2.Type != imptest.YieldedCall {
+		t.Fail()
+	}
+
+	if funcCall2.Call.ID != id2 {
 		t.Fail()
 	}
 
 	// When thing2 returns
-	funcCall2.Return()
-
-	// Then thing3 is called
-	funcCall3 := <-calls
-	if funcCall3.ID != id3 {
-		t.Fail()
-	}
-
-	// When thing3 returns
-	funcCall3.Return()
+	funcCall2.Call.Return()
 
 	// Then there are no more calls
 	_, open := <-calls
@@ -108,13 +105,12 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 
 	// Given deps replaced
 	var (
-		id1, id2, id3 string
-		deps          doThingsDeps
+		id1, id2 string
+		deps     doThingsDeps
 	)
 
 	deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 	deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
-	deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThings, deps)
@@ -122,7 +118,6 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	// Then the functions are called in the following order
 	tester.AssertCalled(id1).Return()
 	tester.AssertCalled(id2).Return()
-	tester.AssertCalled(id3).Return()
 
 	// Then the function returned
 	tester.AssertReturned()
@@ -140,13 +135,12 @@ func TestNoMoreCalls(t *testing.T) {
 
 		// Given deps replaced
 		var (
-			id1, id2, id3 string
-			deps          doThingsDeps
+			id1, id2 string
+			deps     doThingsDeps
 		)
 
 		deps.thing1, id1 = imptest.WrapFunc(thing1, tester.OutputChan)
 		deps.thing2, id2 = imptest.WrapFunc(thing2, tester.OutputChan)
-		deps.thing3, id3 = imptest.WrapFunc(thing3, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings, deps)
@@ -154,7 +148,6 @@ func TestNoMoreCalls(t *testing.T) {
 		// Then the functions are called in the following order
 		tester.AssertCalled(id1).Return()
 		tester.AssertCalled(id2).Return()
-		tester.AssertCalled(id3).Return()
 		tester.Called()
 	})
 
