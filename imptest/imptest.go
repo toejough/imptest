@@ -11,18 +11,30 @@ import (
 	"time"
 )
 
-func WithName(name string) func(string) string {
-	return func(_ string) string {
-		return name
-	}
-}
+// Error philosophy:
+//
+// Failures: conditions which signal expected failures the user is testing for (this is a test library), should
+// trigger a test failure.
+//
+// Panics: conditions which signal an error which it is not generally reasonable to expect a caller to recover from,
+// which instead imply programmer intervention is necessary to resolve, should trigger an explanatory panic for the
+// programmer to track down.
+//
+// Errors: all other error conditions should trigger an error with sufficient detail to enable the caller to take
+// corrective action
 
-type WrapOption func(string) string
+// =The Core types and functions that let any of this happen=
 
+// WrapFunc mocks the given function, creating a named coroutine from it, to be used in testing.
+// The coroutine will yield a Call onto the given YieldedValue channel whenever it is called.
+// This Call can be checked for its name (ID) and args. The calling function will wait for the
+// Call.Return or Call.Panic methods to be called. Calling either of those methods will cause the
+// coroutine to return or panic with the values as passed.
 func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption) (T, string) {
 	// creates a unique ID for the function
 	funcID := getFuncName(function)
 	for _, o := range options {
+		// TODO: create coro options. Give it a yield channel, an input channel, and a namer channel. Drop the wrap option.
 		funcID = o(funcID)
 	}
 
@@ -43,6 +55,7 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 			Call{
 				funcID,
 				unreflectValues(args),
+				// TODO: this probably could use a better name and just be default accessible.
 				outputValuesChan,
 			},
 		}
@@ -77,38 +90,11 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 	return wrapped, funcID
 }
 
-type YieldType int
-
-const (
-	YieldedReturn YieldType = iota
-	YieldedPanic  YieldType = iota
-	YieldedCall   YieldType = iota
-)
-
-type injectionType int
-
-const (
-	InjectedReturn injectionType = iota
-	InjectedPanic  injectionType = iota
-)
-
-type injectedValue struct {
-	Type         injectionType
-	ReturnValues []any
-	PanicValue   any
-}
-
 type YieldedValue struct {
 	Type       YieldType
 	PanicVal   any
 	ReturnVals []any
 	Call       Call
-}
-
-type Call struct {
-	ID              string
-	Args            []any
-	outputValueChan chan injectedValue
 }
 
 func (out *YieldedValue) String() string {
@@ -138,6 +124,97 @@ func (out *YieldedValue) String() string {
 	}
 }
 
+type YieldType int
+
+const (
+	YieldedReturn YieldType = iota
+	YieldedPanic  YieldType = iota
+	YieldedCall   YieldType = iota
+)
+
+type Call struct {
+	ID              string
+	Args            []any
+	outputValueChan chan injectedValue
+}
+
+// Return returns the given values in the func call.
+func (out Call) Return(returnVals ...any) {
+	out.outputValueChan <- injectedValue{
+		InjectedReturn,
+		returnVals,
+		nil,
+	}
+	close(out.outputValueChan)
+}
+
+// Panic makes the func call result in a panic with the given value.
+func (out Call) Panic(panicVal any) {
+	out.outputValueChan <- injectedValue{
+		InjectedPanic,
+		nil,
+		panicVal,
+	}
+	close(out.outputValueChan)
+}
+
+type injectedValue struct {
+	Type         injectionType
+	ReturnValues []any
+	PanicValue   any
+}
+
+type injectionType int
+
+const (
+	InjectedReturn injectionType = iota
+	InjectedPanic  injectionType = iota
+)
+
+type WrapOption func(string) string
+
+func WithName(name string) func(string) string {
+	return func(_ string) string {
+		return name
+	}
+}
+
+// getFuncName gets the function's name.
+func getFuncName(f function) string {
+	// docs say to use UnsafePointer explicitly instead of Pointer()
+	// https://pkg.Pgo.dev/reflect@go1.21.1#Value.Pointer
+	name := runtime.FuncForPC(uintptr(reflect.ValueOf(f).UnsafePointer())).Name()
+	// this suffix gets appended sometimes. It's unimportant, as far as I can tell.
+	name = strings.TrimSuffix(name, "-fm")
+
+	return name
+}
+
+// unreflectValues returns the actual values of the reflected values.
+func unreflectValues(rArgs []reflect.Value) []any {
+	// tricking nilaway with repeated appends till this issue is closed
+	// https://github.com/uber-go/nilaway/pull/60
+	// args := make([]any, len(rArgs))
+	if len(rArgs) == 0 {
+		return nil
+	}
+
+	args := []any{}
+
+	for i := range rArgs {
+		// args[i] = rArgs[i].Interface()
+		args = append(args, rArgs[i].Interface())
+	}
+
+	return args
+}
+
+// function is here to help us distinguish functions internally, because there is no single
+// function _type_ in go.
+type function any
+
+// =Test Simplification and readability abstractions=
+
 // NewFuncTester returns a newly initialized FuncTester.
 func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	tester.Helper()
@@ -158,6 +235,7 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 		return ""
 	}
 
+	// TODO: drop this entirely - there's no reason for it anymore
 	for _, o := range options {
 		funcTester = o(funcTester)
 	}
@@ -165,14 +243,14 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 	return funcTester
 }
 
-type FuncTesterOption func(*FuncTester) *FuncTester
-
 type Tester interface {
 	Helper()
 	Fatal(args ...any)
 	Fatalf(message string, args ...any)
 	Logf(message string, args ...any)
 }
+
+type FuncTesterOption func(*FuncTester) *FuncTester
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
@@ -187,8 +265,6 @@ type FuncTester struct {
 	panickedVal  any
 	Differ       Differ
 }
-
-type Differ func(any, any) string
 
 // Start starts the function.
 func (t *FuncTester) Start(function any, args ...any) {
@@ -264,28 +340,8 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Ca
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
-func formatOutput(outputs []YieldedValue) string {
-	formatted := []string{}
-
-	for _, funcOut := range outputs {
-		formatted = append(formatted, funcOut.String())
-	}
-
-	return strings.Join(formatted, "\n")
-}
-
 func (t *FuncTester) Close() {
 	close(t.OutputChan)
-}
-
-// Return returns the given values in the func call.
-func (out Call) Return(returnVals ...any) {
-	out.outputValueChan <- injectedValue{
-		InjectedReturn,
-		returnVals,
-		nil,
-	}
-	close(out.outputValueChan)
 }
 
 func (t *FuncTester) Returned() []any {
@@ -337,16 +393,6 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 	}
 }
 
-// Panic makes the func call result in a panic with the given value.
-func (out Call) Panic(panicVal any) {
-	out.outputValueChan <- injectedValue{
-		InjectedPanic,
-		nil,
-		panicVal,
-	}
-	close(out.outputValueChan)
-}
-
 // Panicked returns the panicked value.
 func (t *FuncTester) Panicked() any {
 	t.T.Helper()
@@ -373,6 +419,52 @@ func (t *FuncTester) Panicked() any {
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
 }
 
+// AssertPanicked asserts that the function under test paniced with the given value.
+func (t *FuncTester) AssertPanicked(expectedPanic any) {
+	t.T.Helper()
+
+	panicVal := t.Panicked()
+
+	diff := t.Differ(expectedPanic, panicVal)
+	if diff != "" {
+		t.T.Fatalf("\n"+
+			"Looking for the function to panic\n"+
+			"  with %#v,\n"+
+			"but it panicked with %#v instead.\n"+
+			"diff: %s",
+			expectedPanic,
+			panicVal,
+			diff,
+		)
+	}
+}
+
+// Concurrently marks the current size of the call queue, such that assertion
+// calls made within the passed functions only start from the marked location
+// in the queue. It also limits the maximum size of the queue by the number of
+// concurrent functions that have yet to complete. It is nestable - nested
+// calls to Concurrently will push a new mark onto a queue of marks, and pop it
+// off when complete.
+func (t *FuncTester) Concurrently(funcs ...func()) {
+	// add len(funcs) for each func we just added
+	t.bufferMaxLen += len(funcs)
+
+	// run each function.
+	for _, concurrentCheck := range funcs {
+		// reduce the t.bufferMaxLen. The expectation for concurrently is that
+		// you have spun off some goroutines and are managing the expected
+		// concurrent calls now from within the concurrently's functions.
+		// Imagine each expected goroutine has a concurrent-call token. For the
+		// first iteration, then, we're removing the calling goroutine's token.
+		// Subsequent loops remove the prior function's token. That leaves a
+		// single token at the end of the cycle, which is effectively returned
+		// to the calling goroutine.
+		t.bufferMaxLen--
+		// run the func!
+		concurrentCheck()
+	}
+}
+
 func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
 	return func(yield func(YieldedValue) bool) {
 		t.T.Helper()
@@ -394,26 +486,6 @@ func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
 
 			nextIndex++
 		}
-	}
-}
-
-// AssertPanicked asserts that the function under test paniced with the given value.
-func (t *FuncTester) AssertPanicked(expectedPanic any) {
-	t.T.Helper()
-
-	panicVal := t.Panicked()
-
-	diff := t.Differ(expectedPanic, panicVal)
-	if diff != "" {
-		t.T.Fatalf("\n"+
-			"Looking for the function to panic\n"+
-			"  with %#v,\n"+
-			"but it panicked with %#v instead.\n"+
-			"diff: %s",
-			expectedPanic,
-			panicVal,
-			diff,
-		)
 	}
 }
 
@@ -458,96 +530,29 @@ func (t *FuncTester) nextOutput(nextIndex int) (YieldedValue, bool) {
 		}
 	}
 
-	// if we're not allowed to pull any more, return _not ok_
+	// if we're not allowed to pu_not ok_
 	return YieldedValue{}, false //nolint:exhaustruct
 }
 
-// Concurrently marks the current size of the call queue, such that assertion
-// calls made within the passed functions only start from the marked location
-// in the queue. It also limits the maximum size of the queue by the number of
-// concurrent functions that have yet to complete. It is nestable - nested
-// calls to Concurrently will push a new mark onto a queue of marks, and pop it
-// off when complete.
-func (t *FuncTester) Concurrently(funcs ...func()) {
-	// add len(funcs) for each func we just added
-	t.bufferMaxLen += len(funcs)
+type Differ func(any, any) string
 
-	// run each function.
-	for _, concurrentCheck := range funcs {
-		// reduce the t.bufferMaxLen. The expectation for concurrently is that
-		// you have spun off some goroutines and are managing the expected
-		// concurrent calls now from within the concurrently's functions.
-		// Imagine each expected goroutine has a concurrent-call token. For the
-		// first iteration, then, we're removing the calling goroutine's token.
-		// Subsequent loops remove the prior function's token. That leaves a
-		// single token at the end of the cycle, which is effectively returned
-		// to the calling goroutine.
-		t.bufferMaxLen--
-		// run the func!
-		concurrentCheck()
+func formatOutput(outputs []YieldedValue) string {
+	formatted := []string{}
+
+	for _, funcOut := range outputs {
+		formatted = append(formatted, funcOut.String())
 	}
+
+	return strings.Join(formatted, "\n")
 }
-
-// Function is here to help us distinguish functions internally, because there is no single
-// function _type_ in go.
-type Function any
-
-// getFuncName gets the function's name.
-func getFuncName(f Function) string {
-	// docs say to use UnsafePointer explicitly instead of Pointer()
-	// https://pkg.Pgo.dev/reflect@go1.21.1#Value.Pointer
-	name := runtime.FuncForPC(uintptr(reflect.ValueOf(f).UnsafePointer())).Name()
-	// this suffix gets appended sometimes. It's unimportant, as far as I can tell.
-	name = strings.TrimSuffix(name, "-fm")
-
-	return name
-}
-
-// Error philosophy:
-//
-// Failures: conditions which signal expected failures the user is testing for (this is a test library), should
-// trigger a test failure.
-//
-// Panics: conditions which signal an error which it is not generally reasonable to expect a caller to recover from,
-// which instead imply programmer intervention is necessary to resolve, should trigger an explanatory panic for the
-// programmer to track down.
-//
-// Errors: all other error conditions should trigger an error with sufficient detail to enable the caller to take
-// corrective action
-
-// Behavioral properties philosophy:
-//
-// Every public function will satisfy a number of behavioral properties it guarantees.
-// Those properties will be tested.
-
-// **Private Functions & Methods**
 
 // callFunc calls the given function with the given args, and returns the return values from that callFunc.
-func callFunc(f Function, args []any) []any {
+func callFunc(f function, args []any) []any {
 	rf := reflect.ValueOf(f)
 	rArgs := reflectValuesOf(args)
 	rReturns := rf.Call(rArgs)
 
 	return unreflectValues(rReturns)
-}
-
-// unreflectValues returns the actual values of the reflected values.
-func unreflectValues(rArgs []reflect.Value) []any {
-	// tricking nilaway with repeated appends till this issue is closed
-	// https://github.com/uber-go/nilaway/pull/60
-	// args := make([]any, len(rArgs))
-	if len(rArgs) == 0 {
-		return nil
-	}
-
-	args := []any{}
-
-	for i := range rArgs {
-		// args[i] = rArgs[i].Interface()
-		args = append(args, rArgs[i].Interface())
-	}
-
-	return args
 }
 
 // reflectValuesOf returns reflected values for all of the values.
