@@ -216,7 +216,7 @@ type function any
 // =Test Simplification and readability abstractions=
 
 // NewFuncTester returns a newly initialized FuncTester.
-func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
+func NewFuncTester(tester Tester) *FuncTester {
 	tester.Helper()
 
 	calls := make(chan YieldedValue)
@@ -235,11 +235,6 @@ func NewFuncTester(tester Tester, options ...FuncTesterOption) *FuncTester {
 		return ""
 	}
 
-	// TODO: drop this entirely - there's no reason for it anymore
-	for _, o := range options {
-		funcTester = o(funcTester)
-	}
-
 	return funcTester
 }
 
@@ -249,8 +244,6 @@ type Tester interface {
 	Fatalf(message string, args ...any)
 	Logf(message string, args ...any)
 }
-
-type FuncTesterOption func(*FuncTester) *FuncTester
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
