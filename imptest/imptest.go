@@ -31,11 +31,9 @@ import (
 // Call.Return or Call.Panic methods to be called. Calling either of those methods will cause the
 // coroutine to return or panic with the values as passed.
 func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption) (T, string) {
-	// creates a unique ID for the function
-	funcID := getFuncName(function)
+	opts := WrapOptions{name: getFuncName(function)}
 	for _, o := range options {
-		// TODO: create coro options. Give it a yield channel, an input channel, and a namer func. Drop the wrap option.
-		funcID = o(funcID)
+		opts = o(opts)
 	}
 
 	// create the function, that when called:
@@ -53,7 +51,7 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 			nil,
 			nil,
 			Call{
-				funcID,
+				opts.name,
 				unreflectValues(args),
 				injectedValueChan,
 			},
@@ -86,7 +84,7 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 	wrapped := reflect.MakeFunc(funcType, relayer).Interface().(T) //nolint:forcetypeassert
 
 	// returns both the wrapped func and the ID
-	return wrapped, funcID
+	return wrapped, opts.name
 }
 
 type YieldedValue struct {
@@ -170,11 +168,16 @@ const (
 	InjectedPanic  injectionType = iota
 )
 
-type WrapOption func(string) string
+type WrapOption func(WrapOptions) WrapOptions
 
-func WithName(name string) func(string) string {
-	return func(_ string) string {
-		return name
+type WrapOptions struct {
+	name string
+}
+
+func WithName(name string) WrapOption {
+	return func(wo WrapOptions) WrapOptions {
+		wo.name = name
+		return wo
 	}
 }
 
