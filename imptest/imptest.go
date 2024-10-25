@@ -44,8 +44,8 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 	funcType := reflect.TypeOf(function)
 
 	relayer := func(args []reflect.Value) []reflect.Value {
-		// Create a channel to receive output values on
-		outputValuesChan := make(chan injectedValue)
+		// Create a channel to receive injected output values on
+		injectedValueChan := make(chan injectedValue)
 
 		// Submit this call to the calls channel
 		calls <- YieldedValue{
@@ -55,12 +55,11 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 			Call{
 				funcID,
 				unreflectValues(args),
-				// TODO: this probably could use a better name and just be default accessible.
-				outputValuesChan,
+				injectedValueChan,
 			},
 		}
 
-		outputV := <-outputValuesChan
+		outputV := <-injectedValueChan
 
 		switch outputV.Type {
 		case InjectedReturn:
@@ -133,29 +132,29 @@ const (
 )
 
 type Call struct {
-	ID              string
-	Args            []any
-	outputValueChan chan injectedValue
+	ID                string
+	Args              []any
+	injectedValueChan chan injectedValue
 }
 
 // Return returns the given values in the func call.
-func (out Call) Return(returnVals ...any) {
-	out.outputValueChan <- injectedValue{
+func (c Call) Return(returnVals ...any) {
+	c.injectedValueChan <- injectedValue{
 		InjectedReturn,
 		returnVals,
 		nil,
 	}
-	close(out.outputValueChan)
+	close(c.injectedValueChan)
 }
 
 // Panic makes the func call result in a panic with the given value.
-func (out Call) Panic(panicVal any) {
-	out.outputValueChan <- injectedValue{
+func (c Call) Panic(panicVal any) {
+	c.injectedValueChan <- injectedValue{
 		InjectedPanic,
 		nil,
 		panicVal,
 	}
-	close(out.outputValueChan)
+	close(c.injectedValueChan)
 }
 
 type injectedValue struct {
