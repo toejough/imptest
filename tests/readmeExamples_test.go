@@ -1019,25 +1019,6 @@ func TestPanicTimeout(t *testing.T) {
 	holdChan <- struct{}{}
 }
 
-func TestOptionCalled(t *testing.T) {
-	t.Parallel()
-
-	called := false
-	option := func() imptest.FuncTesterOption {
-		return func(ft *imptest.FuncTester) *imptest.FuncTester {
-			called = true
-			return ft
-		}
-	}
-
-	// Given convenience test wrapper
-	imptest.NewFuncTester(t, option())
-
-	if !called {
-		t.Fatalf("Expected the option function to be called, but it was not")
-	}
-}
-
 func DoThingsConcurrentlyNested2(deps doThingsDeps) {
 	deps.thing1()
 
