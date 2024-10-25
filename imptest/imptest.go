@@ -34,7 +34,7 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 	// creates a unique ID for the function
 	funcID := getFuncName(function)
 	for _, o := range options {
-		// TODO: create coro options. Give it a yield channel, an input channel, and a namer channel. Drop the wrap option.
+		// TODO: create coro options. Give it a yield channel, an input channel, and a namer func. Drop the wrap option.
 		funcID = o(funcID)
 	}
 
