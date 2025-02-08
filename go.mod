@@ -1,4 +1,4 @@
-module github.com/toejough/protest
+module github.com/toejough/imptest
 
 go 1.23.1
 
