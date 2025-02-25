@@ -2,13 +2,17 @@
 package imptest
 
 import (
+	"encoding/json"
 	"fmt"
 	"iter"
+	"log"
 	"reflect"
 	"runtime"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/muesli/reflow/indent"
 )
 
 // Error philosophy:
@@ -54,6 +58,8 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 				opts.name,
 				unreflectValues(args),
 				injectedValueChan,
+				funcType,
+				nil,
 			},
 		}
 
@@ -81,7 +87,7 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 	// Ignore the type assertion lint check - we are depending on MakeFunc to
 	// return the correct type, as documented. If it fails to, the only thing
 	// we'd do is panic anyway.
-	wrapped := reflect.MakeFunc(funcType, relayer).Interface().(T) //nolint:forcetypeassert
+	wrapped := reflect.MakeFunc(funcType, relayer).Interface().(T)
 
 	// returns both the wrapped func and the ID
 	return wrapped, opts.name
@@ -98,24 +104,22 @@ func (out *YieldedValue) String() string {
 	switch out.Type {
 	case YieldedCall:
 		return strings.Join([]string{
-			"call",
-			"with name",
+			"call to",
 			out.Call.ID,
 			"with args",
 			fmt.Sprintf("%#v", out.Call.Args),
-		}, "\n")
+		}, " ")
 	case YieldedReturn:
 		return strings.Join([]string{
-			"return",
-			"with values",
+			"completed & returned with",
 			fmt.Sprintf("%#v", out.ReturnVals),
-		}, "\n")
+		}, " ")
 	case YieldedPanic:
 		return strings.Join([]string{
-			"panic",
+			"panicked",
 			"with value",
 			fmt.Sprintf("%#v", out.PanicVal),
-		}, "\n")
+		}, " ")
 	default:
 		panic("got an unexpected output type")
 	}
@@ -133,10 +137,26 @@ type Call struct {
 	ID                string
 	Args              []any
 	injectedValueChan chan injectedValue
+	Type              reflect.Type
+	t                 Tester
 }
 
 // Return returns the given values in the func call.
 func (c Call) Return(returnVals ...any) {
+	c.t.Helper()
+	// make sure these are at least the right number of returns
+	expectedNumReturns := c.Type.NumOut()
+	if len(returnVals) != expectedNumReturns {
+		c.t.Fatalf("%d returns were pushed, but %s only returns %d values", len(returnVals), c.ID, expectedNumReturns)
+	}
+	// make sure these are at least assignable
+	for i := range returnVals {
+		actual := reflect.TypeOf(returnVals[i])
+		expected := c.Type.Out(i)
+		if actual != nil && !actual.AssignableTo(expected) {
+			c.t.Fatalf("unable to push return value %d for the call to %s: a value of type %v was pushed, but that is unassignable to the expected type (%v)", i, c.ID, actual, expected)
+		}
+	}
 	c.injectedValueChan <- injectedValue{
 		InjectedReturn,
 		returnVals,
@@ -229,12 +249,12 @@ func NewFuncTester(tester Tester) *FuncTester {
 	funcTester.bufferMaxLen = 1
 	// I want this to be a magic number, it's half a second
 	funcTester.Timeout = 500 * time.Millisecond //nolint:mnd,gomnd
-	funcTester.Differ = func(a, b any) string {
-		if !reflect.DeepEqual(a, b) {
-			return fmt.Sprintf("%#v != %#v", a, b)
+	funcTester.Differ = func(actual, expected any) (string, error) {
+		if !reflect.DeepEqual(actual, expected) {
+			return fmt.Sprintf("actual: %#v\nexpected: %#v", actual, expected), nil
 		}
 
-		return ""
+		return "", nil
 	}
 
 	return funcTester
@@ -274,14 +294,14 @@ func (t *FuncTester) Start(function any, args ...any) {
 					YieldedPanic,
 					panicVal,
 					nil,
-					Call{}, //nolint:exhaustruct // passing a zero value on purpose
+					Call{},
 				}
 			} else {
 				t.OutputChan <- YieldedValue{
 					YieldedReturn,
 					nil,
 					rVals,
-					Call{}, //nolint:exhaustruct // passing a zero value on purpose
+					Call{},
 				}
 			}
 		}()
@@ -309,27 +329,49 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Ca
 
 	diffs := []string{}
 
+	// for as many things as have been output by the function under test...
 	for next := range t.iterOut() {
+		// was this thing a call?
 		if next.Type == YieldedCall {
+			// did it match our expected call id?
 			if next.Call.ID == expectedCallID {
-				diff := t.Differ(next.Call.Args, expectedArgs)
-				if diff == "" {
-					return next.Call
+				// were the args matching?
+				diff, err := t.Differ(next.Call.Args, expectedArgs)
+				// was there an error matching the args?
+				if err != nil {
+					t.T.Fatalf("unable to assert arg equality: %s", err.Error())
+				}
+				// if there was a difference from expectations, record it & try again
+				if diff != "" {
+					diffs = append(diffs, diff)
+					continue
 				}
 
-				diffs = append(diffs, diff)
+				// if we got here: this was a call, of the expected name, and the args matched.
+				// return the call.
+				return next.Call
 			}
 		}
 	}
 
+	// if we popped out here, it means there's no other output to iterate, and nothing totally matched.
+	// if we have diffs, it means we _did_ find the matching call, but the args were different.
+	// the most common case is a sequential test, in which we found the one matching call, but the args were different...
+	// ... handle that messaging.
+	if len(diffs) == 1 {
+		t.T.Fatalf("Found expected call to %s, but the args differed:\n%s", expectedCallID, indent.String(diffs[0], 4))
+	}
+	// if we have no diffs, it means we _did not_ find the matching call.
+	if len(diffs) == 0 {
+		t.T.Fatalf(
+			"Failed to find expected call to %s. Instead found the following output from the function under test:\n%s",
+			expectedCallID, indent.String(formatOutput(t.outputBuffer), 4),
+		)
+	}
+	// the final case is if we have multiple diffs, we found multiple matching calls, but they all had differing args.
 	t.T.Fatalf(
-		"Expected a call matching %v with %v args, but none was found. \n"+
-			"Yielded outputs from the function: %s\n"+
-			"diffs for matching func ID's: %s",
-		expectedCallID,
-		expectedArgs,
-		formatOutput(t.outputBuffer),
-		strings.Join(diffs, "\n"),
+		"Found multiple call to %s, but the args differed in each case:\n%s",
+		expectedCallID, indent.String(strings.Join(diffs, "\n"), 4),
 	)
 
 	panic("should never get here - the code within the iterator will panic if we can't get a good value")
@@ -374,7 +416,10 @@ func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
 
 	returnVals := t.Returned()
 
-	diff := t.Differ(expectedReturnValues, returnVals)
+	diff, err := t.Differ(expectedReturnValues, returnVals)
+	if err != nil {
+		t.T.Fatalf("unable to assert return value equality: %s", err.Error())
+	}
 	if diff != "" {
 		t.T.Fatalf("\n"+
 			"Looking for the function to return\n"+
@@ -420,7 +465,10 @@ func (t *FuncTester) AssertPanicked(expectedPanic any) {
 
 	panicVal := t.Panicked()
 
-	diff := t.Differ(expectedPanic, panicVal)
+	diff, err := t.Differ(expectedPanic, panicVal)
+	if err != nil {
+		t.T.Fatalf("unable to assert panic value equality: %s", err.Error())
+	}
 	if diff != "" {
 		t.T.Fatalf("\n"+
 			"Looking for the function to panic\n"+
@@ -526,10 +574,10 @@ func (t *FuncTester) nextOutput(nextIndex int) (YieldedValue, bool) {
 	}
 
 	// if we're not allowed to pu_not ok_
-	return YieldedValue{}, false //nolint:exhaustruct
+	return YieldedValue{}, false
 }
 
-type Differ func(any, any) string
+type Differ func(any, any) (string, error)
 
 func formatOutput(outputs []YieldedValue) string {
 	formatted := []string{}
@@ -538,7 +586,7 @@ func formatOutput(outputs []YieldedValue) string {
 		formatted = append(formatted, funcOut.String())
 	}
 
-	return strings.Join(formatted, "\n")
+	return "\n\t" + strings.Join(formatted, "\n\t")
 }
 
 // callFunc calls the given function with the given args, and returns the return values from that callFunc.
@@ -558,4 +606,219 @@ func reflectValuesOf(args []any) []reflect.Value {
 	}
 
 	return rArgs
+}
+
+func NewImp(t Tester, funcStructs ...any) *Tester2 {
+	ftester := NewFuncTester(t)
+	tt := &Tester2{ft: ftester}
+
+	for _, fs := range funcStructs {
+		// get all methods of the funcStructs
+		fsType := reflect.ValueOf(fs).Elem().Type()
+		fsValue := reflect.ValueOf(fs).Elem()
+		numFields := fsType.NumField()
+		fields := make([]fieldPair, numFields)
+		for i := range numFields {
+			fields[i].Type = fsType.Field(i)
+			fields[i].Value = fsValue.Field(i)
+		}
+
+		// reduce to fields that are functions
+		functionFields := []fieldPair{}
+		for i := range numFields {
+			if fields[i].Type.Type.Kind() != reflect.Func {
+				continue
+			}
+			functionFields = append(functionFields, fields[i])
+		}
+
+		// intercept them all
+		for i := range len(functionFields) {
+			wrapFuncField(t, functionFields[i], ftester.OutputChan)
+		}
+	}
+
+	return tt
+}
+
+type fieldPair struct {
+	Type  reflect.StructField
+	Value reflect.Value
+}
+
+type Tester2 struct {
+	ft *FuncTester
+}
+
+func (t *Tester2) ExpectCall(f string) *Call2 {
+	c := &Call2{t: t, f: f}
+	return c
+}
+
+func (t *Tester2) Start(f any, args ...any) *Tester2 {
+	// start the test
+	t.ft.Start(f, args...)
+
+	return t
+}
+
+func (t *Tester2) ExpectReturns(returned ...any) {
+	t.ft.AssertReturned(returned...)
+}
+
+type Call2 struct {
+	t       *Tester2
+	f       string
+	subcall Call
+}
+
+func (c *Call2) ExpectArgs(args ...any) *Call2 {
+	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+	c.subcall.t.Helper()
+	return c
+}
+
+func (c *Call2) ExpectArgsJSON(args ...any) *Call2 {
+	c.t.ft.T.Helper()
+	originalDiffer := c.t.ft.Differ
+	defer func() { c.t.ft.Differ = originalDiffer }()
+	c.t.ft.Differ = jsonDiffer
+	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+	return c
+}
+
+func (c *Call2) ExpectArgsFmt(args ...any) *Call2 {
+	c.t.ft.T.Helper()
+	originalDiffer := c.t.ft.Differ
+	defer func() { c.t.ft.Differ = originalDiffer }()
+	c.t.ft.Differ = fmtDiffer
+	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+	return c
+}
+
+func fmtDiffer(actual, expected any) (string, error) {
+	var actualString, expectedString string
+	actualArr, ok := actual.([]any)
+	if ok {
+		actualString = fmtArray(actualArr)
+	} else {
+		actualString = fmt.Sprintf("%v", actual)
+	}
+	expectedArr, ok := expected.([]any)
+	if ok {
+		expectedString = fmtArray(expectedArr)
+	} else {
+		expectedString = fmt.Sprintf("%v", expected)
+	}
+	log.Println(actualString)
+	log.Println(expectedString)
+	if actualString != expectedString {
+		return fmt.Sprintf("actual: \n%s\nexpected: \n%s", indent.String(actualString, 4), indent.String(expectedString, 4)), nil
+	}
+
+	return "", nil
+}
+
+func fmtArray(aa []any) string {
+	formattedArray := []string{}
+	for i := range aa {
+		formattedArray = append(formattedArray, fmt.Sprintf("%v", aa[i]))
+	}
+	return strings.Join(formattedArray, "\n")
+}
+
+func jsonDiffer(actual, expected any) (string, error) {
+	actualJSON, err := json.MarshalIndent(actual, "", "    ")
+	if err != nil {
+		return "", fmt.Errorf("unable to diff %#v and %#v: error converting the first to json: %w", actual, expected, err)
+	}
+	expectedJSON, err := json.MarshalIndent(expected, "", "    ")
+	if err != nil {
+		return "", fmt.Errorf("unable to diff %#v and %#v: error converting the second to json: %w", actual, expected, err)
+	}
+	actualString := string(actualJSON)
+	expectedString := string(expectedJSON)
+	log.Println(actualString)
+	log.Println(expectedString)
+	if actualString != expectedString {
+		return fmt.Sprintf("actual: %s\nexpected: %s", actualString, expectedString), nil
+	}
+
+	return "", nil
+}
+
+func (c *Call2) PushReturns(returns ...any) {
+	c.subcall.t.Helper()
+	c.subcall.Return(returns...)
+}
+
+func wrapFuncField(t Tester, funcField fieldPair, calls chan YieldedValue) {
+	name := funcField.Type.Name
+
+	// create the function, that when called:
+	// * puts its ID and args onto the call channel along with a return channel
+	// * waits until the return channel has something, and then returns that
+	funcType := funcField.Type.Type
+
+	relayer := func(args []reflect.Value) []reflect.Value {
+		// Create a channel to receive injected output values on
+		injectedValueChan := make(chan injectedValue)
+
+		// Submit this call to the calls channel
+		calls <- YieldedValue{
+			YieldedCall,
+			nil,
+			nil,
+			Call{
+				name,
+				unreflectValues(args),
+				injectedValueChan,
+				funcType,
+				t,
+			},
+		}
+
+		outputV := <-injectedValueChan
+
+		switch outputV.Type {
+		case InjectedReturn:
+			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
+
+			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
+			for i, a := range outputV.ReturnValues {
+				// special casing to avoid a completely nil return hosing things up
+				v := reflect.ValueOf(a)
+				if !v.IsValid() {
+					v = reflect.Zero(funcType.Out(i))
+				}
+				returnValues[i] = v
+			}
+
+			return returnValues
+		// if we're supposed to panic, do.
+		case InjectedPanic:
+			panic(outputV.PanicValue)
+		default:
+			panic("imptest failure - unrecognized outputValue type was passed")
+		}
+	}
+
+	// Make a function of the right type.
+	// Ignore the type assertion lint check - we are depending on MakeFunc to
+	// return the correct type, as documented. If it fails to, the only thing
+	// we'd do is panic anyway.
+	wrappedValue := reflect.MakeFunc(funcType, relayer)
+
+	funcField.Value.Set(wrappedValue)
+}
+
+// getFuncName gets the function's name.
+func getFuncValueName(fv reflect.Value) string {
+	// docs say to use UnsafePointer explicitly instead of Pointer()
+	// https://pkg.Pgo.dev/reflect@go1.21.1#Value.Pointer
+	name := runtime.FuncForPC(uintptr(fv.UnsafePointer())).Name()
+	// this suffix gets appended sometimes. It's unimportant, as far as I can tell.
+	name = strings.TrimSuffix(name, "-fm")
+
+	return name
 }
