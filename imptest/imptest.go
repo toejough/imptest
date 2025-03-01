@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"iter"
-	"log"
 	"reflect"
 	"runtime"
 	"slices"
@@ -34,7 +33,7 @@ import (
 // This Call can be checked for its name (ID) and args. The calling function will wait for the
 // Call.Return or Call.Panic methods to be called. Calling either of those methods will cause the
 // coroutine to return or panic with the values as passed.
-func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption) (T, string) {
+func WrapFunc[T any](tester Tester, function T, calls chan YieldedValue, options ...WrapOption) (T, string) {
 	opts := WrapOptions{name: getFuncName(function)}
 	for _, o := range options {
 		opts = o(opts)
@@ -59,7 +58,7 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 				unreflectValues(args),
 				injectedValueChan,
 				funcType,
-				nil,
+				tester,
 			},
 		}
 
@@ -87,7 +86,7 @@ func WrapFunc[T any](function T, calls chan YieldedValue, options ...WrapOption)
 	// Ignore the type assertion lint check - we are depending on MakeFunc to
 	// return the correct type, as documented. If it fails to, the only thing
 	// we'd do is panic anyway.
-	wrapped := reflect.MakeFunc(funcType, relayer).Interface().(T)
+	wrapped := reflect.MakeFunc(funcType, relayer).Interface().(T) //nolint:forcetypeassert
 
 	// returns both the wrapped func and the ID
 	return wrapped, opts.name
@@ -147,14 +146,22 @@ func (c Call) Return(returnVals ...any) {
 	// make sure these are at least the right number of returns
 	expectedNumReturns := c.Type.NumOut()
 	if len(returnVals) != expectedNumReturns {
-		c.t.Fatalf("%d returns were pushed, but %s only returns %d values", len(returnVals), c.ID, expectedNumReturns)
+		c.t.Fatalf(
+			"%d returns were pushed, but %s only returns %d values",
+			len(returnVals), c.ID, expectedNumReturns,
+		)
 	}
 	// make sure these are at least assignable
-	for i := range returnVals {
-		actual := reflect.TypeOf(returnVals[i])
-		expected := c.Type.Out(i)
+	for rvi := range returnVals {
+		actual := reflect.TypeOf(returnVals[rvi])
+		expected := c.Type.Out(rvi)
+
 		if actual != nil && !actual.AssignableTo(expected) {
-			c.t.Fatalf("unable to push return value %d for the call to %s: a value of type %v was pushed, but that is unassignable to the expected type (%v)", i, c.ID, actual, expected)
+			c.t.Fatalf(
+				"unable to push return value %d for the call to %s: a value of type %v was pushed, "+
+					"but that is unassignable to the expected type (%v)",
+				rvi, c.ID, actual, expected,
+			)
 		}
 	}
 	c.injectedValueChan <- injectedValue{
@@ -625,15 +632,17 @@ func NewImp(t Tester, funcStructs ...any) *Tester2 {
 
 		// reduce to fields that are functions
 		functionFields := []fieldPair{}
+
 		for i := range numFields {
 			if fields[i].Type.Type.Kind() != reflect.Func {
 				continue
 			}
+
 			functionFields = append(functionFields, fields[i])
 		}
 
 		// intercept them all
-		for i := range len(functionFields) {
+		for i := range functionFields {
 			wrapFuncField(t, functionFields[i], ftester.OutputChan)
 		}
 	}
@@ -675,45 +684,57 @@ type Call2 struct {
 func (c *Call2) ExpectArgs(args ...any) *Call2 {
 	c.subcall = c.t.ft.AssertCalled(c.f, args...)
 	c.subcall.t.Helper()
+
 	return c
 }
 
 func (c *Call2) ExpectArgsJSON(args ...any) *Call2 {
 	c.t.ft.T.Helper()
+
 	originalDiffer := c.t.ft.Differ
 	defer func() { c.t.ft.Differ = originalDiffer }()
+
 	c.t.ft.Differ = jsonDiffer
 	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+
 	return c
 }
 
 func (c *Call2) ExpectArgsFmt(args ...any) *Call2 {
 	c.t.ft.T.Helper()
+
 	originalDiffer := c.t.ft.Differ
 	defer func() { c.t.ft.Differ = originalDiffer }()
+
 	c.t.ft.Differ = fmtDiffer
 	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+
 	return c
 }
 
 func fmtDiffer(actual, expected any) (string, error) {
 	var actualString, expectedString string
-	actualArr, ok := actual.([]any)
-	if ok {
+
+	actualArr, isArray := actual.([]any)
+	if isArray {
 		actualString = fmtArray(actualArr)
 	} else {
 		actualString = fmt.Sprintf("%v", actual)
 	}
-	expectedArr, ok := expected.([]any)
-	if ok {
+
+	expectedArr, isArray := expected.([]any)
+
+	if isArray {
 		expectedString = fmtArray(expectedArr)
 	} else {
 		expectedString = fmt.Sprintf("%v", expected)
 	}
-	log.Println(actualString)
-	log.Println(expectedString)
+
 	if actualString != expectedString {
-		return fmt.Sprintf("actual: \n%s\nexpected: \n%s", indent.String(actualString, 4), indent.String(expectedString, 4)), nil
+		return fmt.Sprintf(
+			"actual: \n%s\nexpected: \n%s",
+			indent.String(actualString, 4), indent.String(expectedString, 4),
+		), nil
 	}
 
 	return "", nil
@@ -724,6 +745,7 @@ func fmtArray(aa []any) string {
 	for i := range aa {
 		formattedArray = append(formattedArray, fmt.Sprintf("%v", aa[i]))
 	}
+
 	return strings.Join(formattedArray, "\n")
 }
 
@@ -732,14 +754,15 @@ func jsonDiffer(actual, expected any) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to diff %#v and %#v: error converting the first to json: %w", actual, expected, err)
 	}
+
 	expectedJSON, err := json.MarshalIndent(expected, "", "    ")
 	if err != nil {
 		return "", fmt.Errorf("unable to diff %#v and %#v: error converting the second to json: %w", actual, expected, err)
 	}
+
 	actualString := string(actualJSON)
 	expectedString := string(expectedJSON)
-	log.Println(actualString)
-	log.Println(expectedString)
+
 	if actualString != expectedString {
 		return fmt.Sprintf("actual: %s\nexpected: %s", actualString, expectedString), nil
 	}

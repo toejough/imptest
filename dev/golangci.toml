@@ -18,12 +18,17 @@ fix = true
 enable-all = true
 [linters-settings.depguard.rules]
 all.files = ["$all", "!$test"]
-all.allow = ["$gostd", "github.com/alexflint/go-arg", "github.com/google/uuid"]
+all.allow = [
+	"$gostd", 
+	"github.com/alexflint/go-arg", 
+	"github.com/google/uuid", 	
+	"github.com/muesli/reflow/indent",
+]
 test.files = ["$test"]
 test.allow = [
 	"$gostd",
 	"pgregory.net/rapid",
-	"github.com/toejough/protest/imptest",
+	"github.com/toejough/imptest/imptest",
 ]
 [linters-settings.nlreturn]
 block-size = 2 # IMO this is ok style

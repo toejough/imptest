@@ -5,6 +5,7 @@ go 1.23.1
 require (
 	github.com/gtramontina/ooze v0.2.0
 	github.com/magefile/mage v1.15.0
+	github.com/muesli/reflow v0.3.0
 )
 
 require (
@@ -12,5 +13,7 @@ require (
 	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-runewidth v0.0.12 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect
 )
