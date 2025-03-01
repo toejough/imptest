@@ -6,9 +6,7 @@ disable = [
 	"ireturn",        # I return generic types
 	"nonamedreturns", # I like named returns
 	# deprecated
-	"gomnd",
 	"exportloopref",
-	"execinquery",
 	"godox",         # saving todos till the end
 ]
 
