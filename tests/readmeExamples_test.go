@@ -5,14 +5,44 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/toejough/imptest/imptest"
 )
 
-// DoThings now calls functions from a dependencies struct.
-func DoThings(deps doThingsDeps) {
+// Things Imptest does:
+// function interception
+// wrap func, replace funcs, (generate funcs.)
+
+// output checking
+// get yielded from chan, match call/panic/return with
+
+// responding
+// push response to chan, push return/panic
+
+// concurrency
+// get yielded from chan, run concurrently
+
+// Level 1:
+// wrap func with name option
+// get yielded
+// manually inspect call, panic, return
+// manually build & push return/panic response
+// manually handle concurrency
+
+// Level 2:
+// wrap struct with names option
+// match call, panic, return with differ & timeout options
+// push return/panic responses
+// handle concurrency with a concurrent call func
+
+// Level 3:
+// generate func struct & name struct from interface??
+
+// FuncUnderTest now calls functions from a dependencies struct.
+func FuncUnderTest(deps doThingsDeps) {
 	deps.Thing1()
 	deps.Thing2()
 }
@@ -35,11 +65,436 @@ func thing5(int) string { return "" }
 func thing6(string) int { return 0 }
 func thing7(bool)       {}
 
+// TestReceiveDependencyCallSendReturn tests receiving a dependency call and sending a return.
+// ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
+func TestReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(dependency func() string) string {
+		return dependency()
+	}
+	// and a dependency to mimic
+	depToMimic := func() string { panic("not implemented") }
+	// and a channel to put function activity onto
+	funcActivityChan := make(chan imptest.FuncActivity)
+	defer close(funcActivityChan)
+	// and a dependency mimic that pushes its calls onto the func activity chan
+	depMimic, depMimicID := imptest.MimicDependency(t, depToMimic, funcActivityChan)
+	// and a string to return from the dependency call
+	returnString := "literally anything"
+
+	// When we run the function to test with the mimicked dependency
+	go func() {
+		// call the function to test
+		returnVal := funcToTest(depMimic)
+		// record what the func returns as its final activity
+		funcActivityChan <- imptest.FuncActivity{
+			Type:           imptest.ReturnActivityType,
+			PanicVal:       nil,
+			ReturnVals:     []any{returnVal},
+			DependencyCall: nil,
+		}
+	}()
+
+	// Then the first activity in the funcActivitychannel is a dependency call
+	activity1 := <-funcActivityChan
+	if activity1.Type != imptest.DependencyCallType {
+		t.Fail()
+	}
+
+	// and the dependency call is to the mimicked dependency
+	if activity1.DependencyCall.ID != depMimicID {
+		t.Fail()
+	}
+
+	// When we push a return string
+	activity1.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		Type:         imptest.ReturnResponseType,
+		ReturnValues: []any{returnString},
+		PanicValue:   nil,
+	}
+
+	// Then the next activity from the function under test is its return
+	activity2 := <-funcActivityChan
+	if activity2.Type != imptest.ReturnActivityType {
+		t.Fail()
+	}
+
+	// and the returned data is only one item
+	if len(activity2.ReturnVals) != 1 {
+		t.Fail()
+	}
+
+	// and the returned value is the returnString
+	returnedString, ok := activity2.ReturnVals[0].(string)
+	if !ok || returnedString != returnString {
+		t.Fail()
+	}
+}
+
+func namedDependencyFunc() string { panic("not implemented") }
+
+// TestMimicCallID verifies the call ID is the func name.
+func TestMimicCallID(t *testing.T) {
+	t.Parallel()
+
+	// Given a channel to put function activity onto
+	funcActivityChan := make(chan imptest.FuncActivity)
+	defer close(funcActivityChan)
+	// and an expected func name
+	expectedName := "github.com/toejough/imptest/tests_test.namedDependencyFunc"
+
+	// When the dependency is mimicked
+	_, depMimicID := imptest.MimicDependency(t, namedDependencyFunc, funcActivityChan)
+
+	// Then the func ID is the function name
+	if depMimicID != expectedName {
+		t.Fatalf("expected the mimic ID to be %s but instead it was %s", expectedName, depMimicID)
+	}
+}
+
+// TestMimicCallIDOverrideOption verifies the call ID is the overridden name.
+func TestMimicCallIDOverrideOption(t *testing.T) {
+	t.Parallel()
+
+	// Given a channel to put function activity onto
+	funcActivityChan := make(chan imptest.FuncActivity)
+	defer close(funcActivityChan)
+	// and an expected func name
+	expectedName := "overriddenName"
+
+	// When the dependency is mimicked
+	_, depMimicID := imptest.MimicDependency(
+		t,
+		namedDependencyFunc,
+		funcActivityChan,
+		imptest.WithName(expectedName),
+	)
+
+	// Then the func ID is the function name
+	if depMimicID != expectedName {
+		t.Fatalf("expected the mimic ID to be %s but instead it was %s", expectedName, depMimicID)
+	}
+}
+
+// TestReceiveDependencyCallSendPanic tests receiving a dependency call and sending a panic.
+// ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
+func TestReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(dependency func() string) string {
+		return dependency()
+	}
+	// and a dependency to mimic
+	depToMimic := func() string { panic("not implemented") }
+	// and a channel to put function activity onto
+	funcActivityChan := make(chan imptest.FuncActivity)
+	defer close(funcActivityChan)
+	// and a dependency mimic that pushes its calls onto the func activity chan
+	depMimic, depMimicID := imptest.MimicDependency(t, depToMimic, funcActivityChan)
+	// and a string to panic from the dependency call
+	panicString := "literally anything"
+
+	// When we run the function to test with the mimicked dependency
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// record what the func panicked as its final activity
+				funcActivityChan <- imptest.FuncActivity{
+					Type:           imptest.PanicActivityType,
+					PanicVal:       r,
+					ReturnVals:     nil,
+					DependencyCall: nil,
+				}
+			}
+		}()
+		// call the function to test
+		funcToTest(depMimic)
+	}()
+
+	// Then the first activity in the funcActivitychannel is a dependency call
+	activity1 := <-funcActivityChan
+	if activity1.Type != imptest.DependencyCallType {
+		t.Fail()
+	}
+
+	// and the dependency call is to the mimicked dependency
+	if activity1.DependencyCall.ID != depMimicID {
+		t.Fail()
+	}
+
+	// When we push a panic string
+	activity1.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		Type:         imptest.PanicResponseType,
+		ReturnValues: nil,
+		PanicValue:   panicString,
+	}
+
+	// Then the next activity from the function under test is its panic
+	activity2 := <-funcActivityChan
+	if activity2.Type != imptest.PanicActivityType {
+		t.Fail()
+	}
+
+	// and the panicked value is the panicString
+	panickedString, ok := activity2.PanicVal.(string)
+	if !ok || panickedString != panicString {
+		t.Fail()
+	}
+}
+
+// TestL1PingPongConcurrency tests using the funcActivityChan with a funcToTest that calls ping-pong dependencies
+// concurrently.
+// ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
+// ignore the linter error about how this test is too complex. It's kind of the point behind the L2 API.
+func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,gocognit,cyclop,maintidx
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(ping, pong func() bool) {
+		pingChan := make(chan bool)
+		defer close(pingChan)
+
+		pongChan := make(chan bool)
+		defer close(pongChan)
+
+		wgPingPong := sync.WaitGroup{}
+		pingLoop := func() {
+			// unsynced calls
+			for range 100 {
+				ping()
+			}
+			// synced calls
+			shouldPing := true
+			for shouldPing {
+				pingChan <- ping()
+
+				shouldPing = <-pongChan
+			}
+			pingChan <- false
+			// unsynced calls
+			for range 100 {
+				ping()
+			}
+
+			wgPingPong.Done()
+		}
+		pongLoop := func() {
+			// unsynced calls
+			for range 100 {
+				pong()
+			}
+			// synced calls
+			shouldPong := <-pingChan
+			for shouldPong {
+				pongChan <- pong()
+
+				shouldPong = <-pingChan
+			}
+			// unsynced calls
+			for range 100 {
+				pong()
+			}
+
+			wgPingPong.Done()
+		}
+
+		wgPingPong.Add(2)
+
+		go pingLoop()
+		go pongLoop()
+
+		wgPingPong.Wait()
+	}
+	// and dependencies to mimic
+	pingToMimic := func() bool { panic("not implemented") }
+	pongToMimic := func() bool { panic("not implemented") }
+	// and a channel to put function activity onto
+	// give it a buffer of 2 - we expect to need to put 2 goroutine's worth of activity onto it before reading.
+	funcActivityChan := make(chan imptest.FuncActivity, 2)
+	defer close(funcActivityChan)
+	// and dependency mimics that push their calls onto the func activity chan
+	pingMimic, pingMimicID := imptest.MimicDependency(
+		t,
+		pingToMimic,
+		funcActivityChan,
+		imptest.WithName("ping"),
+	)
+	pongMimic, pongMimicID := imptest.MimicDependency(
+		t,
+		pongToMimic,
+		funcActivityChan,
+		imptest.WithName("pong"),
+	)
+
+	// When we run the function to test with the mimicked dependency
+	go func() {
+		// call the function to test
+		funcToTest(pingMimic, pongMimic)
+		// record that the func returned as its final activity
+		funcActivityChan <- imptest.FuncActivity{
+			Type:           imptest.ReturnActivityType,
+			PanicVal:       nil,
+			ReturnVals:     nil,
+			DependencyCall: nil,
+		}
+	}()
+
+	// Then we get 100 calls to ping
+	pingCallCount := 0
+	for pingCallCount < 100 {
+		activity := <-funcActivityChan
+		if activity.Type != imptest.DependencyCallType {
+			t.Fail()
+		}
+
+		// and the dependency call is to the mimicked dependency
+		if activity.DependencyCall.ID != pingMimicID {
+			// if not, push it back on the queue and try again
+			funcActivityChan <- activity
+			continue
+		}
+
+		pingCallCount++
+
+		// When we push a return
+		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+			Type:         imptest.ReturnResponseType,
+			ReturnValues: []any{true},
+			PanicValue:   nil,
+		}
+	}
+
+	// Then we get 100 calls to pong
+	pongCallCount := 0
+	for pongCallCount < 100 {
+		activity := <-funcActivityChan
+		if activity.Type != imptest.DependencyCallType {
+			t.Fail()
+		}
+
+		// and the dependency call is to the mimicked dependency
+		if activity.DependencyCall.ID != pongMimicID {
+			// if not, push it back on the queue and try again
+			funcActivityChan <- activity
+			continue
+		}
+
+		pongCallCount++
+
+		// When we push a return
+		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+			Type:         imptest.ReturnResponseType,
+			ReturnValues: []any{true},
+			PanicValue:   nil,
+		}
+	}
+
+	// Then we ping once
+	pingActivity := <-funcActivityChan
+	if pingActivity.Type != imptest.DependencyCallType {
+		t.Fail()
+	}
+
+	// and the dependency call is to the mimicked dependency
+	if pingActivity.DependencyCall.ID != pingMimicID {
+		t.Fail()
+	}
+
+	// When we push a return
+	pingActivity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		Type:         imptest.ReturnResponseType,
+		ReturnValues: []any{true},
+		PanicValue:   nil,
+	}
+
+	// Then we pong once
+	pongActivity := <-funcActivityChan
+	if pongActivity.Type != imptest.DependencyCallType {
+		t.Fail()
+	}
+
+	// and the dependency call is to the mimicked dependency
+	if pongActivity.DependencyCall.ID != pongMimicID {
+		t.Fail()
+	}
+
+	// When we push a return
+	pongActivity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		Type:         imptest.ReturnResponseType,
+		ReturnValues: []any{false},
+		PanicValue:   nil,
+	}
+
+	// Then we get 100 more calls to ping
+	pingCallCount = 0
+	for pingCallCount < 100 {
+		activity := <-funcActivityChan
+		if activity.Type != imptest.DependencyCallType {
+			t.Fail()
+		}
+
+		// and the dependency call is to the mimicked dependency
+		if activity.DependencyCall.ID != pingMimicID {
+			// if not, push it back on the queue and try again
+			funcActivityChan <- activity
+			continue
+		}
+
+		pingCallCount++
+
+		// When we push a return
+		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+			Type:         imptest.ReturnResponseType,
+			ReturnValues: []any{true},
+			PanicValue:   nil,
+		}
+	}
+
+	// Then we get 100 more calls to pong
+	pongCallCount = 0
+	for pongCallCount < 100 {
+		activity := <-funcActivityChan
+		if activity.Type != imptest.DependencyCallType {
+			t.Fail()
+		}
+
+		// and the dependency call is to the mimicked dependency
+		if activity.DependencyCall.ID != pongMimicID {
+			// if not, push it back on the queue and try again
+			funcActivityChan <- activity
+			continue
+		}
+
+		pongCallCount++
+
+		// When we push a return
+		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+			Type:         imptest.ReturnResponseType,
+			ReturnValues: []any{true},
+			PanicValue:   nil,
+		}
+	}
+
+	// Then the next activity from the function under test is its return
+	returnActivity := <-funcActivityChan
+	if returnActivity.Type != imptest.ReturnActivityType {
+		t.Fail()
+	}
+
+	// and the returned data is 0 items
+	if len(returnActivity.ReturnVals) != 0 {
+		t.Fail()
+	}
+}
+
 // The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	t.Parallel()
 	// Given a call channel to track the calls
-	calls := make(chan imptest.YieldedValue)
+	calls := make(chan imptest.FuncActivity)
 
 	// Given the dependencies are replaced by functions which place their calls on the channel
 
@@ -53,41 +508,41 @@ func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 		deps     doThingsDeps
 	)
 
-	deps.Thing1, id1 = imptest.WrapFunc(t, thing1, calls)
-	deps.Thing2, id2 = imptest.WrapFunc(t, thing2, calls)
+	deps.Thing1, id1 = imptest.MimicDependency(t, thing1, calls)
+	deps.Thing2, id2 = imptest.MimicDependency(t, thing2, calls)
 
 	// When DoThings is started
 	go func() {
 		// record when the func is done so we can test that, too
 		defer close(calls)
-		DoThings(deps)
+		FuncUnderTest(deps)
 	}()
 
 	// Then thing1 is called
 	funcCall1 := <-calls
-	if funcCall1.Type != imptest.YieldedCall {
+	if funcCall1.Type != imptest.DependencyCallType {
 		t.Fail()
 	}
 
-	if funcCall1.Call.ID != id1 {
+	if funcCall1.DependencyCall.ID != id1 {
 		t.Fail()
 	}
 
 	// When thing1 returns
-	funcCall1.Call.Return()
+	funcCall1.DependencyCall.Return()
 
 	// Then thing2 is called
 	funcCall2 := <-calls
-	if funcCall2.Type != imptest.YieldedCall {
+	if funcCall2.Type != imptest.DependencyCallType {
 		t.Fail()
 	}
 
-	if funcCall2.Call.ID != id2 {
+	if funcCall2.DependencyCall.ID != id2 {
 		t.Fail()
 	}
 
 	// When thing2 returns
-	funcCall2.Call.Return()
+	funcCall2.DependencyCall.Return()
 
 	// Then there are no more calls
 	_, open := <-calls
@@ -105,7 +560,7 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	imp := imptest.NewImp(t, deps)
 
 	// When DoThings is started
-	imp.Start(DoThings, *deps)
+	imp.Start(FuncUnderTest, *deps)
 
 	// Then the functions are called in the following order
 	imp.ExpectCall("Thing1").ExpectArgs().PushReturns()
@@ -131,11 +586,11 @@ func TestNoMoreCalls(t *testing.T) {
 			deps     doThingsDeps
 		)
 
-		deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
-		deps.Thing2, id2 = imptest.WrapFunc(t, thing2, tester.OutputChan)
+		deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
+		deps.Thing2, id2 = imptest.MimicDependency(t, thing2, tester.OutputChan)
 
 		// When DoThings is started
-		tester.Start(DoThings, deps)
+		tester.Start(FuncUnderTest, deps)
 
 		// Then the functions are called in the following order
 		tester.AssertCalled(id1).Return()
@@ -179,8 +634,8 @@ func TestDoThingsAvoidsThings3IfThings2ReturnsFalse(t *testing.T) {
 		deps     doThingsDeps
 	)
 
-	deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
-	deps.Thing4, id4 = imptest.WrapFunc(t, thing4, tester.OutputChan)
+	deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
+	deps.Thing4, id4 = imptest.MimicDependency(t, thing4, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithBranch, deps)
@@ -205,9 +660,9 @@ func TestDoThingsCallsThings3IfThings2ReturnsTrue(t *testing.T) {
 		deps          doThingsDeps
 	)
 
-	deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
-	deps.Thing2, id2 = imptest.WrapFunc(t, thing2, tester.OutputChan)
-	deps.Thing4, id4 = imptest.WrapFunc(t, thing4, tester.OutputChan)
+	deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
+	deps.Thing2, id2 = imptest.MimicDependency(t, thing2, tester.OutputChan)
+	deps.Thing4, id4 = imptest.MimicDependency(t, thing4, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithBranch, deps)
@@ -238,8 +693,8 @@ func TestDoThingsRunsExpectedFuncsWithArgs(t *testing.T) {
 		deps     doThingsDeps
 	)
 
-	deps.Thing5, id5 = imptest.WrapFunc(t, thing5, tester.OutputChan)
-	deps.Thing6, id6 = imptest.WrapFunc(t, thing6, tester.OutputChan)
+	deps.Thing5, id5 = imptest.MimicDependency(t, thing5, tester.OutputChan)
+	deps.Thing6, id6 = imptest.MimicDependency(t, thing6, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithArgs, 1, deps)
@@ -297,7 +752,7 @@ func TestDoThingsWithPanic(t *testing.T) {
 		id1  string
 	)
 
-	deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
+	deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithPanic, deps)
@@ -328,9 +783,9 @@ func TestDoThingsConcurrently(t *testing.T) {
 		id3, id4, id7 string
 	)
 
-	deps.Thing3, id3 = imptest.WrapFunc(t, thing3, tester.OutputChan)
-	deps.Thing4, id4 = imptest.WrapFunc(t, thing4, tester.OutputChan)
-	deps.Thing7, id7 = imptest.WrapFunc(t, thing7, tester.OutputChan)
+	deps.Thing3, id3 = imptest.MimicDependency(t, thing3, tester.OutputChan)
+	deps.Thing4, id4 = imptest.MimicDependency(t, thing4, tester.OutputChan)
+	deps.Thing7, id7 = imptest.MimicDependency(t, thing7, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsConcurrently, deps)
@@ -371,11 +826,11 @@ func TestNestedConcurrentlies(t *testing.T) {
 		id1, id2, id3, id4, id7 string
 	)
 
-	deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
-	deps.Thing2, id2 = imptest.WrapFunc(t, thing2, tester.OutputChan)
-	deps.Thing3, id3 = imptest.WrapFunc(t, thing3, tester.OutputChan)
-	deps.Thing4, id4 = imptest.WrapFunc(t, thing4, tester.OutputChan)
-	deps.Thing7, id7 = imptest.WrapFunc(t, thing7, tester.OutputChan)
+	deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
+	deps.Thing2, id2 = imptest.MimicDependency(t, thing2, tester.OutputChan)
+	deps.Thing3, id3 = imptest.MimicDependency(t, thing3, tester.OutputChan)
+	deps.Thing4, id4 = imptest.MimicDependency(t, thing4, tester.OutputChan)
+	deps.Thing7, id7 = imptest.MimicDependency(t, thing7, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsConcurrentlyNested, deps)
@@ -407,9 +862,9 @@ func TestCallAfterDonePanics(t *testing.T) {
 		id1, id2, id3 string
 	)
 
-	deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
-	deps.Thing2, id2 = imptest.WrapFunc(t, thing2, tester.OutputChan)
-	deps.Thing3, id3 = imptest.WrapFunc(t, thing3, tester.OutputChan)
+	deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
+	deps.Thing2, id2 = imptest.MimicDependency(t, thing2, tester.OutputChan)
+	deps.Thing3, id3 = imptest.MimicDependency(t, thing3, tester.OutputChan)
 
 	orphanReleaseChan := make(chan struct{})
 	testReleaseChan := make(chan struct{})
@@ -474,9 +929,9 @@ func TestDoThingsConcurrentlyFails(t *testing.T) {
 			id3, id4, id7 string
 		)
 
-		deps.Thing3, id3 = imptest.WrapFunc(t, thing3, tester.OutputChan)
-		deps.Thing4, id4 = imptest.WrapFunc(t, thing4, tester.OutputChan)
-		deps.Thing7, id7 = imptest.WrapFunc(t, thing7, tester.OutputChan)
+		deps.Thing3, id3 = imptest.MimicDependency(t, thing3, tester.OutputChan)
+		deps.Thing4, id4 = imptest.MimicDependency(t, thing4, tester.OutputChan)
+		deps.Thing7, id7 = imptest.MimicDependency(t, thing7, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThingsConcurrently, deps)
@@ -539,7 +994,7 @@ func TestMoreSyncCallsFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
+		deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xSync, deps)
@@ -580,7 +1035,7 @@ func TestFewerSyncCallsFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
+		deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xSync, deps)
@@ -630,7 +1085,7 @@ func TestFewerAsyncCallsTimesOut(t *testing.T) {
 			id1  string
 		)
 
-		deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
+		deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xAsync, deps)
@@ -676,7 +1131,7 @@ func TestAssertAfterReturnFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
+		deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xAsync, deps)
@@ -720,12 +1175,12 @@ func TestDoThingsCustom(t *testing.T) {
 		deps doThingsDeps
 	)
 
-	deps.Thing5, _ = imptest.WrapFunc(t,
+	deps.Thing5, _ = imptest.MimicDependency(t,
 		thing5,
 		tester.OutputChan,
 		imptest.WithName("thing5"),
 	)
-	deps.Thing6, id6 = imptest.WrapFunc(t, thing6, tester.OutputChan)
+	deps.Thing6, id6 = imptest.MimicDependency(t, thing6, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsWithArgs, 5, deps)
@@ -782,7 +1237,7 @@ func TestEarlyReturnFails(t *testing.T) {
 			id1  string
 		)
 
-		deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
+		deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThings3xSync, deps)
@@ -1047,13 +1502,13 @@ func TestNestedConcurrentlies2(t *testing.T) {
 		id1, id2, id3, id4, id5, id6, id7 string
 	)
 
-	deps.Thing1, id1 = imptest.WrapFunc(t, thing1, tester.OutputChan)
-	deps.Thing2, id2 = imptest.WrapFunc(t, thing2, tester.OutputChan)
-	deps.Thing3, id3 = imptest.WrapFunc(t, thing3, tester.OutputChan)
-	deps.Thing4, id4 = imptest.WrapFunc(t, thing4, tester.OutputChan)
-	deps.Thing5, id5 = imptest.WrapFunc(t, thing5, tester.OutputChan)
-	deps.Thing6, id6 = imptest.WrapFunc(t, thing6, tester.OutputChan)
-	deps.Thing7, id7 = imptest.WrapFunc(t, thing7, tester.OutputChan)
+	deps.Thing1, id1 = imptest.MimicDependency(t, thing1, tester.OutputChan)
+	deps.Thing2, id2 = imptest.MimicDependency(t, thing2, tester.OutputChan)
+	deps.Thing3, id3 = imptest.MimicDependency(t, thing3, tester.OutputChan)
+	deps.Thing4, id4 = imptest.MimicDependency(t, thing4, tester.OutputChan)
+	deps.Thing5, id5 = imptest.MimicDependency(t, thing5, tester.OutputChan)
+	deps.Thing6, id6 = imptest.MimicDependency(t, thing6, tester.OutputChan)
+	deps.Thing7, id7 = imptest.MimicDependency(t, thing7, tester.OutputChan)
 
 	// When DoThings is started
 	tester.Start(DoThingsConcurrentlyNested2, deps)
@@ -1164,8 +1619,8 @@ func TestDoThingsWithCustomDiffer(t *testing.T) {
 			deps     doThingsDeps
 		)
 
-		deps.Thing5, id5 = imptest.WrapFunc(t, thing5, tester.OutputChan)
-		deps.Thing6, id6 = imptest.WrapFunc(t, thing6, tester.OutputChan)
+		deps.Thing5, id5 = imptest.MimicDependency(t, thing5, tester.OutputChan)
+		deps.Thing6, id6 = imptest.MimicDependency(t, thing6, tester.OutputChan)
 
 		// When DoThings is started
 		tester.Start(DoThingsWithArgs, 1, deps)

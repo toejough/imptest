@@ -28,12 +28,12 @@ import (
 
 // =The Core types and functions that let any of this happen=
 
-// WrapFunc mocks the given function, creating a named coroutine from it, to be used in testing.
+// MimicDependency mocks the given function, creating a named coroutine from it, to be used in testing.
 // The coroutine will yield a Call onto the given YieldedValue channel whenever it is called.
 // This Call can be checked for its name (ID) and args. The calling function will wait for the
 // Call.Return or Call.Panic methods to be called. Calling either of those methods will cause the
 // coroutine to return or panic with the values as passed.
-func WrapFunc[T any](tester Tester, function T, calls chan YieldedValue, options ...WrapOption) (T, string) {
+func MimicDependency[T any](tester Tester, function T, calls chan FuncActivity, options ...WrapOption) (T, string) {
 	opts := WrapOptions{name: getFuncName(function)}
 	for _, o := range options {
 		opts = o(opts)
@@ -46,11 +46,11 @@ func WrapFunc[T any](tester Tester, function T, calls chan YieldedValue, options
 
 	relayer := func(args []reflect.Value) []reflect.Value {
 		// Create a channel to receive injected output values on
-		injectedValueChan := make(chan injectedValue)
+		injectedValueChan := make(chan DependencyResponse)
 
 		// Submit this call to the calls channel
-		calls <- YieldedValue{
-			YieldedCall,
+		calls <- FuncActivity{
+			DependencyCallType,
 			nil,
 			nil,
 			&Call{
@@ -65,7 +65,7 @@ func WrapFunc[T any](tester Tester, function T, calls chan YieldedValue, options
 		outputV := <-injectedValueChan
 
 		switch outputV.Type {
-		case InjectedReturn:
+		case ReturnResponseType:
 			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
 
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
@@ -75,7 +75,7 @@ func WrapFunc[T any](tester Tester, function T, calls chan YieldedValue, options
 
 			return returnValues
 		// if we're supposed to panic, do.
-		case InjectedPanic:
+		case PanicResponseType:
 			panic(outputV.PanicValue)
 		default:
 			panic("imptest failure - unrecognized outputValue type was passed")
@@ -92,28 +92,28 @@ func WrapFunc[T any](tester Tester, function T, calls chan YieldedValue, options
 	return wrapped, opts.name
 }
 
-type YieldedValue struct {
-	Type       YieldType
-	PanicVal   any
-	ReturnVals []any
-	Call       *Call
+type FuncActivity struct {
+	Type           YieldType
+	PanicVal       any
+	ReturnVals     []any
+	DependencyCall *Call
 }
 
-func (out *YieldedValue) String() string {
+func (out *FuncActivity) String() string {
 	switch out.Type {
-	case YieldedCall:
+	case DependencyCallType:
 		return strings.Join([]string{
 			"call to",
-			out.Call.ID,
+			out.DependencyCall.ID,
 			"with args",
-			fmt.Sprintf("%#v", out.Call.Args),
+			fmt.Sprintf("%#v", out.DependencyCall.Args),
 		}, " ")
-	case YieldedReturn:
+	case ReturnActivityType:
 		return strings.Join([]string{
 			"completed & returned with",
 			fmt.Sprintf("%#v", out.ReturnVals),
 		}, " ")
-	case YieldedPanic:
+	case PanicActivityType:
 		return strings.Join([]string{
 			"panicked",
 			"with value",
@@ -127,17 +127,17 @@ func (out *YieldedValue) String() string {
 type YieldType int
 
 const (
-	YieldedReturn YieldType = iota
-	YieldedPanic  YieldType = iota
-	YieldedCall   YieldType = iota
+	ReturnActivityType YieldType = iota
+	PanicActivityType  YieldType = iota
+	DependencyCallType YieldType = iota
 )
 
 type Call struct {
-	ID                string
-	Args              []any
-	injectedValueChan chan injectedValue
-	Type              reflect.Type
-	t                 Tester
+	ID           string
+	Args         []any
+	ResponseChan chan DependencyResponse
+	Type         reflect.Type
+	t            Tester
 }
 
 // Return returns the given values in the func call.
@@ -164,25 +164,25 @@ func (c Call) Return(returnVals ...any) {
 			)
 		}
 	}
-	c.injectedValueChan <- injectedValue{
-		InjectedReturn,
+	c.ResponseChan <- DependencyResponse{
+		ReturnResponseType,
 		returnVals,
 		nil,
 	}
-	close(c.injectedValueChan)
+	close(c.ResponseChan)
 }
 
 // Panic makes the func call result in a panic with the given value.
 func (c Call) Panic(panicVal any) {
-	c.injectedValueChan <- injectedValue{
-		InjectedPanic,
+	c.ResponseChan <- DependencyResponse{
+		PanicResponseType,
 		nil,
 		panicVal,
 	}
-	close(c.injectedValueChan)
+	close(c.ResponseChan)
 }
 
-type injectedValue struct {
+type DependencyResponse struct {
 	Type         injectionType
 	ReturnValues []any
 	PanicValue   any
@@ -191,8 +191,8 @@ type injectedValue struct {
 type injectionType int
 
 const (
-	InjectedReturn injectionType = iota
-	InjectedPanic  injectionType = iota
+	ReturnResponseType injectionType = iota
+	PanicResponseType  injectionType = iota
 )
 
 type WrapOption func(WrapOptions) WrapOptions
@@ -248,7 +248,7 @@ type function any
 func NewFuncTester(tester Tester) *FuncTester {
 	tester.Helper()
 
-	calls := make(chan YieldedValue)
+	calls := make(chan FuncActivity)
 
 	funcTester := new(FuncTester)
 	funcTester.T = tester
@@ -277,8 +277,8 @@ type Tester interface {
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
 	T            Tester
-	OutputChan   chan YieldedValue
-	outputBuffer []YieldedValue
+	OutputChan   chan FuncActivity
+	outputBuffer []FuncActivity
 	bufferMaxLen int
 	Timeout      time.Duration
 	hasReturned  bool
@@ -297,15 +297,15 @@ func (t *FuncTester) Start(function any, args ...any) {
 		defer func() {
 			panicVal := recover()
 			if panicVal != nil {
-				t.OutputChan <- YieldedValue{
-					YieldedPanic,
+				t.OutputChan <- FuncActivity{
+					PanicActivityType,
 					panicVal,
 					nil,
 					nil,
 				}
 			} else {
-				t.OutputChan <- YieldedValue{
-					YieldedReturn,
+				t.OutputChan <- FuncActivity{
+					ReturnActivityType,
 					nil,
 					rVals,
 					nil,
@@ -320,8 +320,8 @@ func (t *FuncTester) Start(function any, args ...any) {
 // Called returns the FuncCall for inspection by the test.
 func (t *FuncTester) Called() Call {
 	for next := range t.iterOut() {
-		if next.Type == YieldedCall {
-			return *next.Call
+		if next.Type == DependencyCallType {
+			return *next.DependencyCall
 		}
 	}
 
@@ -339,15 +339,15 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Ca
 	// for as many things as have been output by the function under test...
 	for next := range t.iterOut() {
 		// was this thing a call?
-		if next.Type != YieldedCall {
+		if next.Type != DependencyCallType {
 			continue
 		}
 		// did it match our expected call id?
-		if next.Call.ID != expectedCallID {
+		if next.DependencyCall.ID != expectedCallID {
 			continue
 		}
 		// were the args matching?
-		diff, err := t.Differ(next.Call.Args, expectedArgs)
+		diff, err := t.Differ(next.DependencyCall.Args, expectedArgs)
 		// was there an error matching the args?
 		if err != nil {
 			t.T.Fatalf("unable to assert arg equality: %s", err.Error())
@@ -360,7 +360,7 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Ca
 
 		// if we got here: this was a call, of the expected name, and the args matched.
 		// return the call.
-		return *next.Call
+		return *next.DependencyCall
 	}
 
 	// if we popped out here, it means there's no other output to iterate, and nothing totally matched.
@@ -404,7 +404,7 @@ func (t *FuncTester) Returned() []any {
 
 	// iterate through the outputs from the function under test, until we find a return
 	for next := range t.iterOut() {
-		if next.Type == YieldedReturn {
+		if next.Type == ReturnActivityType {
 			// register the return
 			t.returnedVals = next.ReturnVals
 			t.hasReturned = true
@@ -456,7 +456,7 @@ func (t *FuncTester) Panicked() any {
 	}
 
 	for next := range t.iterOut() {
-		if next.Type == YieldedPanic {
+		if next.Type == PanicActivityType {
 			t.panickedVal = next.PanicVal
 			t.hasPanicked = true
 
@@ -508,6 +508,7 @@ func (t *FuncTester) Concurrently(funcs ...func()) {
 	t.bufferMaxLen += len(funcs)
 
 	// run each function.
+	// TODO: I think this is broken. we never actually allow simultaneous back and forth between two functions
 	for _, concurrentCheck := range funcs {
 		// reduce the t.bufferMaxLen. The expectation for concurrently is that
 		// you have spun off some goroutines and are managing the expected
@@ -523,8 +524,8 @@ func (t *FuncTester) Concurrently(funcs ...func()) {
 	}
 }
 
-func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
-	return func(yield func(YieldedValue) bool) {
+func (t *FuncTester) iterOut() iter.Seq[FuncActivity] {
+	return func(yield func(FuncActivity) bool) {
 		t.T.Helper()
 
 		nextIndex := 0
@@ -548,7 +549,7 @@ func (t *FuncTester) iterOut() iter.Seq[YieldedValue] {
 }
 
 // nextOutput gets the next output from the queue or the func outputs.
-func (t *FuncTester) nextOutput(nextIndex int) (*YieldedValue, bool) {
+func (t *FuncTester) nextOutput(nextIndex int) (*FuncActivity, bool) {
 	t.T.Helper()
 
 	// if we have more items in the buffer, return the next one.
@@ -594,7 +595,7 @@ func (t *FuncTester) nextOutput(nextIndex int) (*YieldedValue, bool) {
 
 type Differ func(any, any) (string, error)
 
-func formatOutput(outputs []YieldedValue) string {
+func formatOutput(outputs []FuncActivity) string {
 	formatted := []string{}
 
 	for _, funcOut := range outputs {
@@ -786,7 +787,7 @@ func (c *Call2) PushReturns(returns ...any) {
 	c.subcall.Return(returns...)
 }
 
-func wrapFuncField(tester Tester, funcField fieldPair, calls chan YieldedValue) {
+func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) {
 	name := funcField.Type.Name
 
 	// create the function, that when called:
@@ -796,11 +797,11 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan YieldedValue) 
 
 	relayer := func(args []reflect.Value) []reflect.Value {
 		// Create a channel to receive injected output values on
-		injectedValueChan := make(chan injectedValue)
+		injectedValueChan := make(chan DependencyResponse)
 
 		// Submit this call to the calls channel
-		calls <- YieldedValue{
-			YieldedCall,
+		calls <- FuncActivity{
+			DependencyCallType,
 			nil,
 			nil,
 			&Call{
@@ -815,7 +816,7 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan YieldedValue) 
 		outputV := <-injectedValueChan
 
 		switch outputV.Type {
-		case InjectedReturn:
+		case ReturnResponseType:
 			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
 
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
@@ -831,7 +832,7 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan YieldedValue) 
 
 			return returnValues
 		// if we're supposed to panic, do.
-		case InjectedPanic:
+		case PanicResponseType:
 			panic(outputV.PanicValue)
 		default:
 			panic("imptest failure - unrecognized outputValue type was passed")
