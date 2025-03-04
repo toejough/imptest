@@ -2,16 +2,11 @@
 package imptest
 
 import (
-	"encoding/json"
 	"fmt"
-	"iter"
 	"reflect"
 	"runtime"
-	"slices"
 	"strings"
 	"time"
-
-	"github.com/muesli/reflow/indent"
 )
 
 // Error philosophy:
@@ -50,7 +45,7 @@ func MimicDependency[T any](tester Tester, function T, calls chan FuncActivity, 
 
 		// Submit this call to the calls channel
 		calls <- FuncActivity{
-			DependencyCallType,
+			DependencyCallActivityType,
 			nil,
 			nil,
 			&Call{
@@ -99,37 +94,13 @@ type FuncActivity struct {
 	DependencyCall *Call
 }
 
-func (out *FuncActivity) String() string {
-	switch out.Type {
-	case DependencyCallType:
-		return strings.Join([]string{
-			"call to",
-			out.DependencyCall.ID,
-			"with args",
-			fmt.Sprintf("%#v", out.DependencyCall.Args),
-		}, " ")
-	case ReturnActivityType:
-		return strings.Join([]string{
-			"completed & returned with",
-			fmt.Sprintf("%#v", out.ReturnVals),
-		}, " ")
-	case PanicActivityType:
-		return strings.Join([]string{
-			"panicked",
-			"with value",
-			fmt.Sprintf("%#v", out.PanicVal),
-		}, " ")
-	default:
-		panic("got an unexpected output type")
-	}
-}
-
 type YieldType int
 
 const (
-	ReturnActivityType YieldType = iota
-	PanicActivityType  YieldType = iota
-	DependencyCallType YieldType = iota
+	noActivityType             YieldType = iota
+	ReturnActivityType         YieldType = iota
+	PanicActivityType          YieldType = iota
+	DependencyCallActivityType YieldType = iota
 )
 
 type Call struct {
@@ -141,7 +112,7 @@ type Call struct {
 }
 
 // Return returns the given values in the func call.
-func (c Call) Return(returnVals ...any) {
+func (c *Call) Return(returnVals ...any) {
 	c.t.Helper()
 	// make sure these are at least the right number of returns
 	expectedNumReturns := c.Type.NumOut()
@@ -173,7 +144,7 @@ func (c Call) Return(returnVals ...any) {
 }
 
 // Panic makes the func call result in a panic with the given value.
-func (c Call) Panic(panicVal any) {
+func (c *Call) Panic(panicVal any) {
 	c.ResponseChan <- DependencyResponse{
 		PanicResponseType,
 		nil,
@@ -248,12 +219,11 @@ type function any
 func NewFuncTester(tester Tester) *FuncTester {
 	tester.Helper()
 
-	calls := make(chan FuncActivity)
+	calls := make(chan FuncActivity, 100)
 
 	funcTester := new(FuncTester)
 	funcTester.T = tester
 	funcTester.OutputChan = calls
-	funcTester.bufferMaxLen = 1
 	// I want this to be a magic number, it's half a second
 	funcTester.Timeout = 500 * time.Millisecond //nolint:mnd,gomnd
 	funcTester.Differ = func(actual, expected any) (string, error) {
@@ -276,16 +246,10 @@ type Tester interface {
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
-	T            Tester
-	OutputChan   chan FuncActivity
-	outputBuffer []FuncActivity
-	bufferMaxLen int
-	Timeout      time.Duration
-	hasReturned  bool
-	returnedVals []any
-	hasPanicked  bool
-	panickedVal  any
-	Differ       Differ
+	T          Tester
+	OutputChan chan FuncActivity
+	Timeout    time.Duration
+	Differ     Differ
 }
 
 // Start starts the function.
@@ -311,302 +275,15 @@ func (t *FuncTester) Start(function any, args ...any) {
 					nil,
 				}
 			}
+
+			close(t.OutputChan)
 		}()
 
 		rVals = callFunc(function, args)
 	}()
 }
 
-// Called returns the FuncCall for inspection by the test.
-func (t *FuncTester) Called() Call {
-	for next := range t.iterOut() {
-		if next.Type == DependencyCallType {
-			return *next.DependencyCall
-		}
-	}
-
-	t.T.Fatalf("Expected a call, but none was found. Yielded outputs from the function: %s", formatOutput(t.outputBuffer))
-
-	panic("should never get here - the code within the iterator will panic if we can't get a good value")
-}
-
-// AssertCalled asserts that the passed in fuction and args match.
-func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Call {
-	t.T.Helper()
-
-	diffs := []string{}
-
-	// for as many things as have been output by the function under test...
-	for next := range t.iterOut() {
-		// was this thing a call?
-		if next.Type != DependencyCallType {
-			continue
-		}
-		// did it match our expected call id?
-		if next.DependencyCall.ID != expectedCallID {
-			continue
-		}
-		// were the args matching?
-		diff, err := t.Differ(next.DependencyCall.Args, expectedArgs)
-		// was there an error matching the args?
-		if err != nil {
-			t.T.Fatalf("unable to assert arg equality: %s", err.Error())
-		}
-		// if there was a difference from expectations, record it & try again
-		if diff != "" {
-			diffs = append(diffs, diff)
-			continue
-		}
-
-		// if we got here: this was a call, of the expected name, and the args matched.
-		// return the call.
-		return *next.DependencyCall
-	}
-
-	// if we popped out here, it means there's no other output to iterate, and nothing totally matched.
-	// if we have diffs, it means we _did_ find the matching call, but the args were different.
-	// the most common case is a sequential test, in which we found the one matching call, but the args were different...
-	// ... handle that messaging.
-	const spacesToIndent = 4
-	if len(diffs) == 1 {
-		t.T.Fatalf(
-			"Found expected call to %s, but the args differed:\n%s",
-			expectedCallID, indent.String(diffs[0], spacesToIndent),
-		)
-	}
-	// if we have no diffs, it means we _did not_ find the matching call.
-	if len(diffs) == 0 {
-		t.T.Fatalf(
-			"Failed to find expected call to %s. Instead found the following output from the function under test:\n%s",
-			expectedCallID, indent.String(formatOutput(t.outputBuffer), spacesToIndent),
-		)
-	}
-	// the final case is if we have multiple diffs, we found multiple matching calls, but they all had differing args.
-	t.T.Fatalf(
-		"Found multiple call to %s, but the args differed in each case:\n%s",
-		expectedCallID, indent.String(strings.Join(diffs, "\n"), spacesToIndent),
-	)
-
-	panic("should never get here - the code within the iterator will panic if we can't get a good value")
-}
-
-func (t *FuncTester) Close() {
-	// drain any remaining send that's still open
-	// shouldn't be necessary...
-	<-t.OutputChan
-	close(t.OutputChan)
-}
-
-func (t *FuncTester) Returned() []any {
-	t.T.Helper()
-
-	// if we already registered a return, then just return that
-	if t.hasReturned {
-		return t.returnedVals
-	}
-
-	// iterate through the outputs from the function under test, until we find a return
-	for next := range t.iterOut() {
-		if next.Type == ReturnActivityType {
-			// register the return
-			t.returnedVals = next.ReturnVals
-			t.hasReturned = true
-
-			// return the return!
-			return t.returnedVals
-		}
-	}
-
-	// error if there was no return
-	t.T.Fatalf(
-		"Expected a return, but none was found. Yielded outputs from the function: %s",
-		formatOutput(t.outputBuffer),
-	)
-
-	panic("should never get here - linters just can't know that the test functions will panic")
-}
-
-// AssertReturned asserts that the function under test returned the given values.
-func (t *FuncTester) AssertReturned(expectedReturnValues ...any) {
-	t.T.Helper()
-
-	returnVals := t.Returned()
-
-	diff, err := t.Differ(expectedReturnValues, returnVals)
-	if err != nil {
-		t.T.Fatalf("unable to assert return value equality: %s", err.Error())
-	}
-
-	if diff != "" {
-		t.T.Fatalf("\n"+
-			"Looking for the function to return\n"+
-			"  with %#v,\n"+
-			"but it returned with %#v instead.\n"+
-			"diff: %s",
-			expectedReturnValues,
-			returnVals,
-			diff,
-		)
-	}
-}
-
-// Panicked returns the panicked value.
-func (t *FuncTester) Panicked() any {
-	t.T.Helper()
-
-	if t.hasPanicked {
-		return t.panickedVal
-	}
-
-	for next := range t.iterOut() {
-		if next.Type == PanicActivityType {
-			t.panickedVal = next.PanicVal
-			t.hasPanicked = true
-
-			return t.panickedVal
-		}
-	}
-
-	// error if there was no panic
-	t.T.Fatalf(
-		"Expected a panic, but none was found. Yielded outputs from the function: %s",
-		formatOutput(t.outputBuffer),
-	)
-
-	panic("should never get here - the code within the iterator will panic if we can't get a good value")
-}
-
-// AssertPanicked asserts that the function under test paniced with the given value.
-func (t *FuncTester) AssertPanicked(expectedPanic any) {
-	t.T.Helper()
-
-	panicVal := t.Panicked()
-
-	diff, err := t.Differ(expectedPanic, panicVal)
-	if err != nil {
-		t.T.Fatalf("unable to assert panic value equality: %s", err.Error())
-	}
-
-	if diff != "" {
-		t.T.Fatalf("\n"+
-			"Looking for the function to panic\n"+
-			"  with %#v,\n"+
-			"but it panicked with %#v instead.\n"+
-			"diff: %s",
-			expectedPanic,
-			panicVal,
-			diff,
-		)
-	}
-}
-
-// Concurrently marks the current size of the call queue, such that assertion
-// calls made within the passed functions only start from the marked location
-// in the queue. It also limits the maximum size of the queue by the number of
-// concurrent functions that have yet to complete. It is nestable - nested
-// calls to Concurrently will push a new mark onto a queue of marks, and pop it
-// off when complete.
-func (t *FuncTester) Concurrently(funcs ...func()) {
-	// add len(funcs) for each func we just added
-	t.bufferMaxLen += len(funcs)
-
-	// run each function.
-	// TODO: I think this is broken. we never actually allow simultaneous back and forth between two functions
-	for _, concurrentCheck := range funcs {
-		// reduce the t.bufferMaxLen. The expectation for concurrently is that
-		// you have spun off some goroutines and are managing the expected
-		// concurrent calls now from within the concurrently's functions.
-		// Imagine each expected goroutine has a concurrent-call token. For the
-		// first iteration, then, we're removing the calling goroutine's token.
-		// Subsequent loops remove the prior function's token. That leaves a
-		// single token at the end of the cycle, which is effectively returned
-		// to the calling goroutine.
-		t.bufferMaxLen--
-		// run the func!
-		concurrentCheck()
-	}
-}
-
-func (t *FuncTester) iterOut() iter.Seq[FuncActivity] {
-	return func(yield func(FuncActivity) bool) {
-		t.T.Helper()
-
-		nextIndex := 0
-
-		for {
-			next, ok := t.nextOutput(nextIndex)
-			if !ok {
-				return
-			}
-
-			if !yield(*next) {
-				// if we don't want to keep going, we've found the match we want. remove it from the buffer!
-				t.outputBuffer = slices.Delete(t.outputBuffer, nextIndex, nextIndex+1)
-
-				return
-			}
-
-			nextIndex++
-		}
-	}
-}
-
-// nextOutput gets the next output from the queue or the func outputs.
-func (t *FuncTester) nextOutput(nextIndex int) (*FuncActivity, bool) {
-	t.T.Helper()
-
-	// if we have more items in the buffer, return the next one.
-	if nextIndex < len(t.outputBuffer) {
-		return &t.outputBuffer[nextIndex], true
-	}
-
-	// if we're allowed to pull more, pull, add to the buffer, and return what was pulled.
-	for len(t.outputBuffer) < t.bufferMaxLen {
-		select {
-		case actualOutput, open := <-t.OutputChan:
-			if !open {
-				t.T.Fatal("expected an output to be available, but the outputs channel was already closed")
-				panic("only necessary because nilchecker doesn't know what to do with my mocked tester")
-			}
-
-			t.outputBuffer = append(t.outputBuffer, actualOutput)
-
-			return &actualOutput, true
-		case <-time.After(t.Timeout):
-			logMessage := fmt.Sprintf(
-				"\n"+
-					"Looking for output\n"+
-					"but the test timed out with a queue with %s.\n"+
-					"bufferMaxLen: %d.\n"+
-					"bufferNextIndex: %d\n"+
-					"timeout: %v",
-				formatOutput(t.outputBuffer),
-				t.bufferMaxLen,
-				nextIndex,
-				t.Timeout,
-			)
-
-			t.T.Fatalf(logMessage)
-			// t.T.Fatalf("expected a call to be available, but the test timed out waiting after %v", t.timeout)
-			panic("only necessary because linters don't know what to do with my mocked tester")
-		}
-	}
-
-	// if we're not allowed to pull more, return not ok
-	return nil, false
-}
-
 type Differ func(any, any) (string, error)
-
-func formatOutput(outputs []FuncActivity) string {
-	formatted := []string{}
-
-	for _, funcOut := range outputs {
-		formatted = append(formatted, funcOut.String())
-	}
-
-	return "\n\t" + strings.Join(formatted, "\n\t")
-}
 
 // callFunc calls the given function with the given args, and returns the return values from that callFunc.
 func callFunc(f function, args []any) []any {
@@ -629,7 +306,7 @@ func reflectValuesOf(args []any) []reflect.Value {
 
 func NewImp(tester Tester, funcStructs ...any) *Tester2 {
 	ftester := NewFuncTester(tester)
-	tester2 := &Tester2{ft: ftester}
+	tester2 := &Tester2{ft: ftester, Concurrency: 1}
 
 	for _, fs := range funcStructs {
 		// get all methods of the funcStructs
@@ -670,13 +347,7 @@ type fieldPair struct {
 
 type Tester2 struct {
 	ft          *FuncTester
-	concurrency int
-}
-
-func (t *Tester2) ExpectCall(f string) *Call2 {
-	// TODO: collapse tester2 stuff, we shouldn't need to care about "subcall"
-	c := &Call2{t: t, f: f}
-	return c
+	Concurrency int
 }
 
 func (t *Tester2) Start(f any, args ...any) *Tester2 {
@@ -686,148 +357,158 @@ func (t *Tester2) Start(f any, args ...any) *Tester2 {
 	return t
 }
 
-func (t *Tester2) Concurrently(f ...func()) {
-	// t.concurrency += len(f) - 1
-	// // run each function in own goroutine, don't return till they're all done.
-	// wg := sync.WaitGroup{}
-	// wg.Add(len(f))
-	// for i := range f {
-	// 	go func() {
-	// 		f[i]()
-	// 		wg.Done()
-	// 	}()
-	// }
-	t.ft.Concurrently(f...)
-}
+func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
+	t.ft.T.Helper()
+	t.ft.T.Logf("receiving call")
 
-func (t *Tester2) Close() {
-	t.ft.Close()
-}
+	errors := []string{}
+	activities := []FuncActivity{}
 
-func (t *Tester2) ReceiveCall(f string, args ...any) *Call2 {
-	c := &Call2{t: t, f: f}
-	c.t.ft.T.Helper()
-	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+	for {
+		t.ft.T.Logf("looping in call")
+		activity := <-t.ft.OutputChan
+		if activity.Type != DependencyCallActivityType {
+			errors = append(errors, "Expected to receive a dependency call but instead received...FIXME")
+			activities = append(activities, activity)
 
-	return c
+			if len(errors) >= t.Concurrency {
+				t.ft.T.Fatalf(strings.Join(errors, "\n"))
+			}
+
+			continue
+		}
+
+		// and the dependency call is to the mimicked dependency
+		if activity.DependencyCall.ID != expectedCallID {
+			errors = append(errors, fmt.Sprintf("Expected to receive a call to %s, but instead received a call to %s", expectedCallID, activity.DependencyCall.ID))
+			activities = append(activities, activity)
+
+			if len(errors) >= t.Concurrency {
+				t.ft.T.Fatalf(strings.Join(errors, "\n"))
+			}
+
+			continue
+		}
+
+		expected := expectedArgs
+		actual := activity.DependencyCall.Args
+
+		if !reflect.DeepEqual(actual, expected) {
+			errors = append(errors, fmt.Sprintf("mismatched args. actual: %#v\nexpected: %#v", actual, expected))
+			activities = append(activities, activity)
+
+			if len(errors) >= t.Concurrency {
+				t.ft.T.Fatalf(strings.Join(errors, "\n"))
+			}
+
+			continue
+		}
+
+		for i := range activities {
+			t.ft.T.Logf("putting an activity back on the queue")
+			t.ft.OutputChan <- activities[i]
+		}
+
+		return activity.DependencyCall
+	}
 }
 
 func (t *Tester2) ReceiveReturn(returned ...any) {
-	t.ft.AssertReturned(returned...)
+	t.ft.T.Helper()
+	t.ft.T.Logf("receiving return")
+
+	errors := []string{}
+	activities := []FuncActivity{}
+
+	for {
+		t.ft.T.Logf("looping in return")
+		activity := <-t.ft.OutputChan
+		if activity.Type != ReturnActivityType {
+			errors = append(errors, fmt.Sprintf("Expected to receive a return activity but instead received...FIXME"))
+			activities = append(activities, activity)
+
+			if len(errors) >= t.Concurrency {
+				t.ft.T.Fatalf(strings.Join(errors, "\n"))
+			}
+
+			continue
+		}
+
+		expected := returned
+		actual := activity.ReturnVals
+
+		if !reflect.DeepEqual(actual, expected) {
+			errors = append(errors, fmt.Sprintf("Mismatched returns. actual: %#v\nexpected: %#v", actual, expected))
+			activities = append(activities, activity)
+
+			if len(errors) >= t.Concurrency {
+				t.ft.T.Fatalf(strings.Join(errors, "\n"))
+			}
+
+			continue
+		}
+
+		for i := range activities {
+			t.ft.T.Logf("putting an activity back on the queue")
+			t.ft.OutputChan <- activities[i]
+		}
+
+		return
+	}
 }
 
 func (t *Tester2) ReceivePanic(panicValue any) {
-	t.ft.AssertPanicked(panicValue)
-}
+	t.ft.T.Helper()
+	t.ft.T.Logf("receiving panic")
 
-func (t *Tester2) ExpectReturns(returned ...any) {
-	t.ft.AssertReturned(returned...)
-}
+	errors := []string{}
+	activities := []FuncActivity{}
 
-type Call2 struct {
-	t       *Tester2
-	f       string
-	subcall Call `exhaustruct:"optional"`
-}
+	for {
+		t.ft.T.Logf("looping in panic")
+		activity := <-t.ft.OutputChan
+		if activity.Type != PanicActivityType {
+			errors = append(errors, fmt.Sprintf("Expected to receive a panic activity but instead received...FIXME"))
+			activities = append(activities, activity)
 
-func (c *Call2) ExpectArgs(args ...any) *Call2 {
-	c.subcall = c.t.ft.AssertCalled(c.f, args...)
-	c.subcall.t.Helper()
+			if len(errors) >= t.Concurrency {
+				t.ft.T.Fatalf(strings.Join(errors, "\n"))
+			}
 
-	return c
-}
+			continue
+		}
 
-func (c *Call2) ExpectArgsJSON(args ...any) *Call2 {
-	c.t.ft.T.Helper()
+		expected := panicValue
+		actual := activity.PanicVal
 
-	originalDiffer := c.t.ft.Differ
-	defer func() { c.t.ft.Differ = originalDiffer }()
+		if !reflect.DeepEqual(actual, expected) {
+			errors = append(errors, fmt.Sprintf("Mismatched panic value. actual: %#v\nexpected: %#v", actual, expected))
+			activities = append(activities, activity)
 
-	c.t.ft.Differ = jsonDiffer
-	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+			if len(errors) >= t.Concurrency {
+				t.ft.T.Fatalf(strings.Join(errors, "\n"))
+			}
 
-	return c
-}
+			continue
+		}
 
-func (c *Call2) ExpectArgsFmt(args ...any) *Call2 {
-	c.t.ft.T.Helper()
+		for i := range activities {
+			t.ft.T.Logf("putting an activity back on the queue")
+			t.ft.OutputChan <- activities[i]
+		}
 
-	originalDiffer := c.t.ft.Differ
-	defer func() { c.t.ft.Differ = originalDiffer }()
-
-	c.t.ft.Differ = fmtDiffer
-	c.subcall = c.t.ft.AssertCalled(c.f, args...)
-
-	return c
-}
-
-func fmtDiffer(actual, expected any) (string, error) {
-	var actualString, expectedString string
-
-	actualArr, isArray := actual.([]any)
-	if isArray {
-		actualString = fmtArray(actualArr)
-	} else {
-		actualString = fmt.Sprintf("%v", actual)
+		return
 	}
-
-	expectedArr, isArray := expected.([]any)
-
-	if isArray {
-		expectedString = fmtArray(expectedArr)
-	} else {
-		expectedString = fmt.Sprintf("%v", expected)
-	}
-
-	const spacesToIndent = 4
-	if actualString != expectedString {
-		return fmt.Sprintf(
-			"actual: \n%s\nexpected: \n%s",
-			indent.String(actualString, spacesToIndent), indent.String(expectedString, spacesToIndent),
-		), nil
-	}
-
-	return "", nil
 }
 
-func fmtArray(aa []any) string {
-	formattedArray := []string{}
-	for i := range aa {
-		formattedArray = append(formattedArray, fmt.Sprintf("%v", aa[i]))
-	}
-
-	return strings.Join(formattedArray, "\n")
+func (c *Call) SendReturn(returns ...any) {
+	c.t.Helper()
+	c.Return(returns...)
 }
 
-func jsonDiffer(actual, expected any) (string, error) {
-	actualJSON, err := json.MarshalIndent(actual, "", "    ")
-	if err != nil {
-		return "", fmt.Errorf("unable to diff %#v and %#v: error converting the first to json: %w", actual, expected, err)
-	}
-
-	expectedJSON, err := json.MarshalIndent(expected, "", "    ")
-	if err != nil {
-		return "", fmt.Errorf("unable to diff %#v and %#v: error converting the second to json: %w", actual, expected, err)
-	}
-
-	actualString := string(actualJSON)
-	expectedString := string(expectedJSON)
-
-	if actualString != expectedString {
-		return fmt.Sprintf("actual: %s\nexpected: %s", actualString, expectedString), nil
-	}
-
-	return "", nil
-}
-
-func (c *Call2) SendReturn(returns ...any) {
-	c.subcall.t.Helper()
-	c.subcall.Return(returns...)
-}
-
-func (c *Call2) SendPanic(panicValue any) {
-	c.subcall.t.Helper()
-	c.subcall.Panic(panicValue)
+func (c *Call) SendPanic(panicValue any) {
+	c.t.Helper()
+	c.Panic(panicValue)
 }
 
 func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) {
@@ -844,7 +525,7 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) 
 
 		// Submit this call to the calls channel
 		calls <- FuncActivity{
-			DependencyCallType,
+			DependencyCallActivityType,
 			nil,
 			nil,
 			&Call{

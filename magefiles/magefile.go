@@ -104,6 +104,7 @@ func Check(c context.Context) error {
 	for _, cmd := range []func(context.Context) error{
 		Tidy,          // clean up the module dependencies
 		Test,          // verify the stuff you explicitly care about works
+		Deadcode,      // verify there's no dead code
 		Lint,          // make it follow the standards you care about
 		CheckNils,     // suss out nils
 		CheckCoverage, // verify desired coverage
@@ -169,6 +170,22 @@ func TodoCheck(c context.Context) error {
 	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
 	// return err
 	return run(c, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
+}
+
+// Deadcode checks that there's no dead code in codebase
+func Deadcode(c context.Context) error {
+	fmt.Println("Checking for dead code...")
+	out, err := output(c, "deadcode", "-test", "./...")
+	if err != nil {
+		return err
+	}
+	fmt.Println(out)
+	lines := strings.Split(out, "\n")
+	if len(lines) > 0 && len(lines[0]) > 0 {
+		return fmt.Errorf("found dead code")
+	}
+
+	return nil
 }
 
 // LintForFail lints the codebase purely to find out whether anything fails
