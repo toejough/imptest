@@ -391,6 +391,9 @@ func (t *FuncTester) AssertCalled(expectedCallID string, expectedArgs ...any) Ca
 }
 
 func (t *FuncTester) Close() {
+	// drain any remaining send that's still open
+	// shouldn't be necessary...
+	<-t.OutputChan
 	close(t.OutputChan)
 }
 
@@ -666,7 +669,8 @@ type fieldPair struct {
 }
 
 type Tester2 struct {
-	ft *FuncTester
+	ft          *FuncTester
+	concurrency int
 }
 
 func (t *Tester2) ExpectCall(f string) *Call2 {
@@ -680,6 +684,40 @@ func (t *Tester2) Start(f any, args ...any) *Tester2 {
 	t.ft.Start(f, args...)
 
 	return t
+}
+
+func (t *Tester2) Concurrently(f ...func()) {
+	// t.concurrency += len(f) - 1
+	// // run each function in own goroutine, don't return till they're all done.
+	// wg := sync.WaitGroup{}
+	// wg.Add(len(f))
+	// for i := range f {
+	// 	go func() {
+	// 		f[i]()
+	// 		wg.Done()
+	// 	}()
+	// }
+	t.ft.Concurrently(f...)
+}
+
+func (t *Tester2) Close() {
+	t.ft.Close()
+}
+
+func (t *Tester2) ReceiveCall(f string, args ...any) *Call2 {
+	c := &Call2{t: t, f: f}
+	c.t.ft.T.Helper()
+	c.subcall = c.t.ft.AssertCalled(c.f, args...)
+
+	return c
+}
+
+func (t *Tester2) ReceiveReturn(returned ...any) {
+	t.ft.AssertReturned(returned...)
+}
+
+func (t *Tester2) ReceivePanic(panicValue any) {
+	t.ft.AssertPanicked(panicValue)
 }
 
 func (t *Tester2) ExpectReturns(returned ...any) {
@@ -782,9 +820,14 @@ func jsonDiffer(actual, expected any) (string, error) {
 	return "", nil
 }
 
-func (c *Call2) PushReturns(returns ...any) {
+func (c *Call2) SendReturn(returns ...any) {
 	c.subcall.t.Helper()
 	c.subcall.Return(returns...)
+}
+
+func (c *Call2) SendPanic(panicValue any) {
+	c.subcall.t.Helper()
+	c.subcall.Panic(panicValue)
 }
 
 func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) {

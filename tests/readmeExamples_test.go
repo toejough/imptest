@@ -13,33 +13,28 @@ import (
 )
 
 // Things Imptest does:
-// function interception
-// wrap func, replace funcs, (generate funcs.)
-
-// output checking
-// get yielded from chan, match call/panic/return with
-
-// responding
-// push response to chan, push return/panic
-
-// concurrency
-// get yielded from chan, run concurrently
+// track activity from function under test
+// match activity to expectations
+// respond to activity
+// support concurrency
 
 // Level 1:
-// wrap func with name option
-// get yielded
-// manually inspect call, panic, return
-// manually build & push return/panic response
-// manually handle concurrency
+// track activity from function under test: wrap dependency funcs to track their calls, manually track return/panic
+// match activity to expectations: receive activity from chan, manually check type, args
+// respond to activity: manually send response type & args to chan
+// support concurrency: manually send activity back to chan if not the one we wanted
 
 // Level 2:
-// wrap struct with names option
-// match call, panic, return with differ & timeout options
-// push return/panic responses
-// handle concurrency with a concurrent call func
+// track activity from function under test: wrap dep structs of funcs to track their calls, auto track return/panic
+// match activity to expectations: receive activity & check type, args via simple sugar funcs
+// respond to activity: send response type & args via simple sugar funcs
+// support concurrency: auto send activity back to chan if not the one we wanted
 
-// Level 3:
-// generate func struct & name struct from interface??
+// Level 3 (not implemented yet):
+// track activity from function under test: generate dep structs of funcs to track their calls
+// match activity to expectations: receive activity & check type, args via complex sugar funcs
+// respond to activity: ???
+// support concurrency: ???
 
 // FuncUnderTest now calls functions from a dependencies struct.
 func FuncUnderTest(deps doThingsDeps) {
@@ -65,9 +60,13 @@ func thing5(int) string { return "" }
 func thing6(string) int { return 0 }
 func thing7(bool)       {}
 
-// TestReceiveDependencyCallSendReturn tests receiving a dependency call and sending a return.
-// ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
-func TestReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
+// ===L1 Tests===
+
+const anyString = "literally anything"
+
+// TestL1ReceiveDependencyCallSendReturn tests receiving a dependency call and sending a return.
+// ignore the linter error about how this test is too long.he point behind the L2 API.
+func TestL1ReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	// Given a function to test
@@ -82,7 +81,7 @@ func TestReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
 	// and a dependency mimic that pushes its calls onto the func activity chan
 	depMimic, depMimicID := imptest.MimicDependency(t, depToMimic, funcActivityChan)
 	// and a string to return from the dependency call
-	returnString := "literally anything"
+	returnString := anyString
 
 	// When we run the function to test with the mimicked dependency
 	go func() {
@@ -136,7 +135,7 @@ func TestReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
 func namedDependencyFunc() string { panic("not implemented") }
 
 // TestMimicCallID verifies the call ID is the func name.
-func TestMimicCallID(t *testing.T) {
+func TestL1MimicCallID(t *testing.T) {
 	t.Parallel()
 
 	// Given a channel to put function activity onto
@@ -155,7 +154,7 @@ func TestMimicCallID(t *testing.T) {
 }
 
 // TestMimicCallIDOverrideOption verifies the call ID is the overridden name.
-func TestMimicCallIDOverrideOption(t *testing.T) {
+func TestL1MimicCallIDOverrideOption(t *testing.T) {
 	t.Parallel()
 
 	// Given a channel to put function activity onto
@@ -179,8 +178,8 @@ func TestMimicCallIDOverrideOption(t *testing.T) {
 }
 
 // TestReceiveDependencyCallSendPanic tests receiving a dependency call and sending a panic.
-// ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
-func TestReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
+// ignore the linter error about how this test is too longthe point behind the L2 API.
+func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 	t.Parallel()
 
 	// Given a function to test
@@ -195,7 +194,7 @@ func TestReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 	// and a dependency mimic that pushes its calls onto the func activity chan
 	depMimic, depMimicID := imptest.MimicDependency(t, depToMimic, funcActivityChan)
 	// and a string to panic from the dependency call
-	panicString := "literally anything"
+	panicString := anyString
 
 	// When we run the function to test with the mimicked dependency
 	go func() {
@@ -249,65 +248,11 @@ func TestReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 // concurrently.
 // ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
 // ignore the linter error about how this test is too complex. It's kind of the point behind the L2 API.
-func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,gocognit,cyclop,maintidx
+func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	t.Parallel()
 
 	// Given a function to test
-	funcToTest := func(ping, pong func() bool) {
-		pingChan := make(chan bool)
-		defer close(pingChan)
-
-		pongChan := make(chan bool)
-		defer close(pongChan)
-
-		wgPingPong := sync.WaitGroup{}
-		pingLoop := func() {
-			// unsynced calls
-			for range 100 {
-				ping()
-			}
-			// synced calls
-			shouldPing := true
-			for shouldPing {
-				pingChan <- ping()
-
-				shouldPing = <-pongChan
-			}
-			pingChan <- false
-			// unsynced calls
-			for range 100 {
-				ping()
-			}
-
-			wgPingPong.Done()
-		}
-		pongLoop := func() {
-			// unsynced calls
-			for range 100 {
-				pong()
-			}
-			// synced calls
-			shouldPong := <-pingChan
-			for shouldPong {
-				pongChan <- pong()
-
-				shouldPong = <-pingChan
-			}
-			// unsynced calls
-			for range 100 {
-				pong()
-			}
-
-			wgPingPong.Done()
-		}
-
-		wgPingPong.Add(2)
-
-		go pingLoop()
-		go pongLoop()
-
-		wgPingPong.Wait()
-	}
+	funcToTest := pingPong
 	// and dependencies to mimic
 	pingToMimic := func() bool { panic("not implemented") }
 	pongToMimic := func() bool { panic("not implemented") }
@@ -490,6 +435,194 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,gocognit,cyclop,m
 	}
 }
 
+func pingPong(ping, pong func() bool) {
+	pingChan := make(chan bool)
+	defer close(pingChan)
+
+	pongChan := make(chan bool)
+	defer close(pongChan)
+
+	wgPingPong := sync.WaitGroup{}
+	pingLoop := func() {
+		// unsynced calls
+		for range 100 {
+			ping()
+		}
+		// synced calls
+		shouldPing := true
+		for shouldPing {
+			pingChan <- ping()
+
+			shouldPing = <-pongChan
+		}
+		pingChan <- false
+		// unsynced calls
+		for range 100 {
+			ping()
+		}
+
+		wgPingPong.Done()
+	}
+	pongLoop := func() {
+		// unsynced calls
+		for range 100 {
+			pong()
+		}
+		// synced calls
+		shouldPong := <-pingChan
+		for shouldPong {
+			pongChan <- pong()
+
+			shouldPong = <-pingChan
+		}
+		// unsynced calls
+		for range 100 {
+			pong()
+		}
+
+		wgPingPong.Done()
+	}
+
+	wgPingPong.Add(2)
+
+	go pingLoop()
+	go pongLoop()
+
+	wgPingPong.Wait()
+}
+
+// ===L2 Tests===
+
+type depStruct1 struct {
+	Dep1 func() string
+}
+
+// TestL2ReceiveCallSendReturn tests matching a dependency call and pushing a return more simply, with a
+// dependency struct.
+func TestL2ReceiveCallSendReturn(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(deps depStruct1) string {
+		return deps.Dep1()
+	}
+	// and a struct of dependenc mimics
+	depsToMimic := depStruct1{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+	// and a string to return from the dependency call
+	returnString := anyString
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+
+	// Then the next thing the function under test does is make a call matching our expectations
+	// When we push a return string
+	imp.ReceiveCall("Dep1").SendReturn(returnString)
+
+	// Then the next thing the function under test does is return values matching our expectations
+	imp.ReceiveReturn(returnString)
+}
+
+// TestL2ReceiveCallSendPanic tests matching a dependency call and pushing a panic more simply, with a
+// dependency struct.
+func TestL2ReceiveCallSendPanic(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(deps depStruct1) string {
+		return deps.Dep1()
+	}
+	// and a struct of dependencies to mimic
+	depsToMimic := depStruct1{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+	// and a string to panic from the dependency call
+	panicString := anyString
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+
+	// Then the next thing the function under test does is make a call matching our expectations
+	// When we push a return string
+	imp.ReceiveCall("Dep1").SendPanic(panicString)
+
+	// Then the next thing the function under test does is return values matching our expectations
+	imp.ReceivePanic(panicString)
+}
+
+type pingPongDeps struct {
+	Ping func() bool
+	Pong func() bool
+}
+
+// TestL2PingPongConcurrency tests using the imp with a funcToTest that calls ping-pong dependencies
+// concurrently.
+func TestL2PingPongConcurrency(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := pingPong
+	// and dependencies to mimic
+	depsToMimic := pingPongDeps{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic.Ping, depsToMimic.Pong)
+
+	imp.Concurrently(func() {
+		// Then we get 100 calls to ping
+		pingCallCount := 0
+		for pingCallCount < 100 {
+			imp.ReceiveCall("Ping").SendReturn(true)
+
+			pingCallCount++
+		}
+	}, func() {
+		// Then we get 100 calls to pong
+		pongCallCount := 0
+		for pongCallCount < 100 {
+			imp.ReceiveCall("Pong").SendReturn(true)
+
+			pongCallCount++
+		}
+	})
+
+	// Then we ping once
+	imp.ReceiveCall("Ping").SendReturn(true)
+
+	// Then we pong once
+	imp.ReceiveCall("Pong").SendReturn(false)
+
+	// Then we get 100 more calls to ping
+	imp.Concurrently(func() {
+		// Then we get 100 calls to ping
+		pingCallCount := 0
+		for pingCallCount < 100 {
+			imp.ReceiveCall("Ping").SendReturn(true)
+
+			pingCallCount++
+		}
+	}, func() {
+		// Then we get 100 calls to pong
+		pongCallCount := 0
+		for pongCallCount < 100 {
+			imp.ReceiveCall("Pong").SendReturn(true)
+
+			pongCallCount++
+		}
+	})
+
+	// Then the next activity from the function under test is its return
+	imp.ReceiveReturn()
+}
+
+// ===Old Tests===
+
 // The test replaces those functions in order to test they are called.
 func TestDoThingsRunsExpectedFuncsInOrder(t *testing.T) {
 	t.Parallel()
@@ -563,8 +696,8 @@ func TestDoThingsRunsExpectedFuncsInOrderSimply(t *testing.T) {
 	imp.Start(FuncUnderTest, *deps)
 
 	// Then the functions are called in the following order
-	imp.ExpectCall("Thing1").ExpectArgs().PushReturns()
-	imp.ExpectCall("Thing2").ExpectArgs().PushReturns()
+	imp.ExpectCall("Thing1").ExpectArgs().SendReturn()
+	imp.ExpectCall("Thing2").ExpectArgs().SendReturn()
 
 	// Then the function returned
 	imp.ExpectReturns()
