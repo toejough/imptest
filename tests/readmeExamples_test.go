@@ -480,18 +480,21 @@ func TestL2ReceiveCallSendReturn(t *testing.T) {
 	depsToMimic := depStruct1{} //nolint:exhaustruct
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
 	// and a string to return from the dependency call
 	returnString := anyString
 
 	// When we run the function to test with the mimicked dependencies
 	imp.Start(funcToTest, depsToMimic)
 
-	// Then the next thing the function under test does is make a call matching our expectations
-	// When we push a return string
-	imp.ReceiveCall("Dep1").SendReturn(returnString)
-
-	// Then the next thing the function under test does is return values matching our expectations
-	imp.ReceiveReturn(returnString)
+	imp.Concurrently(func() {
+		// Then the next thing the function under test does is make a call matching our expectations
+		// When we push a return string
+		imp.ReceiveCall("Dep1").SendReturn(returnString)
+	}, func() {
+		// Then the next thing the function under test does is return values matching our expectations
+		imp.ReceiveReturn(returnString)
+	})
 }
 
 // TestL2ReceiveCallSendPanic tests matching a dependency call and pushing a panic more simply, with a
@@ -507,6 +510,7 @@ func TestL2ReceiveCallSendPanic(t *testing.T) {
 	depsToMimic := depStruct1{} //nolint:exhaustruct
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
 	// and a string to panic from the dependency call
 	panicString := anyString
 
@@ -584,6 +588,65 @@ func TestL2PingPongConcurrency(t *testing.T) {
 
 	// Then the next activity from the function under test is its return
 	imp.Concurrency = 1
+	imp.ReceiveReturn()
+}
+
+// TestL2PingPongConcurrently tests using the funcActivityChan with a funcToTest that calls ping-pong dependencies
+// concurrently.
+func TestL2PingPongConcurrently(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := pingPong
+	// and dependencies to mimic
+	depsToMimic := pingPongDeps{}
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+
+	// When we run the function to test with the mimicked dependency
+	imp.Start(funcToTest, depsToMimic.Ping, depsToMimic.Pong)
+
+	// When we set concurrency to 2
+	imp.Concurrently(func() {
+		// Then we get 100 calls to ping
+		pingCallCount := 0
+		for pingCallCount < 100 {
+			imp.ReceiveCall("Ping").SendReturn(true)
+
+			pingCallCount++
+		}
+		// Then we ping once
+		imp.ReceiveCall("Ping").SendReturn(true)
+
+		// Then we get 100 more calls to ping
+		pingCallCount = 0
+		for pingCallCount < 100 {
+			imp.ReceiveCall("Ping").SendReturn(true)
+
+			pingCallCount++
+		}
+	}, func() {
+		// Then we get 100 calls to pong
+		pongCallCount := 0
+		for pongCallCount < 100 {
+			imp.ReceiveCall("Pong").SendReturn(true)
+
+			pongCallCount++
+		}
+		// Then we pong once
+		imp.ReceiveCall("Pong").SendReturn(false)
+
+		// Then we get 100 more calls to pong
+		pongCallCount = 0
+		for pongCallCount < 100 {
+			imp.ReceiveCall("Pong").SendReturn(true)
+
+			pongCallCount++
+		}
+	})
+
+	// Then the next activity from the function under test is its return
 	imp.ReceiveReturn()
 }
 

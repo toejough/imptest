@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -275,8 +276,6 @@ func (t *FuncTester) Start(function any, args ...any) {
 					nil,
 				}
 			}
-
-			close(t.OutputChan)
 		}()
 
 		rVals = callFunc(function, args)
@@ -306,7 +305,7 @@ func reflectValuesOf(args []any) []reflect.Value {
 
 func NewImp(tester Tester, funcStructs ...any) *Tester2 {
 	ftester := NewFuncTester(tester)
-	tester2 := &Tester2{ft: ftester, Concurrency: 1}
+	tester2 := &Tester2{ft: ftester, Concurrency: 1, expectationChan: make(chan expectation)}
 
 	for _, fs := range funcStructs {
 		// get all methods of the funcStructs
@@ -346,158 +345,239 @@ type fieldPair struct {
 }
 
 type Tester2 struct {
-	ft          *FuncTester
-	Concurrency int
+	ft              *FuncTester
+	Concurrency     int
+	expectationChan chan expectation
+}
+
+type expectation struct {
+	activity     FuncActivity
+	responseChan chan expectationResponse
+}
+
+type expectationResponse struct {
+	match  *FuncActivity
+	misses []FuncActivity
+}
+
+func (t *Tester2) Close() {
+	close(t.ft.OutputChan)
+	close(t.expectationChan)
 }
 
 func (t *Tester2) Start(f any, args ...any) *Tester2 {
 	// start the test
 	t.ft.Start(f, args...)
 
+	// start listening for Receive events
+	// TODO: rewrite. I can have up to t.Concurrency expectations at any time, and the same number of activities.
+	// each update that comes in should trigger a full comparison. If we're at max of any, and no matches, fail all
+	// the expectations.
+	go func() {
+		activityBuffer := []FuncActivity{}
+		expectationBuffer := []expectation{}
+
+		for {
+			matched := false
+			// select on either expectation or action chans
+			select {
+			case expectation, ok := <-t.expectationChan:
+				if !ok {
+					return
+				}
+				expectationBuffer = append(expectationBuffer, expectation)
+			case activity, ok := <-t.ft.OutputChan:
+				if !ok {
+					return
+				}
+				//   put it on the buffer
+				activityBuffer = append(activityBuffer, activity)
+			}
+			// check against eachother
+			for i := range expectationBuffer {
+				expectation := expectationBuffer[i]
+				// if any activity matches
+				matchingActivityIndex := matchActivity(expectation.activity, activityBuffer)
+				if matchingActivityIndex >= 0 {
+					//   remove it from the buffer
+					match := activityBuffer[matchingActivityIndex]
+					activityBuffer = append(activityBuffer[0:matchingActivityIndex], activityBuffer[matchingActivityIndex+1:]...)
+					expectationBuffer = append(expectationBuffer[0:i], expectationBuffer[i+1:]...)
+					//   respond to the receive event with success
+					expectation.responseChan <- expectationResponse{match: &match, misses: nil}
+					matched = true
+					break
+				}
+			}
+			// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
+			if !matched && (len(activityBuffer) >= t.Concurrency || len(expectationBuffer) >= t.Concurrency) && len(activityBuffer) > 0 && len(expectationBuffer) > 0 {
+				for i := range expectationBuffer {
+					expectationBuffer[i].responseChan <- expectationResponse{match: nil, misses: activityBuffer}
+				}
+			}
+		}
+	}()
+
 	return t
+}
+
+func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity) int {
+	for index := range activityBuffer {
+		activity := activityBuffer[index]
+
+		switch expectedActivity.Type {
+		case DependencyCallActivityType:
+			// check type
+			if activity.Type != DependencyCallActivityType {
+				continue
+			}
+
+			// check ID
+			if activity.DependencyCall.ID != expectedActivity.DependencyCall.ID {
+				continue
+			}
+
+			// check args
+			expected := expectedActivity.DependencyCall.Args
+			actual := activity.DependencyCall.Args
+
+			if !reflect.DeepEqual(actual, expected) {
+				continue
+			}
+
+			return index
+		case ReturnActivityType:
+			// check type
+			if activity.Type != ReturnActivityType {
+				continue
+			}
+
+			// check values
+			expected := expectedActivity.ReturnVals
+			actual := activity.ReturnVals
+
+			if !reflect.DeepEqual(actual, expected) {
+				continue
+			}
+
+			return index
+		case PanicActivityType:
+			// check type
+			if activity.Type != PanicActivityType {
+				continue
+			}
+
+			// check value
+			expected := expectedActivity.PanicVal
+			actual := activity.PanicVal
+
+			if !reflect.DeepEqual(actual, expected) {
+				continue
+			}
+
+			return index
+		case noActivityType:
+			return -1
+		}
+	}
+
+	return -1
 }
 
 func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.ft.T.Helper()
 	t.ft.T.Logf("receiving call")
 
-	errors := []string{}
-	activities := []FuncActivity{}
-
-	for {
-		t.ft.T.Logf("looping in call")
-		activity := <-t.ft.OutputChan
-		if activity.Type != DependencyCallActivityType {
-			errors = append(errors, "Expected to receive a dependency call but instead received...FIXME")
-			activities = append(activities, activity)
-
-			if len(errors) >= t.Concurrency {
-				t.ft.T.Fatalf(strings.Join(errors, "\n"))
-			}
-
-			continue
-		}
-
-		// and the dependency call is to the mimicked dependency
-		if activity.DependencyCall.ID != expectedCallID {
-			errors = append(errors, fmt.Sprintf("Expected to receive a call to %s, but instead received a call to %s", expectedCallID, activity.DependencyCall.ID))
-			activities = append(activities, activity)
-
-			if len(errors) >= t.Concurrency {
-				t.ft.T.Fatalf(strings.Join(errors, "\n"))
-			}
-
-			continue
-		}
-
-		expected := expectedArgs
-		actual := activity.DependencyCall.Args
-
-		if !reflect.DeepEqual(actual, expected) {
-			errors = append(errors, fmt.Sprintf("mismatched args. actual: %#v\nexpected: %#v", actual, expected))
-			activities = append(activities, activity)
-
-			if len(errors) >= t.Concurrency {
-				t.ft.T.Fatalf(strings.Join(errors, "\n"))
-			}
-
-			continue
-		}
-
-		for i := range activities {
-			t.ft.T.Logf("putting an activity back on the queue")
-			t.ft.OutputChan <- activities[i]
-		}
-
-		return activity.DependencyCall
+	expected := expectation{
+		FuncActivity{
+			DependencyCallActivityType,
+			nil,
+			nil,
+			&Call{
+				expectedCallID,
+				expectedArgs,
+				nil,
+				nil,
+				nil,
+			},
+		},
+		make(chan expectationResponse),
 	}
+
+	t.expectationChan <- expected
+	response := <-expected.responseChan
+
+	if response.match == nil {
+		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+	}
+
+	return response.match.DependencyCall
 }
 
 func (t *Tester2) ReceiveReturn(returned ...any) {
 	t.ft.T.Helper()
 	t.ft.T.Logf("receiving return")
 
-	errors := []string{}
-	activities := []FuncActivity{}
-
-	for {
-		t.ft.T.Logf("looping in return")
-		activity := <-t.ft.OutputChan
-		if activity.Type != ReturnActivityType {
-			errors = append(errors, fmt.Sprintf("Expected to receive a return activity but instead received...FIXME"))
-			activities = append(activities, activity)
-
-			if len(errors) >= t.Concurrency {
-				t.ft.T.Fatalf(strings.Join(errors, "\n"))
-			}
-
-			continue
-		}
-
-		expected := returned
-		actual := activity.ReturnVals
-
-		if !reflect.DeepEqual(actual, expected) {
-			errors = append(errors, fmt.Sprintf("Mismatched returns. actual: %#v\nexpected: %#v", actual, expected))
-			activities = append(activities, activity)
-
-			if len(errors) >= t.Concurrency {
-				t.ft.T.Fatalf(strings.Join(errors, "\n"))
-			}
-
-			continue
-		}
-
-		for i := range activities {
-			t.ft.T.Logf("putting an activity back on the queue")
-			t.ft.OutputChan <- activities[i]
-		}
-
-		return
+	expected := expectation{
+		FuncActivity{
+			ReturnActivityType,
+			nil,
+			returned,
+			nil,
+		},
+		make(chan expectationResponse),
 	}
+
+	t.expectationChan <- expected
+	response := <-expected.responseChan
+
+	if response.match == nil {
+		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+	}
+
+	return
 }
 
 func (t *Tester2) ReceivePanic(panicValue any) {
 	t.ft.T.Helper()
 	t.ft.T.Logf("receiving panic")
 
-	errors := []string{}
-	activities := []FuncActivity{}
+	expected := expectation{
+		FuncActivity{
+			PanicActivityType,
+			panicValue,
+			nil,
+			nil,
+		},
+		make(chan expectationResponse),
+	}
 
-	for {
-		t.ft.T.Logf("looping in panic")
-		activity := <-t.ft.OutputChan
-		if activity.Type != PanicActivityType {
-			errors = append(errors, fmt.Sprintf("Expected to receive a panic activity but instead received...FIXME"))
-			activities = append(activities, activity)
+	t.expectationChan <- expected
+	response := <-expected.responseChan
 
-			if len(errors) >= t.Concurrency {
-				t.ft.T.Fatalf(strings.Join(errors, "\n"))
-			}
+	if response.match == nil {
+		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+	}
 
-			continue
-		}
+	return
+}
 
-		expected := panicValue
-		actual := activity.PanicVal
+func (t *Tester2) Concurrently(funcs ...func()) {
+	// set up waitgroup
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(len(funcs))
+	defer waitGroup.Wait()
 
-		if !reflect.DeepEqual(actual, expected) {
-			errors = append(errors, fmt.Sprintf("Mismatched panic value. actual: %#v\nexpected: %#v", actual, expected))
-			activities = append(activities, activity)
+	// run the expected call flows
+	for index := range funcs {
+		go func() {
+			defer waitGroup.Done()
+			defer func() { t.Concurrency-- }()
 
-			if len(errors) >= t.Concurrency {
-				t.ft.T.Fatalf(strings.Join(errors, "\n"))
-			}
+			t.Concurrency++
 
-			continue
-		}
-
-		for i := range activities {
-			t.ft.T.Logf("putting an activity back on the queue")
-			t.ft.OutputChan <- activities[i]
-		}
-
-		return
+			funcs[index]()
+		}()
 	}
 }
 
