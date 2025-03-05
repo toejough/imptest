@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -220,7 +221,7 @@ type function any
 func NewFuncTester(tester Tester) *FuncTester {
 	tester.Helper()
 
-	calls := make(chan FuncActivity, 100)
+	calls := make(chan FuncActivity)
 
 	funcTester := new(FuncTester)
 	funcTester.T = tester
@@ -305,7 +306,7 @@ func reflectValuesOf(args []any) []reflect.Value {
 
 func NewImp(tester Tester, funcStructs ...any) *Tester2 {
 	ftester := NewFuncTester(tester)
-	tester2 := &Tester2{ft: ftester, Concurrency: 1, expectationChan: make(chan expectation)}
+	tester2 := &Tester2{ft: ftester, Concurrency: atomic.Int64{}, expectationChan: make(chan expectation)}
 
 	for _, fs := range funcStructs {
 		// get all methods of the funcStructs
@@ -346,7 +347,7 @@ type fieldPair struct {
 
 type Tester2 struct {
 	ft              *FuncTester
-	Concurrency     int
+	Concurrency     atomic.Int64
 	expectationChan chan expectation
 }
 
@@ -410,7 +411,7 @@ func (t *Tester2) Start(f any, args ...any) *Tester2 {
 				}
 			}
 			// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
-			if !matched && (len(activityBuffer) >= t.Concurrency || len(expectationBuffer) >= t.Concurrency) && len(activityBuffer) > 0 && len(expectationBuffer) > 0 {
+			if !matched && (len(activityBuffer) >= int(t.Concurrency.Load()) || len(expectationBuffer) >= int(t.Concurrency.Load())) && len(activityBuffer) > 0 && len(expectationBuffer) > 0 {
 				for i := range expectationBuffer {
 					expectationBuffer[i].responseChan <- expectationResponse{match: nil, misses: activityBuffer}
 				}
@@ -486,7 +487,7 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 
 func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.ft.T.Helper()
-	t.ft.T.Logf("receiving call")
+	// t.ft.T.Logf("receiving call")
 
 	expected := expectation{
 		FuncActivity{
@@ -572,9 +573,9 @@ func (t *Tester2) Concurrently(funcs ...func()) {
 	for index := range funcs {
 		go func() {
 			defer waitGroup.Done()
-			defer func() { t.Concurrency-- }()
+			defer func() { t.Concurrency.Add(-1) }()
 
-			t.Concurrency++
+			t.Concurrency.Add(1)
 
 			funcs[index]()
 		}()
