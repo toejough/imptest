@@ -24,13 +24,14 @@ import (
 // track activity from function under test: wrap dep structs of funcs to track their calls, auto track return/panic
 // match activity to expectations: receive activity & check type, args via simple sugar funcs
 // respond to activity: send response type & args via simple sugar funcs
-// support concurrency: auto send activity back to chan if not the one we wanted
+// support concurrency: auto track and compare expectations to activity
 
 // Level 3 (not implemented yet):
 // track activity from function under test: generate dep structs of funcs to track their calls
-// match activity to expectations: receive activity & check type, args via complex sugar funcs
+// match activity to expectations: complex matchers?
 // respond to activity: ???
 // support concurrency: ???
+
 // ===L1 Tests===.
 const anyString = "literally anything"
 
@@ -59,26 +60,26 @@ func TestL1ReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
 		returnVal := funcToTest(depMimic)
 		// record what the func returns as its final activity
 		funcActivityChan <- imptest.FuncActivity{
-			Type:           imptest.ReturnActivityType,
-			PanicVal:       nil,
-			ReturnVals:     []any{returnVal},
-			DependencyCall: nil,
+			Type:       imptest.ReturnActivityType,
+			PanicVal:   nil,
+			ReturnVals: []any{returnVal},
+			Call:       nil,
 		}
 	}()
 
 	// Then the first activity in the funcActivitychannel is a dependency call
 	activity1 := <-funcActivityChan
-	if activity1.Type != imptest.DependencyCallActivityType {
+	if activity1.Type != imptest.CallActivityType {
 		t.Fail()
 	}
 
 	// and the dependency call is to the mimicked dependency
-	if activity1.DependencyCall.ID != depMimicID {
+	if activity1.Call.ID != depMimicID {
 		t.Fail()
 	}
 
 	// When we push a return string
-	activity1.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+	activity1.Call.ResponseChan <- imptest.CallResponse{
 		Type:         imptest.ReturnResponseType,
 		ReturnValues: []any{returnString},
 		PanicValue:   nil,
@@ -172,10 +173,10 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 			if r := recover(); r != nil {
 				// record what the func panicked as its final activity
 				funcActivityChan <- imptest.FuncActivity{
-					Type:           imptest.PanicActivityType,
-					PanicVal:       r,
-					ReturnVals:     nil,
-					DependencyCall: nil,
+					Type:       imptest.PanicActivityType,
+					PanicVal:   r,
+					ReturnVals: nil,
+					Call:       nil,
 				}
 			}
 		}()
@@ -185,17 +186,17 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 
 	// Then the first activity in the funcActivitychannel is a dependency call
 	activity1 := <-funcActivityChan
-	if activity1.Type != imptest.DependencyCallActivityType {
+	if activity1.Type != imptest.CallActivityType {
 		t.Fail()
 	}
 
 	// and the dependency call is to the mimicked dependency
-	if activity1.DependencyCall.ID != depMimicID {
+	if activity1.Call.ID != depMimicID {
 		t.Fail()
 	}
 
 	// When we push a panic string
-	activity1.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+	activity1.Call.ResponseChan <- imptest.CallResponse{
 		Type:         imptest.PanicResponseType,
 		ReturnValues: nil,
 		PanicValue:   panicString,
@@ -250,10 +251,10 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 		funcToTest(pingMimic, pongMimic)
 		// record that the func returned as its final activity
 		funcActivityChan <- imptest.FuncActivity{
-			Type:           imptest.ReturnActivityType,
-			PanicVal:       nil,
-			ReturnVals:     nil,
-			DependencyCall: nil,
+			Type:       imptest.ReturnActivityType,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call:       nil,
 		}
 	}()
 
@@ -261,12 +262,12 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pingCallCount := 0
 	for pingCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.DependencyCallActivityType {
+		if activity.Type != imptest.CallActivityType {
 			t.Fail()
 		}
 
 		// and the dependency call is to the mimicked dependency
-		if activity.DependencyCall.ID != pingMimicID {
+		if activity.Call.ID != pingMimicID {
 			// if not, push it back on the queue and try again
 			funcActivityChan <- activity
 			continue
@@ -275,7 +276,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 		pingCallCount++
 
 		// When we push a return
-		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		activity.Call.ResponseChan <- imptest.CallResponse{
 			Type:         imptest.ReturnResponseType,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
@@ -286,12 +287,12 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pongCallCount := 0
 	for pongCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.DependencyCallActivityType {
+		if activity.Type != imptest.CallActivityType {
 			t.Fail()
 		}
 
 		// and the dependency call is to the mimicked dependency
-		if activity.DependencyCall.ID != pongMimicID {
+		if activity.Call.ID != pongMimicID {
 			// if not, push it back on the queue and try again
 			funcActivityChan <- activity
 			continue
@@ -300,7 +301,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 		pongCallCount++
 
 		// When we push a return
-		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		activity.Call.ResponseChan <- imptest.CallResponse{
 			Type:         imptest.ReturnResponseType,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
@@ -309,17 +310,17 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 	// Then we ping once
 	pingActivity := <-funcActivityChan
-	if pingActivity.Type != imptest.DependencyCallActivityType {
+	if pingActivity.Type != imptest.CallActivityType {
 		t.Fail()
 	}
 
 	// and the dependency call is to the mimicked dependency
-	if pingActivity.DependencyCall.ID != pingMimicID {
+	if pingActivity.Call.ID != pingMimicID {
 		t.Fail()
 	}
 
 	// When we push a return
-	pingActivity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+	pingActivity.Call.ResponseChan <- imptest.CallResponse{
 		Type:         imptest.ReturnResponseType,
 		ReturnValues: []any{true},
 		PanicValue:   nil,
@@ -327,17 +328,17 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 	// Then we pong once
 	pongActivity := <-funcActivityChan
-	if pongActivity.Type != imptest.DependencyCallActivityType {
+	if pongActivity.Type != imptest.CallActivityType {
 		t.Fail()
 	}
 
 	// and the dependency call is to the mimicked dependency
-	if pongActivity.DependencyCall.ID != pongMimicID {
+	if pongActivity.Call.ID != pongMimicID {
 		t.Fail()
 	}
 
 	// When we push a return
-	pongActivity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+	pongActivity.Call.ResponseChan <- imptest.CallResponse{
 		Type:         imptest.ReturnResponseType,
 		ReturnValues: []any{false},
 		PanicValue:   nil,
@@ -347,12 +348,12 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pingCallCount = 0
 	for pingCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.DependencyCallActivityType {
+		if activity.Type != imptest.CallActivityType {
 			t.Fail()
 		}
 
 		// and the dependency call is to the mimicked dependency
-		if activity.DependencyCall.ID != pingMimicID {
+		if activity.Call.ID != pingMimicID {
 			// if not, push it back on the queue and try again
 			funcActivityChan <- activity
 			continue
@@ -361,7 +362,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 		pingCallCount++
 
 		// When we push a return
-		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		activity.Call.ResponseChan <- imptest.CallResponse{
 			Type:         imptest.ReturnResponseType,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
@@ -372,12 +373,12 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pongCallCount = 0
 	for pongCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.DependencyCallActivityType {
+		if activity.Type != imptest.CallActivityType {
 			t.Fail()
 		}
 
 		// and the dependency call is to the mimicked dependency
-		if activity.DependencyCall.ID != pongMimicID {
+		if activity.Call.ID != pongMimicID {
 			// if not, push it back on the queue and try again
 			funcActivityChan <- activity
 			continue
@@ -386,7 +387,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 		pongCallCount++
 
 		// When we push a return
-		activity.DependencyCall.ResponseChan <- imptest.DependencyResponse{
+		activity.Call.ResponseChan <- imptest.CallResponse{
 			Type:         imptest.ReturnResponseType,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
