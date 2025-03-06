@@ -306,7 +306,7 @@ func reflectValuesOf(args []any) []reflect.Value {
 
 func NewImp(tester Tester, funcStructs ...any) *Tester2 {
 	ftester := NewFuncTester(tester)
-	tester2 := &Tester2{ft: ftester, Concurrency: atomic.Int64{}, expectationChan: make(chan expectation)}
+	tester2 := &Tester2{ft: ftester, concurrency: atomic.Int64{}, expectationChan: make(chan expectation)}
 
 	for _, fs := range funcStructs {
 		// get all methods of the funcStructs
@@ -347,7 +347,7 @@ type fieldPair struct {
 
 type Tester2 struct {
 	ft              *FuncTester
-	Concurrency     atomic.Int64
+	concurrency     atomic.Int64
 	expectationChan chan expectation
 }
 
@@ -370,116 +370,146 @@ func (t *Tester2) Start(f any, args ...any) *Tester2 {
 	// start the test
 	t.ft.Start(f, args...)
 
-	// start listening for Receive events
-	// TODO: rewrite. I can have up to t.Concurrency expectations at any time, and the same number of activities.
-	// each update that comes in should trigger a full comparison. If we're at max of any, and no matches, fail all
-	// the expectations.
-	go func() {
-		activityBuffer := []FuncActivity{}
-		expectationBuffer := []expectation{}
-
-		for {
-			matched := false
-			// select on either expectation or action chans
-			select {
-			case expectation, ok := <-t.expectationChan:
-				if !ok {
-					return
-				}
-				expectationBuffer = append(expectationBuffer, expectation)
-			case activity, ok := <-t.ft.OutputChan:
-				if !ok {
-					return
-				}
-				//   put it on the buffer
-				activityBuffer = append(activityBuffer, activity)
-			}
-			// check against eachother
-			for i := range expectationBuffer {
-				expectation := expectationBuffer[i]
-				// if any activity matches
-				matchingActivityIndex := matchActivity(expectation.activity, activityBuffer)
-				if matchingActivityIndex >= 0 {
-					//   remove it from the buffer
-					match := activityBuffer[matchingActivityIndex]
-					activityBuffer = append(activityBuffer[0:matchingActivityIndex], activityBuffer[matchingActivityIndex+1:]...)
-					expectationBuffer = append(expectationBuffer[0:i], expectationBuffer[i+1:]...)
-					//   respond to the receive event with success
-					expectation.responseChan <- expectationResponse{match: &match, misses: nil}
-					matched = true
-					break
-				}
-			}
-			// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
-			if !matched && (len(activityBuffer) >= int(t.Concurrency.Load()) || len(expectationBuffer) >= int(t.Concurrency.Load())) && len(activityBuffer) > 0 && len(expectationBuffer) > 0 {
-				for i := range expectationBuffer {
-					expectationBuffer[i].responseChan <- expectationResponse{match: nil, misses: activityBuffer}
-				}
-			}
-		}
-	}()
+	go t.matchActivitiesToExpectations()
 
 	return t
+}
+
+func (t *Tester2) matchActivitiesToExpectations() {
+	activities := []FuncActivity{}
+	expectations := []expectation{}
+
+	for {
+		// select on either expectation or action chans
+		//   put it on the buffer
+		var done bool
+		expectations, activities, done = t.updateActivitiesAndExpectations(expectations, activities)
+
+		if done {
+			return
+		}
+		// check against eachother
+		// if any activity matches
+		expectationIndex, activityIndex, matched := matchBuffers(expectations, activities)
+
+		// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
+		activityBufferFull := len(activities) >= int(t.concurrency.Load())
+		expectationBufferFull := len(expectations) >= int(t.concurrency.Load())
+		eitherBufferFull := activityBufferFull || expectationBufferFull
+		shouldBeAMatch := eitherBufferFull && len(activities) > 0 && len(expectations) > 0
+
+		if !matched && shouldBeAMatch {
+			failExpectations(expectations, activities)
+
+			continue
+		}
+
+		// just no match, go back to start
+		if !matched {
+			continue
+		}
+
+		// there was a match - remove the matches from the buffers & respond to the expectation
+		expectation := expectations[expectationIndex]
+		activity := activities[activityIndex]
+		activities = removeFromSlice(activities, activityIndex)
+		expectations = removeFromSlice(expectations, expectationIndex)
+		//   respond to the receive event with success
+		expectation.responseChan <- expectationResponse{match: &activity, misses: nil}
+	}
+}
+
+func (t *Tester2) updateActivitiesAndExpectations(
+	expectations []expectation, activities []FuncActivity,
+) ([]expectation, []FuncActivity, bool) {
+	select {
+	case expectation, ok := <-t.expectationChan:
+		if !ok {
+			return nil, nil, true
+		}
+
+		expectations = append(expectations, expectation)
+	case activity, ok := <-t.ft.OutputChan:
+		if !ok {
+			return nil, nil, true
+		}
+
+		activities = append(activities, activity)
+	}
+
+	return expectations, activities, false
+}
+
+func failExpectations(expectationBuffer []expectation, activityBuffer []FuncActivity) {
+	for i := range expectationBuffer {
+		expectationBuffer[i].responseChan <- expectationResponse{match: nil, misses: activityBuffer}
+	}
+}
+
+func matchBuffers(expectationBuffer []expectation, activityBuffer []FuncActivity) (int, int, bool) {
+	expectationIndex := -1
+	activityIndex := -1
+	matched := false
+
+	for index := range expectationBuffer {
+		expectation := expectationBuffer[index]
+
+		activityIndex = matchActivity(expectation.activity, activityBuffer)
+		if activityIndex >= 0 {
+			expectationIndex = index
+			matched = true
+
+			break
+		}
+	}
+
+	return expectationIndex, activityIndex, matched
+}
+
+func removeFromSlice[T any](slice []T, index int) []T {
+	slice = append(slice[0:index], slice[index+1:]...)
+	return slice
 }
 
 func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity) int {
 	for index := range activityBuffer {
 		activity := activityBuffer[index]
 
+		if activity.Type != expectedActivity.Type {
+			continue
+		}
+
+		var expected, actual any
+
 		switch expectedActivity.Type {
 		case DependencyCallActivityType:
-			// check type
-			if activity.Type != DependencyCallActivityType {
-				continue
-			}
-
 			// check ID
 			if activity.DependencyCall.ID != expectedActivity.DependencyCall.ID {
 				continue
 			}
 
 			// check args
-			expected := expectedActivity.DependencyCall.Args
-			actual := activity.DependencyCall.Args
+			expected = expectedActivity.DependencyCall.Args
+			actual = activity.DependencyCall.Args
 
-			if !reflect.DeepEqual(actual, expected) {
-				continue
-			}
-
-			return index
 		case ReturnActivityType:
-			// check type
-			if activity.Type != ReturnActivityType {
-				continue
-			}
-
 			// check values
-			expected := expectedActivity.ReturnVals
-			actual := activity.ReturnVals
+			expected = expectedActivity.ReturnVals
+			actual = activity.ReturnVals
 
-			if !reflect.DeepEqual(actual, expected) {
-				continue
-			}
-
-			return index
 		case PanicActivityType:
-			// check type
-			if activity.Type != PanicActivityType {
-				continue
-			}
-
 			// check value
-			expected := expectedActivity.PanicVal
-			actual := activity.PanicVal
-
-			if !reflect.DeepEqual(actual, expected) {
-				continue
-			}
-
-			return index
+			expected = expectedActivity.PanicVal
+			actual = activity.PanicVal
 		case noActivityType:
 			return -1
 		}
+
+		if !reflect.DeepEqual(actual, expected) {
+			continue
+		}
+
+		return index
 	}
 
 	return -1
@@ -535,8 +565,6 @@ func (t *Tester2) ReceiveReturn(returned ...any) {
 	if response.match == nil {
 		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
 	}
-
-	return
 }
 
 func (t *Tester2) ReceivePanic(panicValue any) {
@@ -559,8 +587,6 @@ func (t *Tester2) ReceivePanic(panicValue any) {
 	if response.match == nil {
 		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
 	}
-
-	return
 }
 
 func (t *Tester2) Concurrently(funcs ...func()) {
@@ -573,9 +599,9 @@ func (t *Tester2) Concurrently(funcs ...func()) {
 	for index := range funcs {
 		go func() {
 			defer waitGroup.Done()
-			defer func() { t.Concurrency.Add(-1) }()
+			defer func() { t.concurrency.Add(-1) }()
 
-			t.Concurrency.Add(1)
+			t.concurrency.Add(1)
 
 			funcs[index]()
 		}()
