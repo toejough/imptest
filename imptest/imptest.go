@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 // Error philosophy:
@@ -532,18 +531,6 @@ type expectationResponse struct {
 	misses []FuncActivity
 }
 
-// =Test Simplification and readability abstractions=
-
-// Tester contains the *testing.T and the chan FuncCall.
-type FuncTester struct {
-	T          Tester
-	OutputChan chan FuncActivity
-	Timeout    time.Duration
-	Differ     Differ
-}
-
-type Differ func(any, any) (string, error)
-
 // callFunc calls the given function with the given args, and returns the return values from that callFunc.
 func callFunc(f function, args []any) []any {
 	rf := reflect.ValueOf(f)
@@ -643,6 +630,7 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 	return -1
 }
 
+// TODO: use wrapDependencyFunc?
 func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) {
 	name := funcField.Type.Name
 
