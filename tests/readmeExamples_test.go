@@ -637,6 +637,7 @@ func TestL2ReceiveTooFewCalls(t *testing.T) {
 func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 	t.Parallel()
 
+	// ==L2 stuff, which is easier to read but gives you less control==
 	// Given a function to test
 	funcToTest := func(deps depStruct1) string {
 		return deps.Dep1()
@@ -655,6 +656,8 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 	call := imp.ReceiveCall("Dep1")
 	// When we push a return string
 	call.SendReturn(returnString)
+
+	// ==L1 stuff, for when you need more control over matching and failure messaging than L2 allows==
 	// Then the next thing the function under test does is return values matching our expectations
 	functionReturned := <-imp.ActivityChan
 	if functionReturned.Type != imptest.ActivityTypeReturn {
