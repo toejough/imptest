@@ -268,11 +268,10 @@ type function any
 
 // ==L2 Exported Types==.
 type Imp struct {
-	// TODO: remove ft
-	ft              *FuncTester
 	concurrency     atomic.Int64
 	expectationChan chan expectation
 	ActivityChan    chan FuncActivity
+	T               Tester
 }
 
 type Tester interface {
@@ -323,8 +322,8 @@ func (t *Imp) startFunctionUnderTest(function any, args []any) {
 }
 
 func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
-	t.ft.T.Helper()
-	// t.ft.T.Logf("receiving call")
+	t.T.Helper()
+	// t.T.Logf("receiving call")
 
 	expected := expectation{
 		FuncActivity{
@@ -346,15 +345,15 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	response := <-expected.responseChan
 
 	if response.match == nil {
-		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+		t.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
 	}
 
 	return response.match.Call
 }
 
 func (t *Imp) ReceiveReturn(returned ...any) {
-	t.ft.T.Helper()
-	t.ft.T.Logf("receiving return")
+	t.T.Helper()
+	t.T.Logf("receiving return")
 
 	expected := expectation{
 		FuncActivity{
@@ -370,13 +369,13 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 	response := <-expected.responseChan
 
 	if response.match == nil {
-		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+		t.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
 	}
 }
 
 func (t *Imp) ReceivePanic(panicValue any) {
-	t.ft.T.Helper()
-	t.ft.T.Logf("receiving panic")
+	t.T.Helper()
+	t.T.Logf("receiving panic")
 
 	expected := expectation{
 		FuncActivity{
@@ -392,7 +391,7 @@ func (t *Imp) ReceivePanic(panicValue any) {
 	response := <-expected.responseChan
 
 	if response.match == nil {
-		t.ft.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+		t.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
 	}
 }
 
@@ -421,10 +420,10 @@ func (t *Imp) Concurrently(funcs ...func()) {
 func NewImp(tester Tester, funcStructs ...any) *Imp {
 	ftester := NewFuncTester(tester)
 	tester2 := &Imp{
-		ft:              ftester,
 		concurrency:     atomic.Int64{},
 		expectationChan: make(chan expectation),
 		ActivityChan:    ftester.OutputChan,
+		T:               ftester.T,
 	}
 
 	for _, fs := range funcStructs {
