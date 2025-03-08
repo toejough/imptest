@@ -632,3 +632,48 @@ func TestL2ReceiveTooFewCalls(t *testing.T) {
 		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
 	}
 }
+
+// ==Mixed L1/L2 tests demonstrating finer control==.
+func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(deps depStruct1) string {
+		return deps.Dep1()
+	}
+	// and a struct of dependencies to mimic
+	depsToMimic := depStruct1{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+	// and a string to return from the dependency call
+	returnString := anyString
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+	// Then the next thing the function under test does is make a call matching our expectations
+	call := imp.ReceiveCall("Dep1")
+	// When we push a return string
+	call.SendReturn(returnString)
+	// Then the next thing the function under test does is return values matching our expectations
+	functionReturned := <-imp.ActivityChan
+	if functionReturned.Type != imptest.ActivityTypeReturn {
+		t.Fatal("expected a return action but got something else")
+	}
+
+	returns := functionReturned.ReturnVals
+	if len(returns) != 0 {
+		t.Fatalf("Expected only one return but got %d", len(returns))
+	}
+
+	// if this is not a string, the imp would've already complained
+	// in general, if you are asking for the wrong type here, the test _should_ panic.
+	retString := returns[0].(string) //nolint:forcetypeassert
+	if !strings.HasPrefix(retString, returnString) {
+		t.Fatalf(
+			"expected the return string to have a prefix of the sent return from the dependency call (%s),"+
+				"but it didn't. Instead it was just '%s'.",
+			returnString, retString,
+		)
+	}
+}
