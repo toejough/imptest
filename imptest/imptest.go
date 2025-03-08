@@ -423,7 +423,7 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 		concurrency:     atomic.Int64{},
 		expectationChan: make(chan expectation),
 		ActivityChan:    ftester.OutputChan,
-		T:               ftester.T,
+		T:               tester,
 	}
 
 	for _, fs := range funcStructs {
