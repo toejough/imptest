@@ -83,6 +83,7 @@ type MimicOptions struct {
 
 // ==L1 Exported Methods==
 
+// TODO move these to L2 exported methods - these weren't added till we moved to an L2 API
 // SendReturn sends a return response to the mimicked dependency, which will cause it to return with the given values.
 // SendReturn checks for the correct # of values as well as their assignability ot the dependency call's return types.
 // SendReturn closes and clears the response channel for the dependency call when it is done.
@@ -428,7 +429,7 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 	tester2 := &Imp{
 		concurrency:     atomic.Int64{},
 		expectationChan: make(chan expectation),
-		ActivityChan:    make(chan FuncActivity),
+		ActivityChan:    make(chan FuncActivity, defaultActivityBufferSize),
 		T:               tester,
 	}
 
@@ -466,10 +467,16 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 }
 
 // ==L2 Unexported Helpers==.
+const defaultActivityBufferSize = 100 // should be enough concurrency for anyone?
+
 func (t *Imp) matchActivitiesToExpectations() {
 	activities := []FuncActivity{}
 	expectations := []expectation{}
 
+	// while there are expectations that haven't been met, keep pulling activities off to look at them.
+	// if we've exhausted our expectations and still have activities, push them back onto the channel and wait for the
+	// next expectation to land.
+	// need a concurrency buffer option for imp
 	for {
 		// select on either expectation or action chans
 		//   put it on the buffer
@@ -513,19 +520,40 @@ func (t *Imp) matchActivitiesToExpectations() {
 func (t *Imp) updateActivitiesAndExpectations(
 	expectations []expectation, activities []FuncActivity,
 ) ([]expectation, []FuncActivity, bool) {
-	select {
-	case expectation, ok := <-t.expectationChan:
+	// if we are already waiting on an L2 expectation, then pull whatever expectations or activities are ready
+	if len(expectations) > 0 {
+		// pull activities and expectations out
+		select {
+		case expectation, ok := <-t.expectationChan:
+			if !ok {
+				return nil, nil, true
+			}
+
+			expectations = append(expectations, expectation)
+		case activity, ok := <-t.ActivityChan:
+			if !ok {
+				return nil, nil, true
+			}
+
+			activities = append(activities, activity)
+		}
+	} else {
+		// otherwise, push all the waiting activities back:
+		// * we can't use them (no expectations have been set by L2)
+		// * maybe the test wants to use them via L1
+		for i := range activities {
+			t.ActivityChan <- activities[i]
+		}
+
+		activities = []FuncActivity{}
+
+		// Then also wait for an L2 expectation before looking at the activity chan again
+		expectation, ok := <-t.expectationChan
 		if !ok {
 			return nil, nil, true
 		}
 
 		expectations = append(expectations, expectation)
-	case activity, ok := <-t.ActivityChan:
-		if !ok {
-			return nil, nil, true
-		}
-
-		activities = append(activities, activity)
 	}
 
 	return expectations, activities, false

@@ -665,7 +665,7 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 	}
 
 	returns := functionReturned.ReturnVals
-	if len(returns) != 0 {
+	if len(returns) != 1 {
 		t.Fatalf("Expected only one return but got %d", len(returns))
 	}
 
