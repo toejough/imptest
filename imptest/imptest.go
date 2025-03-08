@@ -2,7 +2,6 @@
 package imptest
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
@@ -418,11 +417,10 @@ func (t *Imp) Concurrently(funcs ...func()) {
 
 // NewImp creates a new imp to help you test without being so verbose.
 func NewImp(tester Tester, funcStructs ...any) *Imp {
-	ftester := NewFuncTester(tester)
 	tester2 := &Imp{
 		concurrency:     atomic.Int64{},
 		expectationChan: make(chan expectation),
-		ActivityChan:    ftester.OutputChan,
+		ActivityChan:    make(chan FuncActivity),
 		T:               tester,
 	}
 
@@ -451,7 +449,7 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 
 		// intercept them all
 		for i := range functionFields {
-			wrapFuncField(tester, functionFields[i], ftester.OutputChan)
+			wrapFuncField(tester, functionFields[i], tester2.ActivityChan)
 		}
 	}
 
@@ -535,28 +533,6 @@ type expectationResponse struct {
 }
 
 // =Test Simplification and readability abstractions=
-
-// NewFuncTester returns a newly initialized FuncTester.
-func NewFuncTester(tester Tester) *FuncTester {
-	tester.Helper()
-
-	calls := make(chan FuncActivity)
-
-	funcTester := new(FuncTester)
-	funcTester.T = tester
-	funcTester.OutputChan = calls
-	// I want this to be a magic number, it's half a second
-	funcTester.Timeout = 500 * time.Millisecond //nolint:mnd,gomnd
-	funcTester.Differ = func(actual, expected any) (string, error) {
-		if !reflect.DeepEqual(actual, expected) {
-			return fmt.Sprintf("actual: %#v\nexpected: %#v", actual, expected), nil
-		}
-
-		return "", nil
-	}
-
-	return funcTester
-}
 
 // Tester contains the *testing.T and the chan FuncCall.
 type FuncTester struct {
