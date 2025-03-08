@@ -269,7 +269,6 @@ type function any
 // ==L2 Exported Types==.
 type Imp struct {
 	// TODO: remove ft
-	// TODO: rename Tester2
 	ft              *FuncTester
 	concurrency     atomic.Int64
 	expectationChan chan expectation
