@@ -291,11 +291,37 @@ func (t *Imp) Close() {
 
 func (t *Imp) Start(f any, args ...any) *Imp {
 	// start the test
-	t.ft.Start(f, args...)
+	go t.startFunctionUnderTest(f, args)
 
 	go t.matchActivitiesToExpectations()
 
 	return t
+}
+
+func (t *Imp) startFunctionUnderTest(function any, args []any) {
+	var rVals []any
+
+	// TODO: push this down into callFunc?
+	defer func() {
+		panicVal := recover()
+		if panicVal != nil {
+			t.ActivityChan <- FuncActivity{
+				ActivityTypePanic,
+				panicVal,
+				nil,
+				nil,
+			}
+		} else {
+			t.ActivityChan <- FuncActivity{
+				ActivityTypeReturn,
+				nil,
+				rVals,
+				nil,
+			}
+		}
+	}()
+
+	rVals = callFunc(function, args)
 }
 
 func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
@@ -541,35 +567,6 @@ type FuncTester struct {
 	OutputChan chan FuncActivity
 	Timeout    time.Duration
 	Differ     Differ
-}
-
-// Start starts the function.
-func (t *FuncTester) Start(function any, args ...any) {
-	// record when the func is done so we can test that, too
-	go func() {
-		var rVals []any
-
-		defer func() {
-			panicVal := recover()
-			if panicVal != nil {
-				t.OutputChan <- FuncActivity{
-					ActivityTypePanic,
-					panicVal,
-					nil,
-					nil,
-				}
-			} else {
-				t.OutputChan <- FuncActivity{
-					ActivityTypeReturn,
-					nil,
-					rVals,
-					nil,
-				}
-			}
-		}()
-
-		rVals = callFunc(function, args)
-	}()
 }
 
 type Differ func(any, any) (string, error)
