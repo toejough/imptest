@@ -25,6 +25,10 @@ import (
 
 // ==L1 Types==
 
+// FuncActivity is essentially a union struct representing the various activities the function under test can perform:
+// * panic
+// * return
+// * call a dependency.
 type FuncActivity struct {
 	Type       ActivityType
 	PanicVal   any
@@ -32,15 +36,18 @@ type FuncActivity struct {
 	Call       *Call
 }
 
+// ActivityType represents the known types of activities the function under test can perform.
 type ActivityType int
 
 const (
-	UnsetActivityType  ActivityType = iota
-	ReturnActivityType ActivityType = iota
-	PanicActivityType  ActivityType = iota
-	CallActivityType   ActivityType = iota
+	ActivityTypeUnset ActivityType = iota
+	ActivityTypeReturn
+	ActivityTypePanic
+	ActivityTypeCall
 )
 
+// Call represents a call to a dependency, as well as providing the channel to send the response that
+// the depenency should perform.
 type Call struct {
 	ID           string
 	Args         []any
@@ -49,30 +56,48 @@ type Call struct {
 	t            Tester
 }
 
+// CallResponse is essentially a union struct representing the various responses a mimicked dependency call
+// can be asked to perform:
+// * panic
+// * return.
 type CallResponse struct {
 	Type         ResponseType
-	ReturnValues []any
 	PanicValue   any
+	ReturnValues []any
 }
 
+// ResponseType represents the known types of responses a mimicked dependency call can perform.
 type ResponseType int
 
 const (
-	ReturnResponseType ResponseType = iota
-	PanicResponseType  ResponseType = iota
+	ResponseTypeUnset ResponseType = iota
+	ResponseTypePanic
+	ResponseTypeReturn
 )
 
-type MimicOption func(MimicOptions) MimicOptions
+// MimicOptionModifier is a type representing a function that takes a MimicOptions struct and returns a modified
+// version of that struct.
+type MimicOptionModifier func(MimicOptions) MimicOptions
 
+// MimicOptions is a struct of unexported data to be used by the MimicDependency function.
 type MimicOptions struct {
 	name string
 }
 
 // ==L1 Methods==
 
-// Return returns the given values in the func call.
-func (c *Call) Return(returnVals ...any) {
+// SendReturn sends a return response to the mimicked dependency, which will cause it to return with the given values.
+// SendReturn checks for the correct # of values as well as their assignability ot the dependency call's return types.
+// SendReturn closes and clears the response channel for the dependency call when it is done.
+func (c *Call) SendReturn(returnVals ...any) {
 	c.t.Helper()
+	// clean up after this call
+	defer func() {
+		// close the response channel
+		close(c.ResponseChan)
+		// nil the response channel out
+		c.ResponseChan = nil
+	}()
 	// make sure these are at least the right number of returns
 	expectedNumReturns := c.Type.NumOut()
 	if len(returnVals) != expectedNumReturns {
@@ -94,32 +119,30 @@ func (c *Call) Return(returnVals ...any) {
 			)
 		}
 	}
+	// send the response
 	c.ResponseChan <- CallResponse{
-		ReturnResponseType,
-		returnVals,
-		nil,
+		Type:         ResponseTypeReturn,
+		PanicValue:   nil,
+		ReturnValues: returnVals,
 	}
-	close(c.ResponseChan)
 }
 
-// Panic makes the func call result in a panic with the given value.
-func (c *Call) Panic(panicVal any) {
+// SendPanic sends a panic response to the mimicked dependency, which will cause it to panic with the given value.
+// SendPanic closes and clears the response channel for the dependency call when it is done.
+func (c *Call) SendPanic(panicVal any) {
+	// clean up after this call
+	defer func() {
+		// close the response channel
+		close(c.ResponseChan)
+		// nil the response channel out
+		c.ResponseChan = nil
+	}()
+	// send the response
 	c.ResponseChan <- CallResponse{
-		PanicResponseType,
-		nil,
-		panicVal,
+		Type:         ResponseTypePanic,
+		PanicValue:   panicVal,
+		ReturnValues: nil,
 	}
-	close(c.ResponseChan)
-}
-
-func (c *Call) SendReturn(returns ...any) {
-	c.t.Helper()
-	c.Return(returns...)
-}
-
-func (c *Call) SendPanic(panicValue any) {
-	c.t.Helper()
-	c.Panic(panicValue)
 }
 
 // ==L1 Funcs==
@@ -128,11 +151,11 @@ func (c *Call) SendPanic(panicValue any) {
 // call signature to the dependency on the given activity channel, waits for a response command, and then executes that
 // command by either returning or panicking with the given values.
 func MimicDependency[T any](
-	tester Tester, function T, activityChan chan FuncActivity, options ...MimicOption,
+	tester Tester, function T, activityChan chan FuncActivity, modifiers ...MimicOptionModifier,
 ) (T, string) {
-	opts := MimicOptions{name: getFuncName(function)}
-	for _, o := range options {
-		opts = o(opts)
+	options := MimicOptions{name: getFuncName(function)}
+	for _, modify := range modifiers {
+		options = modify(options)
 	}
 
 	// create the function, that when called:
@@ -146,11 +169,11 @@ func MimicDependency[T any](
 
 		// Submit this call to the calls channel
 		activityChan <- FuncActivity{
-			CallActivityType,
+			ActivityTypeCall,
 			nil,
 			nil,
 			&Call{
-				opts.name,
+				options.name,
 				unreflectValues(args),
 				responseChan,
 				funcType,
@@ -158,23 +181,22 @@ func MimicDependency[T any](
 			},
 		}
 
-		outputV := <-responseChan
+		// wait for a response
+		responseToActivity := <-responseChan
 
-		switch outputV.Type {
-		case ReturnResponseType:
-			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
-
+		// handle the response
+		switch responseToActivity.Type {
+		case ResponseTypeReturn:
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
-			for i, a := range outputV.ReturnValues {
-				returnValues[i] = reflect.ValueOf(a)
-			}
-
-			return returnValues
+			return convertReturnValues(responseToActivity)
 		// if we're supposed to panic, do.
-		case PanicResponseType:
-			panic(outputV.PanicValue)
+		case ResponseTypePanic:
+			panic(responseToActivity.PanicValue)
+		// for unknown or unset response types, panic
+		case ResponseTypeUnset:
+			panic("imptest failure - a ResponseTypeUnset was received")
 		default:
-			panic("imptest failure - unrecognized outputValue type was passed")
+			panic("imptest failure - unrecognized response type was received")
 		}
 	}
 
@@ -185,10 +207,11 @@ func MimicDependency[T any](
 	typedMimic := reflect.MakeFunc(funcType, reflectedMimic).Interface().(T) //nolint:forcetypeassert
 
 	// returns both the wrapped func and the ID
-	return typedMimic, opts.name
+	return typedMimic, options.name
 }
 
-func WithName(name string) MimicOption {
+// WithName is a modifier which sets the dependency's name.
+func WithName(name string) MimicOptionModifier {
 	return func(wo MimicOptions) MimicOptions {
 		wo.name = name
 		return wo
@@ -196,6 +219,16 @@ func WithName(name string) MimicOption {
 }
 
 // ==L1 Helpers==
+
+func convertReturnValues(outputV CallResponse) []reflect.Value {
+	returnValues := make([]reflect.Value, len(outputV.ReturnValues))
+
+	for i, a := range outputV.ReturnValues {
+		returnValues[i] = reflect.ValueOf(a)
+	}
+
+	return returnValues
+}
 
 // getFuncName gets the function's name.
 func getFuncName(f function) string {
@@ -332,7 +365,7 @@ func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call 
 
 	expected := expectation{
 		FuncActivity{
-			CallActivityType,
+			ActivityTypeCall,
 			nil,
 			nil,
 			&Call{
@@ -362,7 +395,7 @@ func (t *Tester2) ReceiveReturn(returned ...any) {
 
 	expected := expectation{
 		FuncActivity{
-			ReturnActivityType,
+			ActivityTypeReturn,
 			nil,
 			returned,
 			nil,
@@ -384,7 +417,7 @@ func (t *Tester2) ReceivePanic(panicValue any) {
 
 	expected := expectation{
 		FuncActivity{
-			PanicActivityType,
+			ActivityTypePanic,
 			panicValue,
 			nil,
 			nil,
@@ -511,14 +544,14 @@ func (t *FuncTester) Start(function any, args ...any) {
 			panicVal := recover()
 			if panicVal != nil {
 				t.OutputChan <- FuncActivity{
-					PanicActivityType,
+					ActivityTypePanic,
 					panicVal,
 					nil,
 					nil,
 				}
 			} else {
 				t.OutputChan <- FuncActivity{
-					ReturnActivityType,
+					ActivityTypeReturn,
 					nil,
 					rVals,
 					nil,
@@ -598,7 +631,7 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 		var expected, actual any
 
 		switch expectedActivity.Type {
-		case CallActivityType:
+		case ActivityTypeCall:
 			// check ID
 			if activity.Call.ID != expectedActivity.Call.ID {
 				continue
@@ -608,16 +641,16 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 			expected = expectedActivity.Call.Args
 			actual = activity.Call.Args
 
-		case ReturnActivityType:
+		case ActivityTypeReturn:
 			// check values
 			expected = expectedActivity.ReturnVals
 			actual = activity.ReturnVals
 
-		case PanicActivityType:
+		case ActivityTypePanic:
 			// check value
 			expected = expectedActivity.PanicVal
 			actual = activity.PanicVal
-		case UnsetActivityType:
+		case ActivityTypeUnset:
 			return -1
 		}
 
@@ -645,7 +678,7 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) 
 
 		// Submit this call to the calls channel
 		calls <- FuncActivity{
-			CallActivityType,
+			ActivityTypeCall,
 			nil,
 			nil,
 			&Call{
@@ -660,7 +693,7 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) 
 		outputV := <-injectedValueChan
 
 		switch outputV.Type {
-		case ReturnResponseType:
+		case ResponseTypeReturn:
 			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
 
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
@@ -676,8 +709,10 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) 
 
 			return returnValues
 		// if we're supposed to panic, do.
-		case PanicResponseType:
+		case ResponseTypePanic:
 			panic(outputV.PanicValue)
+		case ResponseTypeUnset:
+			panic("imptest failure - unrecognized outputValue type was passed")
 		default:
 			panic("imptest failure - unrecognized outputValue type was passed")
 		}

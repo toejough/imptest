@@ -60,7 +60,7 @@ func TestL1ReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
 		returnVal := funcToTest(depMimic)
 		// record what the func returns as its final activity
 		funcActivityChan <- imptest.FuncActivity{
-			Type:       imptest.ReturnActivityType,
+			Type:       imptest.ActivityTypeReturn,
 			PanicVal:   nil,
 			ReturnVals: []any{returnVal},
 			Call:       nil,
@@ -69,7 +69,7 @@ func TestL1ReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
 
 	// Then the first activity in the funcActivitychannel is a dependency call
 	activity1 := <-funcActivityChan
-	if activity1.Type != imptest.CallActivityType {
+	if activity1.Type != imptest.ActivityTypeCall {
 		t.Fail()
 	}
 
@@ -80,14 +80,14 @@ func TestL1ReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
 
 	// When we push a return string
 	activity1.Call.ResponseChan <- imptest.CallResponse{
-		Type:         imptest.ReturnResponseType,
+		Type:         imptest.ResponseTypeReturn,
 		ReturnValues: []any{returnString},
 		PanicValue:   nil,
 	}
 
 	// Then the next activity from the function under test is its return
 	activity2 := <-funcActivityChan
-	if activity2.Type != imptest.ReturnActivityType {
+	if activity2.Type != imptest.ActivityTypeReturn {
 		t.Fail()
 	}
 
@@ -173,7 +173,7 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 			if r := recover(); r != nil {
 				// record what the func panicked as its final activity
 				funcActivityChan <- imptest.FuncActivity{
-					Type:       imptest.PanicActivityType,
+					Type:       imptest.ActivityTypePanic,
 					PanicVal:   r,
 					ReturnVals: nil,
 					Call:       nil,
@@ -186,7 +186,7 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 
 	// Then the first activity in the funcActivitychannel is a dependency call
 	activity1 := <-funcActivityChan
-	if activity1.Type != imptest.CallActivityType {
+	if activity1.Type != imptest.ActivityTypeCall {
 		t.Fail()
 	}
 
@@ -197,14 +197,14 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 
 	// When we push a panic string
 	activity1.Call.ResponseChan <- imptest.CallResponse{
-		Type:         imptest.PanicResponseType,
+		Type:         imptest.ResponseTypePanic,
 		ReturnValues: nil,
 		PanicValue:   panicString,
 	}
 
 	// Then the next activity from the function under test is its panic
 	activity2 := <-funcActivityChan
-	if activity2.Type != imptest.PanicActivityType {
+	if activity2.Type != imptest.ActivityTypePanic {
 		t.Fail()
 	}
 
@@ -251,7 +251,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 		funcToTest(pingMimic, pongMimic)
 		// record that the func returned as its final activity
 		funcActivityChan <- imptest.FuncActivity{
-			Type:       imptest.ReturnActivityType,
+			Type:       imptest.ActivityTypeReturn,
 			PanicVal:   nil,
 			ReturnVals: nil,
 			Call:       nil,
@@ -262,7 +262,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pingCallCount := 0
 	for pingCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.CallActivityType {
+		if activity.Type != imptest.ActivityTypeCall {
 			t.Fail()
 		}
 
@@ -277,7 +277,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 		// When we push a return
 		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ReturnResponseType,
+			Type:         imptest.ResponseTypeReturn,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
 		}
@@ -287,7 +287,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pongCallCount := 0
 	for pongCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.CallActivityType {
+		if activity.Type != imptest.ActivityTypeCall {
 			t.Fail()
 		}
 
@@ -302,7 +302,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 		// When we push a return
 		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ReturnResponseType,
+			Type:         imptest.ResponseTypeReturn,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
 		}
@@ -310,7 +310,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 	// Then we ping once
 	pingActivity := <-funcActivityChan
-	if pingActivity.Type != imptest.CallActivityType {
+	if pingActivity.Type != imptest.ActivityTypeCall {
 		t.Fail()
 	}
 
@@ -321,14 +321,14 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 	// When we push a return
 	pingActivity.Call.ResponseChan <- imptest.CallResponse{
-		Type:         imptest.ReturnResponseType,
+		Type:         imptest.ResponseTypeReturn,
 		ReturnValues: []any{true},
 		PanicValue:   nil,
 	}
 
 	// Then we pong once
 	pongActivity := <-funcActivityChan
-	if pongActivity.Type != imptest.CallActivityType {
+	if pongActivity.Type != imptest.ActivityTypeCall {
 		t.Fail()
 	}
 
@@ -339,7 +339,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 	// When we push a return
 	pongActivity.Call.ResponseChan <- imptest.CallResponse{
-		Type:         imptest.ReturnResponseType,
+		Type:         imptest.ResponseTypeReturn,
 		ReturnValues: []any{false},
 		PanicValue:   nil,
 	}
@@ -348,7 +348,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pingCallCount = 0
 	for pingCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.CallActivityType {
+		if activity.Type != imptest.ActivityTypeCall {
 			t.Fail()
 		}
 
@@ -363,7 +363,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 		// When we push a return
 		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ReturnResponseType,
+			Type:         imptest.ResponseTypeReturn,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
 		}
@@ -373,7 +373,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 	pongCallCount = 0
 	for pongCallCount < 100 {
 		activity := <-funcActivityChan
-		if activity.Type != imptest.CallActivityType {
+		if activity.Type != imptest.ActivityTypeCall {
 			t.Fail()
 		}
 
@@ -388,7 +388,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 		// When we push a return
 		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ReturnResponseType,
+			Type:         imptest.ResponseTypeReturn,
 			ReturnValues: []any{true},
 			PanicValue:   nil,
 		}
@@ -396,7 +396,7 @@ func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
 
 	// Then the next activity from the function under test is its return
 	returnActivity := <-funcActivityChan
-	if returnActivity.Type != imptest.ReturnActivityType {
+	if returnActivity.Type != imptest.ActivityTypeReturn {
 		t.Fail()
 	}
 
