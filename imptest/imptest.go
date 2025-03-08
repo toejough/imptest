@@ -108,10 +108,12 @@ func (c *Call) SendReturn(returnVals ...any) {
 	}
 	// make sure these are at least assignable
 	for rvi := range returnVals {
+		// TODO: mutation test failure - breaking here is fine?
 		actual := reflect.TypeOf(returnVals[rvi])
 		expected := c.Type.Out(rvi)
 
 		if actual != nil && !actual.AssignableTo(expected) {
+			// TODO: failing mutation testing - it doesn't matter if actual is nil?
 			c.t.Fatalf(
 				"unable to push return value %d for the call to %s: a value of type %v was pushed, "+
 					"but that is unassignable to the expected type (%v)",
@@ -414,6 +416,7 @@ func (t *Imp) Concurrently(funcs ...func()) {
 		go func() {
 			defer waitGroup.Done()
 			defer func() { t.concurrency.Add(-1) }()
+			// TODO: mutation testing failing - it doesn't matter if we decrement?!
 
 			t.concurrency.Add(1)
 
@@ -448,12 +451,15 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 		// reduce to fields that are functions
 		functionFields := []fieldPair{}
 
-		for i := range numFields {
-			if fields[i].Type.Type.Kind() != reflect.Func {
+		for index := range numFields {
+			if fields[index].Type.Type.Kind() != reflect.Func {
+				// TODO: we fail mutation testing here with break. we're supposed to continue here because there could
+				// be struct fields that are not functions that we encounter before functions, but we're not testing
+				// that.
 				continue
 			}
 
-			functionFields = append(functionFields, fields[i])
+			functionFields = append(functionFields, fields[index])
 		}
 
 		// intercept them all
@@ -468,6 +474,7 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 
 // ==L2 Unexported Helpers==.
 const defaultActivityBufferSize = 100 // should be enough concurrency for anyone?
+// TODO: IDK how to tell mutation testing to ignore this one - it definitely doesn't matter if this is 100, 99, or 101.
 
 func (t *Imp) matchActivitiesToExpectations() {
 	activities := []FuncActivity{}
@@ -492,13 +499,19 @@ func (t *Imp) matchActivitiesToExpectations() {
 
 		// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
 		activityBufferFull := len(activities) >= int(t.concurrency.Load())
+		// TODO: failing mutation testing with > - we are never hitting a moment where the expectation buffer is exactly
+		// full.
 		expectationBufferFull := len(expectations) >= int(t.concurrency.Load())
 		eitherBufferFull := activityBufferFull || expectationBufferFull
+		// TODO: failing mutation testing with >= - we are never hitting a moment where the len of expectations being >
+		// 0 matters.
 		shouldBeAMatch := eitherBufferFull && len(activities) > 0 && len(expectations) > 0
 
 		if !matched && shouldBeAMatch {
 			failExpectations(expectations, activities)
-
+			// TODO: failed the mutation testing here. We continue because we should be done now, but apparently it doesn't
+			// matter if we break instead? That would mean that the only time our tests fail to meet expectations we
+			// immediately stop anyway, so nothing is dependent on further matches...
 			continue
 		}
 
@@ -542,6 +555,9 @@ func (t *Imp) updateActivitiesAndExpectations(
 		// * we can't use them (no expectations have been set by L2)
 		// * maybe the test wants to use them via L1
 		for i := range activities {
+			// mutation tests fail here?! we are trying to loop through returning activities to the channel - we
+			// apparently don't have any tests that require this, or this part of the loop doesn't matter? I find that
+			// hard to believe - without this, I don't think the L1L2 mix test works...
 			t.ActivityChan <- activities[i]
 		}
 
@@ -602,6 +618,7 @@ func failExpectations(expectationBuffer []expectation, activityBuffer []FuncActi
 func matchBuffers(expectationBuffer []expectation, activityBuffer []FuncActivity) (int, int, bool) {
 	expectationIndex := -1
 	activityIndex := -1
+	// TODO: muatation fail - neither of these ints matter here.
 	matched := false
 
 	for index := range expectationBuffer {
@@ -629,6 +646,10 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 		activity := activityBuffer[index]
 
 		if activity.Type != expectedActivity.Type {
+			// TODO: mutation tests fail here. You can replace this with break?! continue is meant to continue through
+			// the registered activities to keep looking. We apparently don't yet have a test that exercises a case
+			// where there are multiple activities and the first one doesn't match the expected type... or we do and
+			// that doesn't matter?
 			continue
 		}
 
@@ -655,16 +676,23 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 			expected = expectedActivity.PanicVal
 			actual = activity.PanicVal
 		case ActivityTypeUnset:
+			// TODO: mutation test - ignore? IDK - this is handling a case that should never happen. maybe panic here
+			// instead?
 			return -1
 		}
 
 		if !reflect.DeepEqual(actual, expected) {
+			// TODO: mutation tests fail here. You can replace this with break?! continue is meant to continue through
+			// the registered activities to keep looking. We apparently don't yet have a test that exercises a case
+			// where there are multiple activities and the first one doesn't match the expected arguments... or we do and
+			// that doesn't matter?
 			continue
 		}
 
 		return index
 	}
 
+	// TODO: mutation fail - -2 is ok here, and that's fine... we're overlading the index to be useful or not.
 	return -1
 }
 
