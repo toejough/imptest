@@ -616,9 +616,8 @@ func failExpectations(expectationBuffer []expectation, activityBuffer []FuncActi
 }
 
 func matchBuffers(expectationBuffer []expectation, activityBuffer []FuncActivity) (int, int, bool) {
-	expectationIndex := -1
-	activityIndex := -1
-	// TODO: muatation fail - neither of these ints matter here.
+	var expectationIndex, activityIndex int
+
 	matched := false
 
 	for index := range expectationBuffer {
