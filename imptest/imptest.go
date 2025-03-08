@@ -432,7 +432,7 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 	tester2 := &Imp{
 		concurrency:     atomic.Int64{},
 		expectationChan: make(chan expectation),
-		ActivityChan:    make(chan FuncActivity, defaultActivityBufferSize),
+		ActivityChan:    make(chan FuncActivity, constDefaultActivityBufferSize),
 		T:               tester,
 	}
 
@@ -473,7 +473,11 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 }
 
 // ==L2 Unexported Helpers==.
-const defaultActivityBufferSize = 100 // should be enough concurrency for anyone?
+const (
+	constDefaultActivityBufferSize = 100 // should be enough concurrency for anyone?
+	constInvalidIndex              = -1
+)
+
 // TODO: IDK how to tell mutation testing to ignore this one - it definitely doesn't matter if this is 100, 99, or 101.
 
 func (t *Imp) matchActivitiesToExpectations() {
@@ -689,8 +693,7 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 		return index
 	}
 
-	// TODO: mutation fail - -2 is ok here, and that's fine... we're overlading the index to be useful or not.
-	return -1
+	return constInvalidIndex
 }
 
 // replaceFuncFieldWithMimic mimics a given dependency struct func field and replaces it. Instead of a call performing
