@@ -62,6 +62,12 @@ const (
 	PanicResponseType  ResponseType = iota
 )
 
+type MimicOption func(MimicOptions) MimicOptions
+
+type MimicOptions struct {
+	name string
+}
+
 // ==L1 Methods==
 
 // Return returns the given values in the func call.
@@ -104,6 +110,16 @@ func (c *Call) Panic(panicVal any) {
 		panicVal,
 	}
 	close(c.ResponseChan)
+}
+
+func (c *Call) SendReturn(returns ...any) {
+	c.t.Helper()
+	c.Return(returns...)
+}
+
+func (c *Call) SendPanic(panicValue any) {
+	c.t.Helper()
+	c.Panic(panicValue)
 }
 
 // ==L1 Funcs==
@@ -172,12 +188,6 @@ func MimicDependency[T any](
 	return typedMimic, opts.name
 }
 
-type MimicOption func(MimicOptions) MimicOptions
-
-type MimicOptions struct {
-	name string
-}
-
 func WithName(name string) MimicOption {
 	return func(wo MimicOptions) MimicOptions {
 		wo.name = name
@@ -221,30 +231,11 @@ func unreflectValues(rArgs []reflect.Value) []any {
 // function _type_ in go.
 type function any
 
-// ==L2 types==
-
-// =Test Simplification and readability abstractions=
-
-// NewFuncTester returns a newly initialized FuncTester.
-func NewFuncTester(tester Tester) *FuncTester {
-	tester.Helper()
-
-	calls := make(chan FuncActivity)
-
-	funcTester := new(FuncTester)
-	funcTester.T = tester
-	funcTester.OutputChan = calls
-	// I want this to be a magic number, it's half a second
-	funcTester.Timeout = 500 * time.Millisecond //nolint:mnd,gomnd
-	funcTester.Differ = func(actual, expected any) (string, error) {
-		if !reflect.DeepEqual(actual, expected) {
-			return fmt.Sprintf("actual: %#v\nexpected: %#v", actual, expected), nil
-		}
-
-		return "", nil
-	}
-
-	return funcTester
+// ==L2 types==.
+type Tester2 struct {
+	ft              *FuncTester
+	concurrency     atomic.Int64
+	expectationChan chan expectation
 }
 
 type Tester interface {
@@ -254,120 +245,7 @@ type Tester interface {
 	Logf(message string, args ...any)
 }
 
-// Tester contains the *testing.T and the chan FuncCall.
-type FuncTester struct {
-	T          Tester
-	OutputChan chan FuncActivity
-	Timeout    time.Duration
-	Differ     Differ
-}
-
-// Start starts the function.
-func (t *FuncTester) Start(function any, args ...any) {
-	// record when the func is done so we can test that, too
-	go func() {
-		var rVals []any
-
-		defer func() {
-			panicVal := recover()
-			if panicVal != nil {
-				t.OutputChan <- FuncActivity{
-					PanicActivityType,
-					panicVal,
-					nil,
-					nil,
-				}
-			} else {
-				t.OutputChan <- FuncActivity{
-					ReturnActivityType,
-					nil,
-					rVals,
-					nil,
-				}
-			}
-		}()
-
-		rVals = callFunc(function, args)
-	}()
-}
-
-type Differ func(any, any) (string, error)
-
-// callFunc calls the given function with the given args, and returns the return values from that callFunc.
-func callFunc(f function, args []any) []any {
-	rf := reflect.ValueOf(f)
-	rArgs := reflectValuesOf(args)
-	rReturns := rf.Call(rArgs)
-
-	return unreflectValues(rReturns)
-}
-
-// reflectValuesOf returns reflected values for all of the values.
-func reflectValuesOf(args []any) []reflect.Value {
-	rArgs := make([]reflect.Value, len(args))
-	for i := range args {
-		rArgs[i] = reflect.ValueOf(args[i])
-	}
-
-	return rArgs
-}
-
-func NewImp(tester Tester, funcStructs ...any) *Tester2 {
-	ftester := NewFuncTester(tester)
-	tester2 := &Tester2{ft: ftester, concurrency: atomic.Int64{}, expectationChan: make(chan expectation)}
-
-	for _, fs := range funcStructs {
-		// get all methods of the funcStructs
-		fsType := reflect.ValueOf(fs).Elem().Type()
-		fsValue := reflect.ValueOf(fs).Elem()
-		numFields := fsType.NumField()
-		fields := make([]fieldPair, numFields)
-
-		for i := range numFields {
-			fields[i].Type = fsType.Field(i)
-			fields[i].Value = fsValue.Field(i)
-		}
-
-		// reduce to fields that are functions
-		functionFields := []fieldPair{}
-
-		for i := range numFields {
-			if fields[i].Type.Type.Kind() != reflect.Func {
-				continue
-			}
-
-			functionFields = append(functionFields, fields[i])
-		}
-
-		// intercept them all
-		for i := range functionFields {
-			wrapFuncField(tester, functionFields[i], ftester.OutputChan)
-		}
-	}
-
-	return tester2
-}
-
-type fieldPair struct {
-	Type  reflect.StructField
-	Value reflect.Value
-}
-
-type Tester2 struct {
-	ft              *FuncTester
-	concurrency     atomic.Int64
-	expectationChan chan expectation
-}
-
-type expectation struct {
-	activity     FuncActivity
-	responseChan chan expectationResponse
-}
-
-type expectationResponse struct {
-	match  *FuncActivity
-	misses []FuncActivity
-}
+// ==L2 methods==
 
 func (t *Tester2) Close() {
 	close(t.ft.OutputChan)
@@ -446,81 +324,6 @@ func (t *Tester2) updateActivitiesAndExpectations(
 	}
 
 	return expectations, activities, false
-}
-
-func failExpectations(expectationBuffer []expectation, activityBuffer []FuncActivity) {
-	for i := range expectationBuffer {
-		expectationBuffer[i].responseChan <- expectationResponse{match: nil, misses: activityBuffer}
-	}
-}
-
-func matchBuffers(expectationBuffer []expectation, activityBuffer []FuncActivity) (int, int, bool) {
-	expectationIndex := -1
-	activityIndex := -1
-	matched := false
-
-	for index := range expectationBuffer {
-		expectation := expectationBuffer[index]
-
-		activityIndex = matchActivity(expectation.activity, activityBuffer)
-		if activityIndex >= 0 {
-			expectationIndex = index
-			matched = true
-
-			break
-		}
-	}
-
-	return expectationIndex, activityIndex, matched
-}
-
-func removeFromSlice[T any](slice []T, index int) []T {
-	slice = append(slice[0:index], slice[index+1:]...)
-	return slice
-}
-
-func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity) int {
-	for index := range activityBuffer {
-		activity := activityBuffer[index]
-
-		if activity.Type != expectedActivity.Type {
-			continue
-		}
-
-		var expected, actual any
-
-		switch expectedActivity.Type {
-		case CallActivityType:
-			// check ID
-			if activity.Call.ID != expectedActivity.Call.ID {
-				continue
-			}
-
-			// check args
-			expected = expectedActivity.Call.Args
-			actual = activity.Call.Args
-
-		case ReturnActivityType:
-			// check values
-			expected = expectedActivity.ReturnVals
-			actual = activity.ReturnVals
-
-		case PanicActivityType:
-			// check value
-			expected = expectedActivity.PanicVal
-			actual = activity.PanicVal
-		case UnsetActivityType:
-			return -1
-		}
-
-		if !reflect.DeepEqual(actual, expected) {
-			continue
-		}
-
-		return index
-	}
-
-	return -1
 }
 
 func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
@@ -616,14 +419,216 @@ func (t *Tester2) Concurrently(funcs ...func()) {
 	}
 }
 
-func (c *Call) SendReturn(returns ...any) {
-	c.t.Helper()
-	c.Return(returns...)
+// ==L2 funcs==
+
+// NewImp creates a new imp to help you test without being so verbose.
+func NewImp(tester Tester, funcStructs ...any) *Tester2 {
+	ftester := NewFuncTester(tester)
+	tester2 := &Tester2{ft: ftester, concurrency: atomic.Int64{}, expectationChan: make(chan expectation)}
+
+	for _, fs := range funcStructs {
+		// get all methods of the funcStructs
+		fsType := reflect.ValueOf(fs).Elem().Type()
+		fsValue := reflect.ValueOf(fs).Elem()
+		numFields := fsType.NumField()
+		fields := make([]fieldPair, numFields)
+
+		for i := range numFields {
+			fields[i].Type = fsType.Field(i)
+			fields[i].Value = fsValue.Field(i)
+		}
+
+		// reduce to fields that are functions
+		functionFields := []fieldPair{}
+
+		for i := range numFields {
+			if fields[i].Type.Type.Kind() != reflect.Func {
+				continue
+			}
+
+			functionFields = append(functionFields, fields[i])
+		}
+
+		// intercept them all
+		for i := range functionFields {
+			wrapFuncField(tester, functionFields[i], ftester.OutputChan)
+		}
+	}
+
+	return tester2
 }
 
-func (c *Call) SendPanic(panicValue any) {
-	c.t.Helper()
-	c.Panic(panicValue)
+// ==L2 helpers==.
+type expectation struct {
+	activity     FuncActivity
+	responseChan chan expectationResponse
+}
+
+type expectationResponse struct {
+	match  *FuncActivity
+	misses []FuncActivity
+}
+
+// =Test Simplification and readability abstractions=
+
+// NewFuncTester returns a newly initialized FuncTester.
+func NewFuncTester(tester Tester) *FuncTester {
+	tester.Helper()
+
+	calls := make(chan FuncActivity)
+
+	funcTester := new(FuncTester)
+	funcTester.T = tester
+	funcTester.OutputChan = calls
+	// I want this to be a magic number, it's half a second
+	funcTester.Timeout = 500 * time.Millisecond //nolint:mnd,gomnd
+	funcTester.Differ = func(actual, expected any) (string, error) {
+		if !reflect.DeepEqual(actual, expected) {
+			return fmt.Sprintf("actual: %#v\nexpected: %#v", actual, expected), nil
+		}
+
+		return "", nil
+	}
+
+	return funcTester
+}
+
+// Tester contains the *testing.T and the chan FuncCall.
+type FuncTester struct {
+	T          Tester
+	OutputChan chan FuncActivity
+	Timeout    time.Duration
+	Differ     Differ
+}
+
+// Start starts the function.
+func (t *FuncTester) Start(function any, args ...any) {
+	// record when the func is done so we can test that, too
+	go func() {
+		var rVals []any
+
+		defer func() {
+			panicVal := recover()
+			if panicVal != nil {
+				t.OutputChan <- FuncActivity{
+					PanicActivityType,
+					panicVal,
+					nil,
+					nil,
+				}
+			} else {
+				t.OutputChan <- FuncActivity{
+					ReturnActivityType,
+					nil,
+					rVals,
+					nil,
+				}
+			}
+		}()
+
+		rVals = callFunc(function, args)
+	}()
+}
+
+type Differ func(any, any) (string, error)
+
+// callFunc calls the given function with the given args, and returns the return values from that callFunc.
+func callFunc(f function, args []any) []any {
+	rf := reflect.ValueOf(f)
+	rArgs := reflectValuesOf(args)
+	rReturns := rf.Call(rArgs)
+
+	return unreflectValues(rReturns)
+}
+
+// reflectValuesOf returns reflected values for all of the values.
+func reflectValuesOf(args []any) []reflect.Value {
+	rArgs := make([]reflect.Value, len(args))
+	for i := range args {
+		rArgs[i] = reflect.ValueOf(args[i])
+	}
+
+	return rArgs
+}
+
+type fieldPair struct {
+	Type  reflect.StructField
+	Value reflect.Value
+}
+
+func failExpectations(expectationBuffer []expectation, activityBuffer []FuncActivity) {
+	for i := range expectationBuffer {
+		expectationBuffer[i].responseChan <- expectationResponse{match: nil, misses: activityBuffer}
+	}
+}
+
+func matchBuffers(expectationBuffer []expectation, activityBuffer []FuncActivity) (int, int, bool) {
+	expectationIndex := -1
+	activityIndex := -1
+	matched := false
+
+	for index := range expectationBuffer {
+		expectation := expectationBuffer[index]
+
+		activityIndex = matchActivity(expectation.activity, activityBuffer)
+		if activityIndex >= 0 {
+			expectationIndex = index
+			matched = true
+
+			break
+		}
+	}
+
+	return expectationIndex, activityIndex, matched
+}
+
+func removeFromSlice[T any](slice []T, index int) []T {
+	slice = append(slice[0:index], slice[index+1:]...)
+	return slice
+}
+
+func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity) int {
+	for index := range activityBuffer {
+		activity := activityBuffer[index]
+
+		if activity.Type != expectedActivity.Type {
+			continue
+		}
+
+		var expected, actual any
+
+		switch expectedActivity.Type {
+		case CallActivityType:
+			// check ID
+			if activity.Call.ID != expectedActivity.Call.ID {
+				continue
+			}
+
+			// check args
+			expected = expectedActivity.Call.Args
+			actual = activity.Call.Args
+
+		case ReturnActivityType:
+			// check values
+			expected = expectedActivity.ReturnVals
+			actual = activity.ReturnVals
+
+		case PanicActivityType:
+			// check value
+			expected = expectedActivity.PanicVal
+			actual = activity.PanicVal
+		case UnsetActivityType:
+			return -1
+		}
+
+		if !reflect.DeepEqual(actual, expected) {
+			continue
+		}
+
+		return index
+	}
+
+	return -1
 }
 
 func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) {

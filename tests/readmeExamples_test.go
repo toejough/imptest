@@ -477,7 +477,7 @@ func TestL2ReceiveCallSendReturn(t *testing.T) {
 	funcToTest := func(deps depStruct1) string {
 		return deps.Dep1()
 	}
-	// and a struct of dependenc mimics
+	// and a struct of dependencies to mimic
 	depsToMimic := depStruct1{} //nolint:exhaustruct
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
@@ -488,8 +488,9 @@ func TestL2ReceiveCallSendReturn(t *testing.T) {
 	// When we run the function to test with the mimicked dependencies
 	imp.Start(funcToTest, depsToMimic)
 	// Then the next thing the function under test does is make a call matching our expectations
+	call := imp.ReceiveCall("Dep1")
 	// When we push a return string
-	imp.ReceiveCall("Dep1").SendReturn(returnString)
+	call.SendReturn(returnString)
 	// Then the next thing the function under test does is return values matching our expectations
 	imp.ReceiveReturn(returnString)
 }
@@ -515,10 +516,10 @@ func TestL2ReceiveCallSendPanic(t *testing.T) {
 	imp.Start(funcToTest, depsToMimic)
 
 	// Then the next thing the function under test does is make a call matching our expectations
-	// When we push a return string
+	// (and then When we push a panic value...)
 	imp.ReceiveCall("Dep1").SendPanic(panicString)
 
-	// Then the next thing the function under test does is return values matching our expectations
+	// Then the next thing the function under test does is panic with a value matching our expectations
 	imp.ReceivePanic(panicString)
 }
 
@@ -540,10 +541,10 @@ func TestL2PingPongConcurrently(t *testing.T) {
 	imp := imptest.NewImp(t, &depsToMimic)
 	defer imp.Close()
 
-	// When we run the function to test with the mimicked dependency
+	// When we run the function to test with the mimicked dependencies
 	imp.Start(funcToTest, depsToMimic.Ping, depsToMimic.Pong)
 
-	// When we set concurrency to 2
+	// then we get concurrent call flows...
 	imp.Concurrently(func() {
 		// Then we get 100 calls to ping
 		pingCallCount := 0
