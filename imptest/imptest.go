@@ -23,7 +23,7 @@ import (
 // Errors: all other error conditions should trigger an error with sufficient detail to enable the caller to take
 // corrective action
 
-// ==L1 Types==
+// ==L1 Exported Types==
 
 // FuncActivity is essentially a union struct representing the various activities the function under test can perform:
 // * panic
@@ -84,12 +84,14 @@ type MimicOptions struct {
 	name string
 }
 
-// ==L1 Methods==
+// ==L1 Exported Methods==
 
 // SendReturn sends a return response to the mimicked dependency, which will cause it to return with the given values.
 // SendReturn checks for the correct # of values as well as their assignability ot the dependency call's return types.
 // SendReturn closes and clears the response channel for the dependency call when it is done.
 func (c *Call) SendReturn(returnVals ...any) {
+	// TODO: migrate this back into the function mimic in the first place. Then we wouldn't need to pass Type or t
+	// around.
 	c.t.Helper()
 	// clean up after this call
 	defer func() {
@@ -145,7 +147,7 @@ func (c *Call) SendPanic(panicVal any) {
 	}
 }
 
-// ==L1 Funcs==
+// ==L1 Exported Funcs==
 
 // MimicDependency mimics a given dependency. Instead of calling performing the dependency's logic, the mimic sends the
 // call signature to the dependency on the given activity channel, waits for a response command, and then executes that
@@ -218,7 +220,7 @@ func WithName(name string) MimicOptionModifier {
 	}
 }
 
-// ==L1 Helpers==
+// ==L1 Unexported Helpers==
 
 func convertReturnValues(outputV CallResponse) []reflect.Value {
 	returnValues := make([]reflect.Value, len(outputV.ReturnValues))
@@ -264,11 +266,14 @@ func unreflectValues(rArgs []reflect.Value) []any {
 // function _type_ in go.
 type function any
 
-// ==L2 types==.
+// ==L2 Exported Types==.
 type Tester2 struct {
+	// TODO: remove ft
+	// TODO: rename Tester2
 	ft              *FuncTester
 	concurrency     atomic.Int64
 	expectationChan chan expectation
+	ActivityChan    chan FuncActivity
 }
 
 type Tester interface {
@@ -278,10 +283,10 @@ type Tester interface {
 	Logf(message string, args ...any)
 }
 
-// ==L2 methods==
+// ==L2 Exported Methods==
 
 func (t *Tester2) Close() {
-	close(t.ft.OutputChan)
+	close(t.ActivityChan)
 	close(t.expectationChan)
 }
 
@@ -292,71 +297,6 @@ func (t *Tester2) Start(f any, args ...any) *Tester2 {
 	go t.matchActivitiesToExpectations()
 
 	return t
-}
-
-func (t *Tester2) matchActivitiesToExpectations() {
-	activities := []FuncActivity{}
-	expectations := []expectation{}
-
-	for {
-		// select on either expectation or action chans
-		//   put it on the buffer
-		var done bool
-		expectations, activities, done = t.updateActivitiesAndExpectations(expectations, activities)
-
-		if done {
-			return
-		}
-		// check against eachother
-		// if any activity matches
-		expectationIndex, activityIndex, matched := matchBuffers(expectations, activities)
-
-		// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
-		activityBufferFull := len(activities) >= int(t.concurrency.Load())
-		expectationBufferFull := len(expectations) >= int(t.concurrency.Load())
-		eitherBufferFull := activityBufferFull || expectationBufferFull
-		shouldBeAMatch := eitherBufferFull && len(activities) > 0 && len(expectations) > 0
-
-		if !matched && shouldBeAMatch {
-			failExpectations(expectations, activities)
-
-			continue
-		}
-
-		// just no match, go back to start
-		if !matched {
-			continue
-		}
-
-		// there was a match - remove the matches from the buffers & respond to the expectation
-		expectation := expectations[expectationIndex]
-		activity := activities[activityIndex]
-		activities = removeFromSlice(activities, activityIndex)
-		expectations = removeFromSlice(expectations, expectationIndex)
-		//   respond to the receive event with success
-		expectation.responseChan <- expectationResponse{match: &activity, misses: nil}
-	}
-}
-
-func (t *Tester2) updateActivitiesAndExpectations(
-	expectations []expectation, activities []FuncActivity,
-) ([]expectation, []FuncActivity, bool) {
-	select {
-	case expectation, ok := <-t.expectationChan:
-		if !ok {
-			return nil, nil, true
-		}
-
-		expectations = append(expectations, expectation)
-	case activity, ok := <-t.ft.OutputChan:
-		if !ok {
-			return nil, nil, true
-		}
-
-		activities = append(activities, activity)
-	}
-
-	return expectations, activities, false
 }
 
 func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
@@ -457,7 +397,12 @@ func (t *Tester2) Concurrently(funcs ...func()) {
 // NewImp creates a new imp to help you test without being so verbose.
 func NewImp(tester Tester, funcStructs ...any) *Tester2 {
 	ftester := NewFuncTester(tester)
-	tester2 := &Tester2{ft: ftester, concurrency: atomic.Int64{}, expectationChan: make(chan expectation)}
+	tester2 := &Tester2{
+		ft:              ftester,
+		concurrency:     atomic.Int64{},
+		expectationChan: make(chan expectation),
+		ActivityChan:    ftester.OutputChan,
+	}
 
 	for _, fs := range funcStructs {
 		// get all methods of the funcStructs
@@ -491,7 +436,72 @@ func NewImp(tester Tester, funcStructs ...any) *Tester2 {
 	return tester2
 }
 
-// ==L2 helpers==.
+// ==L2 Unexported Helpers==.
+func (t *Tester2) matchActivitiesToExpectations() {
+	activities := []FuncActivity{}
+	expectations := []expectation{}
+
+	for {
+		// select on either expectation or action chans
+		//   put it on the buffer
+		var done bool
+		expectations, activities, done = t.updateActivitiesAndExpectations(expectations, activities)
+
+		if done {
+			return
+		}
+		// check against eachother
+		// if any activity matches
+		expectationIndex, activityIndex, matched := matchBuffers(expectations, activities)
+
+		// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
+		activityBufferFull := len(activities) >= int(t.concurrency.Load())
+		expectationBufferFull := len(expectations) >= int(t.concurrency.Load())
+		eitherBufferFull := activityBufferFull || expectationBufferFull
+		shouldBeAMatch := eitherBufferFull && len(activities) > 0 && len(expectations) > 0
+
+		if !matched && shouldBeAMatch {
+			failExpectations(expectations, activities)
+
+			continue
+		}
+
+		// just no match, go back to start
+		if !matched {
+			continue
+		}
+
+		// there was a match - remove the matches from the buffers & respond to the expectation
+		expectation := expectations[expectationIndex]
+		activity := activities[activityIndex]
+		activities = removeFromSlice(activities, activityIndex)
+		expectations = removeFromSlice(expectations, expectationIndex)
+		//   respond to the receive event with success
+		expectation.responseChan <- expectationResponse{match: &activity, misses: nil}
+	}
+}
+
+func (t *Tester2) updateActivitiesAndExpectations(
+	expectations []expectation, activities []FuncActivity,
+) ([]expectation, []FuncActivity, bool) {
+	select {
+	case expectation, ok := <-t.expectationChan:
+		if !ok {
+			return nil, nil, true
+		}
+
+		expectations = append(expectations, expectation)
+	case activity, ok := <-t.ActivityChan:
+		if !ok {
+			return nil, nil, true
+		}
+
+		activities = append(activities, activity)
+	}
+
+	return expectations, activities, false
+}
+
 type expectation struct {
 	activity     FuncActivity
 	responseChan chan expectationResponse
