@@ -637,7 +637,6 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 	return -1
 }
 
-// TODO: use wrapDependencyFunc?
 func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) {
 	name := funcField.Type.Name
 
