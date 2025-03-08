@@ -290,9 +290,7 @@ func (t *Imp) Close() {
 }
 
 func (t *Imp) Start(f any, args ...any) *Imp {
-	// start the test
 	go t.startFunctionUnderTest(f, args)
-
 	go t.matchActivitiesToExpectations()
 
 	return t
