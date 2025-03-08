@@ -267,7 +267,7 @@ func unreflectValues(rArgs []reflect.Value) []any {
 type function any
 
 // ==L2 Exported Types==.
-type Tester2 struct {
+type Imp struct {
 	// TODO: remove ft
 	// TODO: rename Tester2
 	ft              *FuncTester
@@ -285,12 +285,12 @@ type Tester interface {
 
 // ==L2 Exported Methods==
 
-func (t *Tester2) Close() {
+func (t *Imp) Close() {
 	close(t.ActivityChan)
 	close(t.expectationChan)
 }
 
-func (t *Tester2) Start(f any, args ...any) *Tester2 {
+func (t *Imp) Start(f any, args ...any) *Imp {
 	// start the test
 	t.ft.Start(f, args...)
 
@@ -299,7 +299,7 @@ func (t *Tester2) Start(f any, args ...any) *Tester2 {
 	return t
 }
 
-func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
+func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.ft.T.Helper()
 	// t.ft.T.Logf("receiving call")
 
@@ -329,7 +329,7 @@ func (t *Tester2) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call 
 	return response.match.Call
 }
 
-func (t *Tester2) ReceiveReturn(returned ...any) {
+func (t *Imp) ReceiveReturn(returned ...any) {
 	t.ft.T.Helper()
 	t.ft.T.Logf("receiving return")
 
@@ -351,7 +351,7 @@ func (t *Tester2) ReceiveReturn(returned ...any) {
 	}
 }
 
-func (t *Tester2) ReceivePanic(panicValue any) {
+func (t *Imp) ReceivePanic(panicValue any) {
 	t.ft.T.Helper()
 	t.ft.T.Logf("receiving panic")
 
@@ -373,7 +373,7 @@ func (t *Tester2) ReceivePanic(panicValue any) {
 	}
 }
 
-func (t *Tester2) Concurrently(funcs ...func()) {
+func (t *Imp) Concurrently(funcs ...func()) {
 	// set up waitgroup
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(len(funcs))
@@ -395,9 +395,9 @@ func (t *Tester2) Concurrently(funcs ...func()) {
 // ==L2 funcs==
 
 // NewImp creates a new imp to help you test without being so verbose.
-func NewImp(tester Tester, funcStructs ...any) *Tester2 {
+func NewImp(tester Tester, funcStructs ...any) *Imp {
 	ftester := NewFuncTester(tester)
-	tester2 := &Tester2{
+	tester2 := &Imp{
 		ft:              ftester,
 		concurrency:     atomic.Int64{},
 		expectationChan: make(chan expectation),
@@ -437,7 +437,7 @@ func NewImp(tester Tester, funcStructs ...any) *Tester2 {
 }
 
 // ==L2 Unexported Helpers==.
-func (t *Tester2) matchActivitiesToExpectations() {
+func (t *Imp) matchActivitiesToExpectations() {
 	activities := []FuncActivity{}
 	expectations := []expectation{}
 
@@ -481,7 +481,7 @@ func (t *Tester2) matchActivitiesToExpectations() {
 	}
 }
 
-func (t *Tester2) updateActivitiesAndExpectations(
+func (t *Imp) updateActivitiesAndExpectations(
 	expectations []expectation, activities []FuncActivity,
 ) ([]expectation, []FuncActivity, bool) {
 	select {
