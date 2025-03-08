@@ -675,9 +675,7 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 			expected = expectedActivity.PanicVal
 			actual = activity.PanicVal
 		case ActivityTypeUnset:
-			// TODO: mutation test - ignore? IDK - this is handling a case that should never happen. maybe panic here
-			// instead?
-			return -1
+			panic("tried to match against an unset activity type, and that should never happen")
 		}
 
 		if !reflect.DeepEqual(actual, expected) {
