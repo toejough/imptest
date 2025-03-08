@@ -9,15 +9,14 @@ import (
 	"sync/atomic"
 )
 
-// Error philosophy:
-//
+// ==Error philosophy==
 // Failures: conditions which signal expected failures the user is testing for (this is a test library), should
 // trigger a test failure.
-//
+
 // Panics: conditions which signal an error which it is not generally reasonable to expect a caller to recover from,
 // which instead imply programmer intervention is necessary to resolve, should trigger an explanatory panic for the
 // programmer to track down.
-//
+
 // Errors: all other error conditions should trigger an error with sufficient detail to enable the caller to take
 // corrective action
 
@@ -147,34 +146,45 @@ func (c *Call) SendPanic(panicVal any) {
 
 // ==L1 Exported Funcs==
 
-// MimicDependency mimics a given dependency. Instead of calling performing the dependency's logic, the mimic sends the
-// call signature to the dependency on the given activity channel, waits for a response command, and then executes that
-// command by either returning or panicking with the given values.
+// MimicDependency mimics a given dependency. Instead of a call performing the dependency's logic, the returned mimic
+// sends the call signature to the dependency on the given activity channel, waits for a response command, and then
+// executes that command by either returning or panicking with the given values.
 func MimicDependency[T any](
 	tester Tester, function T, activityChan chan FuncActivity, modifiers ...MimicOptionModifier,
 ) (T, string) {
+	name := getDependencyName(function, modifiers)
+	funcType := reflect.TypeOf(function)
+	mimicAsValue := makeMimicAsValue(tester, funcType, name, activityChan)
+	// Ignore the type assertion lint check - we are depending on reflect.MakeFunc to
+	// return the correct type, as documented. If it fails to, the only thing
+	// we'd do is panic anyway.
+	typedMimic := mimicAsValue.Interface().(T) //nolint:forcetypeassert
+
+	// returns both the wrapped func and the ID
+	return typedMimic, name
+}
+
+// WithName is a modifier which sets the dependency's name.
+func WithName(name string) MimicOptionModifier {
+	return func(wo MimicOptions) MimicOptions {
+		wo.name = name
+		return wo
+	}
+}
+
+// ==L1 Unexported Helpers==.
+func getDependencyName(function function, modifiers []MimicOptionModifier) string {
 	options := MimicOptions{name: getFuncName(function)}
 	for _, modify := range modifiers {
 		options = modify(options)
 	}
 
-	name := options.name
-
-	funcType := reflect.TypeOf(function)
-
-	funcAsValue := makeFunc(tester, funcType, name, activityChan)
-	// Ignore the type assertion lint check - we are depending on MakeFunc to
-	// return the correct type, as documented. If it fails to, the only thing
-	// we'd do is panic anyway.
-	typedMimic := funcAsValue.Interface().(T) //nolint:forcetypeassert
-
-	// returns both the wrapped func and the ID
-	return typedMimic, options.name
+	return options.name
 }
 
-func makeFunc(tester Tester, funcType reflect.Type, name string, activityChan chan FuncActivity) reflect.Value {
+func makeMimicAsValue(tester Tester, funcType reflect.Type, name string, activityChan chan FuncActivity) reflect.Value {
 	// create the function, that when called:
-	// * puts its ID and args onto the call channel along with a return channel
+	// * puts its name and args onto the call channel along with a return channel
 	// * waits until the return channel has something, and then returns that
 	reflectedMimic := func(args []reflect.Value) []reflect.Value {
 		// Create a channel to receive injected output values on
@@ -186,6 +196,7 @@ func makeFunc(tester Tester, funcType reflect.Type, name string, activityChan ch
 			nil,
 			nil,
 			&Call{
+				// TODO: turn ID into name
 				name,
 				unreflectValues(args),
 				responseChan,
@@ -216,16 +227,6 @@ func makeFunc(tester Tester, funcType reflect.Type, name string, activityChan ch
 	// Make the new function
 	return reflect.MakeFunc(funcType, reflectedMimic)
 }
-
-// WithName is a modifier which sets the dependency's name.
-func WithName(name string) MimicOptionModifier {
-	return func(wo MimicOptions) MimicOptions {
-		wo.name = name
-		return wo
-	}
-}
-
-// ==L1 Unexported Helpers==
 
 func convertReturnValues(outputV CallResponse) []reflect.Value {
 	returnValues := make([]reflect.Value, len(outputV.ReturnValues))
@@ -275,8 +276,9 @@ type function any
 type Imp struct {
 	concurrency     atomic.Int64
 	expectationChan chan expectation
-	ActivityChan    chan FuncActivity
-	T               Tester
+	// TODO: how do we mix & match L1 & L2 now?
+	ActivityChan chan FuncActivity
+	T            Tester
 }
 
 type Tester interface {
@@ -454,8 +456,9 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 		}
 
 		// intercept them all
+		// TODO: simplify - all I do with the func fields is this - I probably don't need another loop here
 		for i := range functionFields {
-			wrapFuncField(tester, functionFields[i], tester2.ActivityChan)
+			replaceFuncFieldWithMimic(tester, functionFields[i], tester2.ActivityChan)
 		}
 	}
 
@@ -637,20 +640,14 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 	return -1
 }
 
-func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) {
+// replaceFuncFieldWithMimic mimics a given dependency struct func field and replaces it. Instead of a call performing
+// the dependency's logic, calling now runs the mimic, which sends the call signature to the dependency on the given
+// activity channel, waits for a response command, and then executes that command by either returning or panicking with
+// the given values.
+func replaceFuncFieldWithMimic(tester Tester, funcField fieldPair, activityChan chan FuncActivity) {
 	name := funcField.Type.Name
-
-	// create the function, that when called:
-	// * puts its ID and args onto the call channel along with a return channel
-	// * waits until the return channel has something, and then returns that
 	funcType := funcField.Type.Type
+	mimicAsValue := makeMimicAsValue(tester, funcType, name, activityChan)
 
-	funcAsValue := makeFunc(tester, funcType, name, calls)
-
-	// Make a function of the right type.
-	// Ignore the type assertion lint check - we are depending on MakeFunc to
-	// return the correct type, as documented. If it fails to, the only thing
-	// we'd do is panic anyway.
-
-	funcField.Value.Set(funcAsValue)
+	funcField.Value.Set(mimicAsValue)
 }
