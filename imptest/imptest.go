@@ -158,11 +158,24 @@ func MimicDependency[T any](
 		options = modify(options)
 	}
 
+	name := options.name
+
+	funcType := reflect.TypeOf(function)
+
+	funcAsValue := makeFunc(tester, funcType, name, activityChan)
+	// Ignore the type assertion lint check - we are depending on MakeFunc to
+	// return the correct type, as documented. If it fails to, the only thing
+	// we'd do is panic anyway.
+	typedMimic := funcAsValue.Interface().(T) //nolint:forcetypeassert
+
+	// returns both the wrapped func and the ID
+	return typedMimic, options.name
+}
+
+func makeFunc(tester Tester, funcType reflect.Type, name string, activityChan chan FuncActivity) reflect.Value {
 	// create the function, that when called:
 	// * puts its ID and args onto the call channel along with a return channel
 	// * waits until the return channel has something, and then returns that
-	funcType := reflect.TypeOf(function)
-
 	reflectedMimic := func(args []reflect.Value) []reflect.Value {
 		// Create a channel to receive injected output values on
 		responseChan := make(chan CallResponse)
@@ -173,7 +186,7 @@ func MimicDependency[T any](
 			nil,
 			nil,
 			&Call{
-				options.name,
+				name,
 				unreflectValues(args),
 				responseChan,
 				funcType,
@@ -200,14 +213,8 @@ func MimicDependency[T any](
 		}
 	}
 
-	// Make a function of the right type.
-	// Ignore the type assertion lint check - we are depending on MakeFunc to
-	// return the correct type, as documented. If it fails to, the only thing
-	// we'd do is panic anyway.
-	typedMimic := reflect.MakeFunc(funcType, reflectedMimic).Interface().(T) //nolint:forcetypeassert
-
-	// returns both the wrapped func and the ID
-	return typedMimic, options.name
+	// Make the new function
+	return reflect.MakeFunc(funcType, reflectedMimic)
 }
 
 // WithName is a modifier which sets the dependency's name.
@@ -639,57 +646,12 @@ func wrapFuncField(tester Tester, funcField fieldPair, calls chan FuncActivity) 
 	// * waits until the return channel has something, and then returns that
 	funcType := funcField.Type.Type
 
-	relayer := func(args []reflect.Value) []reflect.Value {
-		// Create a channel to receive injected output values on
-		injectedValueChan := make(chan CallResponse)
-
-		// Submit this call to the calls channel
-		calls <- FuncActivity{
-			ActivityTypeCall,
-			nil,
-			nil,
-			&Call{
-				name,
-				unreflectValues(args),
-				injectedValueChan,
-				funcType,
-				tester,
-			},
-		}
-
-		outputV := <-injectedValueChan
-
-		switch outputV.Type {
-		case ResponseTypeReturn:
-			returnValues := make([]reflect.Value, len(outputV.ReturnValues))
-
-			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
-			for rvi, a := range outputV.ReturnValues {
-				// special casing to avoid a completely nil return hosing things up
-				v := reflect.ValueOf(a)
-				if !v.IsValid() {
-					v = reflect.Zero(funcType.Out(rvi))
-				}
-
-				returnValues[rvi] = v
-			}
-
-			return returnValues
-		// if we're supposed to panic, do.
-		case ResponseTypePanic:
-			panic(outputV.PanicValue)
-		case ResponseTypeUnset:
-			panic("imptest failure - unrecognized outputValue type was passed")
-		default:
-			panic("imptest failure - unrecognized outputValue type was passed")
-		}
-	}
+	funcAsValue := makeFunc(tester, funcType, name, calls)
 
 	// Make a function of the right type.
 	// Ignore the type assertion lint check - we are depending on MakeFunc to
 	// return the correct type, as documented. If it fails to, the only thing
 	// we'd do is panic anyway.
-	wrappedValue := reflect.MakeFunc(funcType, relayer)
 
-	funcField.Value.Set(wrappedValue)
+	funcField.Value.Set(funcAsValue)
 }
