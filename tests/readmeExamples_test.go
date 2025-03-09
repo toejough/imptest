@@ -1,6 +1,7 @@
 package imptest_test
 
 import (
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -33,7 +34,10 @@ import (
 // support concurrency: ???
 
 // ===L1 Tests===.
-const anyString = "literally anything"
+const (
+	anyString = "literally anything"
+	anyInt    = 42 // literally anything
+)
 
 // TestL1ReceiveDependencyCallSendReturn tests receiving a dependency call and sending a return.
 // ignore the linter error about how this test is too long.he point behind the L2 API.
@@ -587,6 +591,32 @@ func TestL2PingPongConcurrently(t *testing.T) {
 	imp.ReceiveReturn()
 }
 
+// TestL2ReturnNil tests returning nil, which is tricky from a reflection standpoint.
+func TestL2ReturnNil(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(deps depStruct1) *string {
+		deps.Dep1()
+		return nil
+	}
+	// and a struct of dependencies to mimic
+	depsToMimic := depStruct1{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+	// and a string to return from the dependency call
+	returnString := anyString
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+	// Then the next thing the function under test does is make a call matching our expectations
+	// When we push a return string
+	imp.ReceiveCall("Dep1").SendReturn(returnString)
+	// Then the next thing the function under test does is return values matching our expectations
+	imp.ReceiveReturn(nil)
+}
+
 // ==Failure Tests==
 
 // TestL2ReceiveTooFewCalls tests matching a dependency call and pushing a return more simply, with a
@@ -619,6 +649,48 @@ func TestL2ReceiveTooFewCalls(t *testing.T) {
 
 		// Then the next thing the function under test does is return values matching our expectations
 		imp.ReceiveReturn(returnString)
+	})
+
+	if !mockedT.Failed() {
+		t.Fatalf("expected to fail instead of passing")
+	}
+
+	expected := "expected"
+	actual := mockedT.Failure()
+
+	if !strings.Contains(actual, expected) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
+}
+
+// TestL2ReceiveWrongReturnType tests returning an incorrect type from a dependency.
+func TestL2ReceiveWrongReturnType(t *testing.T) {
+	t.Parallel()
+
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		// Given a function to test
+		funcToTest := func(deps depStruct1) string {
+			return deps.Dep1()
+		}
+		// and a struct of dependenc mimics
+		depsToMimic := depStruct1{} //nolint:exhaustruct
+		// and a helpful test imp
+		imp := imptest.NewImp(mockedT, &depsToMimic)
+		// and a string to return from the dependency call
+		returnInt := anyInt
+
+		// When we run the function to test with the mimicked dependencies
+		imp.Start(funcToTest, depsToMimic)
+
+		// Then the next thing the function under test does is make a call matching our expectations
+		// When we push a return string
+		call := imp.ReceiveCall("Dep1")
+		// THIS IS WHAT WE EXPECT TO TRIGGER A FAILURE
+		call.SendReturn(returnInt)
+
+		// Then the next thing the function under test does is return values matching our expectations
+		imp.ReceiveReturn(returnInt)
 	})
 
 	if !mockedT.Failed() {
@@ -678,5 +750,125 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 				"but it didn't. Instead it was just '%s'.",
 			returnString, retString,
 		)
+	}
+}
+
+// ==Exploration tests & sanity checks==.
+func TestNilEquality(t *testing.T) {
+	t.Parallel()
+
+	if !reflect.DeepEqual(nil, nil) { //nolint:gocritic
+		t.Fatal("nil doesn't equal nil...")
+	}
+}
+
+func TestTypedNilEquality(t *testing.T) {
+	t.Parallel()
+
+	var actual any
+
+	var expected *string
+
+	actual = nil
+	expected = nil
+
+	if reflect.DeepEqual(expected, actual) {
+		t.Fatal("typed nil shouldn't equal nil...")
+	}
+
+	if expected != nil {
+		t.Fatal("typed nil should equal nil...")
+	}
+
+	if actual != nil {
+		t.Fatal("untyped nil should equal nil...")
+	}
+
+	if reflect.ValueOf(actual).IsValid() {
+		t.Fatal("expected invalid value for actual")
+	}
+
+	// TODO: loop through comparison arrays, and if an expected value is not valid, and the actual value is nil, pass.
+	if !reflect.ValueOf(expected).IsValid() {
+		t.Fatal("expected valid value for expected")
+	}
+
+	if !reflect.ValueOf(expected).IsNil() {
+		t.Fatal("expected nil value for expected")
+	}
+}
+
+func TestNilSliceEquality(t *testing.T) {
+	t.Parallel()
+
+	if !reflect.DeepEqual([]any{nil}, []any{nil}) { //nolint:gocritic
+		t.Fatal("nil doesn't equal nil...")
+	}
+}
+
+func TestNilAnySliceEquality(t *testing.T) {
+	t.Parallel()
+
+	var expected, actual any
+
+	expected = nil
+	actual = nil
+
+	if !reflect.DeepEqual([]any{expected}, []any{actual}) {
+		t.Fatal("nil doesn't equal nil...")
+	}
+}
+
+func TestTypedNilSliceEquality(t *testing.T) {
+	t.Parallel()
+
+	var actual any
+
+	var expected *string
+
+	actual = nil
+	expected = nil
+
+	newValue := reflect.New(reflect.TypeOf(expected))
+	converted := newValue.Elem().Interface()
+
+	if reflect.DeepEqual([]any{expected}, []any{actual}) {
+		t.Fatal("string nil shouldn't equal any nil...")
+	}
+
+	if !reflect.DeepEqual([]any{expected}, []any{converted}) {
+		t.Fatal("string nil didn't equal string nil...")
+	}
+
+	// this works...
+	asssertedActual, _ := actual.(*string)
+	if !reflect.DeepEqual([]any{expected}, []any{asssertedActual}) {
+		t.Fatal("string nil didn't equal string nil...")
+	}
+
+	// but... this still doesn't work
+	asssertedExpected := any(expected)
+	if reflect.DeepEqual([]any{asssertedExpected}, []any{actual}) {
+		t.Fatal("string nil shouldn't equal any nil...")
+	}
+
+	// neither does this
+	actualArr, _ := any([]any{actual}).([]any)
+	expectedArr, _ := any([]any{expected}).([]any)
+
+	if reflect.DeepEqual(expectedArr[0], actualArr[0]) {
+		t.Fatal("string nil shouldn't equal any nil...")
+	}
+
+	// maybe this?
+	var expectedAny any = expected
+	expectedArr = []any{expectedAny}
+
+	var eaAny any = expectedArr
+
+	arrAgain, _ := eaAny.([]any)
+
+	if reflect.DeepEqual(arrAgain[0], actualArr[0]) {
+		t.Fatal("string nil shouldn't equal any nil...")
 	}
 }

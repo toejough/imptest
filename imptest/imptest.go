@@ -380,7 +380,7 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 	response := <-expected.responseChan
 
 	if response.match == nil {
-		t.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+		t.T.Fatalf("expected %#v, but got %#v", expected.activity, response.misses)
 	}
 }
 
@@ -646,7 +646,8 @@ func removeFromSlice[T any](slice []T, index int) []T {
 	return slice
 }
 
-func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity) int {
+func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity) int { //nolint:funlen,cyclop
+	// TODO: fix nolints
 	for index := range activityBuffer {
 		activity := activityBuffer[index]
 
@@ -658,7 +659,7 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 			continue
 		}
 
-		var expected, actual any
+		var expected, actual []any
 
 		switch expectedActivity.Type {
 		case ActivityTypeCall:
@@ -678,24 +679,78 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 
 		case ActivityTypePanic:
 			// check value
-			expected = expectedActivity.PanicVal
-			actual = activity.PanicVal
+			// we want to loop through all the values below, so put this into a slice
+			expected = []any{expectedActivity.PanicVal}
+			actual = []any{activity.PanicVal}
 		case ActivityTypeUnset:
 			panic("tried to match against an unset activity type, and that should never happen")
 		}
 
-		if !reflect.DeepEqual(actual, expected) {
-			// TODO: mutation tests fail here. You can replace this with break?! continue is meant to continue through
-			// the registered activities to keep looking. We apparently don't yet have a test that exercises a case
-			// where there are multiple activities and the first one doesn't match the expected arguments... or we do and
-			// that doesn't matter?
+		// not a match if the lens of the slices don't match
+		if len(expected) != len(actual) {
+			// TODO: mutate can break here?
 			continue
 		}
+
+		// need this to bail from a double loop
+		shouldContinue := false
+
+		// loop through instead of just comparing, to catch top-level nils passed as args
+		for index := range actual {
+			// TODO: mutate can break here?
+			// special nil checking to be ok if we passed untyped nils where typed nils were actually intercepted
+			if isNil(actual[index]) && isNil(expected[index]) {
+				// TODO: mutate says second nil doesn't matter? could be true?
+				// TODO: mutate can break here?
+				continue
+			}
+
+			// everything else is fine to run through reflect.DeepEqual.
+			if reflect.DeepEqual(actual[index], expected[index]) {
+				// TODO: mutate can break here?
+				continue
+			}
+
+			shouldContinue = true
+
+			// TODO: mutate can continue here?
+			break
+		}
+
+		if shouldContinue {
+			// TODO: mutate can break here?
+			continue
+		}
+		// if !reflect.DeepEqual(actual, expected) {
+		// 	continue
+		// }
 
 		return index
 	}
 
 	return constInvalidIndex
+}
+
+func isNil(thing any) (toReturn bool) {
+	defer func() {
+		// don't bother checking - this is just to catch the panic and prevent it from bubbling up.
+		// if no panic, then we're returning whatever we were told to.
+		// if panic, returning cleanly with the default toReturn value (false).
+		// we onlyif it was invalid to even ask if thing was nil, in which case it's not.
+		recover() //nolint:errcheck
+	}()
+
+	value := reflect.ValueOf(thing)
+
+	if !value.IsValid() {
+		return true
+	}
+
+	if value.IsNil() {
+		return true
+	}
+
+	return
 }
 
 // replaceFuncFieldWithMimic mimics a given dependency struct func field and replaces it. Instead of a call performing
