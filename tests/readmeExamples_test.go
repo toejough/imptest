@@ -2,6 +2,7 @@ package imptest_test
 
 import (
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -218,6 +219,9 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 		t.Fail()
 	}
 }
+
+// TODO - write an L1 concurrency test as a set of unordered checks... then reimplement L2 from there.
+// TODO - write an L1 concurrency test that requires concurrency... then reimplement L2 from there.
 
 // TestL1PingPongConcurrency tests using the funcActivityChan with a funcToTest that calls ping-pong dependencies
 // concurrently.
@@ -540,7 +544,7 @@ func TestL2PingPongConcurrently(t *testing.T) {
 	funcToTest := pingPong
 	// and dependencies to mimic
 	// ignore exhaustruct - the zero value for pingpong deps is fine
-	depsToMimic := pingPongDeps{} //nolint: exhaustruct
+	depsToMimic := pingPongDeps{} //nolint:exhaustruct
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
 	defer imp.Close()
@@ -707,7 +711,104 @@ func TestL2OutOfOrderActivityTypesConcurrency(t *testing.T) {
 	waitGroup.Wait()
 }
 
+// TestL2ManyConcurrentFlows tests that many concurrent flows pass.
+func TestL2ManyConcurrentFlows(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(deps depStruct3) {
+		go deps.Dep1()
+		go deps.Dep2()
+		go deps.Dep3()
+		go deps.Dep4()
+		go deps.Dep5()
+	}
+	// and a struct of dependenc mimics
+	depsToMimic := depStruct3{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+
+	// Then the next thing the function under test does is make a call matching our expectations
+	// When we push a return string
+	imp.Concurrently(func() {
+		// t.Log("dep 1 waiting")
+		imp.ReceiveCall("Dep1").SendReturn()
+	}, func() {
+		// t.Log("dep 2 waiting")
+		imp.ReceiveCall("Dep2").SendReturn()
+	}, func() {
+		// t.Log("dep 3 waiting")
+		imp.ReceiveCall("Dep3").SendReturn()
+	}, func() {
+		// t.Log("dep 3 waiting")
+		imp.ReceiveCall("Dep4").SendReturn()
+	}, func() {
+		// t.Log("dep 3 waiting")
+		imp.ReceiveCall("Dep5").SendReturn()
+	}, func() {
+		// t.Log("return waiting")
+		imp.ReceiveReturn()
+	})
+}
+
+type depStruct3 struct {
+	Dep1 func()
+	Dep2 func()
+	Dep3 func()
+	Dep4 func()
+	Dep5 func()
+}
+
 // ==Failure Tests==
+
+// TestL2TooManyConcurrentFlows tests that expecting too many concurrent flows passes.. this is essentially saying that
+// the calls are expected in an unordered fashion.
+func TestL2TooManyConcurrentFlows(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(deps depStruct3) {
+		go func() {
+			deps.Dep1()
+			deps.Dep2()
+			deps.Dep3()
+			deps.Dep4()
+		}()
+		go deps.Dep5()
+	}
+	// and a struct of dependenc mimics
+	depsToMimic := depStruct3{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+
+	// Then the next thing the function under test does is make a call matching our expectations
+	// When we push a return string
+	imp.Concurrently(func() {
+		// t.Log("dep 1 waiting")
+		imp.ReceiveCall("Dep1").SendReturn()
+	}, func() {
+		// t.Log("dep 2 waiting")
+		imp.ReceiveCall("Dep2").SendReturn()
+	}, func() {
+		// t.Log("dep 3 waiting")
+		imp.ReceiveCall("Dep3").SendReturn()
+	}, func() {
+		// t.Log("dep 3 waiting")
+		imp.ReceiveCall("Dep4").SendReturn()
+	}, func() {
+		// t.Log("dep 3 waiting")
+		imp.ReceiveCall("Dep5").SendReturn()
+	}, func() {
+		// t.Log("return waiting")
+		imp.ReceiveReturn()
+	})
+}
 
 // TestL2ReceiveTooFewCalls tests matching a dependency call and pushing a return more simply, with a
 // dependency struct.
@@ -745,10 +846,10 @@ func TestL2ReceiveTooFewCalls(t *testing.T) {
 		t.Fatalf("expected to fail instead of passing")
 	}
 
-	expected := "expected"
+	expected := `.*expected {3.*`
 	actual := mockedT.Failure()
 
-	if !strings.Contains(actual, expected) {
+	if !regexp.MustCompile(expected).MatchString(actual) {
 		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
 	}
 }
@@ -873,8 +974,8 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 		t.Fatalf("Expected only one return but got %d", len(returns))
 	}
 
-	// if this is not a string, the imp would've already complained
-	// in general, if you are asking  the test _should_ panic.
+	// if this is not a string, the ilained
+	// in general, if you are asking .
 	retString := returns[0].(string) //nolint:forcetypeassert
 	if !strings.HasPrefix(retString, returnString) {
 		t.Fatalf(

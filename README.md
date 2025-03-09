@@ -134,6 +134,9 @@ func TestL2PingPongConcurrently(t *testing.T) {
 
 TODO: ADD SOMETHING ABOUT THE ACTUAL PING PONG FUNCTION BEING TESTED
 
+TODO: Unsurprisingly, concurrency is hard, and the concurrency checks are currently where the flaky test and mutation
+test failures are occurring. I'm considering a full rewrite of the way I validate concurrency. Again. :lolsob:
+
 ## Customization
 
 TODO: TALK ABOUT L1 API HERE

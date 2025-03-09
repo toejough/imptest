@@ -261,7 +261,6 @@ func unreflectValues(rArgs []reflect.Value) []any {
 	// https://github.com/uber-go/nilaway/pull/60
 	// args := make([]any, len(rArgs))
 	if len(rArgs) == 0 {
-		// TODO: mutate fail - can be negative?
 		return nil
 	}
 
@@ -283,9 +282,8 @@ type function any
 type Imp struct {
 	concurrency     atomic.Int64
 	expectationChan chan expectation
-	// TODO: how do we mix & match L1 & L2 now?
-	ActivityChan chan FuncActivity
-	T            Tester
+	ActivityChan    chan FuncActivity
+	T               Tester
 }
 
 type Tester interface {
@@ -420,7 +418,10 @@ func (t *Imp) Concurrently(funcs ...func()) {
 		go func() {
 			defer waitGroup.Done()
 			defer func() { t.concurrency.Add(-1) }()
-			// TODO: mutation testing failing - it doesn't matter if we decrement?!
+			// TODO: mutation testing failing - it doesn't matter if we increment this to 0??!
+			// There's something funky going on overall. occasionally pingpong and the multi concurrency tests fail
+			// with timeouts, so I'm not tracking something correctly. Dig back into the way I'm handling concurrency
+			// before trying to fix the mutation test on its own anymore.
 
 			t.concurrency.Add(1)
 
