@@ -1,5 +1,6 @@
-// Package imptest provides impure function testing functionality.
 package imptest
+
+// Package imptest provides impure function testing functionality.
 
 import (
 	"reflect"
@@ -108,7 +109,7 @@ func (c *Call) SendReturn(returnVals ...any) {
 	}
 	// make sure these are at least assignable
 	for rvi := range returnVals {
-		// TODO: mutation test failure - breaking here is fine?
+		// TODO: failing mutation testing (break)
 		actual := reflect.TypeOf(returnVals[rvi])
 		expected := c.Type.Out(rvi)
 
@@ -539,6 +540,7 @@ func (t *Imp) updateActivitiesAndExpectations(
 ) ([]expectation, []FuncActivity, bool) {
 	// if we are already waiting on an L2 expectation, then pull whatever expectations or activities are ready
 	if len(expectations) > 0 {
+		// TODO: len expectations can be compared to -1? weird catch, mutations...
 		// pull activities and expectations out
 		select {
 		case expectation, ok := <-t.expectationChan:
@@ -559,7 +561,7 @@ func (t *Imp) updateActivitiesAndExpectations(
 		// * we can't use them (no expectations have been set by L2)
 		// * maybe the test wants to use them via L1
 		for i := range activities {
-			// mutation tests fail here?! we are trying to loop through returning activities to the channel - we
+			// TODO: mutation tests fail here?! we are trying to loop through returning activities to the channel - we
 			// apparently don't have any tests that require this, or this part of the loop doesn't matter? I find that
 			// hard to believe - without this, I don't think the L1L2 mix test works...
 			t.ActivityChan <- activities[i]
