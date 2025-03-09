@@ -113,7 +113,6 @@ func (c *Call) SendReturn(returnVals ...any) {
 		expected := c.Type.Out(rvi)
 
 		if actual != nil && !actual.AssignableTo(expected) {
-			// TODO: failing mutation testing - it doesn't matter if actual is nil?
 			c.t.Fatalf(
 				"unable to push return value %d for the call to %s: a value of type %v was pushed, "+
 					"but that is unassignable to the expected type (%v)",
@@ -215,7 +214,7 @@ func makeMimicAsValue(tester Tester, funcType reflect.Type, name string, activit
 		switch responseToActivity.Type {
 		case ResponseTypeReturn:
 			// Convert return values to reflect.Values, to meet the required reflect.MakeFunc signature
-			return convertReturnValues(responseToActivity)
+			return convertReturnValues(responseToActivity, funcType)
 		// if we're supposed to panic, do.
 		case ResponseTypePanic:
 			panic(responseToActivity.PanicValue)
@@ -231,11 +230,15 @@ func makeMimicAsValue(tester Tester, funcType reflect.Type, name string, activit
 	return reflect.MakeFunc(funcType, reflectedMimic)
 }
 
-func convertReturnValues(outputV CallResponse) []reflect.Value {
+func convertReturnValues(outputV CallResponse, funcType reflect.Type) []reflect.Value {
 	returnValues := make([]reflect.Value, len(outputV.ReturnValues))
 
 	for i, a := range outputV.ReturnValues {
 		returnValues[i] = reflect.ValueOf(a)
+		// if any of these are nil, make them typed nils - otherwise makefunc panics
+		if a == nil {
+			returnValues[i] = reflect.Zero(funcType.Out(i))
+		}
 	}
 
 	return returnValues

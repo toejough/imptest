@@ -617,6 +617,33 @@ func TestL2ReturnNil(t *testing.T) {
 	imp.ReceiveReturn(nil)
 }
 
+// TestL2PushNil tests pushing nil return, which is tricky from a reflection standpoint.
+func TestL2PushNil(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(deps depStruct2) {
+		deps.Dep1()
+	}
+	// and a struct of dependencies to mimic
+	depsToMimic := depStruct2{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+	// Then the next thing the function under test does is make a call matching our expectations
+	// When we push a return string
+	imp.ReceiveCall("Dep1").SendReturn(nil)
+	// Then the next thing the function under test does is return values matching our expectations
+	imp.ReceiveReturn()
+}
+
+type depStruct2 struct {
+	Dep1 func() *string
+}
+
 // TestL2OutOfOrderActivityTypesConcurrency tests when concurrency means function activity calls are out of order, but
 // the test still works as expected.
 func TestL2OutOfOrderActivityTypesConcurrency(t *testing.T) {
@@ -768,7 +795,7 @@ func TestL2ReceiveWrongReturnType(t *testing.T) {
 	}
 }
 
-// TestL2ReceiveWrongReturnType tests returning an incorrect type from a dependency.
+// TestL2PushWrongReturnType tests returning an incorrect type from a dependency.
 func TestL2PushWrongReturnType(t *testing.T) {
 	t.Parallel()
 
