@@ -109,7 +109,6 @@ func (c *Call) SendReturn(returnVals ...any) {
 	}
 	// make sure these are at least assignable
 	for rvi := range returnVals {
-		// TODO: failing mutation testing (break)
 		actual := reflect.TypeOf(returnVals[rvi])
 		expected := c.Type.Out(rvi)
 
@@ -259,6 +258,7 @@ func unreflectValues(rArgs []reflect.Value) []any {
 	// https://github.com/uber-go/nilaway/pull/60
 	// args := make([]any, len(rArgs))
 	if len(rArgs) == 0 {
+		// TODO: mutate fail - can be negative?
 		return nil
 	}
 
