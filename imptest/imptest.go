@@ -652,10 +652,6 @@ func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity)
 		activity := activityBuffer[index]
 
 		if activity.Type != expectedActivity.Type {
-			// TODO: mutation tests fail here. You can replace this with break?! continue is meant to continue through
-			// the registered activities to keep looking. We apparently don't yet have a test that exercises a case
-			// where there are multiple activities and the first one doesn't match the expected type... or we do and
-			// that doesn't matter?
 			continue
 		}
 

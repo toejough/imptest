@@ -617,6 +617,69 @@ func TestL2ReturnNil(t *testing.T) {
 	imp.ReceiveReturn(nil)
 }
 
+// TestL2OutOfOrderActivityTypesConcurrency tests when concurrency means function activity calls are out of order, but
+// the test still works as expected.
+func TestL2OutOfOrderActivityTypesConcurrency(t *testing.T) {
+	t.Parallel()
+
+	// Given a function to test
+	callBlockChan := make(chan struct{})
+	returnBlockChan := make(chan struct{})
+	expectationCallBlockChan := make(chan struct{})
+	expectationReturnBlockChan := make(chan struct{})
+	funcToTest := func(deps depStruct1) error {
+		go func() {
+			// won't call dep1 till we tell it to
+			<-callBlockChan
+			deps.Dep1()
+		}()
+
+		<-returnBlockChan
+
+		return nil
+	}
+	// and a struct of dependencies to mimic
+	depsToMimic := depStruct1{} //nolint:exhaustruct
+	// and a helpful test imp
+	imp := imptest.NewImp(t, &depsToMimic)
+	defer imp.Close()
+	// and a string to return from the dependency call
+	returnString := anyString
+
+	// When we run the function to test with the mimicked dependencies
+	imp.Start(funcToTest, depsToMimic)
+	// expect the call and the return concurrently
+	// allow the call expectation
+	// allow the return activity
+	// once we're sure they have been queued up in conflict...
+	// allow return expectation
+	// allow call activity
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(2)
+
+	go func() {
+		defer waitGroup.Done()
+		imp.Concurrently(func() {
+			// Then the next thing the function under test does is make a call matching our expectations
+			// When we push a return string
+			<-expectationCallBlockChan
+			imp.ReceiveCall("Dep1").SendReturn(returnString)
+		}, func() {
+			// Then the next thing the function under test does is return values matching our expectations
+			<-expectationReturnBlockChan
+			imp.ReceiveReturn(nil)
+		})
+	}()
+	go func() {
+		defer waitGroup.Done()
+		expectationReturnBlockChan <- struct{}{}
+		callBlockChan <- struct{}{}
+		expectationCallBlockChan <- struct{}{}
+		returnBlockChan <- struct{}{}
+	}()
+	waitGroup.Wait()
+}
+
 // ==Failure Tests==
 
 // TestL2ReceiveTooFewCalls tests matching a dependency call and pushing a return more simply, with a
@@ -742,7 +805,7 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 	}
 
 	// if this is not a string, the imp would've already complained
-	// in general, if you are asking for the wrong type here, the test _should_ panic.
+	// in general, if you are asking  the test _should_ panic.
 	retString := returns[0].(string) //nolint:forcetypeassert
 	if !strings.HasPrefix(retString, returnString) {
 		t.Fatalf(
