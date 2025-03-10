@@ -281,7 +281,7 @@ type function any
 // ==L2 Exported Types==.
 type Imp struct {
 	concurrency     atomic.Int64
-	expectationChan chan expectation
+	ExpectationChan chan Expectation
 	ActivityChan    chan FuncActivity
 	T               Tester
 }
@@ -297,7 +297,7 @@ type Tester interface {
 
 func (t *Imp) Close() {
 	close(t.ActivityChan)
-	close(t.expectationChan)
+	close(t.ExpectationChan)
 }
 
 func (t *Imp) Start(f any, args ...any) *Imp {
@@ -337,7 +337,7 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.T.Helper()
 	// t.T.Logf("receiving call")
 
-	expected := expectation{
+	expected := Expectation{
 		FuncActivity{
 			ActivityTypeCall,
 			nil,
@@ -350,38 +350,38 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 				nil,
 			},
 		},
-		make(chan expectationResponse),
+		make(chan ExpectationResponse),
 	}
 
-	t.expectationChan <- expected
-	response := <-expected.responseChan
+	t.ExpectationChan <- expected
+	response := <-expected.ResponseChan
 
-	if response.match == nil {
-		t.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+	if response.Match == nil {
+		t.T.Fatalf("expected %v, but got %v", expected.Activity, response.Misses)
 	}
 
-	return response.match.Call
+	return response.Match.Call
 }
 
 func (t *Imp) ReceiveReturn(returned ...any) {
 	t.T.Helper()
 	t.T.Logf("receiving return")
 
-	expected := expectation{
+	expected := Expectation{
 		FuncActivity{
 			ActivityTypeReturn,
 			nil,
 			returned,
 			nil,
 		},
-		make(chan expectationResponse),
+		make(chan ExpectationResponse),
 	}
 
-	t.expectationChan <- expected
-	response := <-expected.responseChan
+	t.ExpectationChan <- expected
+	response := <-expected.ResponseChan
 
-	if response.match == nil {
-		t.T.Fatalf("expected %#v, but got %#v", expected.activity, response.misses)
+	if response.Match == nil {
+		t.T.Fatalf("expected %#v, but got %#v", expected.Activity, response.Misses)
 	}
 }
 
@@ -389,21 +389,21 @@ func (t *Imp) ReceivePanic(panicValue any) {
 	t.T.Helper()
 	t.T.Logf("receiving panic")
 
-	expected := expectation{
+	expected := Expectation{
 		FuncActivity{
 			ActivityTypePanic,
 			panicValue,
 			nil,
 			nil,
 		},
-		make(chan expectationResponse),
+		make(chan ExpectationResponse),
 	}
 
-	t.expectationChan <- expected
-	response := <-expected.responseChan
+	t.ExpectationChan <- expected
+	response := <-expected.ResponseChan
 
-	if response.match == nil {
-		t.T.Fatalf("expected %v, but got %v", expected.activity, response.misses)
+	if response.Match == nil {
+		t.T.Fatalf("expected %v, but got %v", expected.Activity, response.Misses)
 	}
 }
 
@@ -436,7 +436,7 @@ func (t *Imp) Concurrently(funcs ...func()) {
 func NewImp(tester Tester, funcStructs ...any) *Imp {
 	tester2 := &Imp{
 		concurrency:     atomic.Int64{},
-		expectationChan: make(chan expectation),
+		ExpectationChan: make(chan Expectation),
 		ActivityChan:    make(chan FuncActivity, constDefaultActivityBufferSize),
 		T:               tester,
 	}
@@ -487,7 +487,7 @@ const (
 
 func (t *Imp) matchActivitiesToExpectations() {
 	activities := []FuncActivity{}
-	expectations := []expectation{}
+	expectations := []Expectation{}
 
 	// while there are expectations that haven't been met, keep pulling activities off to look at them.
 	// if we've exhausted our expectations and still have activities, push them back onto the channel and wait for the
@@ -535,19 +535,19 @@ func (t *Imp) matchActivitiesToExpectations() {
 		activities = removeFromSlice(activities, activityIndex)
 		expectations = removeFromSlice(expectations, expectationIndex)
 		//   respond to the receive event with success
-		expectation.responseChan <- expectationResponse{match: &activity, misses: nil}
+		expectation.ResponseChan <- ExpectationResponse{Match: &activity, Misses: nil}
 	}
 }
 
 func (t *Imp) updateActivitiesAndExpectations(
-	expectations []expectation, activities []FuncActivity,
-) ([]expectation, []FuncActivity, bool) {
+	expectations []Expectation, activities []FuncActivity,
+) ([]Expectation, []FuncActivity, bool) {
 	// if we are already waiting on an L2 expectation, then pull whatever expectations or activities are ready
 	if len(expectations) > 0 {
 		// TODO: len expectations can be compared to -1? weird catch, mutations...
 		// pull activities and expectations out
 		select {
-		case expectation, ok := <-t.expectationChan:
+		case expectation, ok := <-t.ExpectationChan:
 			if !ok {
 				return nil, nil, true
 			}
@@ -574,7 +574,7 @@ func (t *Imp) updateActivitiesAndExpectations(
 		activities = []FuncActivity{}
 
 		// Then also wait for an L2 expectation before looking at the activity chan again
-		expectation, ok := <-t.expectationChan
+		expectation, ok := <-t.ExpectationChan
 		if !ok {
 			return nil, nil, true
 		}
@@ -585,14 +585,14 @@ func (t *Imp) updateActivitiesAndExpectations(
 	return expectations, activities, false
 }
 
-type expectation struct {
-	activity     FuncActivity
-	responseChan chan expectationResponse
+type Expectation struct {
+	Activity     FuncActivity
+	ResponseChan chan ExpectationResponse
 }
 
-type expectationResponse struct {
-	match  *FuncActivity
-	misses []FuncActivity
+type ExpectationResponse struct {
+	Match  *FuncActivity
+	Misses []FuncActivity
 }
 
 // callFunc calls the given function with the given args, and returns the return values from that callFunc.
@@ -619,13 +619,13 @@ type fieldPair struct {
 	Value reflect.Value
 }
 
-func failExpectations(expectationBuffer []expectation, activityBuffer []FuncActivity) {
+func failExpectations(expectationBuffer []Expectation, activityBuffer []FuncActivity) {
 	for i := range expectationBuffer {
-		expectationBuffer[i].responseChan <- expectationResponse{match: nil, misses: activityBuffer}
+		expectationBuffer[i].ResponseChan <- ExpectationResponse{Match: nil, Misses: activityBuffer}
 	}
 }
 
-func matchBuffers(expectationBuffer []expectation, activityBuffer []FuncActivity) (int, int, bool) {
+func matchBuffers(expectationBuffer []Expectation, activityBuffer []FuncActivity) (int, int, bool) {
 	var expectationIndex, activityIndex int
 
 	matched := false
@@ -633,7 +633,7 @@ func matchBuffers(expectationBuffer []expectation, activityBuffer []FuncActivity
 	for index := range expectationBuffer {
 		expectation := expectationBuffer[index]
 
-		activityIndex = matchActivity(expectation.activity, activityBuffer)
+		activityIndex = matchActivity(expectation.Activity, activityBuffer)
 		if activityIndex >= 0 {
 			expectationIndex = index
 			matched = true

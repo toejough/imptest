@@ -223,6 +223,351 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 // TODO - write an L1 concurrency test as a set of unordered checks... then reimplement L2 from there.
 // TODO - write an L1 concurrency test that requires concurrency... then reimplement L2 from there.
 
+// TestL1UnorderedConcurrency tests that we can verify unordered concurrency. That is, we are launching some function
+// calls, and not caring whether they happened sequentially, so long as they all happen.
+// This test does not require that the calls are truly happening concurrently.
+func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,cyclop,maintidx
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(d1, d2, d3, d4, d5 func()) {
+		d1()
+		d2()
+		d3()
+		d4()
+		d5()
+	}
+	// and functions to mimic
+	depToMimic1 := func() { panic("not implemented") }
+	depToMimic2 := func() { panic("not implemented") }
+	depToMimic3 := func() { panic("not implemented") }
+	depToMimic4 := func() { panic("not implemented") }
+	depToMimic5 := func() { panic("not implemented") }
+	// and a channel to put function activity onto
+	funcActivityChan := make(chan imptest.FuncActivity)
+	// and mimics of those dependencies, which send notifications of calls to themselves on the activity channel
+	depMimic1, depMimic1ID := imptest.MimicDependency(t, depToMimic1, funcActivityChan)
+	depMimic2, depMimic2ID := imptest.MimicDependency(t, depToMimic2, funcActivityChan)
+	depMimic3, depMimic3ID := imptest.MimicDependency(t, depToMimic3, funcActivityChan)
+	depMimic4, depMimic4ID := imptest.MimicDependency(t, depToMimic4, funcActivityChan)
+	depMimic5, depMimic5ID := imptest.MimicDependency(t, depToMimic5, funcActivityChan)
+	// and a channel to put function activity onto
+	expectationsChan := make(chan imptest.Expectation, 6)
+	defer close(expectationsChan)
+
+	// When we run the function to test with the mimicked dependencies
+	go func() {
+		defer close(funcActivityChan)
+		// call the function to test
+		funcToTest(depMimic1, depMimic2, depMimic3, depMimic4, depMimic5)
+		// record what the func returns as its final activity
+		funcActivityChan <- imptest.FuncActivity{
+			Type:       imptest.ActivityTypeReturn,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call:       nil,
+		}
+	}()
+
+	// When we set expectations for the function calls
+	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic5ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic2ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic4ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeReturn,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call:       nil,
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic1ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic3ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+
+	// When we get the first activity from the function under test
+	activity := <-funcActivityChan
+
+	// Then we expect it to match one of the expectations
+	matched := false
+
+	// search 6 expectations for a match
+	for range 6 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity.Type == imptest.ActivityTypeCall {
+			activity.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the expectations")
+	}
+
+	// When we get the second activity
+	activity = <-funcActivityChan
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
+	// search the remaining expectations
+	for range 5 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity.Type == imptest.ActivityTypeCall {
+			activity.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// search the remaining expectations
+	for range 4 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity.Type == imptest.ActivityTypeCall {
+			activity.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// search the remaining expectations
+	for range 3 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity.Type == imptest.ActivityTypeCall {
+			activity.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// search the remaining expectations
+	for range 2 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity.Type == imptest.ActivityTypeCall {
+			activity.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// search the remaining expectations
+	for range 1 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity.Type == imptest.ActivityTypeCall {
+			activity.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+}
+
 // TestL1PingPongConcurrency tests using the funcActivityChan with a funcToTest that calls ping-pong dependencies
 // concurrently.
 // ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
@@ -513,7 +858,7 @@ func TestL2ReceiveCallSendPanic(t *testing.T) {
 		return deps.Dep1()
 	}
 	// and a struct of dependencies to mimic
-	depsToMimic := depStruct1{} //nolint:exhaustruct
+	depsToMimic := depStruct1{}
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
 	defer imp.Close()
@@ -531,70 +876,6 @@ func TestL2ReceiveCallSendPanic(t *testing.T) {
 	imp.ReceivePanic(panicString)
 }
 
-type pingPongDeps struct {
-	Ping, Pong func() bool
-}
-
-// TestL2PingPongConcurrently tests using the funcActivityChan with a funcToTest that calls ping-pong dependencies
-// concurrently.
-func TestL2PingPongConcurrently(t *testing.T) {
-	t.Parallel()
-
-	// Given a function to test
-	funcToTest := pingPong
-	// and dependencies to mimic
-	// ignore exhaustruct - the zero value for pingpong deps is fine
-	depsToMimic := pingPongDeps{} //nolint:exhaustruct
-	// and a helpful test imp
-	imp := imptest.NewImp(t, &depsToMimic)
-	defer imp.Close()
-
-	// When we run the function to test with the mimicked dependencies
-	imp.Start(funcToTest, depsToMimic.Ping, depsToMimic.Pong)
-
-	// then we get concurrent call flows...
-	imp.Concurrently(func() {
-		// Then we get 100 calls to ping
-		pingCallCount := 0
-		for pingCallCount < 100 {
-			imp.ReceiveCall("Ping").SendReturn(true)
-
-			pingCallCount++
-		}
-		// Then we ping once
-		imp.ReceiveCall("Ping").SendReturn(true)
-
-		// Then we get 100 more calls to ping
-		pingCallCount = 0
-		for pingCallCount < 100 {
-			imp.ReceiveCall("Ping").SendReturn(true)
-
-			pingCallCount++
-		}
-	}, func() {
-		// Then we get 100 calls to pong
-		pongCallCount := 0
-		for pongCallCount < 100 {
-			imp.ReceiveCall("Pong").SendReturn(true)
-
-			pongCallCount++
-		}
-		// Then we pong once
-		imp.ReceiveCall("Pong").SendReturn(false)
-
-		// Then we get 100 more calls to pong
-		pongCallCount = 0
-		for pongCallCount < 100 {
-			imp.ReceiveCall("Pong").SendReturn(true)
-
-			pongCallCount++
-		}
-	})
-
-	// Then the next activity from the function under test is its return
-	imp.ReceiveReturn()
-}
-
 // TestL2ReturnNil tests returning nil, which is tricky from a reflection standpoint.
 func TestL2ReturnNil(t *testing.T) {
 	t.Parallel()
@@ -605,7 +886,7 @@ func TestL2ReturnNil(t *testing.T) {
 		return nil
 	}
 	// and a struct of dependencies to mimic
-	depsToMimic := depStruct1{} //nolint:exhaustruct
+	depsToMimic := depStruct1{}
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
 	defer imp.Close()
@@ -630,7 +911,7 @@ func TestL2PushNil(t *testing.T) {
 		deps.Dep1()
 	}
 	// and a struct of dependencies to mimic
-	depsToMimic := depStruct2{} //nolint:exhaustruct
+	depsToMimic := depStruct2{}
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
 	defer imp.Close()
@@ -670,7 +951,7 @@ func TestL2OutOfOrderActivityTypesConcurrency(t *testing.T) {
 		return nil
 	}
 	// and a struct of dependencies to mimic
-	depsToMimic := depStruct1{} //nolint:exhaustruct
+	depsToMimic := depStruct1{}
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
 	defer imp.Close()
@@ -711,104 +992,7 @@ func TestL2OutOfOrderActivityTypesConcurrency(t *testing.T) {
 	waitGroup.Wait()
 }
 
-// TestL2ManyConcurrentFlows tests that many concurrent flows pass.
-func TestL2ManyConcurrentFlows(t *testing.T) {
-	t.Parallel()
-
-	// Given a function to test
-	funcToTest := func(deps depStruct3) {
-		go deps.Dep1()
-		go deps.Dep2()
-		go deps.Dep3()
-		go deps.Dep4()
-		go deps.Dep5()
-	}
-	// and a struct of dependenc mimics
-	depsToMimic := depStruct3{} //nolint:exhaustruct
-	// and a helpful test imp
-	imp := imptest.NewImp(t, &depsToMimic)
-
-	// When we run the function to test with the mimicked dependencies
-	imp.Start(funcToTest, depsToMimic)
-
-	// Then the next thing the function under test does is make a call matching our expectations
-	// When we push a return string
-	imp.Concurrently(func() {
-		// t.Log("dep 1 waiting")
-		imp.ReceiveCall("Dep1").SendReturn()
-	}, func() {
-		// t.Log("dep 2 waiting")
-		imp.ReceiveCall("Dep2").SendReturn()
-	}, func() {
-		// t.Log("dep 3 waiting")
-		imp.ReceiveCall("Dep3").SendReturn()
-	}, func() {
-		// t.Log("dep 3 waiting")
-		imp.ReceiveCall("Dep4").SendReturn()
-	}, func() {
-		// t.Log("dep 3 waiting")
-		imp.ReceiveCall("Dep5").SendReturn()
-	}, func() {
-		// t.Log("return waiting")
-		imp.ReceiveReturn()
-	})
-}
-
-type depStruct3 struct {
-	Dep1 func()
-	Dep2 func()
-	Dep3 func()
-	Dep4 func()
-	Dep5 func()
-}
-
 // ==Failure Tests==
-
-// TestL2TooManyConcurrentFlows tests that expecting too many concurrent flows passes.. this is essentially saying that
-// the calls are expected in an unordered fashion.
-func TestL2TooManyConcurrentFlows(t *testing.T) {
-	t.Parallel()
-
-	// Given a function to test
-	funcToTest := func(deps depStruct3) {
-		go func() {
-			deps.Dep1()
-			deps.Dep2()
-			deps.Dep3()
-			deps.Dep4()
-		}()
-		go deps.Dep5()
-	}
-	// and a struct of dependenc mimics
-	depsToMimic := depStruct3{} //nolint:exhaustruct
-	// and a helpful test imp
-	imp := imptest.NewImp(t, &depsToMimic)
-
-	// When we run the function to test with the mimicked dependencies
-	imp.Start(funcToTest, depsToMimic)
-
-	// Then the next thing the function under test does is make a call matching our expectations
-	// When we push a return string
-	imp.Concurrently(func() {
-		// t.Log("dep 1 waiting")
-		imp.ReceiveCall("Dep1").SendReturn()
-	}, func() {
-		// t.Log("dep 2 waiting")
-		imp.ReceiveCall("Dep2").SendReturn()
-	}, func() {
-		// t.Log("dep 3 waiting")
-		imp.ReceiveCall("Dep3").SendReturn()
-	}, func() {
-		// t.Log("dep 3 waiting")
-		imp.ReceiveCall("Dep4").SendReturn()
-	}, func() {
-		// t.Log("dep 3 waiting")
-		imp.ReceiveCall("Dep5").SendReturn()
-	}, func() {
-		// t.Log("return waiting")
-		imp.ReceiveReturn()
-	})
-}
 
 // TestL2ReceiveTooFewCalls tests matching a dependency call and pushing a return more simply, with a
 // dependency struct.
@@ -822,7 +1006,7 @@ func TestL2ReceiveTooFewCalls(t *testing.T) {
 			return deps.Dep1()
 		}
 		// and a struct of dependenc mimics
-		depsToMimic := depStruct1{} //nolint:exhaustruct
+		depsToMimic := depStruct1{}
 		// and a helpful test imp
 		imp := imptest.NewImp(mockedT, &depsToMimic)
 		// and a string to return from the dependency call
@@ -865,7 +1049,7 @@ func TestL2ReceiveWrongReturnType(t *testing.T) {
 			return deps.Dep1()
 		}
 		// and a struct of dependenc mimics
-		depsToMimic := depStruct1{} //nolint:exhaustruct
+		depsToMimic := depStruct1{}
 		// and a helpful test imp
 		imp := imptest.NewImp(mockedT, &depsToMimic)
 		// and a string to return from the dependency call
@@ -907,7 +1091,7 @@ func TestL2PushWrongReturnType(t *testing.T) {
 			return deps.Dep1()
 		}
 		// and a struct of dependenc mimics
-		depsToMimic := depStruct1{} //nolint:exhaustruct
+		depsToMimic := depStruct1{}
 		// and a helpful test imp
 		imp := imptest.NewImp(mockedT, &depsToMimic)
 		// and a string to return from the dependency call
@@ -948,7 +1132,7 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 		return deps.Dep1()
 	}
 	// and a struct of dependencies to mimic
-	depsToMimic := depStruct1{} //nolint:exhaustruct
+	depsToMimic := depStruct1{}
 	// and a helpful test imp
 	imp := imptest.NewImp(t, &depsToMimic)
 	defer imp.Close()
@@ -974,8 +1158,8 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 		t.Fatalf("Expected only one return but got %d", len(returns))
 	}
 
-	// if this is not a string, the ilained
-	// in general, if you are asking .
+	// if this is not a string, the imp would've already complained
+	// in general, if you are asking for the wrong type, you should get a panic.
 	retString := returns[0].(string) //nolint:forcetypeassert
 	if !strings.HasPrefix(retString, returnString) {
 		t.Fatalf(

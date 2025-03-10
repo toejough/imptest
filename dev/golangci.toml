@@ -5,6 +5,7 @@ disable = [
 	"forbidigo",      # I print output on purpose
 	"ireturn",        # I return generic types
 	"nonamedreturns", # I like named returns
+	"exhaustruct",    # too noisy for zero value structs
 	# deprecated
 	"exportloopref",
 	"godox",         # saving todos till the end
