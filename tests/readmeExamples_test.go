@@ -220,7 +220,6 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 	}
 }
 
-// TODO - write an L1 concurrency test as a set of unordered checks... then reimplement L2 from there.
 // TODO - write an L1 concurrency test that requires concurrency... then reimplement L2 from there.
 
 // TestL1UnorderedConcurrency tests that we can verify unordered concurrency. That is, we are launching some function
@@ -246,11 +245,36 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 	// and a channel to put function activity onto
 	funcActivityChan := make(chan imptest.FuncActivity)
 	// and mimics of those dependencies, which send notifications of calls to themselves on the activity channel
-	depMimic1, depMimic1ID := imptest.MimicDependency(t, depToMimic1, funcActivityChan)
-	depMimic2, depMimic2ID := imptest.MimicDependency(t, depToMimic2, funcActivityChan)
-	depMimic3, depMimic3ID := imptest.MimicDependency(t, depToMimic3, funcActivityChan)
-	depMimic4, depMimic4ID := imptest.MimicDependency(t, depToMimic4, funcActivityChan)
-	depMimic5, depMimic5ID := imptest.MimicDependency(t, depToMimic5, funcActivityChan)
+	depMimic1, depMimic1ID := imptest.MimicDependency(
+		t,
+		depToMimic1,
+		funcActivityChan,
+		imptest.WithName("dep1"),
+	)
+	depMimic2, depMimic2ID := imptest.MimicDependency(
+		t,
+		depToMimic2,
+		funcActivityChan,
+		imptest.WithName("dep2"),
+	)
+	depMimic3, depMimic3ID := imptest.MimicDependency(
+		t,
+		depToMimic3,
+		funcActivityChan,
+		imptest.WithName("dep3"),
+	)
+	depMimic4, depMimic4ID := imptest.MimicDependency(
+		t,
+		depToMimic4,
+		funcActivityChan,
+		imptest.WithName("dep4"),
+	)
+	depMimic5, depMimic5ID := imptest.MimicDependency(
+		t,
+		depToMimic5,
+		funcActivityChan,
+		imptest.WithName("dep5"),
+	)
 	// and a channel to put function activity onto
 	expectationsChan := make(chan imptest.Expectation, 6)
 	defer close(expectationsChan)
@@ -431,6 +455,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		t.Fatal("expected to match one of the remaining expectations")
 	}
 
+	// When we get the next activity
+	activity = <-funcActivityChan
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
 	// search the remaining expectations
 	for range 4 {
 		// get the next expectation
@@ -464,6 +494,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 	if !matched {
 		t.Fatal("expected to match one of the remaining expectations")
 	}
+
+	// When we get the next activity
+	activity = <-funcActivityChan
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
 
 	// search the remaining expectations
 	for range 3 {
@@ -499,6 +535,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		t.Fatal("expected to match one of the remaining expectations")
 	}
 
+	// When we get the next activity
+	activity = <-funcActivityChan
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
 	// search the remaining expectations
 	for range 2 {
 		// get the next expectation
@@ -532,6 +574,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 	if !matched {
 		t.Fatal("expected to match one of the remaining expectations")
 	}
+
+	// When we get the next activity
+	activity = <-funcActivityChan
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
 
 	// search the remaining expectations
 	for range 1 {
@@ -568,252 +616,8 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 	}
 }
 
-// TestL1PingPongConcurrency tests using the funcActivityChan with a funcToTest that calls ping-pong dependencies
-// concurrently.
-// ignore the linter error about how this test is too long. It's kind of the point behind the L2 API.
-// ignore the linter error about how this test is too complex. It's kind of the point behind the L2 API.
-func TestL1PingPongConcurrency(t *testing.T) { //nolint:funlen,cyclop
-	t.Parallel()
-
-	// Given a function to test
-	funcToTest := pingPong
-	// and dependencies to mimic
-	pingToMimic := func() bool { panic("not implemented") }
-	pongToMimic := func() bool { panic("not implemented") }
-	// and a channel to put function activity onto
-	// give it a buffer of 2 - we expect to need to put 2 goroutine's worth of activity onto it before reading.
-	funcActivityChan := make(chan imptest.FuncActivity, 2)
-	defer close(funcActivityChan)
-	// and dependency mimics that push their calls onto the func activity chan
-	pingMimic, pingMimicID := imptest.MimicDependency(
-		t,
-		pingToMimic,
-		funcActivityChan,
-		imptest.WithName("ping"),
-	)
-	pongMimic, pongMimicID := imptest.MimicDependency(
-		t,
-		pongToMimic,
-		funcActivityChan,
-		imptest.WithName("pong"),
-	)
-
-	// When we run the function to test with the mimicked dependency
-	go func() {
-		// call the function to test
-		funcToTest(pingMimic, pongMimic)
-		// record that the func returned as its final activity
-		funcActivityChan <- imptest.FuncActivity{
-			Type:       imptest.ActivityTypeReturn,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call:       nil,
-		}
-	}()
-
-	// Then we get 100 calls to ping
-	pingCallCount := 0
-	for pingCallCount < 100 {
-		activity := <-funcActivityChan
-		if activity.Type != imptest.ActivityTypeCall {
-			t.Fail()
-		}
-
-		// and the dependency call is to the mimicked dependency
-		if activity.Call.ID != pingMimicID {
-			// if not, push it back on the queue and try again
-			funcActivityChan <- activity
-			continue
-		}
-
-		pingCallCount++
-
-		// When we push a return
-		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ResponseTypeReturn,
-			ReturnValues: []any{true},
-			PanicValue:   nil,
-		}
-	}
-
-	// Then we get 100 calls to pong
-	pongCallCount := 0
-	for pongCallCount < 100 {
-		activity := <-funcActivityChan
-		if activity.Type != imptest.ActivityTypeCall {
-			t.Fail()
-		}
-
-		// and the dependency call is to the mimicked dependency
-		if activity.Call.ID != pongMimicID {
-			// if not, push it back on the queue and try again
-			funcActivityChan <- activity
-			continue
-		}
-
-		pongCallCount++
-
-		// When we push a return
-		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ResponseTypeReturn,
-			ReturnValues: []any{true},
-			PanicValue:   nil,
-		}
-	}
-
-	// Then we ping once
-	pingActivity := <-funcActivityChan
-	if pingActivity.Type != imptest.ActivityTypeCall {
-		t.Fail()
-	}
-
-	// and the dependency call is to the mimicked dependency
-	if pingActivity.Call.ID != pingMimicID {
-		t.Fail()
-	}
-
-	// When we push a return
-	pingActivity.Call.ResponseChan <- imptest.CallResponse{
-		Type:         imptest.ResponseTypeReturn,
-		ReturnValues: []any{true},
-		PanicValue:   nil,
-	}
-
-	// Then we pong once
-	pongActivity := <-funcActivityChan
-	if pongActivity.Type != imptest.ActivityTypeCall {
-		t.Fail()
-	}
-
-	// and the dependency call is to the mimicked dependency
-	if pongActivity.Call.ID != pongMimicID {
-		t.Fail()
-	}
-
-	// When we push a return
-	pongActivity.Call.ResponseChan <- imptest.CallResponse{
-		Type:         imptest.ResponseTypeReturn,
-		ReturnValues: []any{false},
-		PanicValue:   nil,
-	}
-
-	// Then we get 100 more calls to ping
-	pingCallCount = 0
-	for pingCallCount < 100 {
-		activity := <-funcActivityChan
-		if activity.Type != imptest.ActivityTypeCall {
-			t.Fail()
-		}
-
-		// and the dependency call is to the mimicked dependency
-		if activity.Call.ID != pingMimicID {
-			// if not, push it back on the queue and try again
-			funcActivityChan <- activity
-			continue
-		}
-
-		pingCallCount++
-
-		// When we push a return
-		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ResponseTypeReturn,
-			ReturnValues: []any{true},
-			PanicValue:   nil,
-		}
-	}
-
-	// Then we get 100 more calls to pong
-	pongCallCount = 0
-	for pongCallCount < 100 {
-		activity := <-funcActivityChan
-		if activity.Type != imptest.ActivityTypeCall {
-			t.Fail()
-		}
-
-		// and the dependency call is to the mimicked dependency
-		if activity.Call.ID != pongMimicID {
-			// if not, push it back on the queue and try again
-			funcActivityChan <- activity
-			continue
-		}
-
-		pongCallCount++
-
-		// When we push a return
-		activity.Call.ResponseChan <- imptest.CallResponse{
-			Type:         imptest.ResponseTypeReturn,
-			ReturnValues: []any{true},
-			PanicValue:   nil,
-		}
-	}
-
-	// Then the next activity from the function under test is its return
-	returnActivity := <-funcActivityChan
-	if returnActivity.Type != imptest.ActivityTypeReturn {
-		t.Fail()
-	}
-
-	// and the returned data is 0 items
-	if len(returnActivity.ReturnVals) != 0 {
-		t.Fail()
-	}
-}
-
-func pingPong(ping, pong func() bool) {
-	pingChan := make(chan bool)
-	defer close(pingChan)
-
-	pongChan := make(chan bool)
-	defer close(pongChan)
-
-	wgPingPong := sync.WaitGroup{}
-	pingLoop := func() {
-		// unsynced calls
-		for range 100 {
-			ping()
-		}
-		// synced calls
-		shouldPing := true
-		for shouldPing {
-			pingChan <- ping()
-
-			shouldPing = <-pongChan
-		}
-		pingChan <- false
-		// unsynced calls
-		for range 100 {
-			ping()
-		}
-
-		wgPingPong.Done()
-	}
-	pongLoop := func() {
-		// unsynced calls
-		for range 100 {
-			pong()
-		}
-		// synced calls
-		shouldPong := <-pingChan
-		for shouldPong {
-			pongChan <- pong()
-
-			shouldPong = <-pingChan
-		}
-		// unsynced calls
-		for range 100 {
-			pong()
-		}
-
-		wgPingPong.Done()
-	}
-
-	wgPingPong.Add(2)
-
-	go pingLoop()
-	go pongLoop()
-
-	wgPingPong.Wait()
-}
+// TestL1RequiredConcurrency tests that when function activity happens concurrently, we can expect
+// that with the L1 API.
 
 // ===L2 Tests===
 
@@ -1155,11 +959,11 @@ func TestL2L1MixReceiveCallSendReturn(t *testing.T) {
 
 	returns := functionReturned.ReturnVals
 	if len(returns) != 1 {
-		t.Fatalf("Expected only one return but got %d", len(returns))
+		t.Fatalf("Expected only one return")
 	}
 
 	// if this is not a string, the imp would've already complained
-	// in general, if you are asking for the wrong type, you should get a panic.
+	// in general, if you are asking should get a panic.
 	retString := returns[0].(string) //nolint:forcetypeassert
 	if !strings.HasPrefix(retString, returnString) {
 		t.Fatalf(
