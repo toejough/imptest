@@ -618,6 +618,385 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 
 // TestL1RequiredConcurrency tests that when function activity happens concurrently, we can expect
 // that with the L1 API.
+func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,cyclop,maintidx
+	t.Parallel()
+
+	// Given a function to test
+	funcToTest := func(d1, d2, d3, d4, d5 func()) {
+		go d1()
+		go d2()
+		go d3()
+		go d4()
+		go d5()
+	}
+	// and functions to mimic
+	depToMimic1 := func() { panic("not implemented") }
+	depToMimic2 := func() { panic("not implemented") }
+	depToMimic3 := func() { panic("not implemented") }
+	depToMimic4 := func() { panic("not implemented") }
+	depToMimic5 := func() { panic("not implemented") }
+	// and a channel to put function activity onto
+	funcActivityChan := make(chan imptest.FuncActivity)
+	// and mimics of those dependencies, which send notifications of calls to themselves on the activity channel
+	depMimic1, depMimic1ID := imptest.MimicDependency(
+		t,
+		depToMimic1,
+		funcActivityChan,
+		imptest.WithName("dep1"),
+	)
+	depMimic2, depMimic2ID := imptest.MimicDependency(
+		t,
+		depToMimic2,
+		funcActivityChan,
+		imptest.WithName("dep2"),
+	)
+	depMimic3, depMimic3ID := imptest.MimicDependency(
+		t,
+		depToMimic3,
+		funcActivityChan,
+		imptest.WithName("dep3"),
+	)
+	depMimic4, depMimic4ID := imptest.MimicDependency(
+		t,
+		depToMimic4,
+		funcActivityChan,
+		imptest.WithName("dep4"),
+	)
+	depMimic5, depMimic5ID := imptest.MimicDependency(
+		t,
+		depToMimic5,
+		funcActivityChan,
+		imptest.WithName("dep5"),
+	)
+	// and a channel to put function activity onto
+	expectationsChan := make(chan imptest.Expectation, 6)
+	defer close(expectationsChan)
+
+	// When we run the function to test with the mimicked dependencies
+	go func() {
+		// call the function to test
+		funcToTest(depMimic1, depMimic2, depMimic3, depMimic4, depMimic5)
+		// record what the func returns as its final activity
+		funcActivityChan <- imptest.FuncActivity{
+			Type:       imptest.ActivityTypeReturn,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call:       nil,
+		}
+	}()
+
+	// When we set expectations for the function calls
+	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic5ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic2ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic4ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeReturn,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call:       nil,
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic1ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+	expectationsChan <- imptest.Expectation{
+		Activity: imptest.FuncActivity{
+			Type:       imptest.ActivityTypeCall,
+			PanicVal:   nil,
+			ReturnVals: nil,
+			Call: &imptest.Call{
+				ID:           depMimic3ID,
+				Args:         nil,
+				ResponseChan: nil,
+				Type:         nil,
+			},
+		},
+		ResponseChan: nil,
+	}
+
+	// When we get the concurrent activities from the function under test
+	activity1 := <-funcActivityChan
+	activity2 := <-funcActivityChan
+	activity3 := <-funcActivityChan
+	activity4 := <-funcActivityChan
+	activity5 := <-funcActivityChan
+	activity6 := <-funcActivityChan
+
+	// Then we expect it to match one of the expectations
+	matched := false
+
+	// search 6 expectations for a match
+	for range 6 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity1.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity1.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity1.Type == imptest.ActivityTypeCall {
+			activity1.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the expectations")
+	}
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
+	// search the remaining expectations
+	for range 5 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity2.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity2.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity2.Type == imptest.ActivityTypeCall {
+			activity2.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
+	// search the remaining expectations
+	for range 4 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity3.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity3.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity3.Type == imptest.ActivityTypeCall {
+			activity3.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
+	// search the remaining expectations
+	for range 3 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity4.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity4.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity4.Type == imptest.ActivityTypeCall {
+			activity4.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
+	// search the remaining expectations
+	for range 2 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity5.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity5.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity5.Type == imptest.ActivityTypeCall {
+			activity5.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+
+	// Then we expect it to match one of the remaining expectations
+	matched = false
+
+	// search the remaining expectations
+	for range 1 {
+		// get the next expectation
+		expectation := <-expectationsChan
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type != activity6.Type {
+			expectationsChan <- expectation
+			continue
+		}
+		// if no match, push it back onto the channel
+		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity6.Call.ID {
+			expectationsChan <- expectation
+			continue
+		}
+
+		// record the match
+		matched = true
+
+		// if it's a call, push a response
+		if activity6.Type == imptest.ActivityTypeCall {
+			activity6.Call.ResponseChan <- imptest.CallResponse{
+				Type:         imptest.ResponseTypeReturn,
+				PanicValue:   nil,
+				ReturnValues: nil,
+			}
+		}
+
+		break
+	}
+
+	if !matched {
+		t.Fatal("expected to match one of the remaining expectations")
+	}
+}
 
 // ===L2 Tests===
 
