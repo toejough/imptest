@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // ==Error philosophy==
@@ -280,10 +281,11 @@ type function any
 
 // ==L2 Exported Types==.
 type Imp struct {
-	concurrency     atomic.Int64
-	ExpectationChan chan Expectation
-	ActivityChan    chan FuncActivity
-	T               Tester
+	concurrency       atomic.Int64
+	ExpectationChan   chan Expectation
+	ActivityChan      chan FuncActivity
+	T                 Tester
+	ActivityReadMutex sync.Mutex
 }
 
 type Tester interface {
@@ -302,7 +304,6 @@ func (t *Imp) Close() {
 
 func (t *Imp) Start(f any, args ...any) *Imp {
 	go t.startFunctionUnderTest(f, args)
-	go t.matchActivitiesToExpectations()
 
 	return t
 }
@@ -350,11 +351,12 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 				nil,
 			},
 		},
-		make(chan ExpectationResponse),
+		make(chan ExpectationResponse, 1),
 	}
 
 	t.ExpectationChan <- expected
-	response := <-expected.ResponseChan
+
+	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
 		t.T.Fatalf("expected %v, but got %v", expected.Activity, response.Misses)
@@ -374,11 +376,10 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 			returned,
 			nil,
 		},
-		make(chan ExpectationResponse),
+		make(chan ExpectationResponse, 1),
 	}
 
-	t.ExpectationChan <- expected
-	response := <-expected.ResponseChan
+	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
 		t.T.Fatalf("expected %#v, but got %#v", expected.Activity, response.Misses)
@@ -396,38 +397,34 @@ func (t *Imp) ReceivePanic(panicValue any) {
 			nil,
 			nil,
 		},
-		make(chan ExpectationResponse),
+		make(chan ExpectationResponse, 1),
 	}
 
-	t.ExpectationChan <- expected
-	response := <-expected.ResponseChan
+	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
 		t.T.Fatalf("expected %v, but got %v", expected.Activity, response.Misses)
 	}
 }
 
-func (t *Imp) Concurrently(funcs ...func()) {
-	// set up waitgroup
+func (t *Imp) Unordered(funcs ...func()) {
 	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(len(funcs))
-	defer waitGroup.Wait()
 
-	// run the expected call flows
+	// start all the flows
 	for index := range funcs {
+		waitGroup.Add(1)
+		t.concurrency.Add(1)
+
 		go func() {
-			defer waitGroup.Done()
-			defer func() { t.concurrency.Add(-1) }()
-			// TODO: mutation testing failing - it doesn't matter if we increment this to 0??!
-			// There's something funky going on overall. occasionally pingpong and the multi concurrency tests fail
-			// with timeouts, so I'm not tracking something correctly. Dig back into the way I'm handling concurrency
-			// before trying to fix the mutation test on its own anymore.
-
-			t.concurrency.Add(1)
-
+			defer func() {
+				waitGroup.Done()
+				t.concurrency.Add(-1)
+			}()
 			funcs[index]()
 		}()
 	}
+
+	waitGroup.Wait()
 }
 
 // ==L2 funcs==
@@ -436,7 +433,7 @@ func (t *Imp) Concurrently(funcs ...func()) {
 func NewImp(tester Tester, funcStructs ...any) *Imp {
 	tester2 := &Imp{
 		concurrency:     atomic.Int64{},
-		ExpectationChan: make(chan Expectation),
+		ExpectationChan: make(chan Expectation, constDefaultActivityBufferSize),
 		ActivityChan:    make(chan FuncActivity, constDefaultActivityBufferSize),
 		T:               tester,
 	}
@@ -483,106 +480,82 @@ const (
 	constInvalidIndex              = -1
 )
 
-// TODO: IDK how to tell mutation testing to ignore this one - it definitely doesn't matter if this is 100, 99, or 101.
-
-func (t *Imp) matchActivitiesToExpectations() {
-	activities := []FuncActivity{}
-	expectations := []Expectation{}
-
-	// while there are expectations that haven't been met, keep pulling activities off to look at them.
-	// if we've exhausted our expectations and still have activities, push them back onto the channel and wait for the
-	// next expectation to land.
-	// need a concurrency buffer option for imp
-	for {
-		// select on either expectation or action chans
-		//   put it on the buffer
-		var done bool
-		expectations, activities, done = t.updateActivitiesAndExpectations(expectations, activities)
-
-		if done {
-			return
-		}
-		// check against eachother
-		// if any activity matches
-		expectationIndex, activityIndex, matched := matchBuffers(expectations, activities)
-
-		// if not matched & either buffer is full & there's at least one in each buffer, fail all expectations
-		activityBufferFull := len(activities) >= int(t.concurrency.Load())
-		// TODO: failing mutation testing with > - we are never hitting a moment where the expectation buffer is exactly
-		// full.
-		expectationBufferFull := len(expectations) >= int(t.concurrency.Load())
-		eitherBufferFull := activityBufferFull || expectationBufferFull
-		// TODO: failing mutation testing with >= - we are never hitting a moment where the len of expectations being >
-		// 0 matters.
-		shouldBeAMatch := eitherBufferFull && len(activities) > 0 && len(expectations) > 0
-
-		if !matched && shouldBeAMatch {
-			failExpectations(expectations, activities)
-			// TODO: failed the mutation testing here. We continue because we should be done now, but apparently it doesn't
-			// matter if we break instead? That would mean that the only time our tests fail to meet expectations we
-			// immediately stop anyway, so nothing is dependent on further matches...
-			continue
-		}
-
-		// just no match, go back to start
-		if !matched {
-			continue
-		}
-
-		// there was a match - remove the matches from the buffers & respond to the expectation
-		expectation := expectations[expectationIndex]
-		activity := activities[activityIndex]
-		activities = removeFromSlice(activities, activityIndex)
-		expectations = removeFromSlice(expectations, expectationIndex)
-		//   respond to the receive event with success
-		expectation.ResponseChan <- ExpectationResponse{Match: &activity, Misses: nil}
+func matchActivity(activity, expectedActivity FuncActivity) bool {
+	if activity.Type != expectedActivity.Type {
+		return false
 	}
+
+	var expected, actual []any
+
+	switch expectedActivity.Type {
+	case ActivityTypeCall:
+		// check ID
+		if activity.Call.ID != expectedActivity.Call.ID {
+			return false
+		}
+
+		// check args
+		expected = expectedActivity.Call.Args
+		actual = activity.Call.Args
+
+	case ActivityTypeReturn:
+		// check values
+		expected = expectedActivity.ReturnVals
+		actual = activity.ReturnVals
+
+	case ActivityTypePanic:
+		// check value
+		// we want to loop through all the values below, so put this into a slice
+		expected = []any{expectedActivity.PanicVal}
+		actual = []any{activity.PanicVal}
+	case ActivityTypeUnset:
+		panic("tried to match against an unset activity type, and that should never happen")
+	}
+
+	// not a match if the lens of the slices don't match
+	if len(expected) != len(actual) {
+		return false
+	}
+
+	// loop through instead of just comparing, to catch top-level nils passed as args
+	for index := range actual {
+		// special nil checking to be ok if we passed untyped nils where typed nils were actually intercepted
+		if isNil(actual[index]) && isNil(expected[index]) {
+			continue
+		}
+
+		// everything else is fine to run through reflect.DeepEqual.
+		if reflect.DeepEqual(actual[index], expected[index]) {
+			continue
+		}
+
+		return false
+	}
+
+	return true
 }
 
-func (t *Imp) updateActivitiesAndExpectations(
-	expectations []Expectation, activities []FuncActivity,
-) ([]Expectation, []FuncActivity, bool) {
-	// if we are already waiting on an L2 expectation, then pull whatever expectations or activities are ready
-	if len(expectations) > 0 {
-		// TODO: len expectations can be compared to -1? weird catch, mutations...
-		// pull activities and expectations out
+func (t *Imp) resolveExpectations(expectation Expectation) ExpectationResponse {
+	t.ActivityReadMutex.Lock()
+	defer t.ActivityReadMutex.Unlock()
+	expectedActivity := expectation.Activity
+	activities := []FuncActivity{}
+	maxWaitChan := time.After(time.Millisecond * 100)
+	for {
 		select {
-		case expectation, ok := <-t.ExpectationChan:
-			if !ok {
-				return nil, nil, true
+		case activity := <-t.ActivityChan:
+			if !matchActivity(activity, expectedActivity) {
+				activities = append(activities, activity)
+				continue
 			}
-
-			expectations = append(expectations, expectation)
-		case activity, ok := <-t.ActivityChan:
-			if !ok {
-				return nil, nil, true
+			for i := range activities {
+				t.ActivityChan <- activities[i]
 			}
-
-			activities = append(activities, activity)
+			return ExpectationResponse{Match: &activity, Misses: nil}
+		case <-maxWaitChan:
+			return ExpectationResponse{Match: nil, Misses: activities}
 		}
-	} else {
-		// otherwise, push all the waiting activities back:
-		// * we can't use them (no expectations have been set by L2)
-		// * maybe the test wants to use them via L1
-		for i := range activities {
-			// TODO: mutation tests fail here?! we are trying to loop through returning activities to the channel - we
-			// apparently don't have any tests that require this, or this part of the loop doesn't matter? I find that
-			// hard to believe - without this, I don't think the L1L2 mix test works...
-			t.ActivityChan <- activities[i]
-		}
-
-		activities = []FuncActivity{}
-
-		// Then also wait for an L2 expectation before looking at the activity chan again
-		expectation, ok := <-t.ExpectationChan
-		if !ok {
-			return nil, nil, true
-		}
-
-		expectations = append(expectations, expectation)
 	}
-
-	return expectations, activities, false
 }
 
 type Expectation struct {
@@ -619,116 +592,9 @@ type fieldPair struct {
 	Value reflect.Value
 }
 
-func failExpectations(expectationBuffer []Expectation, activityBuffer []FuncActivity) {
-	for i := range expectationBuffer {
-		expectationBuffer[i].ResponseChan <- ExpectationResponse{Match: nil, Misses: activityBuffer}
-	}
-}
-
-func matchBuffers(expectationBuffer []Expectation, activityBuffer []FuncActivity) (int, int, bool) {
-	var expectationIndex, activityIndex int
-
-	matched := false
-
-	for index := range expectationBuffer {
-		expectation := expectationBuffer[index]
-
-		activityIndex = matchActivity(expectation.Activity, activityBuffer)
-		if activityIndex >= 0 {
-			expectationIndex = index
-			matched = true
-
-			break
-		}
-	}
-
-	return expectationIndex, activityIndex, matched
-}
-
 func removeFromSlice[T any](slice []T, index int) []T {
 	slice = append(slice[0:index], slice[index+1:]...)
 	return slice
-}
-
-func matchActivity(expectedActivity FuncActivity, activityBuffer []FuncActivity) int { //nolint:funlen,cyclop
-	// TODO: fix nolints
-	for index := range activityBuffer {
-		activity := activityBuffer[index]
-
-		if activity.Type != expectedActivity.Type {
-			continue
-		}
-
-		var expected, actual []any
-
-		switch expectedActivity.Type {
-		case ActivityTypeCall:
-			// check ID
-			if activity.Call.ID != expectedActivity.Call.ID {
-				continue
-			}
-
-			// check args
-			expected = expectedActivity.Call.Args
-			actual = activity.Call.Args
-
-		case ActivityTypeReturn:
-			// check values
-			expected = expectedActivity.ReturnVals
-			actual = activity.ReturnVals
-
-		case ActivityTypePanic:
-			// check value
-			// we want to loop through all the values below, so put this into a slice
-			expected = []any{expectedActivity.PanicVal}
-			actual = []any{activity.PanicVal}
-		case ActivityTypeUnset:
-			panic("tried to match against an unset activity type, and that should never happen")
-		}
-
-		// not a match if the lens of the slices don't match
-		if len(expected) != len(actual) {
-			// TODO: mutate can break here?
-			continue
-		}
-
-		// need this to bail from a double loop
-		shouldContinue := false
-
-		// loop through instead of just comparing, to catch top-level nils passed as args
-		for index := range actual {
-			// TODO: mutate can break here?
-			// special nil checking to be ok if we passed untyped nils where typed nils were actually intercepted
-			if isNil(actual[index]) && isNil(expected[index]) {
-				// TODO: mutate says second nil doesn't matter? could be true?
-				// TODO: mutate can break here?
-				continue
-			}
-
-			// everything else is fine to run through reflect.DeepEqual.
-			if reflect.DeepEqual(actual[index], expected[index]) {
-				// TODO: mutate can break here?
-				continue
-			}
-
-			shouldContinue = true
-
-			// TODO: mutate can continue here?
-			break
-		}
-
-		if shouldContinue {
-			// TODO: mutate can break here?
-			continue
-		}
-		// if !reflect.DeepEqual(actual, expected) {
-		// 	continue
-		// }
-
-		return index
-	}
-
-	return constInvalidIndex
 }
 
 func isNil(thing any) (toReturn bool) {
@@ -736,7 +602,7 @@ func isNil(thing any) (toReturn bool) {
 		// don't bother checking - this is just to catch the panic and prevent it from bubbling up.
 		// if no panic, then we're returning whatever we were told to.
 		// if panic, returning cleanly with the default toReturn value (false).
-		// we onlyif it was invalid to even ask if thing was nil, in which case it's not.
+		// we only to even ask if thing was nil, in which case it's not.
 		recover() //nolint:errcheck
 	}()
 

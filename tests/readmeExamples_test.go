@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/toejough/imptest/imptest"
@@ -219,8 +218,6 @@ func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
 		t.Fail()
 	}
 }
-
-// TODO - write an L1 concurrency test that requires concurrency... then reimplement L2 from there.
 
 // TestL1UnorderedConcurrency tests that we can verify unordered concurrency. That is, we are launching some function
 // calls, and not caring whether they happened sequentially, so long as they all happen.
@@ -1112,67 +1109,44 @@ type depStruct2 struct {
 	Dep1 func() *string
 }
 
-// TestL2OutOfOrderActivityTypesConcurrency tests when concurrency means function activity calls are out of order, but
-// the test still works as expected.
-func TestL2OutOfOrderActivityTypesConcurrency(t *testing.T) {
+func TestL2Concurrency(t *testing.T) {
 	t.Parallel()
 
 	// Given a function to test
-	callBlockChan := make(chan struct{})
-	returnBlockChan := make(chan struct{})
-	expectationCallBlockChan := make(chan struct{})
-	expectationReturnBlockChan := make(chan struct{})
-	funcToTest := func(deps depStruct1) error {
-		go func() {
-			// won't call dep1 till we tell it to
-			<-callBlockChan
-			deps.Dep1()
-		}()
-
-		<-returnBlockChan
-
-		return nil
+	funcToTest := func(d depStruct3) {
+		go d.D1()
+		go d.D2()
+		go d.D3()
+		go d.D4()
+		go d.D5()
 	}
-	// and a struct of dependencies to mimic
-	depsToMimic := depStruct1{}
-	// and a helpful test imp
-	imp := imptest.NewImp(t, &depsToMimic)
-	defer imp.Close()
-	// and a string to return from the dependency call
-	returnString := anyString
+	// and a dependency struct with functions to replace with mimics
+	deps := depStruct3{}
+	// and a helpful imp...
+	imp := imptest.NewImp(t, &deps)
 
 	// When we run the function to test with the mimicked dependencies
-	imp.Start(funcToTest, depsToMimic)
-	// expect the call and the return concurrently
-	// allow the call expectation
-	// allow the return activity
-	// once we're sure they have been queued up in conflict...
-	// allow return expectation
-	// allow call activity
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(2)
+	imp.Start(funcToTest, deps)
 
-	go func() {
-		defer waitGroup.Done()
-		imp.Concurrently(func() {
-			// Then the next thing the function under test does is make a call matching our expectations
-			// When we push a return string
-			<-expectationCallBlockChan
-			imp.ReceiveCall("Dep1").SendReturn(returnString)
-		}, func() {
-			// Then the next thing the function under test does is return values matching our expectations
-			<-expectationReturnBlockChan
-			imp.ReceiveReturn(nil)
-		})
-	}()
-	go func() {
-		defer waitGroup.Done()
-		expectationReturnBlockChan <- struct{}{}
-		callBlockChan <- struct{}{}
-		expectationCallBlockChan <- struct{}{}
-		returnBlockChan <- struct{}{}
-	}()
-	waitGroup.Wait()
+	// When we set expectations for the function calls
+	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
+	// TODO: add a timeout option
+	imp.Unordered(
+		func() { imp.ReceiveCall("D5").SendReturn() },
+		func() { imp.ReceiveCall("D2").SendReturn() },
+		func() { imp.ReceiveCall("D4").SendReturn() },
+		func() { imp.ReceiveReturn() },
+		func() { imp.ReceiveCall("D1").SendReturn() },
+		func() { imp.ReceiveCall("D3").SendReturn() },
+	)
+}
+
+type depStruct3 struct {
+	D1 func()
+	D2 func()
+	D3 func()
+	D4 func()
+	D5 func()
 }
 
 // ==Failure Tests==
