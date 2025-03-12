@@ -548,6 +548,8 @@ func extractActivityValues(expectedActivity FuncActivity, activity FuncActivity)
 		actual = []any{activity.PanicVal}
 	case ActivityTypeUnset:
 		panic("tried to match against an unset activity type, and that should never happen")
+	default:
+		panic("tried to match against an unknown activity type, and that should never happen")
 	}
 
 	return expected, actual
