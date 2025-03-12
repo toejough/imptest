@@ -281,11 +281,12 @@ type function any
 
 // ==L2 Exported Types==.
 type Imp struct {
-	concurrency       atomic.Int64
-	ExpectationChan   chan Expectation
-	ActivityChan      chan FuncActivity
-	T                 Tester
-	ActivityReadMutex sync.Mutex
+	concurrency           atomic.Int64
+	ExpectationChan       chan Expectation
+	ActivityChan          chan FuncActivity
+	T                     Tester
+	ActivityReadMutex     sync.Mutex
+	ResolutionMaxDuration time.Duration
 }
 
 type Tester interface {
@@ -432,10 +433,11 @@ func (t *Imp) Unordered(funcs ...func()) {
 // NewImp creates a new imp to help you test without being so verbose.
 func NewImp(tester Tester, funcStructs ...any) *Imp {
 	tester2 := &Imp{
-		concurrency:     atomic.Int64{},
-		ExpectationChan: make(chan Expectation, constDefaultActivityBufferSize),
-		ActivityChan:    make(chan FuncActivity, constDefaultActivityBufferSize),
-		T:               tester,
+		concurrency:           atomic.Int64{},
+		ExpectationChan:       make(chan Expectation, constDefaultActivityBufferSize),
+		ActivityChan:          make(chan FuncActivity, constDefaultActivityBufferSize),
+		T:                     tester,
+		ResolutionMaxDuration: defaultResolutionMaxDuration,
 	}
 
 	for _, fs := range funcStructs {
@@ -478,69 +480,107 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 const (
 	constDefaultActivityBufferSize = 100 // should be enough concurrency for anyone?
 	constInvalidIndex              = -1
+	defaultResolutionMaxDuration   = 100 * time.Millisecond
 )
 
 func matchActivity(activity, expectedActivity FuncActivity) bool {
-	if activity.Type != expectedActivity.Type {
+	if activityTypeMismatch(activity, expectedActivity) {
 		return false
 	}
 
-	var expected, actual []any
-
-	switch expectedActivity.Type {
-	case ActivityTypeCall:
-		// check ID
-		if activity.Call.ID != expectedActivity.Call.ID {
-			return false
-		}
-
-		// check args
-		expected = expectedActivity.Call.Args
-		actual = activity.Call.Args
-
-	case ActivityTypeReturn:
-		// check values
-		expected = expectedActivity.ReturnVals
-		actual = activity.ReturnVals
-
-	case ActivityTypePanic:
-		// check value
-		// we want to loop through all the values below, so put this into a slice
-		expected = []any{expectedActivity.PanicVal}
-		actual = []any{activity.PanicVal}
-	case ActivityTypeUnset:
-		panic("tried to match against an unset activity type, and that should never happen")
-	}
-
-	// not a match if the lens of the slices don't match
-	if len(expected) != len(actual) {
+	if callIDMismatch(expectedActivity, activity) {
 		return false
 	}
 
-	// loop through instead of just comparing, to catch top-level nils passed as args
-	for index := range actual {
-		// special nil checking to be ok if we passed untyped nils where typed nils were actually intercepted
-		if isNil(actual[index]) && isNil(expected[index]) {
-			continue
-		}
-
-		// everything else is fine to run through reflect.DeepEqual.
-		if reflect.DeepEqual(actual[index], expected[index]) {
-			continue
-		}
-
+	if activityValueMismatch(expectedActivity, activity) {
 		return false
 	}
 
 	return true
 }
 
+func activityValueMismatch(expectedActivity FuncActivity, activity FuncActivity) bool {
+	expected, actual := extractActivityValues(expectedActivity, activity)
+
+	if valueLenMismatch(expected, actual) {
+		return true
+	}
+
+	if valueMismatch(actual, expected) {
+		return true
+	}
+
+	return false
+}
+
+func valueMismatch(actual []any, expected []any) bool {
+	for index := range actual {
+		if isNil(actual[index]) && isNil(expected[index]) {
+			continue
+		}
+
+		if reflect.DeepEqual(actual[index], expected[index]) {
+			continue
+		}
+
+		return true
+	}
+
+	return false
+}
+
+func valueLenMismatch(expected []any, actual []any) bool {
+	return len(expected) != len(actual)
+}
+
+func extractActivityValues(expectedActivity FuncActivity, activity FuncActivity) ([]any, []any) {
+	var expected, actual []any
+
+	switch expectedActivity.Type {
+	case ActivityTypeCall:
+		expected = expectedActivity.Call.Args
+		actual = activity.Call.Args
+	case ActivityTypeReturn:
+		expected = expectedActivity.ReturnVals
+		actual = activity.ReturnVals
+	case ActivityTypePanic:
+		expected = []any{expectedActivity.PanicVal}
+		actual = []any{activity.PanicVal}
+	case ActivityTypeUnset:
+		panic("tried to match against an unset activity type, and that should never happen")
+	}
+
+	return expected, actual
+}
+
+func callIDMismatch(expectedActivity FuncActivity, activity FuncActivity) bool {
+	switch expectedActivity.Type {
+	case ActivityTypeCall:
+		if activity.Call.ID != expectedActivity.Call.ID {
+			return true
+		}
+
+	case ActivityTypeReturn:
+	case ActivityTypePanic:
+	case ActivityTypeUnset:
+		panic("tried to match against an unset activity type, and that should never happen")
+	}
+
+	return false
+}
+
+func activityTypeMismatch(activity FuncActivity, expectedActivity FuncActivity) bool {
+	return activity.Type != expectedActivity.Type
+}
+
 func (t *Imp) resolveExpectations(expectation Expectation) ExpectationResponse {
 	t.ActivityReadMutex.Lock()
 	defer t.ActivityReadMutex.Unlock()
+
 	expectedActivity := expectation.Activity
 	activities := []FuncActivity{}
-	maxWaitChan := time.After(time.Millisecond * 100)
+	maxWaitChan := time.After(t.ResolutionMaxDuration)
+
 	for {
 		select {
 		case activity := <-t.ActivityChan:
@@ -548,9 +588,11 @@ func (t *Imp) resolveExpectations(expectation Expectation) ExpectationResponse {
 				activities = append(activities, activity)
 				continue
 			}
+
 			for i := range activities {
 				t.ActivityChan <- activities[i]
 			}
+
 			return ExpectationResponse{Match: &activity, Misses: nil}
 		case <-maxWaitChan:
 			return ExpectationResponse{Match: nil, Misses: activities}
@@ -592,17 +634,12 @@ type fieldPair struct {
 	Value reflect.Value
 }
 
-func removeFromSlice[T any](slice []T, index int) []T {
-	slice = append(slice[0:index], slice[index+1:]...)
-	return slice
-}
-
 func isNil(thing any) (toReturn bool) {
 	defer func() {
 		// don't bother checking - this is just to catch the panic and prevent it from bubbling up.
 		// if no panic, then we're returning whatever we were told to.
 		// if panic, returning cleanly with the default toReturn value (false).
-		// we only to even ask if thing was nil, in which case it's not.
+		// we onlyot.
 		recover() //nolint:errcheck
 	}()
 
