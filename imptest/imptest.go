@@ -447,11 +447,7 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 
 		for index := range numFields {
 			if fields[index].Type.Type.Kind() != reflect.Func {
-				// TODO: we fail mutation testing here with break. we're supposed to continue here because there could
-				// be struct fields that are not functions that we encounter before functions, but we're not testing
-				// that.
-				// continue
-				break
+				continue
 			}
 
 			functionFields = append(functionFields, fields[index])
