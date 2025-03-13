@@ -519,7 +519,9 @@ func activityValueMismatch(expectedActivity FuncActivity, activity FuncActivity)
 func valueMismatch(actual []any, expected []any) bool {
 	for index := range actual {
 		if isNil(actual[index]) && isNil(expected[index]) {
-			continue
+			// TODO: mutation
+			// continue
+			break
 		}
 
 		if reflect.DeepEqual(actual[index], expected[index]) {

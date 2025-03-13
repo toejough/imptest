@@ -1164,7 +1164,7 @@ func TestL1PrettyPrintFailure(t *testing.T) {
 // ==Failure Tests==
 
 type depStruct4 struct {
-	D1 func(int, int)
+	D1 func(*int, int)
 }
 
 // TestL2ReceiveWrongArgValues tests the failure message when receiving wrong arg values.
@@ -1173,22 +1173,20 @@ func TestL2ReceiveWrongArgValues(t *testing.T) {
 
 	mockedT := newMockedTestingT()
 	mockedT.Wrap(func() {
-		// Given a function to test
-		funcToTest := func(x, y int, deps depStruct4) {
+		// Given 
+		funcToTest := func(x *int, y int, deps depStruct4) {
 			deps.D1(x, y)
 		}
-		// and a struct of dependenc mimics
 		depsToMimic := depStruct4{}
-		// and a helpful test imp
 		imp := imptest.NewImp(mockedT, &depsToMimic)
 
 		// When we run the function to test with the mimicked dependencies
-		imp.Start(funcToTest, 1, 3, depsToMimic)
+		imp.Start(funcToTest, nil, 3, depsToMimic)
 
 		// Then the next thing the function under test does is make a call matching our expectations
 		// When we push a return string
 		// EXPECT THE 3 TO CAUSE A PROBLEM
-		imp.ReceiveCall("D1", 1, 2).SendReturn()
+		imp.ReceiveCall("D1", nil, 2).SendReturn()
 		// And again
 
 		// Then the next thing the function under test does is return values matching our expectations
@@ -1199,7 +1197,7 @@ func TestL2ReceiveWrongArgValues(t *testing.T) {
 		t.Fatalf("expected to fail instead of passing")
 	}
 
-	expected := `(?s)expected.*args.*2.*args.*3.*`
+	expected := `(?s)expected.*args.*3.*args.*1.*`
 	actual := mockedT.Failure()
 
 	if !regexp.MustCompile(expected).MatchString(actual) {
