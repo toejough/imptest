@@ -272,18 +272,10 @@ func getFuncName(f function) string {
 
 // unreflectValues returns the actual values of the reflected values.
 func unreflectValues(rArgs []reflect.Value) []any {
-	// tricking nilaway with repeated appends till this issue is closed
-	// https://github.com/uber-go/nilaway/pull/60
-	// args := make([]any, len(rArgs))
-	if len(rArgs) == 0 {
-		return nil
-	}
-
-	args := []any{}
+	args := make([]any, len(rArgs))
 
 	for i := range rArgs {
-		// args[i] = rArgs[i].Interface()
-		args = append(args, rArgs[i].Interface())
+		args[i] = rArgs[i].Interface()
 	}
 
 	return args

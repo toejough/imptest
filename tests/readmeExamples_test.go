@@ -1167,6 +1167,68 @@ type depStruct4 struct {
 	D1 func(*int, int, int)
 }
 
+// TestL2ReturnEmptyArrayIsNotNil verifies that returning an empty array and expecting nil fails.
+func TestL2ReturnEmptyArrayIsNotNil(t *testing.T) {
+	t.Parallel()
+
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		// Given
+		funcToTest := func() []struct{} {
+			return []struct{}{}
+		}
+		imp := imptest.NewImp(mockedT)
+
+		// When
+		imp.Start(funcToTest)
+
+		// Then
+		imp.ReceiveReturn(nil)
+	})
+
+	if !mockedT.Failed() {
+		t.Fatalf("expected to fail instead of passing")
+	}
+
+	expected := `(?s)expected.*nil.*but got.*struct.*`
+	actual := mockedT.Failure()
+
+	if !regexp.MustCompile(expected).MatchString(actual) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
+}
+
+// TestL2ReturnEmptyArrayIsNotNil verifies that returning a nil and expecting an empty arrayyyyyyyy fails.
+func TestL2ReturnNilIsNotEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		// Given
+		funcToTest := func() []struct{} {
+			return nil
+		}
+		imp := imptest.NewImp(mockedT)
+
+		// When
+		imp.Start(funcToTest)
+
+		// Then
+		imp.ReceiveReturn([]struct{}{})
+	})
+
+	if !mockedT.Failed() {
+		t.Fatalf("expected to fail instead of passing")
+	}
+
+	expected := `(?s)expected.*struct.*but got.*nil.*`
+	actual := mockedT.Failure()
+
+	if !regexp.MustCompile(expected).MatchString(actual) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
+}
+
 // TestL2ReceiveWrongArgValues tests the failure message when receiving wrong arg values.
 func TestL2ReceiveWrongArgValues(t *testing.T) {
 	t.Parallel()
