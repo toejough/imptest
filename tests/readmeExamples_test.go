@@ -964,6 +964,8 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 // ===L2 Tests===
 
 type depStruct1 struct {
+	privateDataField string
+	PublicDataField string
 	Dep1 func() string
 }
 
