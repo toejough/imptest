@@ -523,9 +523,7 @@ func valueMismatch(actual []any, expected []any) bool {
 		}
 
 		if reflect.DeepEqual(actual[index], expected[index]) {
-			// TODO: mutation called this out as failing
-			// continue
-			break
+			continue
 		}
 
 		return true
