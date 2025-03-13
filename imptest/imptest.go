@@ -29,6 +29,7 @@ import (
 // * return
 // * call a dependency.
 type FuncActivity struct {
+	// TODO: type isn't really necessary, is it?
 	Type       ActivityType
 	PanicVal   any
 	ReturnVals []any
@@ -60,6 +61,7 @@ type Call struct {
 // * panic
 // * return.
 type CallResponse struct {
+	// TODO: type isn't really necessary, is it?
 	Type         ResponseType
 	PanicValue   any
 	ReturnValues []any
@@ -282,7 +284,6 @@ type function any
 // ==L2 Exported Types==.
 type Imp struct {
 	concurrency           atomic.Int64
-	ExpectationChan       chan Expectation
 	ActivityChan          chan FuncActivity
 	T                     Tester
 	ActivityReadMutex     sync.Mutex
@@ -300,7 +301,6 @@ type Tester interface {
 
 func (t *Imp) Close() {
 	close(t.ActivityChan)
-	close(t.ExpectationChan)
 }
 
 func (t *Imp) Start(f any, args ...any) *Imp {
@@ -339,28 +339,23 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.T.Helper()
 	// t.T.Logf("receiving call")
 
-	expected := Expectation{
-		FuncActivity{
-			ActivityTypeCall,
+	expected := FuncActivity{
+		ActivityTypeCall,
+		nil,
+		nil,
+		&Call{
+			expectedCallID,
+			expectedArgs,
 			nil,
 			nil,
-			&Call{
-				expectedCallID,
-				expectedArgs,
-				nil,
-				nil,
-				nil,
-			},
+			nil,
 		},
-		make(chan ExpectationResponse, 1),
 	}
-
-	t.ExpectationChan <- expected
 
 	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
-		t.T.Fatalf("expected %v, but got %v", expected.Activity, response.Misses)
+		t.T.Fatalf("expected %v, but got %v", expected, response.Misses)
 	}
 
 	return response.Match.Call
@@ -370,20 +365,17 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 	t.T.Helper()
 	t.T.Logf("receiving return")
 
-	expected := Expectation{
-		FuncActivity{
-			ActivityTypeReturn,
-			nil,
-			returned,
-			nil,
-		},
-		make(chan ExpectationResponse, 1),
+	expected := FuncActivity{
+		ActivityTypeReturn,
+		nil,
+		returned,
+		nil,
 	}
 
 	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
-		t.T.Fatalf("expected %#v, but got %#v", expected.Activity, response.Misses)
+		t.T.Fatalf("expected %#v, but got %#v", expected, response.Misses)
 	}
 }
 
@@ -391,20 +383,17 @@ func (t *Imp) ReceivePanic(panicValue any) {
 	t.T.Helper()
 	t.T.Logf("receiving panic")
 
-	expected := Expectation{
-		FuncActivity{
-			ActivityTypePanic,
-			panicValue,
-			nil,
-			nil,
-		},
-		make(chan ExpectationResponse, 1),
+	expected := FuncActivity{
+		ActivityTypePanic,
+		panicValue,
+		nil,
+		nil,
 	}
 
 	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
-		t.T.Fatalf("expected %v, but got %v", expected.Activity, response.Misses)
+		t.T.Fatalf("expected %v, but got %v", expected, response.Misses)
 	}
 }
 
@@ -434,7 +423,6 @@ func (t *Imp) Unordered(funcs ...func()) {
 func NewImp(tester Tester, funcStructs ...any) *Imp {
 	tester2 := &Imp{
 		concurrency:           atomic.Int64{},
-		ExpectationChan:       make(chan Expectation, constDefaultActivityBufferSize),
 		ActivityChan:          make(chan FuncActivity, constDefaultActivityBufferSize),
 		T:                     tester,
 		ResolutionMaxDuration: defaultResolutionMaxDuration,
@@ -575,11 +563,11 @@ func activityTypeMismatch(activity FuncActivity, expectedActivity FuncActivity) 
 	return activity.Type != expectedActivity.Type
 }
 
-func (t *Imp) resolveExpectations(expectation Expectation) ExpectationResponse {
+func (t *Imp) resolveExpectations(expectation FuncActivity) ExpectationResponse {
 	t.ActivityReadMutex.Lock()
 	defer t.ActivityReadMutex.Unlock()
 
-	expectedActivity := expectation.Activity
+	expectedActivity := expectation
 	activities := []FuncActivity{}
 	maxWaitChan := time.After(t.ResolutionMaxDuration)
 
@@ -600,11 +588,6 @@ func (t *Imp) resolveExpectations(expectation Expectation) ExpectationResponse {
 			return ExpectationResponse{Match: nil, Misses: activities}
 		}
 	}
-}
-
-type Expectation struct {
-	Activity     FuncActivity
-	ResponseChan chan ExpectationResponse
 }
 
 type ExpectationResponse struct {

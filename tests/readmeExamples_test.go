@@ -273,7 +273,7 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		imptest.WithName("dep5"),
 	)
 	// and a channel to put function activity onto
-	expectationsChan := make(chan imptest.Expectation, 6)
+	expectationsChan := make(chan imptest.FuncActivity, 6)
 	defer close(expectationsChan)
 
 	// When we run the function to test with the mimicked dependencies
@@ -292,84 +292,66 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 
 	// When we set expectations for the function calls
 	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic5ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic5ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic2ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic2ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic4ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic4ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeReturn,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call:       nil,
-		},
-		ResponseChan: nil,
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeReturn,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call:       nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic1ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic1ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic3ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic3ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
 
 	// When we get the first activity from the function under test
@@ -383,12 +365,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity.Type {
+		if expectation.Type != activity.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -423,12 +405,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity.Type {
+		if expectation.Type != activity.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -463,12 +445,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity.Type {
+		if expectation.Type != activity.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -503,12 +485,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity.Type {
+		if expectation.Type != activity.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -543,12 +525,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity.Type {
+		if expectation.Type != activity.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -583,12 +565,12 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity.Type {
+		if expectation.Type != activity.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -666,7 +648,7 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		imptest.WithName("dep5"),
 	)
 	// and a channel to put function activity onto
-	expectationsChan := make(chan imptest.Expectation, 6)
+	expectationsChan := make(chan imptest.FuncActivity, 6)
 	defer close(expectationsChan)
 
 	// When we run the function to test with the mimicked dependencies
@@ -684,84 +666,66 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 
 	// When we set expectations for the function calls
 	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic5ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic5ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic2ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic2ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic4ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic4ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeReturn,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call:       nil,
-		},
-		ResponseChan: nil,
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeReturn,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call:       nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic1ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic1ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
-	expectationsChan <- imptest.Expectation{
-		Activity: imptest.FuncActivity{
-			Type:       imptest.ActivityTypeCall,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call: &imptest.Call{
-				ID:           depMimic3ID,
-				Args:         nil,
-				ResponseChan: nil,
-				Type:         nil,
-			},
+	expectationsChan <- imptest.FuncActivity{
+		Type:       imptest.ActivityTypeCall,
+		PanicVal:   nil,
+		ReturnVals: nil,
+		Call: &imptest.Call{
+			ID:           depMimic3ID,
+			Args:         nil,
+			ResponseChan: nil,
+			Type:         nil,
 		},
-		ResponseChan: nil,
 	}
 
 	// When we get the concurrent activities from the function under test
@@ -780,12 +744,12 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity1.Type {
+		if expectation.Type != activity1.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity1.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity1.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -817,12 +781,12 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity2.Type {
+		if expectation.Type != activity2.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity2.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity2.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -854,12 +818,12 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity3.Type {
+		if expectation.Type != activity3.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity3.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity3.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -891,12 +855,12 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity4.Type {
+		if expectation.Type != activity4.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity4.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity4.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -928,12 +892,12 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity5.Type {
+		if expectation.Type != activity5.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity5.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity5.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
@@ -965,12 +929,12 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		// get the next expectation
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type != activity6.Type {
+		if expectation.Type != activity6.Type {
 			expectationsChan <- expectation
 			continue
 		}
 		// if no match, push it back onto the channel
-		if expectation.Activity.Type == imptest.ActivityTypeCall && expectation.Activity.Call.ID != activity6.Call.ID {
+		if expectation.Type == imptest.ActivityTypeCall && expectation.Call.ID != activity6.Call.ID {
 			expectationsChan <- expectation
 			continue
 		}
