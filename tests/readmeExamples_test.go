@@ -1096,7 +1096,7 @@ func TestL2Concurrency(t *testing.T) {
 
 	// When we set expectations for the function calls
 	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
-	imp.Unordered(
+	imp.Concurrently(
 		func() { imp.ReceiveCall("D5").SendReturn() },
 		func() { imp.ReceiveCall("D2").SendReturn() },
 		func() { imp.ReceiveCall("D4").SendReturn() },
@@ -1117,7 +1117,7 @@ func TestL2ConcurrentlyRuns(t *testing.T) {
 
 	// When
 	imp.Start(funcToTest)
-	imp.Unordered(
+	imp.Concurrently(
 		func() { counter.Add(1) },
 		func() { counter.Add(1) },
 		func() { counter.Add(1) },
