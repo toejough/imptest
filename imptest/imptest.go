@@ -151,7 +151,6 @@ func (c *Call) SendPanic(panicVal any) {
 	}
 }
 
-// TODO make this better.
 func (c *Call) String() string {
 	pretty, err := json.MarshalIndent(c, "", "\t")
 	if err != nil {

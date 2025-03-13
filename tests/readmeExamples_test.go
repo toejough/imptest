@@ -1114,6 +1114,26 @@ type depStruct3 struct {
 	D5 func()
 }
 
+func TestL1PrettyPrintFailure(t *testing.T) {
+	t.Parallel()
+
+	// Given call that can't be json encoded
+	c := &imptest.Call{ID: "yo", Args: []any{make(chan string)}}
+
+	// When we try to make it a string
+	actual := c.String()
+
+	// Then we expect to find a json error inside it
+	expected := `(?s)couldn't json marshal:.*json: unsupported type.*`
+
+	if !regexp.MustCompile(expected).MatchString(actual) {
+		t.Fatalf(
+			"expected string conversion to result in a string matching %s, but it resulted in %s instead",
+			expected, actual,
+		)
+	}
+}
+
 // ==Failure Tests==
 
 type depStruct4 struct {
