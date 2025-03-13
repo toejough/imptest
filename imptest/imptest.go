@@ -413,6 +413,8 @@ func (t *Imp) Unordered(funcs ...func()) {
 
 	// start all the flows
 	for index := range funcs {
+		// TODO: mutation testing says we can just break here and it's fine?
+		break
 		waitGroup.Add(1)
 		t.concurrency.Add(1)
 

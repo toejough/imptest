@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/toejough/imptest/imptest"
@@ -1095,7 +1096,6 @@ func TestL2Concurrency(t *testing.T) {
 
 	// When we set expectations for the function calls
 	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
-	// TODO: add a timeout option
 	imp.Unordered(
 		func() { imp.ReceiveCall("D5").SendReturn() },
 		func() { imp.ReceiveCall("D2").SendReturn() },
@@ -1104,6 +1104,33 @@ func TestL2Concurrency(t *testing.T) {
 		func() { imp.ReceiveCall("D1").SendReturn() },
 		func() { imp.ReceiveCall("D3").SendReturn() },
 	)
+}
+
+// TestL2ConcurrentlyRuns verifies that the L2 concurrently API actually does run the checks contained within it.
+func TestL2ConcurrentlyRuns(t *testing.T) {
+	t.Parallel()
+
+	// Given
+	funcToTest := func() {}
+	counter := atomic.Int32{}
+	imp := imptest.NewImp(t)
+
+	// When
+	imp.Start(funcToTest)
+	imp.Unordered(
+		func() { counter.Add(1) },
+		func() { counter.Add(1) },
+		func() { counter.Add(1) },
+		func() { counter.Add(1) },
+	)
+
+	// Then
+	actual := int(counter.Load())
+	expected := 4
+
+	if actual != expected {
+		t.Fatalf("Expected the counter to show %d calls, but it only showed %d", expected, actual)
+	}
 }
 
 type depStruct3 struct {
