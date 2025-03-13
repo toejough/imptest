@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -296,7 +295,6 @@ type function any
 
 // ==L2 Exported Types==.
 type Imp struct {
-	concurrency           atomic.Int64
 	ActivityChan          chan FuncActivity
 	T                     Tester
 	ActivityReadMutex     sync.Mutex
@@ -420,13 +418,9 @@ func (t *Imp) Concurrently(funcs ...func()) {
 	// start all the flows
 	for index := range funcs {
 		waitGroup.Add(1)
-		t.concurrency.Add(1)
 
 		go func() {
-			defer func() {
-				waitGroup.Done()
-				t.concurrency.Add(-1)
-			}()
+			defer waitGroup.Done()
 			funcs[index]()
 		}()
 	}
@@ -439,7 +433,6 @@ func (t *Imp) Concurrently(funcs ...func()) {
 // NewImp creates a new imp to help you test without being so verbose.
 func NewImp(tester Tester, funcStructs ...any) *Imp {
 	tester2 := &Imp{
-		concurrency:           atomic.Int64{},
 		ActivityChan:          make(chan FuncActivity, constDefaultActivityBufferSize),
 		T:                     tester,
 		ResolutionMaxDuration: defaultResolutionMaxDuration,
