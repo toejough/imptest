@@ -271,7 +271,6 @@ func CheckCoverage(c context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(out)
 	lines := strings.Split(out, "\n")
 	linesAndCoverage := []lineAndCoverage{}
 	for _, line := range lines {
@@ -279,6 +278,12 @@ func CheckCoverage(c context.Context) error {
 		percent, err := strconv.ParseFloat(percentString, 64)
 		if err != nil {
 			return err
+		}
+		if strings.Contains(line, "_string.go") {
+			continue
+		}
+		if strings.Contains(line, "total:") {
+			continue
 		}
 		linesAndCoverage = append(linesAndCoverage, lineAndCoverage{line, percent})
 	}
@@ -292,6 +297,11 @@ func CheckCoverage(c context.Context) error {
 		return 0
 	})
 	lc := linesAndCoverage[0]
+	sortedLines := make([]string, len(linesAndCoverage))
+	for i := range linesAndCoverage {
+		sortedLines[i] = linesAndCoverage[i].line
+	}
+	fmt.Println(strings.Join(sortedLines, "\n"))
 	coverage := 80.0
 	if lc.coverage < coverage {
 		return fmt.Errorf("function coverage was less than the limit of %.1f:\n  %s", coverage, lc.line)

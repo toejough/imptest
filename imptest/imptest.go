@@ -48,6 +48,8 @@ const (
 	ActivityTypeCall
 )
 
+//go:generate stringer -type ActivityType
+
 // Call represents a call to a dependency, as well as providing the channel to send the response that
 // the depenency should perform.
 type Call struct {
@@ -519,9 +521,7 @@ func activityValueMismatch(expectedActivity FuncActivity, activity FuncActivity)
 func valueMismatch(actual []any, expected []any) bool {
 	for index := range actual {
 		if isNil(actual[index]) && isNil(expected[index]) {
-			// TODO: mutation
-			// continue
-			break
+			continue
 		}
 
 		if reflect.DeepEqual(actual[index], expected[index]) {
@@ -619,17 +619,23 @@ type ExpectationResponse struct {
 // callFunc calls the given function with the given args, and returns the return values from that callFunc.
 func callFunc(f function, args []any) []any {
 	rf := reflect.ValueOf(f)
-	rArgs := reflectValuesOf(args)
+	rArgs := reflectValuesOf(args, reflect.TypeOf(f))
 	rReturns := rf.Call(rArgs)
 
 	return unreflectValues(rReturns)
 }
 
 // reflectValuesOf returns reflected values for all of the values.
-func reflectValuesOf(args []any) []reflect.Value {
+func reflectValuesOf(args []any, funcType reflect.Type) []reflect.Value {
 	rArgs := make([]reflect.Value, len(args))
+
 	for i := range args {
-		rArgs[i] = reflect.ValueOf(args[i])
+		arg := args[i]
+		if arg == nil {
+			rArgs[i] = reflect.Zero(funcType.In(i))
+		} else {
+			rArgs[i] = reflect.ValueOf(args[i])
+		}
 	}
 
 	return rArgs

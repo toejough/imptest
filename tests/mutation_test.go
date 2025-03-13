@@ -13,7 +13,7 @@ func TestMutation(t *testing.T) {
 		t,
 		ooze.WithTestCommand("mage testForFail"),
 		ooze.Parallel(),
-		ooze.IgnoreSourceFiles("^magefiles.*"),
+		ooze.IgnoreSourceFiles("^magefiles.*|.*_string.go"),
 		// ooze.WithMinimumThreshold(0.95),
 		ooze.WithRepositoryRoot(".."),
 		ooze.ForceColors(),
