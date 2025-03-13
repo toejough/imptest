@@ -12,15 +12,15 @@ disable = [
 ]
 
 [issues]
-fix = true
+fix = false # too often this ends up doing surprising things to my sourcecode
 [linters-settings]
 enable-all = true
 [linters-settings.depguard.rules]
 all.files = ["$all", "!$test"]
 all.allow = [
-	"$gostd", 
-	"github.com/alexflint/go-arg", 
-	"github.com/google/uuid", 	
+	"$gostd",
+	"github.com/alexflint/go-arg",
+	"github.com/google/uuid",
 	"github.com/muesli/reflow/indent",
 ]
 test.files = ["$test"]

@@ -348,7 +348,7 @@ func (t *Imp) startFunctionUnderTest(function any, args []any) {
 
 func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.T.Helper()
-	// t.T.Logf("receiving call")
+	t.T.Logf("expecting call to %s with args %v...", expectedCallID, expectedArgs)
 
 	expected := FuncActivity{
 		ActivityTypeCall,
@@ -369,12 +369,14 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 		t.T.Fatalf("expected %v, but got %v", expected, response.Misses)
 	}
 
+	t.T.Logf("...received call %s", response.Match.Call)
+
 	return response.Match.Call
 }
 
 func (t *Imp) ReceiveReturn(returned ...any) {
 	t.T.Helper()
-	t.T.Logf("receiving return")
+	t.T.Logf("expecting return...")
 
 	expected := FuncActivity{
 		ActivityTypeReturn,
@@ -388,6 +390,8 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 	if response.Match == nil {
 		t.T.Fatalf("expected %#v, but got %#v", expected, response.Misses)
 	}
+
+	t.T.Logf("...received return")
 }
 
 func (t *Imp) ReceivePanic(panicValue any) {
@@ -519,7 +523,9 @@ func valueMismatch(actual []any, expected []any) bool {
 		}
 
 		if reflect.DeepEqual(actual[index], expected[index]) {
-			continue
+			// TODO: mutation called this out as failing
+			// continue
+			break
 		}
 
 		return true
@@ -582,19 +588,23 @@ func (t *Imp) resolveExpectations(expectation FuncActivity) ExpectationResponse 
 	activities := []FuncActivity{}
 	maxWaitChan := time.After(t.ResolutionMaxDuration)
 
+	t.T.Logf("attempting to resolve an expectation for %s...", expectedActivity)
+
 	for {
 		select {
 		case activity := <-t.ActivityChan:
+			t.T.Logf("pulled function activity %s...", activity)
+
 			if !matchActivity(activity, expectedActivity) {
 				activities = append(activities, activity)
-				continue
+			} else {
+				for i := range activities {
+					t.ActivityChan <- activities[i]
+				}
+
+				return ExpectationResponse{Match: &activity, Misses: nil}
 			}
 
-			for i := range activities {
-				t.ActivityChan <- activities[i]
-			}
-
-			return ExpectationResponse{Match: &activity, Misses: nil}
 		case <-maxWaitChan:
 			return ExpectationResponse{Match: nil, Misses: activities}
 		}
