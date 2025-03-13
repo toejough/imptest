@@ -3,6 +3,8 @@ package imptest
 // Package imptest provides impure function testing functionality.
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
@@ -49,11 +51,11 @@ const (
 // Call represents a call to a dependency, as well as providing the channel to send the response that
 // the depenency should perform.
 type Call struct {
-	ID           string
-	Args         []any
-	ResponseChan chan CallResponse
-	Type         reflect.Type
-	t            Tester
+	ID           string            `json:"id"`
+	Args         []any             `json:"args"`
+	ResponseChan chan CallResponse `json:"-"`
+	Type         reflect.Type      `json:"-"`
+	t            Tester            `json:"-"`
 }
 
 // CallResponse is essentially a union struct representing the various responses a mimicked dependency call
@@ -147,6 +149,16 @@ func (c *Call) SendPanic(panicVal any) {
 		PanicValue:   panicVal,
 		ReturnValues: nil,
 	}
+}
+
+// TODO make this better.
+func (c *Call) String() string {
+	pretty, err := json.MarshalIndent(c, "", "\t")
+	if err != nil {
+		return fmt.Sprintf("couldn't json marshal: %#v (%s)", c, err.Error())
+	}
+
+	return string(pretty)
 }
 
 // ==L1 Exported Funcs==

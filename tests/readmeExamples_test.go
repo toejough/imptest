@@ -853,6 +853,7 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 	// search the remaining expectations
 	for range 3 {
 		// get the next expectation
+		// TODO: test this more the way L2 tests it
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
 		if expectation.Type != activity4.Type {
@@ -1114,6 +1115,50 @@ type depStruct3 struct {
 }
 
 // ==Failure Tests==
+
+type depStruct4 struct {
+	D1 func(int)
+}
+
+// TestL2ReceiveWrongArgValues tests the failure message when receiving wrong arg values.
+func TestL2ReceiveWrongArgValues(t *testing.T) {
+	t.Parallel()
+
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		// Given a function to test
+		funcToTest := func(x int, deps depStruct4) {
+			deps.D1(x)
+		}
+		// and a struct of dependenc mimics
+		depsToMimic := depStruct4{}
+		// and a helpful test imp
+		imp := imptest.NewImp(mockedT, &depsToMimic)
+
+		// When we run the function to test with the mimicked dependencies
+		imp.Start(funcToTest, 1, depsToMimic)
+
+		// Then the next thing the function under test does is make a call matching our expectations
+		// When we push a return string
+		// EXPECT THE 3 TO CAUSE A PROBLEM
+		imp.ReceiveCall("D1", 3).SendReturn()
+		// And again
+
+		// Then the next thing the function under test does is return values matching our expectations
+		imp.ReceiveReturn()
+	})
+
+	if !mockedT.Failed() {
+		t.Fatalf("expected to fail instead of passing")
+	}
+
+	expected := `(?s)expected.*args.*3.*args.*1.*`
+	actual := mockedT.Failure()
+
+	if !regexp.MustCompile(expected).MatchString(actual) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
+}
 
 // TestL2ReceiveTooFewCalls tests matching a dependency call and pushing a return more simply, with a
 // dependency struct.
