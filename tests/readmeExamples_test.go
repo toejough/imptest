@@ -964,9 +964,11 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 // ===L2 Tests===
 
 type depStruct1 struct {
-	privateDataField string
-	PublicDataField string
-	Dep1 func() string
+	// the data fields are intentionally unused - they're there to help validate that they'll be properly skipped by the
+	// imp when it tries to mimic and replace the functions
+	privateDataField string //nolint:unused
+	PublicDataField  string
+	Dep1             func() string
 }
 
 // TestL2ReceiveCallSendReturn tests matching a dependency call and pushing a return more simply, with a
