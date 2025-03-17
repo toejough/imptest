@@ -3,6 +3,8 @@ module github.com/toejough/imptest
 go 1.23.1
 
 require (
+	github.com/akedrou/textdiff v0.1.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/gtramontina/ooze v0.2.0
 	github.com/magefile/mage v1.15.0
 )

@@ -34,6 +34,12 @@ import (
 // respond to activity: ???
 // support concurrency: ???
 
+// Level 4 (not implemented yet):
+// provide deps that can be called to set expectations, like calling code...
+// * calls like `deps.foo(a, b, c)` 
+// * can be validated like `impDeps.foo(a, b, c)`
+// * returns/panics still the same way
+
 // ===L1 Tests===.
 const (
 	anyString = "literally anything"
@@ -1194,7 +1200,7 @@ func TestL2ReturnEmptyArrayIsNotNil(t *testing.T) {
 		t.Fatalf("expected to fail instead of passing")
 	}
 
-	expected := `(?s)expected.*nil.*but got.*struct.*`
+	expected := `(?s)expected.*nil.*but got.*\[\[]].*`
 	actual := mockedT.Failure()
 
 	if !regexp.MustCompile(expected).MatchString(actual) {
@@ -1225,7 +1231,7 @@ func TestL2ReturnNilIsNotEmptyArray(t *testing.T) {
 		t.Fatalf("expected to fail instead of passing")
 	}
 
-	expected := `(?s)expected.*struct.*but got.*nil.*`
+	expected := `(?s)expected.*\[\[]].*but got.*nil.*`
 	actual := mockedT.Failure()
 
 	if !regexp.MustCompile(expected).MatchString(actual) {
@@ -1307,7 +1313,7 @@ func TestL2ReceiveTooFewCalls(t *testing.T) {
 		t.Fatalf("expected to fail instead of passing")
 	}
 
-	expected := `.*expected {ActivityTypeCall.*`
+	expected := `.*expected Call.*`
 	actual := mockedT.Failure()
 
 	if !regexp.MustCompile(expected).MatchString(actual) {

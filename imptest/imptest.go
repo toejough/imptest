@@ -7,9 +7,13 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/akedrou/textdiff"
+	"github.com/davecgh/go-spew/spew"
 )
 
 // ==Error philosophy==
@@ -33,6 +37,7 @@ type FuncActivity struct {
 	// TODO: type isn't really necessary, is it?
 	Type       ActivityType
 	PanicVal   any
+	PanicStack string
 	ReturnVals []any
 	Call       *Call
 }
@@ -48,6 +53,7 @@ const (
 )
 
 //go:generate stringer -type ActivityType
+//go:generate jsonenums -type ActivityType
 
 // Call represents a call to a dependency, as well as providing the channel to send the response that
 // the depenency should perform.
@@ -161,6 +167,25 @@ func (c *Call) String() string {
 	return string(pretty)
 }
 
+func (fa *FuncActivity) String() string {
+	switch fa.Type {
+	case ActivityTypeReturn:
+		pretty := prettyString(fa.ReturnVals)
+		lines := strings.Count(pretty, "\n") + 1
+		if lines > 1 {
+			return "Return:\n" + pretty
+		} else {
+			return "Return: " + pretty
+		}
+	case ActivityTypePanic:
+		return "Panic:\n" + fmt.Sprint(fa.PanicVal) + "\nPanic Trace:\n" + fa.PanicStack
+	case ActivityTypeCall:
+		return "Call:\n" + fa.Call.String()
+	default:
+		panic("unknown activity type")
+	}
+}
+
 // ==L1 Exported Funcs==
 
 // MimicDependency mimics a given dependency. Instead of a call performing the dependency's logic, the returned mimic
@@ -211,6 +236,7 @@ func makeMimicAsValue(tester Tester, funcType reflect.Type, name string, activit
 		activityChan <- FuncActivity{
 			ActivityTypeCall,
 			nil,
+			"",
 			nil,
 			&Call{
 				// TODO: turn ID into name
@@ -285,6 +311,17 @@ func unreflectValues(rArgs []reflect.Value) []any {
 // function _type_ in go.
 type function any
 
+func init() {
+	spew.Config.SortKeys = true
+	spew.Config.SpewKeys = true
+	spew.Config.DisablePointerAddresses = true
+	spew.Config.DisableCapacities = true
+}
+
+func prettyString(a any) string {
+	return spew.Sprint(a)
+}
+
 // ==L2 Exported Types==.
 type Imp struct {
 	ActivityChan          chan FuncActivity
@@ -322,6 +359,7 @@ func (t *Imp) startFunctionUnderTest(function any, args []any) {
 			t.ActivityChan <- FuncActivity{
 				ActivityTypePanic,
 				panicVal,
+				string(debug.Stack()),
 				nil,
 				nil,
 			}
@@ -329,6 +367,7 @@ func (t *Imp) startFunctionUnderTest(function any, args []any) {
 			t.ActivityChan <- FuncActivity{
 				ActivityTypeReturn,
 				nil,
+				"",
 				rVals,
 				nil,
 			}
@@ -340,11 +379,12 @@ func (t *Imp) startFunctionUnderTest(function any, args []any) {
 
 func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.T.Helper()
-	t.T.Logf("expecting call to %s with args %v...", expectedCallID, expectedArgs)
+	// t.T.Logf("expecting call to %s with args %v...", expectedCallID, expectedArgs)
 
 	expected := FuncActivity{
 		ActivityTypeCall,
 		nil,
+		"",
 		nil,
 		&Call{
 			expectedCallID,
@@ -358,21 +398,30 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
-		t.T.Fatalf("expected %v, but got %v", expected, response.Misses)
+		failureMessage := fmt.Sprintf("expected %s, but got different function activity:", prettyString(expected))
+		diffs := make([]string, len(response.Misses))
+
+		for i := range response.Misses {
+			diffs[i] = textdiff.Unified("expected", "actual", prettyString(expected)+"\n", prettyString(response.Misses[i])+"\n")
+			failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", i, diffs[i])
+		}
+
+		t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
 	}
 
-	t.T.Logf("...received call %s", response.Match.Call)
+	// t.T.Logf("...received call %s", response.Match.Call)
 
 	return response.Match.Call
 }
 
 func (t *Imp) ReceiveReturn(returned ...any) {
 	t.T.Helper()
-	t.T.Logf("expecting return...")
+	// t.T.Logf("expecting return...")
 
 	expected := FuncActivity{
 		ActivityTypeReturn,
 		nil,
+		"",
 		returned,
 		nil,
 	}
@@ -380,19 +429,28 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
-		t.T.Fatalf("expected %#v, but got %#v", expected, response.Misses)
+		failureMessage := fmt.Sprintf("expected %s, but got different function activity:", prettyString(expected))
+		diffs := make([]string, len(response.Misses))
+
+		for i := range response.Misses {
+			diffs[i] = textdiff.Unified("expected", "actual", prettyString(expected)+"\n", prettyString(response.Misses[i])+"\n")
+			failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", i, diffs[i])
+		}
+
+		t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
 	}
 
-	t.T.Logf("...received return")
+	// t.T.Logf("...received return")
 }
 
 func (t *Imp) ReceivePanic(panicValue any) {
 	t.T.Helper()
-	t.T.Logf("receiving panic")
+	// t.T.Logf("receiving panic")
 
 	expected := FuncActivity{
 		ActivityTypePanic,
 		panicValue,
+		"",
 		nil,
 		nil,
 	}
@@ -400,7 +458,15 @@ func (t *Imp) ReceivePanic(panicValue any) {
 	response := t.resolveExpectations(expected)
 
 	if response.Match == nil {
-		t.T.Fatalf("expected %v, but got %v", expected, response.Misses)
+		failureMessage := fmt.Sprintf("expected %s, but got different function activity:", prettyString(expected))
+		diffs := make([]string, len(response.Misses))
+
+		for i := range response.Misses {
+			diffs[i] = textdiff.Unified("expected", "actual", prettyString(expected)+"\n", prettyString(response.Misses[i])+"\n")
+			failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", i, diffs[i])
+		}
+
+		t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
 	}
 }
 
@@ -570,12 +636,12 @@ func (t *Imp) resolveExpectations(expectation FuncActivity) ExpectationResponse 
 	activities := []FuncActivity{}
 	maxWaitChan := time.After(t.ResolutionMaxDuration)
 
-	t.T.Logf("attempting to resolve an expectation for %s...", expectedActivity)
+	// t.T.Logf("attempting to resolve an expectation for %s...", expectedActivity)
 
 	for {
 		select {
 		case activity := <-t.ActivityChan:
-			t.T.Logf("pulled function activity %s...", activity)
+			// t.T.Logf("pulled function activity %s...", activity)
 
 			if !matchActivity(activity, expectedActivity) {
 				activities = append(activities, activity)
