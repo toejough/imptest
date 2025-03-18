@@ -4,7 +4,7 @@ An IMPure function TEST tool.
 
 There are plenty of test tools written to facilitate testing pure functions: Inputs -> Outputs. 
 
-Impure functions, on the other hand, are characterized by calls to _other_ functions. The whole point of some functions is that they coordinate calls to other functions. 
+Impure functions, on the other hand, are characterized by calls to _other_ functions. The whole point of some (_most_?) functions is that they coordinate calls to other functions. 
 
 We often don't want to validate what those other functions _do_, as we already have tests for them, or they're 3rd parties that we trust. If we _do_ care about the end-to-end functionality, we can use integration tests or end-to-end testing. 
 
