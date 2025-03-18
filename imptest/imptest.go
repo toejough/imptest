@@ -373,9 +373,8 @@ func (t *Imp) startFunctionUnderTest(function any, args []any) {
 	rVals = callFunc(function, args)
 }
 
-func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
+func (t *Imp) ExpectCall(expectedCallID string, expectedArgs ...any) *Call {
 	t.T.Helper()
-	// t.T.Logf("expecting call to %s with args %v...", expectedCallID, expectedArgs)
 
 	expected := FuncActivity{
 		ActivityTypeCall,
@@ -394,7 +393,7 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 	return t.resolveExpectations(expected).Call
 }
 
-func (t *Imp) ReceiveReturn(returned ...any) {
+func (t *Imp) ExpectReturn(returned ...any) {
 	t.T.Helper()
 
 	expected := FuncActivity{
@@ -408,9 +407,8 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 	t.resolveExpectations(expected)
 }
 
-func (t *Imp) ReceivePanic(panicValue any) {
+func (t *Imp) ExpectPanic(panicValue any) {
 	t.T.Helper()
-	// t.T.Logf("receiving panic")
 
 	expected := FuncActivity{
 		ActivityTypePanic,
