@@ -20,8 +20,8 @@ all.files = ["$all", "!$test"]
 all.allow = [
 	"$gostd",
 	"github.com/alexflint/go-arg",
-	"github.com/google/uuid",
-	"github.com/muesli/reflow/indent",
+	"github.com/akedrou/textdiff",
+	"github.com/davecgh/go-spew/spew"
 ]
 test.files = ["$test"]
 test.allow = [

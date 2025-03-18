@@ -36,7 +36,7 @@ import (
 
 // Level 4 (not implemented yet):
 // provide deps that can be called to set expectations, like calling code...
-// * calls like `deps.foo(a, b, c)` 
+// * calls like `deps.foo(a, b, c)`
 // * can be validated like `impDeps.foo(a, b, c)`
 // * returns/panics still the same way
 
@@ -1275,6 +1275,50 @@ func TestL2ReceiveWrongArgValues(t *testing.T) {
 	if !regexp.MustCompile(expected).MatchString(actual) {
 		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
 	}
+}
+
+// TestL2ReceiveWrongType tests the failure message when receiving wrong type.
+func TestL2ReceiveWrongType(t *testing.T) {
+	t.Parallel()
+
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		// Given
+		funcToTest := func(x *int) {
+			panic(x)
+		}
+		imp := imptest.NewImp(mockedT)
+
+		// When we run the function to test with the mimicked dependencies
+		imp.Start(funcToTest, nil)
+
+		// Then the next thing the function under test does is return values matching our expectations
+		imp.ReceiveReturn()
+	})
+
+	if !mockedT.Failed() {
+		t.Fatalf("expected to fail instead of passing")
+	}
+
+	expected := `(?s)expected.*Return.*Panic.*`
+	actual := mockedT.Failure()
+
+	if !regexp.MustCompile(expected).MatchString(actual) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
+}
+
+func TestCallPanicString(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		p := recover()
+		if p == nil {
+			t.Fatal("expected to panic")
+		}
+	}()
+
+	_ = (&imptest.FuncActivity{Type: imptest.ActivityTypeUnset}).String()
 }
 
 // TestL2ReceiveTooFewCalls tests matching a dependency call and pushing a return more simply, with a

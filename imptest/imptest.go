@@ -34,7 +34,6 @@ import (
 // * return
 // * call a dependency.
 type FuncActivity struct {
-	// TODO: type isn't really necessary, is it?
 	Type       ActivityType
 	PanicVal   any
 	PanicStack string
@@ -53,7 +52,6 @@ const (
 )
 
 //go:generate stringer -type ActivityType
-//go:generate jsonenums -type ActivityType
 
 // Call represents a call to a dependency, as well as providing the channel to send the response that
 // the depenency should perform.
@@ -170,17 +168,13 @@ func (c *Call) String() string {
 func (fa *FuncActivity) String() string {
 	switch fa.Type {
 	case ActivityTypeReturn:
-		pretty := prettyString(fa.ReturnVals)
-		lines := strings.Count(pretty, "\n") + 1
-		if lines > 1 {
-			return "Return:\n" + pretty
-		} else {
-			return "Return: " + pretty
-		}
+		return "Return:\n" + prettyString(fa.ReturnVals)
 	case ActivityTypePanic:
 		return "Panic:\n" + fmt.Sprint(fa.PanicVal) + "\nPanic Trace:\n" + fa.PanicStack
 	case ActivityTypeCall:
 		return "Call:\n" + fa.Call.String()
+	case ActivityTypeUnset:
+		panic("unset activity type")
 	default:
 		panic("unknown activity type")
 	}
@@ -311,7 +305,9 @@ func unreflectValues(rArgs []reflect.Value) []any {
 // function _type_ in go.
 type function any
 
-func init() {
+// I generally don't like using inits, but this is literally updating global config when this module gets loaded.
+// There's no other place to do this besides in another function, which would then need to be protected by mutex's.
+func init() { //nolint:gochecknoinits
 	spew.Config.SortKeys = true
 	spew.Config.SpewKeys = true
 	spew.Config.DisablePointerAddresses = true
@@ -395,28 +391,11 @@ func (t *Imp) ReceiveCall(expectedCallID string, expectedArgs ...any) *Call {
 		},
 	}
 
-	response := t.resolveExpectations(expected)
-
-	if response.Match == nil {
-		failureMessage := fmt.Sprintf("expected %s, but got different function activity:", prettyString(expected))
-		diffs := make([]string, len(response.Misses))
-
-		for i := range response.Misses {
-			diffs[i] = textdiff.Unified("expected", "actual", prettyString(expected)+"\n", prettyString(response.Misses[i])+"\n")
-			failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", i, diffs[i])
-		}
-
-		t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
-	}
-
-	// t.T.Logf("...received call %s", response.Match.Call)
-
-	return response.Match.Call
+	return t.resolveExpectations(expected).Call
 }
 
 func (t *Imp) ReceiveReturn(returned ...any) {
 	t.T.Helper()
-	// t.T.Logf("expecting return...")
 
 	expected := FuncActivity{
 		ActivityTypeReturn,
@@ -426,21 +405,7 @@ func (t *Imp) ReceiveReturn(returned ...any) {
 		nil,
 	}
 
-	response := t.resolveExpectations(expected)
-
-	if response.Match == nil {
-		failureMessage := fmt.Sprintf("expected %s, but got different function activity:", prettyString(expected))
-		diffs := make([]string, len(response.Misses))
-
-		for i := range response.Misses {
-			diffs[i] = textdiff.Unified("expected", "actual", prettyString(expected)+"\n", prettyString(response.Misses[i])+"\n")
-			failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", i, diffs[i])
-		}
-
-		t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
-	}
-
-	// t.T.Logf("...received return")
+	t.resolveExpectations(expected)
 }
 
 func (t *Imp) ReceivePanic(panicValue any) {
@@ -455,19 +420,7 @@ func (t *Imp) ReceivePanic(panicValue any) {
 		nil,
 	}
 
-	response := t.resolveExpectations(expected)
-
-	if response.Match == nil {
-		failureMessage := fmt.Sprintf("expected %s, but got different function activity:", prettyString(expected))
-		diffs := make([]string, len(response.Misses))
-
-		for i := range response.Misses {
-			diffs[i] = textdiff.Unified("expected", "actual", prettyString(expected)+"\n", prettyString(response.Misses[i])+"\n")
-			failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", i, diffs[i])
-		}
-
-		t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
-	}
+	t.resolveExpectations(expected)
 }
 
 func (t *Imp) Concurrently(funcs ...func()) {
@@ -628,7 +581,7 @@ func activityTypeMismatch(activity FuncActivity, expectedActivity FuncActivity) 
 	return activity.Type != expectedActivity.Type
 }
 
-func (t *Imp) resolveExpectations(expectation FuncActivity) ExpectationResponse {
+func (t *Imp) resolveExpectations(expectation FuncActivity) FuncActivity {
 	t.ActivityReadMutex.Lock()
 	defer t.ActivityReadMutex.Unlock()
 
@@ -636,13 +589,10 @@ func (t *Imp) resolveExpectations(expectation FuncActivity) ExpectationResponse 
 	activities := []FuncActivity{}
 	maxWaitChan := time.After(t.ResolutionMaxDuration)
 
-	// t.T.Logf("attempting to resolve an expectation for %s...", expectedActivity)
-
+Loop:
 	for {
 		select {
 		case activity := <-t.ActivityChan:
-			// t.T.Logf("pulled function activity %s...", activity)
-
 			if !matchActivity(activity, expectedActivity) {
 				activities = append(activities, activity)
 			} else {
@@ -650,13 +600,29 @@ func (t *Imp) resolveExpectations(expectation FuncActivity) ExpectationResponse 
 					t.ActivityChan <- activities[i]
 				}
 
-				return ExpectationResponse{Match: &activity, Misses: nil}
+				return activity
 			}
 
 		case <-maxWaitChan:
-			return ExpectationResponse{Match: nil, Misses: activities}
+			break Loop
 		}
 	}
+
+	failureMessage := fmt.Sprintf("expected %s, but got different function activity:", prettyString(expectedActivity))
+	diffs := make([]string, len(activities))
+
+	for index := range activities {
+		diffs[index] = textdiff.Unified(
+			"expected",
+			"actual",
+			prettyString(expectedActivity)+"\n",
+			prettyString(activities[index])+"\n",
+		)
+		failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", index, diffs[index])
+	}
+
+	t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
+	panic("should never get here, due to the preceding Fatal call")
 }
 
 type ExpectationResponse struct {
