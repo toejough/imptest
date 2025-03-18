@@ -243,6 +243,17 @@ func TestL2L1Mix(t *testing.T) {
 	}
 }
 ```
+## What's going on here?
+
+The basic idea is to find a way to treat impure function call activity as pure input/output data, thereby allowing us to write fast, repeatable tests for it, just like we do for pure functions.
+
+This library treats everything after the invocation of the function under test as "activity", which it encapsulates in a `FunctionActivity` object and pushes onto a channel. Calls to dependency functions are intercepted this way, as is the final return/panic from the function under test. The test code, then, can pull activity from the channel, inspect it, and react to it. In the case of dependency calls, there is a response channel provided in the `FunctionActivity`, which allows the test code to send a response (either an instruction to return or to panic with some values).
+
+It's this call & response via channels that is one of the key distinguishing features of this library vs other mock libraries - each test instruction is interacting synchronously with the function under test. If you want to make sure calls happen in a certain order, you check for them in that order. If you want to know what happens if a dependency returns true 30 times and then false the 31st time, you can control that in the test code itself, rather than having to write yet another mock implementation.
+
+Oops, buried the lede there - that's one of the best things about this library: at _most_ you have to write a single mock for the dependencies, and you don't even have to implement any logic - all Imptest needs is the function signature! 
+
+Thanks to the magic of `reflect.MakeFunc`, all we need is a function stub, and then any test can use that stub as the baseline to mimic, and from there each test can push arbitrary responses from that function on the fly! Instead of implementing `returnsTrueMock`, `returnsFalseMock`, `returnsTrue5TimesThenFalseMock`, etc, you pass in `struct{BoolFunc func() bool}` and then in your test call `imp.ExpectCall("BoolFunc").SendReturn(true)`, etc!
 
 ## API's 
 
@@ -277,4 +288,6 @@ fall back to the L1 API's, as in the final example in the tests above.
 ## alternatives/inspirations
 Why not https://github.com/stretchr/testify/blob/master/README.md#mock-package?
 
-https://github.com/stretchr/testify/issues/741, highlights some challenges, and is answered by the author with some additional syntax and functionality. I still found myself wondering if something with what I considered simpler syntax was possible, mostly out of curiosity, and to learn.
+https://github.com/stretchr/testify/issues/741, highlights some challenges, and is answered by the author with some additional syntax and functionality. I still found myself wondering if something with what I considered simpler syntax was possible, mostly out of curiosity, and to learn. 
+
+A couple (gulp) _years_ later, I'm pretty happy with what I've come up with. I hope you will be, too!
