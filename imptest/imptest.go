@@ -68,7 +68,6 @@ type Call struct {
 // * panic
 // * return.
 type CallResponse struct {
-	// TODO: type isn't really necessary, is it?
 	Type         ResponseType
 	PanicValue   any
 	ReturnValues []any
@@ -94,7 +93,6 @@ type MimicOptions struct {
 
 // ==L1 Exported Methods==
 
-// TODO move these to L2 exported methods - these weren't added till we moved to an L2 API
 // SendReturn sends a return response to the mimicked dependency, which will cause it to return with the given values.
 // SendReturn checks for the correct # of values as well as their assignability ot the dependency call's return types.
 // SendReturn closes and clears the response channel for the dependency call when it is done.
@@ -355,21 +353,13 @@ func NewImp(tester Tester, funcStructs ...any) *Imp {
 			fields[i].Value = fsValue.Field(i)
 		}
 
-		// reduce to fields that are functions
-		functionFields := []fieldPair{}
-
+		// intercept function fields
 		for index := range numFields {
 			if fields[index].Type.Type.Kind() != reflect.Func {
 				continue
 			}
 
-			functionFields = append(functionFields, fields[index])
-		}
-
-		// intercept them all
-		// TODO: simplify - all I do with the func fields is this - I probably don't need another loop here
-		for i := range functionFields {
-			replaceFuncFieldWithMimic(tester, functionFields[i], tester2.ActivityChan)
+			replaceFuncFieldWithMimic(tester, fields[index], tester2.ActivityChan)
 		}
 	}
 

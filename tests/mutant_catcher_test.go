@@ -256,75 +256,33 @@ func TestL1UnorderedConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo
 		funcToTest(depMimic1, depMimic2, depMimic3, depMimic4, depMimic5)
 		// record what the func returns as its final activity
 		funcActivityChan <- imptest.FuncActivity{
-			Type:       imptest.ActivityTypeReturn,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call:       nil,
+			Type: imptest.ActivityTypeReturn,
 		}
 	}()
 
 	// When we set expectations for the function calls
-	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic5ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic5ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic2ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic2ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic4ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic4ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeReturn,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call:       nil,
+		Type: imptest.ActivityTypeReturn,
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic1ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic1ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic3ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic3ID},
 	}
 
 	// When we get the first activity from the function under test
@@ -630,75 +588,33 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 		funcToTest(depMimic1, depMimic2, depMimic3, depMimic4, depMimic5)
 		// record what the func returns as its final activity
 		funcActivityChan <- imptest.FuncActivity{
-			Type:       imptest.ActivityTypeReturn,
-			PanicVal:   nil,
-			ReturnVals: nil,
-			Call:       nil,
+			Type: imptest.ActivityTypeReturn,
 		}
 	}()
 
 	// When we set expectations for the function calls
-	// TODO: filling in an entire expectation/funcactivity/call is super verbose... clean it up even for L1
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic5ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic5ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic2ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic2ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic4ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic4ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeReturn,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call:       nil,
+		Type: imptest.ActivityTypeReturn,
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic1ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic1ID},
 	}
 	expectationsChan <- imptest.FuncActivity{
-		Type:       imptest.ActivityTypeCall,
-		PanicVal:   nil,
-		ReturnVals: nil,
-		Call: &imptest.Call{
-			ID:           depMimic3ID,
-			Args:         nil,
-			ResponseChan: nil,
-			Type:         nil,
-		},
+		Type: imptest.ActivityTypeCall,
+		Call: &imptest.Call{ID: depMimic3ID},
 	}
 
 	// When we get the concurrent activities from the function under test
@@ -826,7 +742,6 @@ func TestL1RequiredConcurrency(t *testing.T) { //nolint:funlen,gocognit,gocyclo,
 	// search the remaining expectations
 	for range 3 {
 		// get the next expectation
-		// TODO: test this more the way L2 tests it
 		expectation := <-expectationsChan
 		// if no match, push it back onto the channel
 		if expectation.Type != activity4.Type {
@@ -1384,7 +1299,6 @@ func TestTypedNilEquality(t *testing.T) {
 		t.Fatal("expected invalid value for actual")
 	}
 
-	// TODO: loop through comparison arrays, and if an expected value is not valid, and the actual value is nil, pass.
 	if !reflect.ValueOf(expected).IsValid() {
 		t.Fatal("expected valid value for expected")
 	}
