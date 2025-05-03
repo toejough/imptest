@@ -14,7 +14,7 @@ import (
 
 // TestL1ReceiveDependencyCallSendReturn tests receiving a dependency call and sending a return.
 // ignore the linter error about how this test is too long.he point behind the L2 API.
-func TestL1ReceiveDependencyCallSendReturn(t *testing.T) { //nolint:funlen
+func TestL1ReceiveDependencyCallSendReturn(t *testing.T) {
 	t.Parallel()
 
 	// Given a function to test
@@ -127,7 +127,7 @@ func TestL1MimicCallIDOverrideOption(t *testing.T) {
 
 // TestReceiveDependencyCallSendPanic tests receiving a dependency call and sending a panic.
 // ignore the linter error about how this test is too longthe point behind the L2 API.
-func TestL1ReceiveDependencyCallSendPanic(t *testing.T) { //nolint:funlen
+func TestL1ReceiveDependencyCallSendPanic(t *testing.T) {
 	t.Parallel()
 
 	// Given a function to test

@@ -335,6 +335,47 @@ type Tester interface {
 
 // ==L2 Exported Methods==
 
+// NewImp creates a new imp to help you test without being so verbose.
+func NewImp(tester Tester, funcStructs ...any) *Imp {
+	tester2 := &Imp{
+		ActivityChan:          make(chan FuncActivity, constDefaultActivityBufferSize),
+		T:                     tester,
+		ResolutionMaxDuration: defaultResolutionMaxDuration,
+	}
+
+	for _, fs := range funcStructs {
+		// get all methods of the funcStructs
+		fsType := reflect.ValueOf(fs).Elem().Type()
+		fsValue := reflect.ValueOf(fs).Elem()
+		numFields := fsType.NumField()
+		fields := make([]fieldPair, numFields)
+
+		for i := range numFields {
+			fields[i].Type = fsType.Field(i)
+			fields[i].Value = fsValue.Field(i)
+		}
+
+		// reduce to fields that are functions
+		functionFields := []fieldPair{}
+
+		for index := range numFields {
+			if fields[index].Type.Type.Kind() != reflect.Func {
+				continue
+			}
+
+			functionFields = append(functionFields, fields[index])
+		}
+
+		// intercept them all
+		// TODO: simplify - all I do with the func fields is this - I probably don't need another loop here
+		for i := range functionFields {
+			replaceFuncFieldWithMimic(tester, functionFields[i], tester2.ActivityChan)
+		}
+	}
+
+	return tester2
+}
+
 func (t *Imp) Close() {
 	close(t.ActivityChan)
 }
@@ -343,34 +384,6 @@ func (t *Imp) Start(f any, args ...any) *Imp {
 	go t.startFunctionUnderTest(f, args)
 
 	return t
-}
-
-func (t *Imp) startFunctionUnderTest(function any, args []any) {
-	var rVals []any
-
-	// TODO: push this down into callFunc?
-	defer func() {
-		panicVal := recover()
-		if panicVal != nil {
-			t.ActivityChan <- FuncActivity{
-				ActivityTypePanic,
-				panicVal,
-				string(debug.Stack()),
-				nil,
-				nil,
-			}
-		} else {
-			t.ActivityChan <- FuncActivity{
-				ActivityTypeReturn,
-				nil,
-				"",
-				rVals,
-				nil,
-			}
-		}
-	}()
-
-	rVals = callFunc(function, args)
 }
 
 func (t *Imp) ExpectCall(expectedCallID string, expectedArgs ...any) *Call {
@@ -437,48 +450,35 @@ func (t *Imp) Concurrently(funcs ...func()) {
 	waitGroup.Wait()
 }
 
-// ==L2 funcs==
+func (t *Imp) startFunctionUnderTest(function any, args []any) {
+	var rVals []any
 
-// NewImp creates a new imp to help you test without being so verbose.
-func NewImp(tester Tester, funcStructs ...any) *Imp {
-	tester2 := &Imp{
-		ActivityChan:          make(chan FuncActivity, constDefaultActivityBufferSize),
-		T:                     tester,
-		ResolutionMaxDuration: defaultResolutionMaxDuration,
-	}
-
-	for _, fs := range funcStructs {
-		// get all methods of the funcStructs
-		fsType := reflect.ValueOf(fs).Elem().Type()
-		fsValue := reflect.ValueOf(fs).Elem()
-		numFields := fsType.NumField()
-		fields := make([]fieldPair, numFields)
-
-		for i := range numFields {
-			fields[i].Type = fsType.Field(i)
-			fields[i].Value = fsValue.Field(i)
-		}
-
-		// reduce to fields that are functions
-		functionFields := []fieldPair{}
-
-		for index := range numFields {
-			if fields[index].Type.Type.Kind() != reflect.Func {
-				continue
+	// TODO: push this down into callFunc?
+	defer func() {
+		panicVal := recover()
+		if panicVal != nil {
+			t.ActivityChan <- FuncActivity{
+				ActivityTypePanic,
+				panicVal,
+				string(debug.Stack()),
+				nil,
+				nil,
 			}
-
-			functionFields = append(functionFields, fields[index])
+		} else {
+			t.ActivityChan <- FuncActivity{
+				ActivityTypeReturn,
+				nil,
+				"",
+				rVals,
+				nil,
+			}
 		}
+	}()
 
-		// intercept them all
-		// TODO: simplify - all I do with the func fields is this - I probably don't need another loop here
-		for i := range functionFields {
-			replaceFuncFieldWithMimic(tester, functionFields[i], tester2.ActivityChan)
-		}
-	}
-
-	return tester2
+	rVals = callFunc(function, args)
 }
+
+// ==L2 funcs==
 
 // ==L2 Unexported Helpers==.
 const (
@@ -580,6 +580,7 @@ func activityTypeMismatch(activity FuncActivity, expectedActivity FuncActivity) 
 }
 
 func (t *Imp) resolveExpectations(expectation FuncActivity) FuncActivity {
+	t.T.Helper()
 	t.ActivityReadMutex.Lock()
 	defer t.ActivityReadMutex.Unlock()
 
@@ -619,7 +620,14 @@ Loop:
 		failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", index, diffs[index])
 	}
 
-	t.T.Fatal(failureMessage + "\n" + "no function activity matched the expectation")
+	if len(activities) == 0 {
+		failureMessage = fmt.Sprintf("expected %s, but got no function activity:", prettyString(expectedActivity))
+	}
+
+	t.T.Fatal(
+		failureMessage +
+			"\n" +
+			"no function activity matched the expectation. Did you remember to respond with return/panic from all calls?")
 	panic("should never get here, due to the preceding Fatal call")
 }
 

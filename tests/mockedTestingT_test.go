@@ -26,7 +26,7 @@ func (mt *mockedTestingT) Fail()                     {}
 func (mt *mockedTestingT) FailNow()                  {}
 
 // This is a sort of cheat for fatal's args. I know that. Tell the linter to chill.
-func (mt *mockedTestingT) Fatal(a ...any)          { mt.Fatalf("%v", a) } //nolint:asasalint
+func (mt *mockedTestingT) Fatal(a ...any)          { mt.Fatalf("%v", a) }
 func (mt *mockedTestingT) Log(...any)              {}
 func (mt *mockedTestingT) Logf(m string, a ...any) { fmt.Printf(m, a...) }
 func (mt *mockedTestingT) Name() string            { return "" }

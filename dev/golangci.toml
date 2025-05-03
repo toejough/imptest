@@ -1,43 +1,50 @@
+version = '2'
+
 [linters]
-enable-all = true
+default = 'all'
 disable = [
-	"gci",            # doesn't play nicely with goimports
-	"forbidigo",      # I print output on purpose
-	"ireturn",        # I return generic types
-	"nonamedreturns", # I like named returns
-	"exhaustruct",    # too noisy for zero value structs
-	# deprecated
-	"exportloopref",
-	"godox",         # saving todos till the end
+	'exhaustruct',    # too noisy for zero value structs
+	'forbidigo',      # I print output on purpose sometimes
+	'godox',          # saving todos till another validation step
+	'ireturn',        # I like generic return types
+	'nonamedreturns', # I like named returns
 ]
 
-[issues]
-fix = false # too often this ends up doing surprising things to my sourcecode
-[linters-settings]
-enable-all = true
-[linters-settings.depguard.rules]
-all.files = ["$all", "!$test"]
-all.allow = [
-	"$gostd",
-	"github.com/alexflint/go-arg",
-	"github.com/akedrou/textdiff",
-	"github.com/davecgh/go-spew/spew"
+[linters.settings]
+[linters.settings.depguard]
+[linters.settings.depguard.rules]
+[linters.settings.depguard.rules.all]
+files = ['$all', '!$test']
+allow = [
+	'$gostd',
+	'github.com/alexflint/go-arg',
+	'github.com/akedrou/textdiff',
+	'github.com/davecgh/go-spew/spew',
 ]
-test.files = ["$test"]
-test.allow = [
-	"$gostd",
-	"pgregory.net/rapid",
-	"github.com/toejough/imptest/imptest",
-]
-[linters-settings.nlreturn]
-block-size = 2 # IMO this is ok style
-[linters-settings.unused]
-# Mark all local variables as used.
-# default: true
-local-variables-are-used = false
-# Mark all exported fields as used.
-# default: true
-exported-fields-are-used = false
-# Mark all struct fields that have been written to as used.
-# Default: true
+
+[linters.settings.depguard.rules.test]
+files = ['$test']
+allow = ['$gostd', 'pgregory.net/rapid', 'github.com/toejough/imptest/imptest']
+
+[linters.settings.nlreturn]
+block-size = 2
+
+[linters.settings.unused]
 field-writes-are-uses = false
+exported-fields-are-used = false
+local-variables-are-used = false
+
+[linters.exclusions]
+generated = 'lax'
+presets = ['comments', 'common-false-positives', 'legacy', 'std-error-handling']
+paths = ['third_party$', 'builtin$', 'examples$']
+
+[issues]
+fix = true
+
+[formatters]
+enable = ['gofmt', 'gofumpt', 'goimports']
+
+[formatters.exclusions]
+generated = 'lax'
+paths = ['third_party$', 'builtin$', 'examples$']
