@@ -1229,6 +1229,50 @@ func TestL2ReceiveTooFewCalls(t *testing.T) {
 	}
 }
 
+// TestL2ReceiveNothing tests the error presented when no func activity is found.
+func TestL2ReceiveNothing(t *testing.T) {
+	t.Parallel()
+
+	mockedT := newMockedTestingT()
+	mockedT.Wrap(func() {
+		// Given a function to test
+		funcToTest := func(deps depStruct1) string {
+			return deps.Dep1()
+		}
+		// and a struct of dependenc mimics
+		depsToMimic := depStruct1{}
+		// and a helpful test imp
+		imp := imptest.NewImp(mockedT, &depsToMimic)
+		// and a string to return from the dependency call
+		returnString := anyString
+
+		// When we run the function to test with the mimicked dependencies
+		imp.Start(funcToTest, depsToMimic)
+
+		// Then the next thing the function under test does is make a call matching our expectations
+		// When we push a return string
+		imp.ExpectCall("Dep1").SendReturn(returnString)
+
+		// Then the next thing the function under test does is return values matching our expectations
+		imp.ExpectReturn(returnString)
+
+		// THIS IS WHAT WE EXPECT TO TRIGGER A FAILURE
+		// shouldn't return a second time... there shouldn't be anything
+		imp.ExpectReturn(returnString)
+	})
+
+	if !mockedT.Failed() {
+		t.Fatalf("expected to fail instead of passing")
+	}
+
+	expected := `.*but got no function activity.*`
+	actual := mockedT.Failure()
+
+	if !regexp.MustCompile(expected).MatchString(actual) {
+		t.Fatalf("expected test to fail with %s, but it failed with %s instead", expected, actual)
+	}
+}
+
 // TestL2ReceiveWrongReturnType tests returning an incorrect type from a dependency.
 func TestL2ReceiveWrongReturnType(t *testing.T) {
 	t.Parallel()

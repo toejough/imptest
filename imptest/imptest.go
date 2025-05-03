@@ -620,6 +620,7 @@ Loop:
 		failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", index, diffs[index])
 	}
 
+	// TODO: Mutation testing fails here with -1, implying that we don't have a test for no activity...
 	if len(activities) == 0 {
 		failureMessage = fmt.Sprintf("expected %s, but got no function activity:", prettyString(expectedActivity))
 	}
