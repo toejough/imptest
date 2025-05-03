@@ -97,8 +97,6 @@ type MimicOptions struct {
 // SendReturn checks for the correct # of values as well as their assignability ot the dependency call's return types.
 // SendReturn closes and clears the response channel for the dependency call when it is done.
 func (c *Call) SendReturn(returnVals ...any) {
-	// TODO: migrate this back into the function mimic in the first place. Then we wouldn't need to pass Type or t
-	// around.
 	c.t.Helper()
 	// clean up after this call
 	defer func() {
@@ -610,7 +608,6 @@ Loop:
 		failureMessage += "\n" + fmt.Sprintf("diff %d: \n%s", index, diffs[index])
 	}
 
-	// TODO: Mutation testing fails here with -1, implying that we don't have a test for no activity...
 	if len(activities) == 0 {
 		failureMessage = fmt.Sprintf("expected %s, but got no function activity:", prettyString(expectedActivity))
 	}
