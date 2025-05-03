@@ -56,7 +56,7 @@ const (
 // Call represents a call to a dependency, as well as providing the channel to send the response that
 // the depenency should perform.
 type Call struct {
-	ID           string            `json:"id"`
+	Name         string            `json:"id"`
 	Args         []any             `json:"args"`
 	ResponseChan chan CallResponse `json:"-"`
 	Type         reflect.Type      `json:"-"`
@@ -110,7 +110,7 @@ func (c *Call) SendReturn(returnVals ...any) {
 	if len(returnVals) != expectedNumReturns {
 		c.t.Fatalf(
 			"%d returns were pushed, but %s only returns %d values",
-			len(returnVals), c.ID, expectedNumReturns,
+			len(returnVals), c.Name, expectedNumReturns,
 		)
 	}
 	// make sure these are at least assignable
@@ -122,7 +122,7 @@ func (c *Call) SendReturn(returnVals ...any) {
 			c.t.Fatalf(
 				"unable to push return value %d for the call to %s: a value of type %v was pushed, "+
 					"but that is unassignable to the expected type (%v)",
-				rvi, c.ID, actual, expected,
+				rvi, c.Name, actual, expected,
 			)
 		}
 	}
@@ -229,7 +229,6 @@ func makeMimicAsValue(tester Tester, funcType reflect.Type, name string, activit
 			"",
 			nil,
 			&Call{
-				// TODO: turn ID into name
 				name,
 				unreflectValues(args),
 				responseChan,
@@ -441,7 +440,6 @@ func (t *Imp) Concurrently(funcs ...func()) {
 func (t *Imp) startFunctionUnderTest(function any, args []any) {
 	var rVals []any
 
-	// TODO: push this down into callFunc?
 	defer func() {
 		panicVal := recover()
 		if panicVal != nil {
@@ -550,7 +548,7 @@ func extractActivityValues(expectedActivity FuncActivity, activity FuncActivity)
 func callIDMismatch(expectedActivity FuncActivity, activity FuncActivity) bool {
 	switch expectedActivity.Type {
 	case ActivityTypeCall:
-		if activity.Call.ID != expectedActivity.Call.ID {
+		if activity.Call.Name != expectedActivity.Call.Name {
 			return true
 		}
 
