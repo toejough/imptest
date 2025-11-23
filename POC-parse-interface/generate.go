@@ -56,6 +56,11 @@ func main() {
 	fmt.Printf("----- AST tree of %s -----\n", fullPath)
 	printAstTree(fileAst, "")
 	fmt.Printf("----- end AST tree %s -----\n", fullPath)
+
+	// Print only TypeSpec nodes whose immediate child is an InterfaceType
+	fmt.Printf("----- AST TypeSpec nodes with InterfaceType children in %s -----\n", fullPath)
+	printTypeSpecsWithInterface(fileAst, "")
+	fmt.Printf("----- end filtered AST %s -----\n", fullPath)
 }
 
 // printAstTree recursively prints the AST node tree with indentation
@@ -79,4 +84,19 @@ func printAstTree(node interface{}, indent string) {
 			return true
 		})
 	}
+}
+
+// printTypeSpecsWithInterface prints TypeSpec nodes whose immediate child is an InterfaceType
+func printTypeSpecsWithInterface(node ast.Node, indent string) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		ts, ok := n.(*ast.TypeSpec)
+		if ok {
+			if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 {
+				fmt.Printf("%s*ast.TypeSpec (Name: %q)\n", indent, ts.Name.Name)
+				printAstTree(iface, indent+"  ")
+				return false // don't descend into children again
+			}
+		}
+		return true
+	})
 }
