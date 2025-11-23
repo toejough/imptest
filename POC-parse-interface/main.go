@@ -9,6 +9,12 @@ type exampleInt interface {
 	transform(float64) (error, []byte)
 }
 
+type otherInt interface {
+	show(string)
+	combine(int, int) int
+	change(float64) (error, []byte)
+}
+
 func main() {
 	// This is a placeholder for the main function.
 	fmt.Println("Hello, World!")

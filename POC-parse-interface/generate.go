@@ -61,6 +61,14 @@ func main() {
 	fmt.Printf("----- AST TypeSpec nodes with InterfaceType children in %s -----\n", fullPath)
 	printTypeSpecsWithInterface(fileAst, "")
 	fmt.Printf("----- end filtered AST %s -----\n", fullPath)
+
+	// Print only TypeSpec nodes with InterfaceType whose name matches the last item in os.Args
+	if len(os.Args) > 0 {
+		matchName := os.Args[len(os.Args)-1]
+		fmt.Printf("----- AST TypeSpec nodes with InterfaceType and name %q in %s -----\n", matchName, fullPath)
+		printTypeSpecsWithInterfaceName(fileAst, "", matchName)
+		fmt.Printf("----- end name-filtered AST %s -----\n", fullPath)
+	}
 }
 
 // printAstTree recursively prints the AST node tree with indentation
@@ -92,6 +100,21 @@ func printTypeSpecsWithInterface(node ast.Node, indent string) {
 		ts, ok := n.(*ast.TypeSpec)
 		if ok {
 			if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 {
+				fmt.Printf("%s*ast.TypeSpec (Name: %q)\n", indent, ts.Name.Name)
+				printAstTree(iface, indent+"  ")
+				return false // don't descend into children again
+			}
+		}
+		return true
+	})
+}
+
+// printTypeSpecsWithInterfaceName prints TypeSpec nodes whose immediate child is an InterfaceType and whose name matches
+func printTypeSpecsWithInterfaceName(node ast.Node, indent, matchName string) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		ts, ok := n.(*ast.TypeSpec)
+		if ok {
+			if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
 				fmt.Printf("%s*ast.TypeSpec (Name: %q)\n", indent, ts.Name.Name)
 				printAstTree(iface, indent+"  ")
 				return false // don't descend into children again
