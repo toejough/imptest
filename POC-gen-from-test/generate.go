@@ -6,10 +6,10 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/printer"
 	"go/format"
+	"go/parser"
+	"go/printer"
+	"go/token"
 	"os"
 	"path/filepath"
 )
@@ -69,6 +69,23 @@ func main() {
 		}
 		astFiles = append(astFiles, f)
 	}
+
+	// Pretty print all interfaces in the package
+	fmt.Printf("----- All interfaces in package %s -----\n", pkgName)
+	for _, fileAst := range astFiles {
+		ast.Inspect(fileAst, func(n ast.Node) bool {
+			ts, ok := n.(*ast.TypeSpec)
+			if ok {
+				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 {
+					fmt.Printf("*ast.TypeSpec (Name: %q)\n", ts.Name.Name)
+					printAstTree(iface, "  ")
+					return false
+				}
+			}
+			return true
+		})
+	}
+	fmt.Printf("----- end interfaces in package %s -----\n", pkgName)
 
 	// Search for the interface in all files
 	var identifiedInterface *ast.InterfaceType
