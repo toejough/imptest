@@ -12,6 +12,9 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/ssa"
 )
 
 func main() {
@@ -36,6 +39,9 @@ func main() {
 			}
 		}
 	}
+
+	// Pretty print the SSA form of the package
+	printPackageSSA(info.pkgDir)
 
 	// Pretty print all interfaces in the package
 	fmt.Printf("----- All interfaces in package %s -----\n", info.pkgName)
@@ -271,4 +277,77 @@ func exprToString(fset *token.FileSet, expr ast.Expr) string {
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, expr)
 	return buf.String()
+}
+
+// printPackageSSA loads and prints the SSA form of the package and its test package
+func printPackageSSA(pkgDir string) {
+	cfg := &packages.Config{
+		Mode:  packages.LoadAllSyntax,
+		Dir:   pkgDir,
+		Tests: true, // Load test files as well
+	}
+	pkgs, err := packages.Load(cfg, ".")
+	if err != nil || len(pkgs) == 0 {
+		fmt.Printf("error loading package for SSA: %v\n", err)
+		return
+	}
+	prog := ssa.NewProgram(pkgs[0].Fset, ssa.SanityCheckFunctions)
+	ssaPkgs := make(map[*packages.Package]*ssa.Package)
+
+	var createAllSSA func(pkg *packages.Package)
+	createAllSSA = func(pkg *packages.Package) {
+		if pkg == nil {
+			return
+		}
+		if _, ok := ssaPkgs[pkg]; ok {
+			return // already created
+		}
+		if pkg.Types != nil && pkg.Syntax != nil && pkg.TypesInfo != nil {
+			ssaPkgs[pkg] = prog.CreatePackage(pkg.Types, pkg.Syntax, pkg.TypesInfo, true)
+		}
+		for _, imp := range pkg.Imports {
+			createAllSSA(imp)
+		}
+	}
+	for _, pkg := range pkgs {
+		createAllSSA(pkg)
+	}
+
+	prog.Build()
+
+	// Print SSA for main package and test package
+	mainPkgPath := pkgs[0].PkgPath
+	var testPkgPath string
+	if len(pkgs) > 1 {
+		testPkgPath = pkgs[len(pkgs)-1].PkgPath // heuristic: last is test package
+	}
+
+	for _, ssaPkg := range prog.AllPackages() {
+		if ssaPkg == nil || ssaPkg.Pkg == nil {
+			continue
+		}
+		if ssaPkg.Pkg.Path() == mainPkgPath || (testPkgPath != "" && ssaPkg.Pkg.Path() == testPkgPath) {
+			fmt.Printf("----- SSA for package: %s -----\n", ssaPkg.Pkg.Path())
+			for name, member := range ssaPkg.Members {
+				fmt.Printf("SSA Member: %s\n", name)
+				fmt.Printf("  Type: %T\n", member)
+				if val, ok := member.(ssa.Value); ok {
+					fmt.Printf("  SSA Type: %s\n", val.Type())
+				}
+				if obj := member.Object(); obj != nil {
+					fmt.Printf("  Object: %s (%T)\n", obj.Name(), obj)
+					if obj.Type() != nil {
+						fmt.Printf("  Object Underlying Type: %s\n", obj.Type().Underlying())
+					}
+				}
+				if fn, ok := member.(*ssa.Function); ok {
+					fn.WriteTo(os.Stdout)
+					fmt.Println()
+				} else {
+					fmt.Printf("  Value: %v\n", member)
+				}
+			}
+			fmt.Printf("----- end SSA for package: %s -----\n", ssaPkg.Pkg.Path())
+		}
+	}
 }

@@ -14,6 +14,8 @@ import (
 //go:generate go run generate.go exampleInt
 type exampleInt run.ExampleInt
 
+var _ = (exampleInt)(&mockExampleInt{})
+
 // mockExampleInt is a mock implementation of run.ExampleInt for testing.
 type mockExampleInt struct {
 	printCalled     bool
