@@ -70,6 +70,25 @@ func main() {
 		astFiles = append(astFiles, f)
 	}
 
+	// Pretty print the AST of the GOFILE
+	gofile := os.Getenv("GOFILE")
+	if gofile != "" {
+		gofilePath := gofile
+		if !filepath.IsAbs(gofile) {
+			gofilePath = filepath.Join(cwd, gofile)
+		}
+		data, err := os.ReadFile(gofilePath)
+		if err == nil {
+			fsetSingle := token.NewFileSet()
+			fileAst, err := parser.ParseFile(fsetSingle, gofilePath, data, parser.ParseComments)
+			if err == nil {
+				fmt.Printf("----- AST tree of %s -----\n", gofilePath)
+				printAstTree(fileAst, "")
+				fmt.Printf("----- end AST tree %s -----\n", gofilePath)
+			}
+		}
+	}
+
 	// Pretty print all interfaces in the package
 	fmt.Printf("----- All interfaces in package %s -----\n", pkgName)
 	for _, fileAst := range astFiles {
