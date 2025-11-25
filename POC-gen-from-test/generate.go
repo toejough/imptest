@@ -28,59 +28,67 @@ func main() {
 		fmt.Println("  ", ev, "=", os.Getenv(ev))
 	}
 
-	// Open GOFILE (if set) and print its contents.
-	gofile := os.Getenv("GOFILE")
-	if gofile == "" {
-		fmt.Println("  GOFILE not set; skipping file read")
+	// Instead of just reading GOFILE, read all Go files in the package directory (GOPACKAGE)
+	pkgName := os.Getenv("GOPACKAGE")
+	if pkgName == "" {
+		fmt.Println("  GOPACKAGE not set; cannot search package")
 		return
 	}
 
-	fullPath := gofile
-	if !filepath.IsAbs(gofile) {
-		fullPath = filepath.Join(cwd, gofile)
-	}
-
-	data, err := os.ReadFile(fullPath)
+	// Find the directory containing the package
+	pkgDir := cwd // assume current dir is the package dir
+	entries, err := os.ReadDir(pkgDir)
 	if err != nil {
-		fmt.Printf("  error reading GOFILE %q: %v\n", fullPath, err)
+		fmt.Printf("  error reading package dir %q: %v\n", pkgDir, err)
 		return
 	}
 
-	fmt.Printf("----- Contents of %s -----\n%s\n----- end %s -----\n", fullPath, string(data), fullPath)
+	var files []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if len(name) > 3 && name[len(name)-3:] == ".go" && name != "generated.go" {
+			files = append(files, filepath.Join(pkgDir, name))
+		}
+	}
 
-	// Parse the file and pretty print its AST as a tree of nodes
 	fset := token.NewFileSet()
-	fileAst, err := parser.ParseFile(fset, fullPath, data, parser.ParseComments)
-	if err != nil {
-		fmt.Printf("  error parsing GOFILE %q: %v\n", fullPath, err)
-		return
+	var astFiles []*ast.File
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Printf("  error reading file %q: %v\n", file, err)
+			continue
+		}
+		f, err := parser.ParseFile(fset, file, data, parser.ParseComments)
+		if err != nil {
+			fmt.Printf("  error parsing file %q: %v\n", file, err)
+			continue
+		}
+		astFiles = append(astFiles, f)
 	}
 
-	fmt.Printf("----- AST tree of %s -----\n", fullPath)
-	printAstTree(fileAst, "")
-	fmt.Printf("----- end AST tree %s -----\n", fullPath)
-
-	// Print only TypeSpec nodes whose immediate child is an InterfaceType
-	fmt.Printf("----- AST TypeSpec nodes with InterfaceType children in %s -----\n", fullPath)
-	printTypeSpecsWithInterface(fileAst, "")
-	fmt.Printf("----- end filtered AST %s -----\n", fullPath)
-
-	// Print only TypeSpec nodes with InterfaceType whose name matches the last item in os.Args
-	// Instead of printing, generate code for a struct implementing the identified interface
+	// Search for the interface in all files
+	var identifiedInterface *ast.InterfaceType
 	if len(os.Args) > 0 {
 		matchName := os.Args[len(os.Args)-1]
-		var identifiedInterface *ast.InterfaceType
-		// Find the interface node
-		ast.Inspect(fileAst, func(n ast.Node) bool {
-			ts, ok := n.(*ast.TypeSpec)
-			if ok {
-				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
-					identifiedInterface = iface
-					return false
+		for _, fileAst := range astFiles {
+			ast.Inspect(fileAst, func(n ast.Node) bool {
+				ts, ok := n.(*ast.TypeSpec)
+				if ok {
+					if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
+						identifiedInterface = iface
+						return false
+					}
 				}
+				return true
+			})
+			if identifiedInterface != nil {
+				break
 			}
-			return true
-		})
+		}
 
 		if identifiedInterface != nil {
 			var buf bytes.Buffer
@@ -122,7 +130,7 @@ func main() {
 			}
 			fmt.Println("generated.go written successfully.")
 		} else {
-			fmt.Printf("No interface named %q found.\n", matchName)
+			fmt.Printf("No interface named %q found in package.\n", matchName)
 		}
 	}
 }
