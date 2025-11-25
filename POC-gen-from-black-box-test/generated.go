@@ -4,8 +4,8 @@ package main
 
 type interfaceImplementation struct{}
 
-func (interfaceImplementation) print(string) { panic("not implemented") }
+func (interfaceImplementation) Print(int) { panic("not implemented") }
 
-func (interfaceImplementation) add(int, int) int { panic("not implemented") }
+func (interfaceImplementation) Add(float64, float64) int { panic("not implemented") }
 
-func (interfaceImplementation) transform(float64) (error, []byte) { panic("not implemented") }
+func (interfaceImplementation) Transform(float64) (error, []string) { panic("not implemented") }

@@ -14,7 +14,12 @@ import (
 //go:generate go run generate.go run.ExampleInt
 //type exampleInt run.ExampleInt
 
-//var _ = (exampleInt)(&mockExampleInt{})
+//go:generate go run generate.go AnotherExampleInt
+type AnotherExampleInt interface {
+	Print(int)
+	Add(float64, float64) int
+	Transform(float64) (error, []string)
+}
 
 // mockExampleInt is a mock implementation of run.ExampleInt for testing.
 type mockExampleInt struct {

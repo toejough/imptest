@@ -20,111 +20,26 @@ import (
 
 func main() {
 	info := getGeneratorInfo()
-	if info.pkgName == "" {
-		fmt.Println("  GOPACKAGE not set; cannot search package")
+	fmt.Printf("Generator info: %+v\n", info)
+
+	pkgImportPath, matchName := getPackageAndMatchName(info)
+	fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
+
+	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir)
+	fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
+
+	iface := getMatchingInterfaceFromAST(astFiles, matchName)
+	if iface == nil {
+		fmt.Printf("No interface named %q found in package %q.\n", matchName, pkgImportPath)
 		return
 	}
+	fmt.Printf("Found interface %q in package %q:\n", matchName, pkgImportPath)
+	printAstTree(iface, "  ")
 
-	matchName := info.matchName
-	// Check if matchName contains a dot, e.g. "run.ExampleInt"
-	if dot := strings.Index(matchName, "."); dot != -1 {
-		targetPkgImport := matchName[:dot]
-		matchName = matchName[dot+1:]
-		// Resolve the full import path for the target package
-		astFiles, _ := parsePackageFiles(info.pkgDir)
-		var resolvedImportPath string
-		for _, fileAst := range astFiles {
-			for _, imp := range fileAst.Imports {
-				importPath, err := strconv.Unquote(imp.Path.Value)
-				if err != nil {
-					continue
-				}
-				// Check if the last segment matches the targetPkgImport
-				parts := strings.Split(importPath, "/")
-				if len(parts) > 0 && parts[len(parts)-1] == targetPkgImport {
-					resolvedImportPath = importPath
-					break
-				}
-			}
-			if resolvedImportPath != "" {
-				break
-			}
-		}
-		if resolvedImportPath == "" {
-			fmt.Printf("could not resolve import path for package %q\n", targetPkgImport)
-			return
-		}
-		// Load the target package by resolved import path
-		cfg := &packages.Config{Mode: packages.LoadAllSyntax}
-		pkgs, err := packages.Load(cfg, resolvedImportPath)
-		if err != nil || len(pkgs) == 0 {
-			fmt.Printf("error loading package %q: %v\n", resolvedImportPath, err)
-			return
-		}
-		fmt.Printf("----- Interfaces in package %s -----\n", pkgs[0].PkgPath)
-		// Pretty print the AST of each file in the target package
-		for i, fileAst := range pkgs[0].Syntax {
-			fmt.Printf("----- AST tree of file %d in %s -----\n", i+1, pkgs[0].PkgPath)
-			printAstTree(fileAst, "")
-			fmt.Printf("----- end AST tree of file %d in %s -----\n", i+1, pkgs[0].PkgPath)
-		}
-		found := false
-		for _, fileAst := range pkgs[0].Syntax {
-			ast.Inspect(fileAst, func(n ast.Node) bool {
-				ts, ok := n.(*ast.TypeSpec)
-				if ok {
-					if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
-						fmt.Printf("*ast.TypeSpec (Name: %q)\n", ts.Name.Name)
-						printAstTree(iface, "  ")
-						found = true
-						return false
-					}
-				}
-				return true
-			})
-		}
-		if !found {
-			fmt.Printf("No interface named %q found in package %s.\n", matchName, pkgs[0].PkgPath)
-		}
-		fmt.Printf("----- end interfaces in package %s -----\n", pkgs[0].PkgPath)
-		return
-	}
+	code := generateImplementationCode(iface, info, fset)
+	fmt.Printf("Generated implementation code:\n%s\n", code)
 
-	astFiles, fset := parsePackageFiles(info.pkgDir)
-
-	// Pretty print the AST of the GOFILE
-	if info.goFilePath != "" {
-		data, err := os.ReadFile(info.goFilePath)
-		if err == nil {
-			fsetSingle := token.NewFileSet()
-			fileAst, err := parser.ParseFile(fsetSingle, info.goFilePath, data, parser.ParseComments)
-			if err == nil {
-				fmt.Printf("----- AST tree of %s -----\n", info.goFilePath)
-				printAstTree(fileAst, "")
-				fmt.Printf("----- end AST tree %s -----\n", info.goFilePath)
-			}
-		}
-	}
-
-	// Pretty print all interfaces in the package
-	fmt.Printf("----- All interfaces in package %s -----\n", info.pkgName)
-	for _, fileAst := range astFiles {
-		ast.Inspect(fileAst, func(n ast.Node) bool {
-			ts, ok := n.(*ast.TypeSpec)
-			if ok {
-				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 {
-					fmt.Printf("*ast.TypeSpec (Name: %q)\n", ts.Name.Name)
-					printAstTree(iface, "  ")
-					return false
-				}
-			}
-			return true
-		})
-	}
-	fmt.Printf("----- end interfaces in package %s -----\n", info.pkgName)
-
-	iface := findInterfaceInPackage(astFiles, info.matchName)
-	writeImplementationFile(iface, info, fset)
+	writeGeneratedCodeToFile(code)
 }
 
 // getGeneratorInfo gathers basic information about the generator call
@@ -153,6 +68,49 @@ func getGeneratorInfo() struct {
 	return struct {
 		cwd, pkgDir, pkgName, goFilePath, matchName string
 	}{cwd, pkgDir, pkgName, goFilePath, matchName}
+}
+
+// getPackageAndMatchName determines the import path and interface name to match
+func getPackageAndMatchName(info struct {
+	cwd, pkgDir, pkgName, goFilePath, matchName string
+}) (string, string) {
+	matchName := info.matchName
+	// Check if matchName contains a dot, e.g. "run.ExampleInt"
+	if dot := strings.Index(matchName, "."); dot != -1 {
+		targetPkgImport := matchName[:dot]
+		matchName = matchName[dot+1:]
+		// Resolve the full import path for the target package
+		astFiles, _ := parsePackageFiles(info.pkgDir)
+		for _, fileAst := range astFiles {
+			for _, imp := range fileAst.Imports {
+				importPath, err := strconv.Unquote(imp.Path.Value)
+				if err != nil {
+					continue
+				}
+				// Check if the last segment matches the targetPkgImport
+				parts := strings.Split(importPath, "/")
+				if len(parts) > 0 && parts[len(parts)-1] == targetPkgImport {
+					return importPath, matchName
+				}
+			}
+		}
+		return "", matchName
+	}
+	return info.pkgDir, matchName
+}
+
+// parsePackageAST loads and parses the AST for the given package import path
+func parsePackageAST(pkgImportPath, pkgDir string) ([]*ast.File, *token.FileSet) {
+	if pkgImportPath == pkgDir || pkgImportPath == "" {
+		return parsePackageFiles(pkgDir)
+	}
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
+	pkgs, err := packages.Load(cfg, pkgImportPath)
+	if err != nil || len(pkgs) == 0 {
+		fmt.Printf("error loading package %q: %v\n", pkgImportPath, err)
+		return nil, token.NewFileSet()
+	}
+	return pkgs[0].Syntax, pkgs[0].Fset
 }
 
 // parsePackageFiles reads and parses all Go files in the package directory
@@ -190,8 +148,8 @@ func parsePackageFiles(pkgDir string) ([]*ast.File, *token.FileSet) {
 	return astFiles, fset
 }
 
-// findInterfaceInPackage searches for the interface by name in the package ASTs
-func findInterfaceInPackage(astFiles []*ast.File, matchName string) *ast.InterfaceType {
+// getMatchingInterfaceFromAST finds the interface by name in the ASTs
+func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.InterfaceType {
 	for _, fileAst := range astFiles {
 		var found *ast.InterfaceType
 		ast.Inspect(fileAst, func(n ast.Node) bool {
@@ -211,14 +169,10 @@ func findInterfaceInPackage(astFiles []*ast.File, matchName string) *ast.Interfa
 	return nil
 }
 
-// writeImplementationFile writes the implementation of the found interface to generated.go
-func writeImplementationFile(identifiedInterface *ast.InterfaceType, info struct {
+// generateImplementationCode creates the Go code for the interface implementation
+func generateImplementationCode(identifiedInterface *ast.InterfaceType, info struct {
 	cwd, pkgDir, pkgName, goFilePath, matchName string
-}, fset *token.FileSet) {
-	if identifiedInterface == nil {
-		fmt.Printf("No interface named %q found in package.\n", info.matchName)
-		return
-	}
+}, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	buf.WriteString("package main\n\n")
 	buf.WriteString("// Code generated by generate.go. DO NOT EDIT.\n\n")
@@ -242,9 +196,15 @@ func writeImplementationFile(identifiedInterface *ast.InterfaceType, info struct
 	formatted, err := format.Source(buf.Bytes())
 	if err != nil {
 		fmt.Printf("error formatting generated code: %v\n", err)
-		return
+		return buf.String()
 	}
-	if err := os.WriteFile("generated.go", formatted, 0644); err != nil {
+	return string(formatted)
+}
+
+// writeGeneratedCodeToFile writes the generated code to generated.go
+func writeGeneratedCodeToFile(code string) {
+	err := os.WriteFile("generated.go", []byte(code), 0644)
+	if err != nil {
 		fmt.Printf("error writing generated.go: %v\n", err)
 		return
 	}
