@@ -2,7 +2,6 @@ package main
 
 import "fmt"
 
-//go:generate go run generate.go exampleInt
 type exampleInt interface {
 	print(string)
 	add(int, int) int

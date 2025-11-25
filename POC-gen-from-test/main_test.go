@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+//go:generate go run generate.go exampleInt
+
 // mockExampleInt is a mock implementation of exampleInt for testing.
 type mockExampleInt struct {
 	printCalled     bool
