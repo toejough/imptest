@@ -3,7 +3,8 @@ package main
 import (
 	"bytes"
 	"errors"
-	"fmt"
+	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -46,22 +47,23 @@ func Test_runExample(t *testing.T) {
 		transformData: []byte{9, 8, 7},
 	}
 
-	// Capture stdout
+	// Capture os.Stdout
 	var buf bytes.Buffer
-	stdout := fmt.Printf
-	fmt.Printf = func(format string, a ...interface{}) (n int, err error) {
-		return fmt.Fprintf(&buf, format, a...)
-	}
-	defer func() { fmt.Printf = stdout }()
+	origStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
 
-	// Also capture fmt.Println
-	origPrintln := fmt.Println
-	fmt.Println = func(a ...interface{}) (n int, err error) {
-		return fmt.Fprintln(&buf, a...)
-	}
-	defer func() { fmt.Println = origPrintln }()
+	done := make(chan struct{})
+	go func() {
+		io.Copy(&buf, r)
+		close(done)
+	}()
 
 	runExample(mock)
+
+	w.Close()
+	os.Stdout = origStdout
+	<-done
 
 	// Check that methods were called with expected arguments
 	if !mock.printCalled || mock.printArg != "test" {

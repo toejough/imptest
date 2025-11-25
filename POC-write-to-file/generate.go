@@ -6,10 +6,10 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
-	"go/printer"
 	"go/format"
+	"go/parser"
+	"go/printer"
+	"go/token"
 	"os"
 	"path/filepath"
 )
