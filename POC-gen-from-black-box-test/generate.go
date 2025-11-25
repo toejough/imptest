@@ -15,34 +15,84 @@ import (
 )
 
 func main() {
-	fmt.Printf("Running %s go on %s\n", os.Args[0], os.Getenv("GOFILE"))
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("  cwd = %s\n", cwd)
-	fmt.Printf("  os.Args = %#v\n", os.Args)
-
-	for _, ev := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
-		fmt.Println("  ", ev, "=", os.Getenv(ev))
-	}
-
-	// Instead of just reading GOFILE, read all Go files in the package directory (GOPACKAGE)
-	pkgName := os.Getenv("GOPACKAGE")
-	if pkgName == "" {
+	info := getGeneratorInfo()
+	if info.pkgName == "" {
 		fmt.Println("  GOPACKAGE not set; cannot search package")
 		return
 	}
 
-	// Find the directory containing the package
+	astFiles, fset := parsePackageFiles(info.pkgDir)
+
+	// Pretty print the AST of the GOFILE
+	if info.goFilePath != "" {
+		data, err := os.ReadFile(info.goFilePath)
+		if err == nil {
+			fsetSingle := token.NewFileSet()
+			fileAst, err := parser.ParseFile(fsetSingle, info.goFilePath, data, parser.ParseComments)
+			if err == nil {
+				fmt.Printf("----- AST tree of %s -----\n", info.goFilePath)
+				printAstTree(fileAst, "")
+				fmt.Printf("----- end AST tree %s -----\n", info.goFilePath)
+			}
+		}
+	}
+
+	// Pretty print all interfaces in the package
+	fmt.Printf("----- All interfaces in package %s -----\n", info.pkgName)
+	for _, fileAst := range astFiles {
+		ast.Inspect(fileAst, func(n ast.Node) bool {
+			ts, ok := n.(*ast.TypeSpec)
+			if ok {
+				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 {
+					fmt.Printf("*ast.TypeSpec (Name: %q)\n", ts.Name.Name)
+					printAstTree(iface, "  ")
+					return false
+				}
+			}
+			return true
+		})
+	}
+	fmt.Printf("----- end interfaces in package %s -----\n", info.pkgName)
+
+	iface := findInterfaceInPackage(astFiles, info.matchName)
+	writeImplementationFile(iface, info, fset)
+}
+
+// getGeneratorInfo gathers basic information about the generator call
+func getGeneratorInfo() struct {
+	cwd, pkgDir, pkgName, goFilePath, matchName string
+} {
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+	pkgName := os.Getenv("GOPACKAGE")
+	goFile := os.Getenv("GOFILE")
+	goFilePath := ""
+	if goFile != "" {
+		if filepath.IsAbs(goFile) {
+			goFilePath = goFile
+		} else {
+			goFilePath = filepath.Join(cwd, goFile)
+		}
+	}
 	pkgDir := cwd // assume current dir is the package dir
+	matchName := ""
+	if len(os.Args) > 0 {
+		matchName = os.Args[len(os.Args)-1]
+	}
+	return struct {
+		cwd, pkgDir, pkgName, goFilePath, matchName string
+	}{cwd, pkgDir, pkgName, goFilePath, matchName}
+}
+
+// parsePackageFiles reads and parses all Go files in the package directory
+func parsePackageFiles(pkgDir string) ([]*ast.File, *token.FileSet) {
 	entries, err := os.ReadDir(pkgDir)
 	if err != nil {
 		fmt.Printf("  error reading package dir %q: %v\n", pkgDir, err)
-		return
+		return nil, token.NewFileSet()
 	}
-
 	var files []string
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -53,7 +103,6 @@ func main() {
 			files = append(files, filepath.Join(pkgDir, name))
 		}
 	}
-
 	fset := token.NewFileSet()
 	var astFiles []*ast.File
 	for _, file := range files {
@@ -69,106 +118,68 @@ func main() {
 		}
 		astFiles = append(astFiles, f)
 	}
+	return astFiles, fset
+}
 
-	// Pretty print the AST of the GOFILE
-	gofile := os.Getenv("GOFILE")
-	if gofile != "" {
-		gofilePath := gofile
-		if !filepath.IsAbs(gofile) {
-			gofilePath = filepath.Join(cwd, gofile)
-		}
-		data, err := os.ReadFile(gofilePath)
-		if err == nil {
-			fsetSingle := token.NewFileSet()
-			fileAst, err := parser.ParseFile(fsetSingle, gofilePath, data, parser.ParseComments)
-			if err == nil {
-				fmt.Printf("----- AST tree of %s -----\n", gofilePath)
-				printAstTree(fileAst, "")
-				fmt.Printf("----- end AST tree %s -----\n", gofilePath)
-			}
-		}
-	}
-
-	// Pretty print all interfaces in the package
-	fmt.Printf("----- All interfaces in package %s -----\n", pkgName)
+// findInterfaceInPackage searches for the interface by name in the package ASTs
+func findInterfaceInPackage(astFiles []*ast.File, matchName string) *ast.InterfaceType {
 	for _, fileAst := range astFiles {
+		var found *ast.InterfaceType
 		ast.Inspect(fileAst, func(n ast.Node) bool {
 			ts, ok := n.(*ast.TypeSpec)
 			if ok {
-				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 {
-					fmt.Printf("*ast.TypeSpec (Name: %q)\n", ts.Name.Name)
-					printAstTree(iface, "  ")
+				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
+					found = iface
 					return false
 				}
 			}
 			return true
 		})
-	}
-	fmt.Printf("----- end interfaces in package %s -----\n", pkgName)
-
-	// Search for the interface in all files
-	var identifiedInterface *ast.InterfaceType
-	if len(os.Args) > 0 {
-		matchName := os.Args[len(os.Args)-1]
-		for _, fileAst := range astFiles {
-			ast.Inspect(fileAst, func(n ast.Node) bool {
-				ts, ok := n.(*ast.TypeSpec)
-				if ok {
-					if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
-						identifiedInterface = iface
-						return false
-					}
-				}
-				return true
-			})
-			if identifiedInterface != nil {
-				break
-			}
-		}
-
-		if identifiedInterface != nil {
-			var buf bytes.Buffer
-			buf.WriteString("package main\n\n")
-			buf.WriteString("// Code generated by generate.go. DO NOT EDIT.\n\n")
-			buf.WriteString("type interfaceImplementation struct{}\n\n")
-
-			// Generate method stubs for each method in the interface
-			for _, field := range identifiedInterface.Methods.List {
-				// Only methods (not embedded interfaces)
-				if len(field.Names) == 0 {
-					continue
-				}
-				for _, name := range field.Names {
-					// Build the function signature
-					ftype, ok := field.Type.(*ast.FuncType)
-					if !ok {
-						continue
-					}
-					buf.WriteString("func (interfaceImplementation) ")
-					buf.WriteString(name.Name)
-					buf.WriteString(renderFieldList(fset, ftype.Params, true))
-					buf.WriteString(renderFieldList(fset, ftype.Results, false))
-					buf.WriteString(" { panic(\"not implemented\") }\n\n")
-				}
-			}
-
-			// Format the code
-			formatted, err := format.Source(buf.Bytes())
-			if err != nil {
-				fmt.Printf("error formatting generated code: %v\n", err)
-				return
-			}
-
-			// Write to generated.go
-			if err := os.WriteFile("generated.go", formatted, 0644); err != nil {
-				fmt.Printf("error writing generated.go: %v\n", err)
-				return
-			}
-			fmt.Println("generated.go written successfully.")
-		} else {
-			fmt.Printf("No interface named %q found in package.\n", matchName)
+		if found != nil {
+			return found
 		}
 	}
+	return nil
+}
+
+// writeImplementationFile writes the implementation of the found interface to generated.go
+func writeImplementationFile(identifiedInterface *ast.InterfaceType, info struct {
+	cwd, pkgDir, pkgName, goFilePath, matchName string
+}, fset *token.FileSet) {
+	if identifiedInterface == nil {
+		fmt.Printf("No interface named %q found in package.\n", info.matchName)
+		return
+	}
+	var buf bytes.Buffer
+	buf.WriteString("package main\n\n")
+	buf.WriteString("// Code generated by generate.go. DO NOT EDIT.\n\n")
+	buf.WriteString("type interfaceImplementation struct{}\n\n")
+	for _, field := range identifiedInterface.Methods.List {
+		if len(field.Names) == 0 {
+			continue
+		}
+		for _, name := range field.Names {
+			ftype, ok := field.Type.(*ast.FuncType)
+			if !ok {
+				continue
+			}
+			buf.WriteString("func (interfaceImplementation) ")
+			buf.WriteString(name.Name)
+			buf.WriteString(renderFieldList(fset, ftype.Params, true))
+			buf.WriteString(renderFieldList(fset, ftype.Results, false))
+			buf.WriteString(" { panic(\"not implemented\") }\n\n")
+		}
+	}
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		fmt.Printf("error formatting generated code: %v\n", err)
+		return
+	}
+	if err := os.WriteFile("generated.go", formatted, 0644); err != nil {
+		fmt.Printf("error writing generated.go: %v\n", err)
+		return
+	}
+	fmt.Println("generated.go written successfully.")
 }
 
 // printAstTree recursively prints the AST node tree with indentation
