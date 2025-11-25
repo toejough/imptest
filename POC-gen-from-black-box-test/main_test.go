@@ -11,10 +11,10 @@ import (
 	"github.com/toejough/imptest/POC-gen-from-black-box-test/run"
 )
 
-//go:generate go run generate.go exampleInt
-type exampleInt run.ExampleInt
+//go:generate go run generate.go run.ExampleInt
+//type exampleInt run.ExampleInt
 
-var _ = (exampleInt)(&mockExampleInt{})
+//var _ = (exampleInt)(&mockExampleInt{})
 
 // mockExampleInt is a mock implementation of run.ExampleInt for testing.
 type mockExampleInt struct {

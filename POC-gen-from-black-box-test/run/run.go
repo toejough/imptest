@@ -1,5 +1,7 @@
 package run
 
+import "fmt"
+
 // exampleInt is an interface for demonstration.
 type ExampleInt interface {
 	Print(string)

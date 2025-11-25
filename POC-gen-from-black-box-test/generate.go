@@ -12,15 +12,81 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/go/ssa"
 )
 
 func main() {
 	info := getGeneratorInfo()
 	if info.pkgName == "" {
 		fmt.Println("  GOPACKAGE not set; cannot search package")
+		return
+	}
+
+	matchName := info.matchName
+	// Check if matchName contains a dot, e.g. "run.ExampleInt"
+	if dot := strings.Index(matchName, "."); dot != -1 {
+		targetPkgImport := matchName[:dot]
+		matchName = matchName[dot+1:]
+		// Resolve the full import path for the target package
+		astFiles, _ := parsePackageFiles(info.pkgDir)
+		var resolvedImportPath string
+		for _, fileAst := range astFiles {
+			for _, imp := range fileAst.Imports {
+				importPath, err := strconv.Unquote(imp.Path.Value)
+				if err != nil {
+					continue
+				}
+				// Check if the last segment matches the targetPkgImport
+				parts := strings.Split(importPath, "/")
+				if len(parts) > 0 && parts[len(parts)-1] == targetPkgImport {
+					resolvedImportPath = importPath
+					break
+				}
+			}
+			if resolvedImportPath != "" {
+				break
+			}
+		}
+		if resolvedImportPath == "" {
+			fmt.Printf("could not resolve import path for package %q\n", targetPkgImport)
+			return
+		}
+		// Load the target package by resolved import path
+		cfg := &packages.Config{Mode: packages.LoadAllSyntax}
+		pkgs, err := packages.Load(cfg, resolvedImportPath)
+		if err != nil || len(pkgs) == 0 {
+			fmt.Printf("error loading package %q: %v\n", resolvedImportPath, err)
+			return
+		}
+		fmt.Printf("----- Interfaces in package %s -----\n", pkgs[0].PkgPath)
+		// Pretty print the AST of each file in the target package
+		for i, fileAst := range pkgs[0].Syntax {
+			fmt.Printf("----- AST tree of file %d in %s -----\n", i+1, pkgs[0].PkgPath)
+			printAstTree(fileAst, "")
+			fmt.Printf("----- end AST tree of file %d in %s -----\n", i+1, pkgs[0].PkgPath)
+		}
+		found := false
+		for _, fileAst := range pkgs[0].Syntax {
+			ast.Inspect(fileAst, func(n ast.Node) bool {
+				ts, ok := n.(*ast.TypeSpec)
+				if ok {
+					if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
+						fmt.Printf("*ast.TypeSpec (Name: %q)\n", ts.Name.Name)
+						printAstTree(iface, "  ")
+						found = true
+						return false
+					}
+				}
+				return true
+			})
+		}
+		if !found {
+			fmt.Printf("No interface named %q found in package %s.\n", matchName, pkgs[0].PkgPath)
+		}
+		fmt.Printf("----- end interfaces in package %s -----\n", pkgs[0].PkgPath)
 		return
 	}
 
@@ -39,9 +105,6 @@ func main() {
 			}
 		}
 	}
-
-	// Pretty print the SSA form of the package
-	printPackageSSA(info.pkgDir)
 
 	// Pretty print all interfaces in the package
 	fmt.Printf("----- All interfaces in package %s -----\n", info.pkgName)
@@ -277,77 +340,4 @@ func exprToString(fset *token.FileSet, expr ast.Expr) string {
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, expr)
 	return buf.String()
-}
-
-// printPackageSSA loads and prints the SSA form of the package and its test package
-func printPackageSSA(pkgDir string) {
-	cfg := &packages.Config{
-		Mode:  packages.LoadAllSyntax,
-		Dir:   pkgDir,
-		Tests: true, // Load test files as well
-	}
-	pkgs, err := packages.Load(cfg, ".")
-	if err != nil || len(pkgs) == 0 {
-		fmt.Printf("error loading package for SSA: %v\n", err)
-		return
-	}
-	prog := ssa.NewProgram(pkgs[0].Fset, ssa.SanityCheckFunctions)
-	ssaPkgs := make(map[*packages.Package]*ssa.Package)
-
-	var createAllSSA func(pkg *packages.Package)
-	createAllSSA = func(pkg *packages.Package) {
-		if pkg == nil {
-			return
-		}
-		if _, ok := ssaPkgs[pkg]; ok {
-			return // already created
-		}
-		if pkg.Types != nil && pkg.Syntax != nil && pkg.TypesInfo != nil {
-			ssaPkgs[pkg] = prog.CreatePackage(pkg.Types, pkg.Syntax, pkg.TypesInfo, true)
-		}
-		for _, imp := range pkg.Imports {
-			createAllSSA(imp)
-		}
-	}
-	for _, pkg := range pkgs {
-		createAllSSA(pkg)
-	}
-
-	prog.Build()
-
-	// Print SSA for main package and test package
-	mainPkgPath := pkgs[0].PkgPath
-	var testPkgPath string
-	if len(pkgs) > 1 {
-		testPkgPath = pkgs[len(pkgs)-1].PkgPath // heuristic: last is test package
-	}
-
-	for _, ssaPkg := range prog.AllPackages() {
-		if ssaPkg == nil || ssaPkg.Pkg == nil {
-			continue
-		}
-		if ssaPkg.Pkg.Path() == mainPkgPath || (testPkgPath != "" && ssaPkg.Pkg.Path() == testPkgPath) {
-			fmt.Printf("----- SSA for package: %s -----\n", ssaPkg.Pkg.Path())
-			for name, member := range ssaPkg.Members {
-				fmt.Printf("SSA Member: %s\n", name)
-				fmt.Printf("  Type: %T\n", member)
-				if val, ok := member.(ssa.Value); ok {
-					fmt.Printf("  SSA Type: %s\n", val.Type())
-				}
-				if obj := member.Object(); obj != nil {
-					fmt.Printf("  Object: %s (%T)\n", obj.Name(), obj)
-					if obj.Type() != nil {
-						fmt.Printf("  Object Underlying Type: %s\n", obj.Type().Underlying())
-					}
-				}
-				if fn, ok := member.(*ssa.Function); ok {
-					fn.WriteTo(os.Stdout)
-					fmt.Println()
-				} else {
-					fmt.Printf("  Value: %v\n", member)
-				}
-			}
-			fmt.Printf("----- end SSA for package: %s -----\n", ssaPkg.Pkg.Path())
-		}
-	}
 }
