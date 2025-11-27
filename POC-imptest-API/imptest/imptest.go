@@ -21,3 +21,13 @@ type TestReturn struct {
 	Ret0, Ret1 int
 	Ret2       string
 }
+
+// EventType is an enum for event types in imptest
+//
+type EventType string
+
+const (
+	CallEvent   EventType = "CallEvent"
+	ReturnEvent EventType = "ReturnEvent"
+	PanicEvent  EventType = "PanicEvent"
+)
