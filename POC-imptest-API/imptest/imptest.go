@@ -13,30 +13,9 @@ func (t *TestInvocation) GetCurrentEvent() *TestEvent              { return &Tes
 type TestEvent struct{}
 
 func (e *TestEvent) Type() string          { return "stub" }
-func (e *TestEvent) AsCall() *TestCall     { return &TestCall{} }
 func (e *TestEvent) AsReturn() *TestReturn { return &TestReturn{} }
 
-// Stub types for call/return events
-
-type TestCall struct{}
-
-func (c *TestCall) Name() string          { return "stub" }
-func (c *TestCall) AsAdd() *TestAdd       { return &TestAdd{} }
-func (c *TestCall) AsFormat() *TestFormat { return &TestFormat{} }
-func (c *TestCall) AsPrint() *TestPrint   { return &TestPrint{} }
-
-type TestAdd struct{ A, B int }
-
-func (a *TestAdd) InjectResult(res int)   {}
-func (a *TestAdd) InjectPanic(msg string) {}
-
-type TestFormat struct{ Input int }
-
-func (f *TestFormat) InjectResult(res string) {}
-
-type TestPrint struct{ S string }
-
-func (p *TestPrint) Resolve() {}
+// Only TestReturn remains as a stub for return events
 
 type TestReturn struct {
 	Ret0, Ret1 int
