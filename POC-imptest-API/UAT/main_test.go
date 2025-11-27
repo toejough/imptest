@@ -121,7 +121,6 @@ func Test_PrintSum_Manual(t *testing.T) {
 			inputA, inputB, normalFormatResult,
 			ret.Ret0, ret.Ret1, ret.Ret2)
 	}
-	printSumImp.Resolve(event)
 }
 
 func Test_PrintSum_Panic(t *testing.T) {
