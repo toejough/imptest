@@ -1,19 +1,14 @@
 package main
 
 import (
-	"bytes"
-	"errors"
-	"io"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/toejough/imptest/POC-imptest-API/UAT/run"
 	"github.com/toejough/imptest/POC-imptest-API/imptest"
-	"github.com/toejough/imptest/POC-imptest-API/run"
 )
 
-//go:generate go run generate.go run.IntOps --name IntOpsImp
+//go:generate go run ../imptest/main.go run.IntOps --name IntOpsImp
 // TODO: pull this generate function out into its own package
 // TODO: allow another arg for generate to name the runner
 // TODO: allow a function imp, which just allows static compile-time checking of args and return values
