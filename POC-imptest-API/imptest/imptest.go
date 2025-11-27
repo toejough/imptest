@@ -12,18 +12,14 @@ func (t *TestInvocation) GetCurrentEvent() *TestEvent              { return &Tes
 
 type TestEvent struct{}
 
-func (e *TestEvent) Type() string          { return "stub" }
-func (e *TestEvent) AsReturn() *TestReturn { return &TestReturn{} }
+func (e *TestEvent) Type() string         { return "stub" }
+func (e *TestEvent) AsReturn() TestReturn { return TestReturn{} }
 
 // Only TestReturn remains as a stub for return events
 
-type TestReturn struct {
-	Ret0, Ret1 int
-	Ret2       string
-}
+type TestReturn []any
 
 // EventType is an enum for event types in imptest
-//
 type EventType string
 
 const (

@@ -116,10 +116,13 @@ func Test_PrintSum_Manual(t *testing.T) {
 		t.Fatalf("expected ReturnEvent, got %v", event.Type())
 	}
 	ret := event.AsReturn()
-	if ret.Ret0 != inputA || ret.Ret1 != inputB || ret.Ret2 != normalFormatResult {
-		t.Fatalf("expected returned values %d, %d, %q; got %d, %d, %q",
+	if len(ret) != 3 {
+		t.Fatalf("expected 3 returned values, got %d", len(ret))
+	}
+	if ret[0] != inputA || ret[1] != inputB || ret[2] != normalFormatResult {
+		t.Fatalf("expected returned values %d, %d, %q; got %v, %v, %v",
 			inputA, inputB, normalFormatResult,
-			ret.Ret0, ret.Ret1, ret.Ret2)
+			ret[0], ret[1], ret[2])
 	}
 }
 
