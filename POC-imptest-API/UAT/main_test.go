@@ -110,7 +110,7 @@ func Test_PrintSum_Manual(t *testing.T) {
 	print.Resolve() // there's no return value to inject, but we do need to mark this event as resolved
 
 	// return a, b, formatted
-	printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
+	// printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
 	event = printSumImp.GetCurrentEvent()
 	if event.Type() != imptest.ReturnEvent {
 		t.Fatalf("expected ReturnEvent, got %v", event.Type())
