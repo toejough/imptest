@@ -490,13 +490,15 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			// Wait for response
 			buf.WriteString(fmt.Sprintf("\tresp := <-responseChan\n\n"))
 
-			// Handle response based on type
-			buf.WriteString("\tswitch resp.Type {\n")
+			// Handle response - panic if panic, otherwise always return
+			buf.WriteString("\tif resp.Type == \"panic\" {\n")
+			buf.WriteString("\t\tpanic(resp.PanicValue)\n")
+			buf.WriteString("\t}\n\n")
+
+			// Always return (with values for methods with return values, without for methods without)
 			if ftype.Results != nil && len(ftype.Results.List) > 0 {
-				// Methods WITH return values - only handle "return" and "panic"
-				buf.WriteString("\tcase \"return\":\n")
-				// Return the values from the response
-				buf.WriteString("\t\treturn")
+				// Methods WITH return values - return the values from the response
+				buf.WriteString("\treturn")
 				returnIndex := 0
 				for _, result := range ftype.Results.List {
 					if len(result.Names) > 0 {
@@ -516,17 +518,10 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 					}
 				}
 				buf.WriteString("\n")
-				buf.WriteString("\tcase \"panic\":\n")
-				buf.WriteString("\t\tpanic(resp.PanicValue)\n")
 			} else {
-				// Methods WITHOUT return values - only handle "resolve" and "panic"
-				buf.WriteString("\tcase \"resolve\":\n")
-				// Just return (no values)
-				buf.WriteString("\t\treturn\n")
-				buf.WriteString("\tcase \"panic\":\n")
-				buf.WriteString("\t\tpanic(resp.PanicValue)\n")
+				// Methods WITHOUT return values - just return
+				buf.WriteString("\treturn\n")
 			}
-			buf.WriteString("\t}\n")
 			buf.WriteString("}\n\n")
 		}
 	}
