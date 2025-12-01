@@ -68,7 +68,7 @@ type TestInvocation struct {
 }
 
 func (t *TestInvocation) ExpectReturnedValues(vals ...interface{}) {}
-func (t *TestInvocation) GetCurrentEvent() *TestEvent {
+func (t *TestInvocation) GetResponse() *TestEvent {
 	// Check if we already have a return value or panic
 	if t.returned != nil {
 		return &TestEvent{
@@ -100,20 +100,20 @@ func (t *TestInvocation) GetCurrentEvent() *TestEvent {
 	}
 }
 
-type TestEvent struct {
+type TestResponse struct {
 	eventType EventType
 	returnVal *TestReturn
 	panicVal  interface{}
 }
 
-func (e *TestEvent) Type() string {
+func (e *TestResponse) Type() string {
 	if e.eventType == "" {
 		return "stub"
 	}
 	return string(e.eventType)
 }
 
-func (e *TestEvent) AsReturn() TestReturn {
+func (e *TestResponse) AsReturn() TestReturn {
 	if e.returnVal != nil {
 		return *e.returnVal
 	}

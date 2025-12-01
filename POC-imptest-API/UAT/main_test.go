@@ -54,14 +54,8 @@ func Test_PrintSum_Manual(t *testing.T) {
 	normalAddResult := inputA + inputB
 	// imp.ExpectCallTo.Add(inputA, inputB).InjectResult(normalAddResult)
 	// manually:
-	// get the current event
-	event := imp.GetCurrentEvent()
-	// validate it's a call to a method
-	if event.Type() != imptest.CallEvent {
-		t.Fatalf("expected CallEvent, got %v", event.Type)
-	}
-	// get which method
-	call := event.AsCall()
+	// get the current call
+	call := imp.GetCurrentCall()
 	// validate it's Add
 	if call.Name() != "Add" {
 		t.Fatalf("expected call to Add, got %s", call.Name())
@@ -79,11 +73,8 @@ func Test_PrintSum_Manual(t *testing.T) {
 	// formatted := deps.Format(sum)
 	normalFormatResult := strings.Itoa(normalAddResult)
 	// imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
-	event = imp.GetCurrentEvent()
-	if event.Type() != imptest.CallEvent {
-		t.Fatalf("expected CallEvent, got %v", event.Type)
-	}
-	call = event.AsCall()
+	// get the current call
+	call = imp.GetCurrentCall()
 	if call.Name() != "Format" {
 		t.Fatalf("expected call to Format, got %s", call.Name())
 	}
@@ -95,11 +86,8 @@ func Test_PrintSum_Manual(t *testing.T) {
 
 	// deps.Print(formatted)
 	// imp.ExpectCallTo.Print(normalFormatResult)
-	event = imp.GetCurrentEvent()
-	if event.Type() != imptest.CallEvent {
-		t.Fatalf("expected CallEvent, got %v", event.Type())
-	}
-	call = event.AsCall()
+	// get the current call
+	call = imp.GetCurrentCall()
 	if call.Name() != "Print" {
 		t.Fatalf("expected call to Print, got %s", call.Name())
 	}
@@ -111,11 +99,11 @@ func Test_PrintSum_Manual(t *testing.T) {
 
 	// return a, b, formatted
 	// printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
-	event = printSumImp.GetCurrentEvent()
-	if event.Type() != imptest.ReturnEvent {
-		t.Fatalf("expected ReturnEvent, got %v", event.Type())
+	response := printSumImp.GetResponse()
+	if response.Type() != imptest.ReturnEvent {
+		t.Fatalf("expected ReturnEvent, got %v", response.Type())
 	}
-	ret := event.AsReturn()
+	ret := response.AsReturn()
 	if len(ret) != 3 {
 		t.Fatalf("expected 3 returned values, got %d", len(ret))
 	}
