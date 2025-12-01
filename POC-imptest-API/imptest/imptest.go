@@ -68,16 +68,16 @@ type TestInvocation struct {
 }
 
 func (t *TestInvocation) ExpectReturnedValues(vals ...interface{}) {}
-func (t *TestInvocation) GetResponse() *TestEvent {
+func (t *TestInvocation) GetResponse() *TestResponse {
 	// Check if we already have a return value or panic
 	if t.returned != nil {
-		return &TestEvent{
+		return &TestResponse{
 			eventType: ReturnEvent,
 			returnVal: t.returned,
 		}
 	}
 	if t.panicked != nil {
-		return &TestEvent{
+		return &TestResponse{
 			eventType: PanicEvent,
 			panicVal:  t.panicked,
 		}
@@ -87,13 +87,13 @@ func (t *TestInvocation) GetResponse() *TestEvent {
 	select {
 	case ret := <-t.returnChan:
 		t.returned = &ret
-		return &TestEvent{
+		return &TestResponse{
 			eventType: ReturnEvent,
 			returnVal: &ret,
 		}
 	case p := <-t.panicChan:
 		t.panicked = p
-		return &TestEvent{
+		return &TestResponse{
 			eventType: PanicEvent,
 			panicVal:  p,
 		}
