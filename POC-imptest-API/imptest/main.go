@@ -199,6 +199,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 	callName := impName + "Call"
 	expectCallToName := impName + "ExpectCallTo"
 	buf.WriteString(fmt.Sprintf("type %s struct {\n", impName))
+	buf.WriteString("\tt *testing.T\n")
 	buf.WriteString(fmt.Sprintf("\tMock *%s\n", mockName))
 	buf.WriteString(fmt.Sprintf("\tcallChan chan *%s\n", callName))
 	buf.WriteString(fmt.Sprintf("\tExpectCallTo *%s\n", expectCallToName))
@@ -536,7 +537,15 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 		buf.WriteString(fmt.Sprintf("\t%s *%s\n", methodName, methodCallName))
 	}
 	buf.WriteString("}\n\n")
-	buf.WriteString(fmt.Sprintf("func (c *%s) Name() string { return \"\" }\n\n", callName))
+	// Generate Name() method that returns the method name based on which field is non-nil
+	buf.WriteString(fmt.Sprintf("func (c *%s) Name() string {\n", callName))
+	for _, methodName := range methodNames {
+		buf.WriteString(fmt.Sprintf("\tif c.%s != nil {\n", methodName))
+		buf.WriteString(fmt.Sprintf("\t\treturn %q\n", methodName))
+		buf.WriteString("\t}\n")
+	}
+	buf.WriteString("\treturn \"\"\n")
+	buf.WriteString("}\n\n")
 
 	// Generate As[MethodName] methods on the Call struct
 	for _, methodName := range methodNames {
@@ -618,26 +627,31 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			buf.WriteString(")")
 			buf.WriteString(fmt.Sprintf(" *%s {\n", methodCallName))
 
-			// Create response channel
-			buf.WriteString(fmt.Sprintf("\tresponseChan := make(chan %sResponse, 1)\n", methodCallName))
-			buf.WriteString("\n")
+			// Get the current call
+			buf.WriteString(fmt.Sprintf("\tcall := e.imp.GetCurrentCall()\n\n"))
 
-			// Create the method-specific call struct with parameters
-			buf.WriteString(fmt.Sprintf("\tcall := &%s{\n", methodCallName))
-			buf.WriteString(fmt.Sprintf("\t\tresponseChan: responseChan,\n"))
+			// Validate it's the matching method call
+			buf.WriteString(fmt.Sprintf("\tif call.Name() != %q {\n", methodName.Name))
+			buf.WriteString(fmt.Sprintf("\t\te.imp.t.Fatalf(\"expected call to %s, got %%s\", call.Name())\n", methodName.Name))
+			buf.WriteString("\t}\n\n")
 
-			// Populate call struct fields with parameters
+			// Get the method-specific call struct
+			buf.WriteString(fmt.Sprintf("\tmethodCall := call.As%s()\n\n", methodName.Name))
+
+			// Validate the args match
 			if ftype.Params != nil && len(ftype.Params.List) > 0 {
 				paramNameIndex := 0
 				for _, param := range ftype.Params.List {
 					paramType := exprToString(fset, param.Type)
 					if len(param.Names) > 0 {
 						for _, name := range param.Names {
-							buf.WriteString(fmt.Sprintf("\t\t%s: %s,\n", name.Name, name.Name))
+							buf.WriteString(fmt.Sprintf("\tif methodCall.%s != %s {\n", name.Name, name.Name))
+							buf.WriteString(fmt.Sprintf("\t\te.imp.t.Fatalf(\"expected arg %%v; got %%v\", %s, methodCall.%s)\n", name.Name, name.Name))
+							buf.WriteString("\t}\n")
 							paramNameIndex++
 						}
 					} else {
-						// Unnamed parameters - use generated field name and parameter name
+						// Unnamed parameters - need to get the field name
 						totalParams := 0
 						for _, p := range ftype.Params.List {
 							if len(p.Names) > 0 {
@@ -657,23 +671,17 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 							}
 						}
 						fieldName := generateParamName(unnamedIndex, paramType, totalParams)
-						buf.WriteString(fmt.Sprintf("\t\t%s: %s,\n", fieldName, paramNames[paramNameIndex]))
+						buf.WriteString(fmt.Sprintf("\tif methodCall.%s != %s {\n", fieldName, paramNames[paramNameIndex]))
+						buf.WriteString(fmt.Sprintf("\t\te.imp.t.Fatalf(\"expected arg %%v; got %%v\", %s, methodCall.%s)\n", paramNames[paramNameIndex], fieldName))
+						buf.WriteString("\t}\n")
 						paramNameIndex++
 					}
 				}
+				buf.WriteString("\n")
 			}
-			buf.WriteString("\t}\n\n")
 
-			// Create the Call struct and set the appropriate field
-			buf.WriteString(fmt.Sprintf("\tcallEvent := &%s{\n", callName))
-			buf.WriteString(fmt.Sprintf("\t\t%s: call,\n", methodName.Name))
-			buf.WriteString("\t}\n\n")
-
-			// Send on channel
-			buf.WriteString(fmt.Sprintf("\te.imp.callChan <- callEvent\n\n"))
-
-			// Return the call struct
-			buf.WriteString("\treturn call\n")
+			// Return the method-specific call struct to allow chaining
+			buf.WriteString("\treturn methodCall\n")
 			buf.WriteString("}\n\n")
 		}
 	}
@@ -686,6 +694,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 	// New[impName] constructor with *testing.T arg
 	buf.WriteString(fmt.Sprintf("func New%s(t *testing.T) *%s {\n", impName, impName))
 	buf.WriteString(fmt.Sprintf("\timp := &%s{\n", impName))
+	buf.WriteString("\t\tt: t,\n")
 	buf.WriteString(fmt.Sprintf("\t\tcallChan: make(chan *%s, 1),\n", callName))
 	buf.WriteString("\t}\n")
 	buf.WriteString(fmt.Sprintf("\timp.Mock = &%s{imp: imp}\n", mockName))

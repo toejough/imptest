@@ -9,6 +9,7 @@ type IntOpsImpMock struct {
 }
 
 type IntOpsImp struct {
+	t            *testing.T
 	Mock         *IntOpsImpMock
 	callChan     chan *IntOpsImpCall
 	ExpectCallTo *IntOpsImpExpectCallTo
@@ -144,7 +145,18 @@ type IntOpsImpCall struct {
 	Print  *IntOpsImpPrintCall
 }
 
-func (c *IntOpsImpCall) Name() string { return "" }
+func (c *IntOpsImpCall) Name() string {
+	if c.Add != nil {
+		return "Add"
+	}
+	if c.Format != nil {
+		return "Format"
+	}
+	if c.Print != nil {
+		return "Print"
+	}
+	return ""
+}
 
 func (c *IntOpsImpCall) AsAdd() *IntOpsImpAddCall { return c.Add }
 
@@ -157,55 +169,54 @@ type IntOpsImpExpectCallTo struct {
 }
 
 func (e *IntOpsImpExpectCallTo) Add(param0 int, param1 int) *IntOpsImpAddCall {
-	responseChan := make(chan IntOpsImpAddCallResponse, 1)
+	call := e.imp.GetCurrentCall()
 
-	call := &IntOpsImpAddCall{
-		responseChan: responseChan,
-		A:            param0,
-		B:            param1,
+	if call.Name() != "Add" {
+		e.imp.t.Fatalf("expected call to Add, got %s", call.Name())
 	}
 
-	callEvent := &IntOpsImpCall{
-		Add: call,
+	methodCall := call.AsAdd()
+
+	if methodCall.A != param0 {
+		e.imp.t.Fatalf("expected arg %v; got %v", param0, methodCall.A)
+	}
+	if methodCall.B != param1 {
+		e.imp.t.Fatalf("expected arg %v; got %v", param1, methodCall.B)
 	}
 
-	e.imp.callChan <- callEvent
-
-	return call
+	return methodCall
 }
 
 func (e *IntOpsImpExpectCallTo) Format(param0 int) *IntOpsImpFormatCall {
-	responseChan := make(chan IntOpsImpFormatCallResponse, 1)
+	call := e.imp.GetCurrentCall()
 
-	call := &IntOpsImpFormatCall{
-		responseChan: responseChan,
-		Input:        param0,
+	if call.Name() != "Format" {
+		e.imp.t.Fatalf("expected call to Format, got %s", call.Name())
 	}
 
-	callEvent := &IntOpsImpCall{
-		Format: call,
+	methodCall := call.AsFormat()
+
+	if methodCall.Input != param0 {
+		e.imp.t.Fatalf("expected arg %v; got %v", param0, methodCall.Input)
 	}
 
-	e.imp.callChan <- callEvent
-
-	return call
+	return methodCall
 }
 
 func (e *IntOpsImpExpectCallTo) Print(param0 string) *IntOpsImpPrintCall {
-	responseChan := make(chan IntOpsImpPrintCallResponse, 1)
+	call := e.imp.GetCurrentCall()
 
-	call := &IntOpsImpPrintCall{
-		responseChan: responseChan,
-		S:            param0,
+	if call.Name() != "Print" {
+		e.imp.t.Fatalf("expected call to Print, got %s", call.Name())
 	}
 
-	callEvent := &IntOpsImpCall{
-		Print: call,
+	methodCall := call.AsPrint()
+
+	if methodCall.S != param0 {
+		e.imp.t.Fatalf("expected arg %v; got %v", param0, methodCall.S)
 	}
 
-	e.imp.callChan <- callEvent
-
-	return call
+	return methodCall
 }
 
 func (i *IntOpsImp) GetCurrentCall() *IntOpsImpCall {
@@ -214,6 +225,7 @@ func (i *IntOpsImp) GetCurrentCall() *IntOpsImpCall {
 
 func NewIntOpsImp(t *testing.T) *IntOpsImp {
 	imp := &IntOpsImp{
+		t:        t,
 		callChan: make(chan *IntOpsImpCall, 1),
 	}
 	imp.Mock = &IntOpsImpMock{imp: imp}
