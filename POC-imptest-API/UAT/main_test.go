@@ -71,7 +71,7 @@ func Test_PrintSum_Manual(t *testing.T) {
 	// it is up to the caller to perform any timeout-based retries in the above, if they want, in order to handle any expected concurrency. GetCurrentEvent will always block until the next event is available, with an optional timeout arg. The default is 1s.
 
 	// formatted := deps.Format(sum)
-	normalFormatResult := strings.Itoa(normalAddResult)
+	normalFormatResult := "42"
 	// imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
 	// get the current call
 	call = imp.GetCurrentCall()
