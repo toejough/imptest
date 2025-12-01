@@ -203,6 +203,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 	buf.WriteString(fmt.Sprintf("\tMock *%s\n", mockName))
 	buf.WriteString(fmt.Sprintf("\tcallChan chan *%s\n", callName))
 	buf.WriteString(fmt.Sprintf("\tExpectCallTo *%s\n", expectCallToName))
+	buf.WriteString(fmt.Sprintf("\tcurrentCall *%s\n", callName))
 	buf.WriteString("}\n\n")
 
 	// Generate method-specific call structs first
@@ -225,6 +226,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			buf.WriteString(fmt.Sprintf("type %s struct {\n", methodCallName))
 			// Add response channel field
 			buf.WriteString(fmt.Sprintf("\tresponseChan chan %sResponse\n", methodCallName))
+			buf.WriteString("\tdone bool\n")
 
 			// Generate fields for parameters
 			if ftype.Params != nil && len(ftype.Params.List) > 0 {
@@ -296,6 +298,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 					// Single return value - generate InjectResult
 					resultType := exprToString(fset, ftype.Results.List[0].Type)
 					buf.WriteString(fmt.Sprintf("func (c *%s) InjectResult(result %s) {\n", methodCallName, resultType))
+					buf.WriteString("\tc.done = true\n")
 					buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"return\"", methodCallName))
 					if len(ftype.Results.List[0].Names) > 0 {
 						buf.WriteString(fmt.Sprintf(", %s: result", ftype.Results.List[0].Names[0].Name))
@@ -331,6 +334,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 						}
 					}
 					buf.WriteString(") {\n")
+					buf.WriteString("\tc.done = true\n")
 					buf.WriteString(fmt.Sprintf("\tresp := %sResponse{Type: \"return\"", methodCallName))
 					returnIndex = 0
 					for _, result := range ftype.Results.List {
@@ -350,16 +354,19 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 				}
 				// Generate InjectPanic for methods with return values
 				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {\n", methodCallName))
+				buf.WriteString("\tc.done = true\n")
 				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"panic\", PanicValue: msg}\n", methodCallName))
 				buf.WriteString("}\n")
 			} else {
 				// Methods WITHOUT return values - only allow "resolve" and "panic"
 				// Generate Resolve
 				buf.WriteString(fmt.Sprintf("func (c *%s) Resolve() {\n", methodCallName))
+				buf.WriteString("\tc.done = true\n")
 				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"resolve\"}\n", methodCallName))
 				buf.WriteString("}\n")
 				// Generate InjectPanic for methods without return values
 				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {\n", methodCallName))
+				buf.WriteString("\tc.done = true\n")
 				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"panic\", PanicValue: msg}\n", methodCallName))
 				buf.WriteString("}\n")
 			}
@@ -547,6 +554,16 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 	buf.WriteString("\treturn \"\"\n")
 	buf.WriteString("}\n\n")
 
+	// Generate Done() method
+	buf.WriteString(fmt.Sprintf("func (c *%s) Done() bool {\n", callName))
+	for _, methodName := range methodNames {
+		buf.WriteString(fmt.Sprintf("\tif c.%s != nil {\n", methodName))
+		buf.WriteString(fmt.Sprintf("\t\treturn c.%s.done\n", methodName))
+		buf.WriteString("\t}\n")
+	}
+	buf.WriteString("\treturn false\n")
+	buf.WriteString("}\n\n")
+
 	// Generate As[MethodName] methods on the Call struct
 	for _, methodName := range methodNames {
 		methodCallName := impName + methodName + "Call"
@@ -688,7 +705,11 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 
 	// Generate GetCurrentCall method - reads from channel
 	buf.WriteString(fmt.Sprintf("func (i *%s) GetCurrentCall() *%s {\n", impName, callName))
-	buf.WriteString(fmt.Sprintf("\treturn <-i.callChan\n"))
+	buf.WriteString(fmt.Sprintf("\tif i.currentCall != nil && !i.currentCall.Done() {\n"))
+	buf.WriteString(fmt.Sprintf("\t\treturn i.currentCall\n"))
+	buf.WriteString(fmt.Sprintf("\t}\n"))
+	buf.WriteString(fmt.Sprintf("\ti.currentCall = <-i.callChan\n"))
+	buf.WriteString(fmt.Sprintf("\treturn i.currentCall\n"))
 	buf.WriteString("}\n\n")
 
 	// New[impName] constructor with *testing.T arg

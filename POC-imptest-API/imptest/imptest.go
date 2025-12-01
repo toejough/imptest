@@ -106,11 +106,11 @@ type TestResponse struct {
 	panicVal  interface{}
 }
 
-func (e *TestResponse) Type() string {
+func (e *TestResponse) Type() EventType {
 	if e.eventType == "" {
 		return "stub"
 	}
-	return string(e.eventType)
+	return e.eventType
 }
 
 func (e *TestResponse) AsReturn() TestReturn {

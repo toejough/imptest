@@ -13,10 +13,12 @@ type IntOpsImp struct {
 	Mock         *IntOpsImpMock
 	callChan     chan *IntOpsImpCall
 	ExpectCallTo *IntOpsImpExpectCallTo
+	currentCall  *IntOpsImpCall
 }
 
 type IntOpsImpAddCall struct {
 	responseChan chan IntOpsImpAddCallResponse
+	done         bool
 	A            int
 	B            int
 }
@@ -28,14 +30,17 @@ type IntOpsImpAddCallResponse struct {
 }
 
 func (c *IntOpsImpAddCall) InjectResult(result int) {
+	c.done = true
 	c.responseChan <- IntOpsImpAddCallResponse{Type: "return", Result0: result}
 }
 func (c *IntOpsImpAddCall) InjectPanic(msg interface{}) {
+	c.done = true
 	c.responseChan <- IntOpsImpAddCallResponse{Type: "panic", PanicValue: msg}
 }
 
 type IntOpsImpFormatCall struct {
 	responseChan chan IntOpsImpFormatCallResponse
+	done         bool
 	Input        int
 }
 
@@ -46,14 +51,17 @@ type IntOpsImpFormatCallResponse struct {
 }
 
 func (c *IntOpsImpFormatCall) InjectResult(result string) {
+	c.done = true
 	c.responseChan <- IntOpsImpFormatCallResponse{Type: "return", Result0: result}
 }
 func (c *IntOpsImpFormatCall) InjectPanic(msg interface{}) {
+	c.done = true
 	c.responseChan <- IntOpsImpFormatCallResponse{Type: "panic", PanicValue: msg}
 }
 
 type IntOpsImpPrintCall struct {
 	responseChan chan IntOpsImpPrintCallResponse
+	done         bool
 	S            string
 }
 
@@ -63,9 +71,11 @@ type IntOpsImpPrintCallResponse struct {
 }
 
 func (c *IntOpsImpPrintCall) Resolve() {
+	c.done = true
 	c.responseChan <- IntOpsImpPrintCallResponse{Type: "resolve"}
 }
 func (c *IntOpsImpPrintCall) InjectPanic(msg interface{}) {
+	c.done = true
 	c.responseChan <- IntOpsImpPrintCallResponse{Type: "panic", PanicValue: msg}
 }
 
@@ -158,6 +168,19 @@ func (c *IntOpsImpCall) Name() string {
 	return ""
 }
 
+func (c *IntOpsImpCall) Done() bool {
+	if c.Add != nil {
+		return c.Add.done
+	}
+	if c.Format != nil {
+		return c.Format.done
+	}
+	if c.Print != nil {
+		return c.Print.done
+	}
+	return false
+}
+
 func (c *IntOpsImpCall) AsAdd() *IntOpsImpAddCall { return c.Add }
 
 func (c *IntOpsImpCall) AsFormat() *IntOpsImpFormatCall { return c.Format }
@@ -220,7 +243,11 @@ func (e *IntOpsImpExpectCallTo) Print(param0 string) *IntOpsImpPrintCall {
 }
 
 func (i *IntOpsImp) GetCurrentCall() *IntOpsImpCall {
-	return <-i.callChan
+	if i.currentCall != nil && !i.currentCall.Done() {
+		return i.currentCall
+	}
+	i.currentCall = <-i.callChan
+	return i.currentCall
 }
 
 func NewIntOpsImp(t *testing.T) *IntOpsImp {
