@@ -3,11 +3,12 @@ package imptest
 import (
 	"fmt"
 	"reflect"
+	"testing"
 )
 
 // Start validates that fn is a function, validates that args match the function signature,
 // calls the function in a goroutine, and stores the return values for retrieval.
-func Start(fn interface{}, args ...interface{}) *TestInvocation {
+func Start(t *testing.T, fn interface{}, args ...interface{}) *TestInvocation {
 	// Validate that fn is a function
 	fnValue := reflect.ValueOf(fn)
 	if fnValue.Kind() != reflect.Func {
@@ -33,6 +34,7 @@ func Start(fn interface{}, args ...interface{}) *TestInvocation {
 	}
 
 	inv := &TestInvocation{
+		t:          t,
 		returnChan: make(chan TestReturn, 1),
 		panicChan:  make(chan interface{}, 1),
 	}
@@ -61,13 +63,38 @@ func Start(fn interface{}, args ...interface{}) *TestInvocation {
 }
 
 type TestInvocation struct {
+	t          *testing.T
 	returnChan chan TestReturn
 	panicChan  chan interface{}
 	returned   *TestReturn
 	panicked   interface{}
 }
 
-func (t *TestInvocation) ExpectReturnedValues(vals ...interface{}) {}
+func (t *TestInvocation) ExpectReturnedValues(vals ...interface{}) {
+	resp := t.GetResponse()
+	if resp.Type() != ReturnEvent {
+		t.t.Fatalf("expected ReturnEvent, got %v", resp.Type())
+	}
+	ret := resp.AsReturn()
+	if len(ret) != len(vals) {
+		t.t.Fatalf("expected %d returned values, got %d", len(vals), len(ret))
+	}
+	for i, val := range vals {
+		if !reflect.DeepEqual(ret[i], val) {
+			t.t.Fatalf("expected returned value %d to be %v, got %v", i, val, ret[i])
+		}
+	}
+}
+
+func (t *TestInvocation) ExpectPanicWith(expected interface{}) {
+	resp := t.GetResponse()
+	if resp.Type() != PanicEvent {
+		t.t.Fatalf("expected PanicEvent, got %v", resp.Type())
+	}
+	if !reflect.DeepEqual(resp.panicVal, expected) {
+		t.t.Fatalf("expected panic with %v, got %v", expected, resp.panicVal)
+	}
+}
 func (t *TestInvocation) GetResponse() *TestResponse {
 	// Check if we already have a return value or panic
 	if t.returned != nil {

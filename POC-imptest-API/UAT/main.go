@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/toejough/imptest/POC-imptest-API/UAT/run"
+	// "github.com/toejough/imptest/POC-imptest-API/UAT/run"
 )
 
 type exampleStruct struct{}
@@ -24,5 +23,5 @@ func (exampleStruct) Transform(f float64) (error, []byte) {
 
 func main() {
 	fmt.Println("Hello, World!")
-	run.RunExample(exampleStruct{})
+	// run.RunExample(exampleStruct{})
 }

@@ -21,7 +21,7 @@ func Test_PrintSum_Auto(t *testing.T) {
 	// call the function under test
 	inputA := 10
 	inputB := 32
-	printSumImp := imptest.Start(run.PrintSum, inputA, inputB, imp.Mock)
+	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
 	normalAddResult := inputA + inputB
@@ -47,7 +47,7 @@ func Test_PrintSum_Manual(t *testing.T) {
 	// call the function under test
 	inputA := 10
 	inputB := 32
-	printSumImp := imptest.Start(run.PrintSum, inputA, inputB, imp.Mock)
+	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
 	normalAddResult := inputA + inputB
@@ -122,7 +122,7 @@ func Test_PrintSum_Panic(t *testing.T) {
 	// call the function under test
 	inputA := 10
 	inputB := 32
-	printSumImp := imptest.Start(run.PrintSum, inputA, inputB, imp.Mock)
+	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
 	imp.ExpectCallTo.Add(inputA, inputB).InjectPanic("mock panic")
@@ -140,7 +140,7 @@ func Test_PrintSum_WithDuration(t *testing.T) {
 	// call the function under test
 	inputA := 10
 	inputB := 32
-	printSumImp := imptest.Start(run.PrintSum, inputA, inputB, imp.Mock)
+	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
 	imp.ExpectCallTo.Add(inputA, inputB).InjectPanic("mock panic")
