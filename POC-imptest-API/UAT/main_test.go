@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/toejough/imptest/POC-imptest-API/UAT/run"
@@ -29,7 +28,7 @@ func Test_PrintSum_Auto(t *testing.T) {
 	imp.ExpectCallTo.Add(inputA, inputB).InjectResult(normalAddResult)
 
 	// formatted := deps.Format(sum)
-	normalFormatResult := strings.Itoa(normalAddResult)
+	normalFormatResult := "42"
 	imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
 
 	// deps.Print(formatted)
