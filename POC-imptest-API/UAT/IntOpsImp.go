@@ -87,13 +87,7 @@ func (m *IntOpsImpMock) Add(param0 int, param1 int) int {
 		return resp.Result0
 	case "panic":
 		panic(resp.PanicValue)
-	case "resolve":
-		var zero0 int
-		returnzero0
 	}
-	// Default: return zero values
-	var zero0 int
-	returnzero0
 }
 
 func (m *IntOpsImpMock) Format(param0 int) string {
@@ -117,13 +111,7 @@ func (m *IntOpsImpMock) Format(param0 int) string {
 		return resp.Result0
 	case "panic":
 		panic(resp.PanicValue)
-	case "resolve":
-		var zero0 string
-		returnzero0
 	}
-	// Default: return zero values
-	var zero0 string
-	returnzero0
 }
 
 func (m *IntOpsImpMock) Print(param0 string) {
@@ -143,10 +131,10 @@ func (m *IntOpsImpMock) Print(param0 string) {
 	resp := <-responseChan
 
 	switch resp.Type {
-	case "return":
+	case "resolve":
+		return
 	case "panic":
 		panic(resp.PanicValue)
-	case "resolve":
 	}
 }
 

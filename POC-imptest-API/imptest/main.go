@@ -277,6 +277,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 
 			// Generate InjectResult, InjectPanic, and Resolve methods for the method call struct
 			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				// Methods WITH return values - only allow "return" and "panic"
 				// Count total return values
 				totalReturns := 0
 				for _, result := range ftype.Results.List {
@@ -348,7 +349,8 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"panic\", PanicValue: msg}\n", methodCallName))
 				buf.WriteString("}\n")
 			} else {
-				// No return values - generate Resolve
+				// Methods WITHOUT return values - only allow "resolve" and "panic"
+				// Generate Resolve
 				buf.WriteString(fmt.Sprintf("func (c *%s) Resolve() {\n", methodCallName))
 				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"resolve\"}\n", methodCallName))
 				buf.WriteString("}\n")
@@ -490,8 +492,9 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 
 			// Handle response based on type
 			buf.WriteString("\tswitch resp.Type {\n")
-			buf.WriteString("\tcase \"return\":\n")
 			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				// Methods WITH return values - only handle "return" and "panic"
+				buf.WriteString("\tcase \"return\":\n")
 				// Return the values from the response
 				buf.WriteString("\t\treturn")
 				returnIndex := 0
@@ -513,100 +516,17 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 					}
 				}
 				buf.WriteString("\n")
-			}
-			buf.WriteString("\tcase \"panic\":\n")
-			buf.WriteString("\t\tpanic(resp.PanicValue)\n")
-			buf.WriteString("\tcase \"resolve\":\n")
-			if ftype.Results != nil && len(ftype.Results.List) > 0 {
-				// Return zero values - use var declaration pattern
-				buf.WriteString("\t\tvar")
-				returnIndex := 0
-				for _, result := range ftype.Results.List {
-					resultType := exprToString(fset, result.Type)
-					if returnIndex > 0 {
-						buf.WriteString(",")
-					}
-					if len(result.Names) > 0 {
-						for range result.Names {
-							if returnIndex > 0 {
-								buf.WriteString(",")
-							}
-							buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
-							returnIndex++
-						}
-					} else {
-						buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
-						returnIndex++
-					}
-				}
-				buf.WriteString("\n\t\treturn")
-				returnIndex = 0
-				for _, result := range ftype.Results.List {
-					if len(result.Names) > 0 {
-						for range result.Names {
-							if returnIndex > 0 {
-								buf.WriteString(", ")
-							}
-							buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
-							returnIndex++
-						}
-					} else {
-						if returnIndex > 0 {
-							buf.WriteString(", ")
-						}
-						buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
-						returnIndex++
-					}
-				}
-				buf.WriteString("\n")
+				buf.WriteString("\tcase \"panic\":\n")
+				buf.WriteString("\t\tpanic(resp.PanicValue)\n")
+			} else {
+				// Methods WITHOUT return values - only handle "resolve" and "panic"
+				buf.WriteString("\tcase \"resolve\":\n")
+				// Just return (no values)
+				buf.WriteString("\t\treturn\n")
+				buf.WriteString("\tcase \"panic\":\n")
+				buf.WriteString("\t\tpanic(resp.PanicValue)\n")
 			}
 			buf.WriteString("\t}\n")
-
-			// Default case (shouldn't happen, but for completeness)
-			if ftype.Results != nil && len(ftype.Results.List) > 0 {
-				buf.WriteString("\t// Default: return zero values\n")
-				buf.WriteString("\tvar")
-				returnIndex := 0
-				for _, result := range ftype.Results.List {
-					resultType := exprToString(fset, result.Type)
-					if returnIndex > 0 {
-						buf.WriteString(",")
-					}
-					if len(result.Names) > 0 {
-						for range result.Names {
-							if returnIndex > 0 {
-								buf.WriteString(",")
-							}
-							buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
-							returnIndex++
-						}
-					} else {
-						buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
-						returnIndex++
-					}
-				}
-				buf.WriteString("\n\treturn")
-				returnIndex = 0
-				for _, result := range ftype.Results.List {
-					if len(result.Names) > 0 {
-						for range result.Names {
-							if returnIndex > 0 {
-								buf.WriteString(", ")
-							}
-							buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
-							returnIndex++
-						}
-					} else {
-						if returnIndex > 0 {
-							buf.WriteString(", ")
-						}
-						buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
-						returnIndex++
-					}
-				}
-				buf.WriteString("\n")
-			}
-
 			buf.WriteString("}\n\n")
 		}
 	}
