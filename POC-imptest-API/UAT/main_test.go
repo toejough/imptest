@@ -32,7 +32,7 @@ func Test_PrintSum_Auto(t *testing.T) {
 	imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
 
 	// deps.Print(formatted)
-	imp.ExpectCallTo.Print(normalFormatResult)
+	imp.ExpectCallTo.Print(normalFormatResult).Resolve()
 
 	// return a, b, formatted
 	printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
