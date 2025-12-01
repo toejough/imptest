@@ -197,9 +197,11 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 
 	// Generate the main implementation struct with Mock field and channel
 	callName := impName + "Call"
+	expectCallToName := impName + "ExpectCallTo"
 	buf.WriteString(fmt.Sprintf("type %s struct {\n", impName))
 	buf.WriteString(fmt.Sprintf("\tMock *%s\n", mockName))
 	buf.WriteString(fmt.Sprintf("\tcallChan chan *%s\n", callName))
+	buf.WriteString(fmt.Sprintf("\tExpectCallTo *%s\n", expectCallToName))
 	buf.WriteString("}\n\n")
 
 	// Generate method-specific call structs first
@@ -542,6 +544,140 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 		buf.WriteString(fmt.Sprintf("func (c *%s) As%s() *%s { return c.%s }\n\n", callName, methodName, methodCallName, methodName))
 	}
 
+	// Generate ExpectCallTo struct and methods
+	buf.WriteString(fmt.Sprintf("type %s struct {\n", expectCallToName))
+	buf.WriteString(fmt.Sprintf("\timp *%s\n", impName))
+	buf.WriteString("}\n\n")
+
+	// Generate ExpectCallTo methods for each interface method
+	for _, field := range identifiedInterface.Methods.List {
+		if len(field.Names) == 0 {
+			continue
+		}
+		for _, methodName := range field.Names {
+			ftype, ok := field.Type.(*ast.FuncType)
+			if !ok {
+				continue
+			}
+
+			methodCallName := impName + methodName.Name + "Call"
+
+			// Build parameter list with names for function signature
+			var paramNames []string
+			if ftype.Params != nil && len(ftype.Params.List) > 0 {
+				// Count total parameters
+				totalParams := 0
+				for _, param := range ftype.Params.List {
+					if len(param.Names) > 0 {
+						totalParams += len(param.Names)
+					} else {
+						totalParams++
+					}
+				}
+
+				paramIndex := 0
+				for _, param := range ftype.Params.List {
+					if len(param.Names) > 0 {
+						for _, name := range param.Names {
+							paramNames = append(paramNames, name.Name)
+						}
+					} else {
+						// Generate a parameter name
+						paramName := fmt.Sprintf("param%d", paramIndex)
+						paramNames = append(paramNames, paramName)
+						paramIndex++
+					}
+				}
+			}
+
+			// Generate method signature with parameter names
+			buf.WriteString(fmt.Sprintf("func (e *%s) ", expectCallToName))
+			buf.WriteString(methodName.Name)
+			buf.WriteString("(")
+			if ftype.Params != nil && len(ftype.Params.List) > 0 {
+				paramNameIndex := 0
+				for i, param := range ftype.Params.List {
+					if i > 0 {
+						buf.WriteString(", ")
+					}
+					paramType := exprToString(fset, param.Type)
+					if len(param.Names) > 0 {
+						for j, name := range param.Names {
+							if j > 0 {
+								buf.WriteString(", ")
+							}
+							buf.WriteString(fmt.Sprintf("%s %s", name.Name, paramType))
+							paramNameIndex++
+						}
+					} else {
+						buf.WriteString(fmt.Sprintf("%s %s", paramNames[paramNameIndex], paramType))
+						paramNameIndex++
+					}
+				}
+			}
+			buf.WriteString(")")
+			buf.WriteString(fmt.Sprintf(" *%s {\n", methodCallName))
+
+			// Create response channel
+			buf.WriteString(fmt.Sprintf("\tresponseChan := make(chan %sResponse, 1)\n", methodCallName))
+			buf.WriteString("\n")
+
+			// Create the method-specific call struct with parameters
+			buf.WriteString(fmt.Sprintf("\tcall := &%s{\n", methodCallName))
+			buf.WriteString(fmt.Sprintf("\t\tresponseChan: responseChan,\n"))
+
+			// Populate call struct fields with parameters
+			if ftype.Params != nil && len(ftype.Params.List) > 0 {
+				paramNameIndex := 0
+				for _, param := range ftype.Params.List {
+					paramType := exprToString(fset, param.Type)
+					if len(param.Names) > 0 {
+						for _, name := range param.Names {
+							buf.WriteString(fmt.Sprintf("\t\t%s: %s,\n", name.Name, name.Name))
+							paramNameIndex++
+						}
+					} else {
+						// Unnamed parameters - use generated field name and parameter name
+						totalParams := 0
+						for _, p := range ftype.Params.List {
+							if len(p.Names) > 0 {
+								totalParams += len(p.Names)
+							} else {
+								totalParams++
+							}
+						}
+						// Calculate which unnamed parameter index this is
+						unnamedIndex := 0
+						for _, p := range ftype.Params.List {
+							if len(p.Names) == 0 {
+								if p == param {
+									break
+								}
+								unnamedIndex++
+							}
+						}
+						fieldName := generateParamName(unnamedIndex, paramType, totalParams)
+						buf.WriteString(fmt.Sprintf("\t\t%s: %s,\n", fieldName, paramNames[paramNameIndex]))
+						paramNameIndex++
+					}
+				}
+			}
+			buf.WriteString("\t}\n\n")
+
+			// Create the Call struct and set the appropriate field
+			buf.WriteString(fmt.Sprintf("\tcallEvent := &%s{\n", callName))
+			buf.WriteString(fmt.Sprintf("\t\t%s: call,\n", methodName.Name))
+			buf.WriteString("\t}\n\n")
+
+			// Send on channel
+			buf.WriteString(fmt.Sprintf("\te.imp.callChan <- callEvent\n\n"))
+
+			// Return the call struct
+			buf.WriteString("\treturn call\n")
+			buf.WriteString("}\n\n")
+		}
+	}
+
 	// Generate GetCurrentCall method - reads from channel
 	buf.WriteString(fmt.Sprintf("func (i *%s) GetCurrentCall() *%s {\n", impName, callName))
 	buf.WriteString(fmt.Sprintf("\treturn <-i.callChan\n"))
@@ -553,6 +689,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 	buf.WriteString(fmt.Sprintf("\t\tcallChan: make(chan *%s, 1),\n", callName))
 	buf.WriteString("\t}\n")
 	buf.WriteString(fmt.Sprintf("\timp.Mock = &%s{imp: imp}\n", mockName))
+	buf.WriteString(fmt.Sprintf("\timp.ExpectCallTo = &%s{imp: imp}\n", expectCallToName))
 	buf.WriteString("\treturn imp\n")
 	buf.WriteString("}\n\n")
 

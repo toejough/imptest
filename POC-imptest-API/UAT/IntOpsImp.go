@@ -9,8 +9,9 @@ type IntOpsImpMock struct {
 }
 
 type IntOpsImp struct {
-	Mock     *IntOpsImpMock
-	callChan chan *IntOpsImpCall
+	Mock         *IntOpsImpMock
+	callChan     chan *IntOpsImpCall
+	ExpectCallTo *IntOpsImpExpectCallTo
 }
 
 type IntOpsImpAddCall struct {
@@ -151,6 +152,62 @@ func (c *IntOpsImpCall) AsFormat() *IntOpsImpFormatCall { return c.Format }
 
 func (c *IntOpsImpCall) AsPrint() *IntOpsImpPrintCall { return c.Print }
 
+type IntOpsImpExpectCallTo struct {
+	imp *IntOpsImp
+}
+
+func (e *IntOpsImpExpectCallTo) Add(param0 int, param1 int) *IntOpsImpAddCall {
+	responseChan := make(chan IntOpsImpAddCallResponse, 1)
+
+	call := &IntOpsImpAddCall{
+		responseChan: responseChan,
+		A:            param0,
+		B:            param1,
+	}
+
+	callEvent := &IntOpsImpCall{
+		Add: call,
+	}
+
+	e.imp.callChan <- callEvent
+
+	return call
+}
+
+func (e *IntOpsImpExpectCallTo) Format(param0 int) *IntOpsImpFormatCall {
+	responseChan := make(chan IntOpsImpFormatCallResponse, 1)
+
+	call := &IntOpsImpFormatCall{
+		responseChan: responseChan,
+		Input:        param0,
+	}
+
+	callEvent := &IntOpsImpCall{
+		Format: call,
+	}
+
+	e.imp.callChan <- callEvent
+
+	return call
+}
+
+func (e *IntOpsImpExpectCallTo) Print(param0 string) *IntOpsImpPrintCall {
+	responseChan := make(chan IntOpsImpPrintCallResponse, 1)
+
+	call := &IntOpsImpPrintCall{
+		responseChan: responseChan,
+		S:            param0,
+	}
+
+	callEvent := &IntOpsImpCall{
+		Print: call,
+	}
+
+	e.imp.callChan <- callEvent
+
+	return call
+}
+
 func (i *IntOpsImp) GetCurrentCall() *IntOpsImpCall {
 	return <-i.callChan
 }
@@ -160,5 +217,6 @@ func NewIntOpsImp(t *testing.T) *IntOpsImp {
 		callChan: make(chan *IntOpsImpCall, 1),
 	}
 	imp.Mock = &IntOpsImpMock{imp: imp}
+	imp.ExpectCallTo = &IntOpsImpExpectCallTo{imp: imp}
 	return imp
 }
