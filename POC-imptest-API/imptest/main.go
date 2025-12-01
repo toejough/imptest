@@ -229,8 +229,8 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 				continue
 			}
 
-			// Generate method-specific call struct (e.g., AddCall)
-			methodCallName := methodName.Name + "Call"
+			// Generate method-specific call struct (e.g., IntOpsImpAddCall)
+			methodCallName := impName + methodName.Name + "Call"
 			buf.WriteString(fmt.Sprintf("type %s struct {\n", methodCallName))
 
 			// Generate fields for parameters

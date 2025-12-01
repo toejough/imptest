@@ -18,33 +18,33 @@ type IntOpsImpCall struct{}
 
 func (c *IntOpsImpCall) Name() string { return "" }
 
-type AddCall struct {
+type IntOpsImpAddCall struct {
 	A int
 	B int
 }
 
-func (c *AddCall) InjectResult(result int)     {}
-func (c *AddCall) InjectPanic(msg interface{}) {}
+func (c *IntOpsImpAddCall) InjectResult(result int)     {}
+func (c *IntOpsImpAddCall) InjectPanic(msg interface{}) {}
 
-func (c *IntOpsImpCall) AsAdd() *AddCall { return &AddCall{} }
+func (c *IntOpsImpCall) AsAdd() *IntOpsImpAddCall { return &IntOpsImpAddCall{} }
 
-type FormatCall struct {
+type IntOpsImpFormatCall struct {
 	Input int
 }
 
-func (c *FormatCall) InjectResult(result string)  {}
-func (c *FormatCall) InjectPanic(msg interface{}) {}
+func (c *IntOpsImpFormatCall) InjectResult(result string)  {}
+func (c *IntOpsImpFormatCall) InjectPanic(msg interface{}) {}
 
-func (c *IntOpsImpCall) AsFormat() *FormatCall { return &FormatCall{} }
+func (c *IntOpsImpCall) AsFormat() *IntOpsImpFormatCall { return &IntOpsImpFormatCall{} }
 
-type PrintCall struct {
+type IntOpsImpPrintCall struct {
 	S string
 }
 
-func (c *PrintCall) Resolve()                    {}
-func (c *PrintCall) InjectPanic(msg interface{}) {}
+func (c *IntOpsImpPrintCall) Resolve()                    {}
+func (c *IntOpsImpPrintCall) InjectPanic(msg interface{}) {}
 
-func (c *IntOpsImpCall) AsPrint() *PrintCall { return &PrintCall{} }
+func (c *IntOpsImpCall) AsPrint() *IntOpsImpPrintCall { return &IntOpsImpPrintCall{} }
 
 func (i *IntOpsImp) GetCurrentCall() *IntOpsImpCall {
 	return &IntOpsImpCall{}
