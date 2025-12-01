@@ -14,10 +14,6 @@ type IntOpsImp struct {
 	Mock *IntOpsImpMock
 }
 
-type IntOpsImpCall struct{}
-
-func (c *IntOpsImpCall) Name() string { return "" }
-
 type IntOpsImpAddCall struct {
 	A int
 	B int
@@ -26,16 +22,12 @@ type IntOpsImpAddCall struct {
 func (c *IntOpsImpAddCall) InjectResult(result int)     {}
 func (c *IntOpsImpAddCall) InjectPanic(msg interface{}) {}
 
-func (c *IntOpsImpCall) AsAdd() *IntOpsImpAddCall { return &IntOpsImpAddCall{} }
-
 type IntOpsImpFormatCall struct {
 	Input int
 }
 
 func (c *IntOpsImpFormatCall) InjectResult(result string)  {}
 func (c *IntOpsImpFormatCall) InjectPanic(msg interface{}) {}
-
-func (c *IntOpsImpCall) AsFormat() *IntOpsImpFormatCall { return &IntOpsImpFormatCall{} }
 
 type IntOpsImpPrintCall struct {
 	S string
@@ -44,10 +36,26 @@ type IntOpsImpPrintCall struct {
 func (c *IntOpsImpPrintCall) Resolve()                    {}
 func (c *IntOpsImpPrintCall) InjectPanic(msg interface{}) {}
 
-func (c *IntOpsImpCall) AsPrint() *IntOpsImpPrintCall { return &IntOpsImpPrintCall{} }
+type IntOpsImpCall struct {
+	Add    *IntOpsImpAddCall
+	Format *IntOpsImpFormatCall
+	Print  *IntOpsImpPrintCall
+}
+
+func (c *IntOpsImpCall) Name() string { return "" }
+
+func (c *IntOpsImpCall) AsAdd() *IntOpsImpAddCall { return c.Add }
+
+func (c *IntOpsImpCall) AsFormat() *IntOpsImpFormatCall { return c.Format }
+
+func (c *IntOpsImpCall) AsPrint() *IntOpsImpPrintCall { return c.Print }
 
 func (i *IntOpsImp) GetCurrentCall() *IntOpsImpCall {
-	return &IntOpsImpCall{}
+	return &IntOpsImpCall{
+		Add:    &IntOpsImpAddCall{},
+		Format: &IntOpsImpFormatCall{},
+		Print:  &IntOpsImpPrintCall{},
+	}
 }
 
 func NewIntOpsImp(t *testing.T) *IntOpsImp {

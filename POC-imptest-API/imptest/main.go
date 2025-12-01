@@ -213,12 +213,9 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 	buf.WriteString(fmt.Sprintf("\tMock *%s\n", mockName))
 	buf.WriteString("}\n\n")
 
-	// Generate the Call struct and method-specific call structs
+	// Generate method-specific call structs first
 	callName := impName + "Call"
-	buf.WriteString(fmt.Sprintf("type %s struct{}\n\n", callName))
-	buf.WriteString(fmt.Sprintf("func (c *%s) Name() string { return \"\" }\n\n", callName))
-
-	// Generate method-specific call structs and As methods
+	var methodNames []string
 	for _, field := range identifiedInterface.Methods.List {
 		if len(field.Names) == 0 {
 			continue
@@ -228,6 +225,9 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			if !ok {
 				continue
 			}
+
+			// Collect method name for later use
+			methodNames = append(methodNames, methodName.Name)
 
 			// Generate method-specific call struct (e.g., IntOpsImpAddCall)
 			methodCallName := impName + methodName.Name + "Call"
@@ -313,15 +313,32 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {}\n", methodCallName))
 			}
 			buf.WriteString("\n")
-
-			// Generate As[MethodName] method on the Call struct
-			buf.WriteString(fmt.Sprintf("func (c *%s) As%s() *%s { return &%s{} }\n\n", callName, methodName.Name, methodCallName, methodCallName))
 		}
+	}
+
+	// Generate the Call struct with fields for each method-specific call struct
+	buf.WriteString(fmt.Sprintf("type %s struct {\n", callName))
+	for _, methodName := range methodNames {
+		methodCallName := impName + methodName + "Call"
+		buf.WriteString(fmt.Sprintf("\t%s *%s\n", methodName, methodCallName))
+	}
+	buf.WriteString("}\n\n")
+	buf.WriteString(fmt.Sprintf("func (c *%s) Name() string { return \"\" }\n\n", callName))
+
+	// Generate As[MethodName] methods on the Call struct
+	for _, methodName := range methodNames {
+		methodCallName := impName + methodName + "Call"
+		buf.WriteString(fmt.Sprintf("func (c *%s) As%s() *%s { return c.%s }\n\n", callName, methodName, methodCallName, methodName))
 	}
 
 	// Generate GetCurrentCall method
 	buf.WriteString(fmt.Sprintf("func (i *%s) GetCurrentCall() *%s {\n", impName, callName))
-	buf.WriteString(fmt.Sprintf("\treturn &%s{}\n", callName))
+	buf.WriteString(fmt.Sprintf("\treturn &%s{\n", callName))
+	for _, methodName := range methodNames {
+		methodCallName := impName + methodName + "Call"
+		buf.WriteString(fmt.Sprintf("\t\t%s: &%s{},\n", methodName, methodCallName))
+	}
+	buf.WriteString("\t}\n")
 	buf.WriteString("}\n\n")
 
 	// New[impName] constructor with *testing.T arg
