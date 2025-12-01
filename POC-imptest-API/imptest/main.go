@@ -213,6 +213,117 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 	buf.WriteString(fmt.Sprintf("\tMock *%s\n", mockName))
 	buf.WriteString("}\n\n")
 
+	// Generate the Call struct and method-specific call structs
+	callName := impName + "Call"
+	buf.WriteString(fmt.Sprintf("type %s struct{}\n\n", callName))
+	buf.WriteString(fmt.Sprintf("func (c *%s) Name() string { return \"\" }\n\n", callName))
+
+	// Generate method-specific call structs and As methods
+	for _, field := range identifiedInterface.Methods.List {
+		if len(field.Names) == 0 {
+			continue
+		}
+		for _, methodName := range field.Names {
+			ftype, ok := field.Type.(*ast.FuncType)
+			if !ok {
+				continue
+			}
+
+			// Generate method-specific call struct (e.g., AddCall)
+			methodCallName := methodName.Name + "Call"
+			buf.WriteString(fmt.Sprintf("type %s struct {\n", methodCallName))
+
+			// Generate fields for parameters
+			if ftype.Params != nil && len(ftype.Params.List) > 0 {
+				// Count total number of parameters
+				totalParams := 0
+				for _, param := range ftype.Params.List {
+					if len(param.Names) > 0 {
+						totalParams += len(param.Names)
+					} else {
+						totalParams++
+					}
+				}
+
+				paramIndex := 0
+				for _, param := range ftype.Params.List {
+					paramType := exprToString(fset, param.Type)
+					if len(param.Names) > 0 {
+						// Named parameters
+						for _, name := range param.Names {
+							buf.WriteString(fmt.Sprintf("\t%s %s\n", name.Name, paramType))
+						}
+					} else {
+						// Unnamed parameters - generate names
+						fieldName := generateParamName(paramIndex, paramType, totalParams)
+						buf.WriteString(fmt.Sprintf("\t%s %s\n", fieldName, paramType))
+						paramIndex++
+					}
+				}
+			}
+
+			buf.WriteString("}\n\n")
+
+			// Generate InjectResult, InjectPanic, and Resolve methods for the method call struct
+			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				// Count total return values
+				totalReturns := 0
+				for _, result := range ftype.Results.List {
+					if len(result.Names) > 0 {
+						totalReturns += len(result.Names)
+					} else {
+						totalReturns++
+					}
+				}
+
+				if totalReturns == 1 {
+					// Single return value - generate InjectResult
+					resultType := exprToString(fset, ftype.Results.List[0].Type)
+					buf.WriteString(fmt.Sprintf("func (c *%s) InjectResult(result %s) {}\n", methodCallName, resultType))
+				} else {
+					// Multiple return values - generate InjectResults
+					buf.WriteString(fmt.Sprintf("func (c *%s) InjectResults(", methodCallName))
+					returnIndex := 0
+					for _, result := range ftype.Results.List {
+						resultType := exprToString(fset, result.Type)
+						if len(result.Names) > 0 {
+							for _, name := range result.Names {
+								if returnIndex > 0 {
+									buf.WriteString(", ")
+								}
+								buf.WriteString(fmt.Sprintf("%s %s", name.Name, resultType))
+								returnIndex++
+							}
+						} else {
+							if returnIndex > 0 {
+								buf.WriteString(", ")
+							}
+							buf.WriteString(fmt.Sprintf("result%d %s", returnIndex, resultType))
+							returnIndex++
+						}
+					}
+					buf.WriteString(") {}\n")
+				}
+				// Generate InjectPanic for methods with return values
+				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {}\n", methodCallName))
+			} else {
+				// No return values - generate Resolve
+				buf.WriteString(fmt.Sprintf("func (c *%s) Resolve() {}\n", methodCallName))
+				// Generate InjectPanic for methods without return values
+				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {}\n", methodCallName))
+			}
+			buf.WriteString("\n")
+
+			// Generate As[MethodName] method on the Call struct
+			buf.WriteString(fmt.Sprintf("func (c *%s) As%s() *%s { return &%s{} }\n\n", callName, methodName.Name, methodCallName, methodCallName))
+		}
+	}
+
+	// Generate GetCurrentCall method
+	buf.WriteString(fmt.Sprintf("func (i *%s) GetCurrentCall() *%s {\n", impName, callName))
+	buf.WriteString(fmt.Sprintf("\treturn &%s{}\n", callName))
+	buf.WriteString("}\n\n")
+
 	// New[impName] constructor with *testing.T arg
 	buf.WriteString(fmt.Sprintf("func New%s(t *testing.T) *%s {\n", impName, impName))
 	buf.WriteString(fmt.Sprintf("\treturn &%s{\n", impName))
@@ -331,4 +442,30 @@ func exprToString(fset *token.FileSet, expr ast.Expr) string {
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, expr)
 	return buf.String()
+}
+
+// generateParamName generates a field name for an unnamed parameter
+// Uses common conventions: single string -> "S", single int -> "Input", multiple -> "A", "B", "C", etc.
+func generateParamName(index int, paramType string, totalParams int) string {
+	// Remove common prefixes/suffixes for comparison
+	normalized := strings.TrimSpace(paramType)
+
+	// Single parameter cases
+	if totalParams == 1 {
+		if normalized == "string" {
+			return "S"
+		}
+		if normalized == "int" {
+			return "Input"
+		}
+	}
+
+	// Multiple parameters - use A, B, C, etc.
+	names := []string{"A", "B", "C", "D", "E", "F", "G", "H"}
+	if index < len(names) {
+		return names[index]
+	}
+
+	// Fallback
+	return fmt.Sprintf("Arg%d", index)
 }
