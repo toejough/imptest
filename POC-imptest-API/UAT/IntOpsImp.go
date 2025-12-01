@@ -12,31 +12,66 @@ type IntOpsImp struct {
 }
 
 type IntOpsImpAddCall struct {
-	A int
-	B int
+	responseChan chan IntOpsImpAddCallResponse
+	A            int
+	B            int
 }
 
-func (c *IntOpsImpAddCall) InjectResult(result int)     {}
-func (c *IntOpsImpAddCall) InjectPanic(msg interface{}) {}
+type IntOpsImpAddCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    int
+	PanicValue interface{}
+}
+
+func (c *IntOpsImpAddCall) InjectResult(result int) {
+	c.responseChan <- IntOpsImpAddCallResponse{Type: "return", Result0: result}
+}
+func (c *IntOpsImpAddCall) InjectPanic(msg interface{}) {
+	c.responseChan <- IntOpsImpAddCallResponse{Type: "panic", PanicValue: msg}
+}
 
 type IntOpsImpFormatCall struct {
-	Input int
+	responseChan chan IntOpsImpFormatCallResponse
+	Input        int
 }
 
-func (c *IntOpsImpFormatCall) InjectResult(result string)  {}
-func (c *IntOpsImpFormatCall) InjectPanic(msg interface{}) {}
+type IntOpsImpFormatCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    string
+	PanicValue interface{}
+}
+
+func (c *IntOpsImpFormatCall) InjectResult(result string) {
+	c.responseChan <- IntOpsImpFormatCallResponse{Type: "return", Result0: result}
+}
+func (c *IntOpsImpFormatCall) InjectPanic(msg interface{}) {
+	c.responseChan <- IntOpsImpFormatCallResponse{Type: "panic", PanicValue: msg}
+}
 
 type IntOpsImpPrintCall struct {
-	S string
+	responseChan chan IntOpsImpPrintCallResponse
+	S            string
 }
 
-func (c *IntOpsImpPrintCall) Resolve()                    {}
-func (c *IntOpsImpPrintCall) InjectPanic(msg interface{}) {}
+type IntOpsImpPrintCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	PanicValue interface{}
+}
+
+func (c *IntOpsImpPrintCall) Resolve() {
+	c.responseChan <- IntOpsImpPrintCallResponse{Type: "resolve"}
+}
+func (c *IntOpsImpPrintCall) InjectPanic(msg interface{}) {
+	c.responseChan <- IntOpsImpPrintCallResponse{Type: "panic", PanicValue: msg}
+}
 
 func (m *IntOpsImpMock) Add(param0 int, param1 int) int {
+	responseChan := make(chan IntOpsImpAddCallResponse, 1)
+
 	call := &IntOpsImpAddCall{
-		A: param0,
-		B: param1,
+		responseChan: responseChan,
+		A:            param0,
+		B:            param1,
 	}
 
 	callEvent := &IntOpsImpCall{
@@ -45,14 +80,28 @@ func (m *IntOpsImpMock) Add(param0 int, param1 int) int {
 
 	m.imp.callChan <- callEvent
 
-	// TODO: wait for response and return
-	var result int
-	returnresult
+	resp := <-responseChan
+
+	switch resp.Type {
+	case "return":
+		return resp.Result0
+	case "panic":
+		panic(resp.PanicValue)
+	case "resolve":
+		var zero0 int
+		returnzero0
+	}
+	// Default: return zero values
+	var zero0 int
+	returnzero0
 }
 
 func (m *IntOpsImpMock) Format(param0 int) string {
+	responseChan := make(chan IntOpsImpFormatCallResponse, 1)
+
 	call := &IntOpsImpFormatCall{
-		Input: param0,
+		responseChan: responseChan,
+		Input:        param0,
 	}
 
 	callEvent := &IntOpsImpCall{
@@ -61,14 +110,28 @@ func (m *IntOpsImpMock) Format(param0 int) string {
 
 	m.imp.callChan <- callEvent
 
-	// TODO: wait for response and return
-	var result string
-	returnresult
+	resp := <-responseChan
+
+	switch resp.Type {
+	case "return":
+		return resp.Result0
+	case "panic":
+		panic(resp.PanicValue)
+	case "resolve":
+		var zero0 string
+		returnzero0
+	}
+	// Default: return zero values
+	var zero0 string
+	returnzero0
 }
 
 func (m *IntOpsImpMock) Print(param0 string) {
+	responseChan := make(chan IntOpsImpPrintCallResponse, 1)
+
 	call := &IntOpsImpPrintCall{
-		S: param0,
+		responseChan: responseChan,
+		S:            param0,
 	}
 
 	callEvent := &IntOpsImpCall{
@@ -77,6 +140,14 @@ func (m *IntOpsImpMock) Print(param0 string) {
 
 	m.imp.callChan <- callEvent
 
+	resp := <-responseChan
+
+	switch resp.Type {
+	case "return":
+	case "panic":
+		panic(resp.PanicValue)
+	case "resolve":
+	}
 }
 
 type IntOpsImpCall struct {

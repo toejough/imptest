@@ -219,6 +219,8 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			// Generate method-specific call struct (e.g., IntOpsImpAddCall)
 			methodCallName := impName + methodName.Name + "Call"
 			buf.WriteString(fmt.Sprintf("type %s struct {\n", methodCallName))
+			// Add response channel field
+			buf.WriteString(fmt.Sprintf("\tresponseChan chan %sResponse\n", methodCallName))
 
 			// Generate fields for parameters
 			if ftype.Params != nil && len(ftype.Params.List) > 0 {
@@ -251,6 +253,28 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 
 			buf.WriteString("}\n\n")
 
+			// Generate response type for this method call
+			buf.WriteString(fmt.Sprintf("type %sResponse struct {\n", methodCallName))
+			buf.WriteString("\tType string // \"return\", \"panic\", or \"resolve\"\n")
+			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				// Add fields for return values
+				returnIndex := 0
+				for _, result := range ftype.Results.List {
+					resultType := exprToString(fset, result.Type)
+					if len(result.Names) > 0 {
+						for _, name := range result.Names {
+							buf.WriteString(fmt.Sprintf("\t%s %s\n", name.Name, resultType))
+							returnIndex++
+						}
+					} else {
+						buf.WriteString(fmt.Sprintf("\tResult%d %s\n", returnIndex, resultType))
+						returnIndex++
+					}
+				}
+			}
+			buf.WriteString("\tPanicValue interface{}\n")
+			buf.WriteString("}\n\n")
+
 			// Generate InjectResult, InjectPanic, and Resolve methods for the method call struct
 			if ftype.Results != nil && len(ftype.Results.List) > 0 {
 				// Count total return values
@@ -266,11 +290,20 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 				if totalReturns == 1 {
 					// Single return value - generate InjectResult
 					resultType := exprToString(fset, ftype.Results.List[0].Type)
-					buf.WriteString(fmt.Sprintf("func (c *%s) InjectResult(result %s) {}\n", methodCallName, resultType))
+					buf.WriteString(fmt.Sprintf("func (c *%s) InjectResult(result %s) {\n", methodCallName, resultType))
+					buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"return\"", methodCallName))
+					if len(ftype.Results.List[0].Names) > 0 {
+						buf.WriteString(fmt.Sprintf(", %s: result", ftype.Results.List[0].Names[0].Name))
+					} else {
+						buf.WriteString(", Result0: result")
+					}
+					buf.WriteString("}\n")
+					buf.WriteString("}\n")
 				} else {
 					// Multiple return values - generate InjectResults
 					buf.WriteString(fmt.Sprintf("func (c *%s) InjectResults(", methodCallName))
 					returnIndex := 0
+					var returnParamNames []string
 					for _, result := range ftype.Results.List {
 						resultType := exprToString(fset, result.Type)
 						if len(result.Names) > 0 {
@@ -279,25 +312,50 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 									buf.WriteString(", ")
 								}
 								buf.WriteString(fmt.Sprintf("%s %s", name.Name, resultType))
+								returnParamNames = append(returnParamNames, name.Name)
 								returnIndex++
 							}
 						} else {
 							if returnIndex > 0 {
 								buf.WriteString(", ")
 							}
-							buf.WriteString(fmt.Sprintf("result%d %s", returnIndex, resultType))
+							paramName := fmt.Sprintf("result%d", returnIndex)
+							buf.WriteString(fmt.Sprintf("%s %s", paramName, resultType))
+							returnParamNames = append(returnParamNames, paramName)
 							returnIndex++
 						}
 					}
-					buf.WriteString(") {}\n")
+					buf.WriteString(") {\n")
+					buf.WriteString(fmt.Sprintf("\tresp := %sResponse{Type: \"return\"", methodCallName))
+					returnIndex = 0
+					for _, result := range ftype.Results.List {
+						if len(result.Names) > 0 {
+							for _, name := range result.Names {
+								buf.WriteString(fmt.Sprintf(", %s: %s", name.Name, returnParamNames[returnIndex]))
+								returnIndex++
+							}
+						} else {
+							buf.WriteString(fmt.Sprintf(", Result%d: %s", returnIndex, returnParamNames[returnIndex]))
+							returnIndex++
+						}
+					}
+					buf.WriteString("}\n")
+					buf.WriteString("\tc.responseChan <- resp\n")
+					buf.WriteString("}\n")
 				}
 				// Generate InjectPanic for methods with return values
-				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {}\n", methodCallName))
+				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {\n", methodCallName))
+				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"panic\", PanicValue: msg}\n", methodCallName))
+				buf.WriteString("}\n")
 			} else {
 				// No return values - generate Resolve
-				buf.WriteString(fmt.Sprintf("func (c *%s) Resolve() {}\n", methodCallName))
+				buf.WriteString(fmt.Sprintf("func (c *%s) Resolve() {\n", methodCallName))
+				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"resolve\"}\n", methodCallName))
+				buf.WriteString("}\n")
 				// Generate InjectPanic for methods without return values
-				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {}\n", methodCallName))
+				buf.WriteString(fmt.Sprintf("func (c *%s) InjectPanic(msg interface{}) {\n", methodCallName))
+				buf.WriteString(fmt.Sprintf("\tc.responseChan <- %sResponse{Type: \"panic\", PanicValue: msg}\n", methodCallName))
+				buf.WriteString("}\n")
 			}
 			buf.WriteString("\n")
 		}
@@ -373,8 +431,13 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			buf.WriteString(renderFieldList(fset, ftype.Results, false))
 			buf.WriteString(" {\n")
 
+			// Create response channel
+			buf.WriteString(fmt.Sprintf("\tresponseChan := make(chan %sResponse, 1)\n", methodCallName))
+			buf.WriteString("\n")
+
 			// Create the method-specific call struct with parameters
 			buf.WriteString(fmt.Sprintf("\tcall := &%s{\n", methodCallName))
+			buf.WriteString(fmt.Sprintf("\t\tresponseChan: responseChan,\n"))
 
 			// Populate call struct fields with parameters
 			if ftype.Params != nil && len(ftype.Params.List) > 0 {
@@ -422,20 +485,15 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			// Send on channel
 			buf.WriteString(fmt.Sprintf("\tm.imp.callChan <- callEvent\n\n"))
 
-			// Wait for response (for now, just return zero values - this will be enhanced later)
+			// Wait for response
+			buf.WriteString(fmt.Sprintf("\tresp := <-responseChan\n\n"))
+
+			// Handle response based on type
+			buf.WriteString("\tswitch resp.Type {\n")
+			buf.WriteString("\tcase \"return\":\n")
 			if ftype.Results != nil && len(ftype.Results.List) > 0 {
-				buf.WriteString("\t// TODO: wait for response and return\n")
-				for _, result := range ftype.Results.List {
-					resultType := exprToString(fset, result.Type)
-					if len(result.Names) > 0 {
-						for _, name := range result.Names {
-							buf.WriteString(fmt.Sprintf("\tvar %s %s\n", name.Name, resultType))
-						}
-					} else {
-						buf.WriteString(fmt.Sprintf("\tvar result %s\n", resultType))
-					}
-				}
-				buf.WriteString("\treturn")
+				// Return the values from the response
+				buf.WriteString("\t\treturn")
 				returnIndex := 0
 				for _, result := range ftype.Results.List {
 					if len(result.Names) > 0 {
@@ -443,14 +501,106 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 							if returnIndex > 0 {
 								buf.WriteString(", ")
 							}
-							buf.WriteString(name.Name)
+							buf.WriteString(fmt.Sprintf(" resp.%s", name.Name))
 							returnIndex++
 						}
 					} else {
 						if returnIndex > 0 {
 							buf.WriteString(", ")
 						}
-						buf.WriteString("result")
+						buf.WriteString(fmt.Sprintf(" resp.Result%d", returnIndex))
+						returnIndex++
+					}
+				}
+				buf.WriteString("\n")
+			}
+			buf.WriteString("\tcase \"panic\":\n")
+			buf.WriteString("\t\tpanic(resp.PanicValue)\n")
+			buf.WriteString("\tcase \"resolve\":\n")
+			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				// Return zero values - use var declaration pattern
+				buf.WriteString("\t\tvar")
+				returnIndex := 0
+				for _, result := range ftype.Results.List {
+					resultType := exprToString(fset, result.Type)
+					if returnIndex > 0 {
+						buf.WriteString(",")
+					}
+					if len(result.Names) > 0 {
+						for range result.Names {
+							if returnIndex > 0 {
+								buf.WriteString(",")
+							}
+							buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
+							returnIndex++
+						}
+					} else {
+						buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
+						returnIndex++
+					}
+				}
+				buf.WriteString("\n\t\treturn")
+				returnIndex = 0
+				for _, result := range ftype.Results.List {
+					if len(result.Names) > 0 {
+						for range result.Names {
+							if returnIndex > 0 {
+								buf.WriteString(", ")
+							}
+							buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
+							returnIndex++
+						}
+					} else {
+						if returnIndex > 0 {
+							buf.WriteString(", ")
+						}
+						buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
+						returnIndex++
+					}
+				}
+				buf.WriteString("\n")
+			}
+			buf.WriteString("\t}\n")
+
+			// Default case (shouldn't happen, but for completeness)
+			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				buf.WriteString("\t// Default: return zero values\n")
+				buf.WriteString("\tvar")
+				returnIndex := 0
+				for _, result := range ftype.Results.List {
+					resultType := exprToString(fset, result.Type)
+					if returnIndex > 0 {
+						buf.WriteString(",")
+					}
+					if len(result.Names) > 0 {
+						for range result.Names {
+							if returnIndex > 0 {
+								buf.WriteString(",")
+							}
+							buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
+							returnIndex++
+						}
+					} else {
+						buf.WriteString(fmt.Sprintf(" zero%d %s", returnIndex, resultType))
+						returnIndex++
+					}
+				}
+				buf.WriteString("\n\treturn")
+				returnIndex = 0
+				for _, result := range ftype.Results.List {
+					if len(result.Names) > 0 {
+						for range result.Names {
+							if returnIndex > 0 {
+								buf.WriteString(", ")
+							}
+							buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
+							returnIndex++
+						}
+					} else {
+						if returnIndex > 0 {
+							buf.WriteString(", ")
+						}
+						buf.WriteString(fmt.Sprintf("zero%d", returnIndex))
 						returnIndex++
 					}
 				}
