@@ -17,7 +17,6 @@ type PingPongPlayer struct {
 	tracker Tracker
 	flipper CoinFlipper
 	name    string
-	Done    chan struct{}
 }
 
 func NewPingPongPlayer(tracker Tracker, flipper CoinFlipper, name string) *PingPongPlayer {
@@ -25,12 +24,10 @@ func NewPingPongPlayer(tracker Tracker, flipper CoinFlipper, name string) *PingP
 		tracker: tracker,
 		flipper: flipper,
 		name:    name,
-		Done:    make(chan struct{}),
 	}
 }
 
 func (p *PingPongPlayer) Play() {
-	defer close(p.Done)
 	p.tracker.Register(p.name)
 
 	if p.tracker.IsServing(p.name) {
