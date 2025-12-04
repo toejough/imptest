@@ -454,7 +454,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 
 			// Create the method-specific call struct with parameters
 			buf.WriteString(fmt.Sprintf("\tcall := &%s{\n", methodCallName))
-			buf.WriteString(fmt.Sprintf("\t\tresponseChan: responseChan,\n"))
+			buf.WriteString("\t\tresponseChan: responseChan,\n")
 
 			// Populate call struct fields with parameters
 			if ftype.Params != nil && len(ftype.Params.List) > 0 {
@@ -500,10 +500,10 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			buf.WriteString("\t}\n\n")
 
 			// Send on channel
-			buf.WriteString(fmt.Sprintf("\tm.imp.callChan <- callEvent\n\n"))
+			buf.WriteString("\tm.imp.callChan <- callEvent\n\n")
 
 			// Wait for response
-			buf.WriteString(fmt.Sprintf("\tresp := <-responseChan\n\n"))
+			buf.WriteString("\tresp := <-responseChan\n\n")
 
 			// Handle response - panic if panic, otherwise always return
 			buf.WriteString("\tif resp.Type == \"panic\" {\n")
@@ -700,7 +700,7 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			buf.WriteString("\t}\n\n")
 
 			// Call GetCall
-			buf.WriteString(fmt.Sprintf("\tcall := e.imp.GetCall(e.timeout, validator)\n"))
+			buf.WriteString("\tcall := e.imp.GetCall(e.timeout, validator)\n")
 			buf.WriteString(fmt.Sprintf("\treturn call.As%s()\n", methodName.Name))
 			buf.WriteString("}\n\n")
 		}
@@ -755,11 +755,11 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 
 	// Generate GetCurrentCall method - now uses GetCall with no timeout and always-true validator
 	buf.WriteString(fmt.Sprintf("func (i *%s) GetCurrentCall() *%s {\n", impName, callName))
-	buf.WriteString(fmt.Sprintf("\tif i.currentCall != nil && !i.currentCall.Done() {\n"))
-	buf.WriteString(fmt.Sprintf("\t\treturn i.currentCall\n"))
-	buf.WriteString(fmt.Sprintf("\t}\n"))
+	buf.WriteString("\tif i.currentCall != nil && !i.currentCall.Done() {\n")
+	buf.WriteString("\t\treturn i.currentCall\n")
+	buf.WriteString("\t}\n")
 	buf.WriteString(fmt.Sprintf("\ti.currentCall = i.GetCall(0, func(c *%s) bool { return true })\n", callName))
-	buf.WriteString(fmt.Sprintf("\treturn i.currentCall\n"))
+	buf.WriteString("\treturn i.currentCall\n")
 	buf.WriteString("}\n\n")
 
 	// New[impName] constructor with *testing.T arg
@@ -816,36 +816,6 @@ func printAstTree(node interface{}, indent string) {
 			return true
 		})
 	}
-}
-
-// printTypeSpecsWithInterface prints TypeSpec nodes whose immediate child is an InterfaceType
-func printTypeSpecsWithInterface(node ast.Node, indent string) {
-	ast.Inspect(node, func(n ast.Node) bool {
-		ts, ok := n.(*ast.TypeSpec)
-		if ok {
-			if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 {
-				fmt.Printf("%s*ast.TypeSpec (Name: %q)\n", indent, ts.Name.Name)
-				printAstTree(iface, indent+"  ")
-				return false // don't descend into children again
-			}
-		}
-		return true
-	})
-}
-
-// printTypeSpecsWithInterfaceName prints TypeSpec nodes whose immediate child is an InterfaceType and whose name matches
-func printTypeSpecsWithInterfaceName(node ast.Node, indent, matchName string) {
-	ast.Inspect(node, func(n ast.Node) bool {
-		ts, ok := n.(*ast.TypeSpec)
-		if ok {
-			if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
-				fmt.Printf("%s*ast.TypeSpec (Name: %q)\n", indent, ts.Name.Name)
-				printAstTree(iface, indent+"  ")
-				return false // don't descend into children again
-			}
-		}
-		return true
-	})
 }
 
 // renderFieldList renders a *ast.FieldList as Go code (params/results)
