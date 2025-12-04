@@ -162,13 +162,13 @@ func parsePackageFiles(pkgDir string) ([]*ast.File, *token.FileSet) {
 			continue
 		}
 
-		f, err := parser.ParseFile(fset, file, data, parser.ParseComments)
+		parsedFile, err := parser.ParseFile(fset, file, data, parser.ParseComments)
 		if err != nil {
 			fmt.Printf("  error parsing file %q: %v\n", file, err)
 			continue
 		}
 
-		astFiles = append(astFiles, f)
+		astFiles = append(astFiles, parsedFile)
 	}
 
 	return astFiles, fset
@@ -899,21 +899,21 @@ func writeGeneratedCodeToFile(code string, impName string) {
 
 // printAstTree recursively prints the AST node tree with indentation.
 func printAstTree(node any, indent string) {
-	switch n := node.(type) {
+	switch typedNode := node.(type) {
 	case nil:
 		return
 	case *ast.Ident:
-		typeName := fmt.Sprintf("%T", n)
-		fmt.Printf("%s%s (Name: %q)\n", indent, typeName, n.Name)
+		typeName := fmt.Sprintf("%T", typedNode)
+		fmt.Printf("%s%s (Name: %q)\n", indent, typeName, typedNode.Name)
 
 		return
 	case ast.Node:
-		typeName := fmt.Sprintf("%T", n)
+		typeName := fmt.Sprintf("%T", typedNode)
 		fmt.Printf("%s%s\n", indent, typeName)
 		indent2 := indent + "  "
 
-		ast.Inspect(n, func(child ast.Node) bool {
-			if child != n && child != nil {
+		ast.Inspect(typedNode, func(child ast.Node) bool {
+			if child != typedNode && child != nil {
 				printAstTree(child, indent2)
 				return false
 			}
@@ -924,8 +924,8 @@ func printAstTree(node any, indent string) {
 }
 
 // renderFieldList renders a *ast.FieldList as Go code (params/results).
-func renderFieldList(fset *token.FileSet, fl *ast.FieldList, isParams bool) string {
-	if fl == nil || len(fl.List) == 0 {
+func renderFieldList(fset *token.FileSet, fieldList *ast.FieldList, isParams bool) string {
+	if fieldList == nil || len(fieldList.List) == 0 {
 		if isParams {
 			return "()"
 		}
@@ -936,7 +936,7 @@ func renderFieldList(fset *token.FileSet, fl *ast.FieldList, isParams bool) stri
 	var buf bytes.Buffer
 	buf.WriteString("(")
 
-	for i, field := range fl.List {
+	for i, field := range fieldList.List {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
