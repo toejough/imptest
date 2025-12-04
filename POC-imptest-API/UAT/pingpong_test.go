@@ -8,8 +8,8 @@ import (
 	"github.com/toejough/imptest/POC-imptest-API/imptest"
 )
 
-//go:generate go run ../imptest/main.go run.Tracker --name TrackerImp
-//go:generate go run ../imptest/main.go run.CoinFlipper --name CoinFlipperImp
+//go:generate go run ../imptest/generator/main.go run.Tracker --name TrackerImp
+//go:generate go run ../imptest/generator/main.go run.CoinFlipper --name CoinFlipperImp
 
 func Test_PingPong_Match(t *testing.T) {
 	trackerImp := NewTrackerImp(t)
