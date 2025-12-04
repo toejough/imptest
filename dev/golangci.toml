@@ -8,6 +8,7 @@ disable = [
 	'godox',          # saving todos till another validation step
 	'ireturn',        # I like generic return types
 	'nonamedreturns', # I like named returns
+	'wsl',			  # deprecated
 ]
 
 [linters.settings]

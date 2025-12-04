@@ -14,7 +14,6 @@ import (
 
 func Test_PrintSum_Auto(t *testing.T) {
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
-
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
 
@@ -40,7 +39,6 @@ func Test_PrintSum_Auto(t *testing.T) {
 
 func Test_PrintSum_Manual(t *testing.T) {
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
-
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t)
 
@@ -77,10 +75,12 @@ func Test_PrintSum_Manual(t *testing.T) {
 	if call.Name() != "Format" {
 		t.Fatalf("expected call to Format, got %s", call.Name())
 	}
+
 	format := call.AsFormat()
 	if format.Input != normalAddResult {
 		t.Fatalf("expected arg %d; got %d", normalAddResult, format.Input)
 	}
+
 	format.InjectResult(normalFormatResult)
 
 	// deps.Print(formatted)
@@ -90,10 +90,12 @@ func Test_PrintSum_Manual(t *testing.T) {
 	if call.Name() != "Print" {
 		t.Fatalf("expected call to Print, got %s", call.Name())
 	}
+
 	print := call.AsPrint()
 	if print.S != normalFormatResult {
 		t.Fatalf("expected arg %q; got %q", normalFormatResult, print.S)
 	}
+
 	print.Resolve() // there's no return value to inject, but we do need to mark this event as resolved
 
 	// return a, b, formatted
@@ -102,10 +104,12 @@ func Test_PrintSum_Manual(t *testing.T) {
 	if response.Type() != imptest.ReturnEvent {
 		t.Fatalf("expected ReturnEvent, got %v", response.Type())
 	}
+
 	ret := response.AsReturn()
 	if len(ret) != 3 {
 		t.Fatalf("expected 3 returned values, got %d", len(ret))
 	}
+
 	if ret[0] != inputA || ret[1] != inputB || ret[2] != normalFormatResult {
 		t.Fatalf("expected returned values %d, %d, %q; got %v, %v, %v",
 			inputA, inputB, normalFormatResult,
@@ -115,7 +119,6 @@ func Test_PrintSum_Manual(t *testing.T) {
 
 func Test_PrintSum_Panic(t *testing.T) {
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
-
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
 
@@ -133,7 +136,6 @@ func Test_PrintSum_Panic(t *testing.T) {
 
 func Test_PrintSum_WithDuration(t *testing.T) {
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
-
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
 
@@ -148,6 +150,7 @@ func Test_PrintSum_WithDuration(t *testing.T) {
 	// panic with message
 	printSumImp.ExpectPanicWith("mock panic")
 }
+
 func Test_MultiMulti(t *testing.T) {
 	// we want to validate a complex scenario with multiple functions and multiple imps and concurrency
 

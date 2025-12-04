@@ -24,12 +24,16 @@ func Start(t *testing.T, fn interface{}, args ...interface{}) *TestInvocation {
 
 	// Validate that each arg type matches the function parameter type
 	argValues := make([]reflect.Value, len(args))
-	for i := 0; i < len(args); i++ {
+
+	for i := range args {
 		argType := fnType.In(i)
+
 		argValue := reflect.ValueOf(args[i])
+
 		if !argValue.Type().AssignableTo(argType) {
 			panic(fmt.Sprintf("Start: argument %d: expected %v, got %v", i, argType, argValue.Type()))
 		}
+
 		argValues[i] = argValue
 	}
 
@@ -75,10 +79,12 @@ func (t *TestInvocation) ExpectReturnedValues(vals ...interface{}) {
 	if resp.Type() != ReturnEvent {
 		t.t.Fatalf("expected ReturnEvent, got %v", resp.Type())
 	}
+
 	ret := resp.AsReturn()
 	if len(ret) != len(vals) {
 		t.t.Fatalf("expected %d returned values, got %d", len(vals), len(ret))
 	}
+
 	for i, val := range vals {
 		if !reflect.DeepEqual(ret[i], val) {
 			t.t.Fatalf("expected returned value %d to be %v, got %v", i, val, ret[i])
@@ -91,10 +97,12 @@ func (t *TestInvocation) ExpectPanicWith(expected interface{}) {
 	if resp.Type() != PanicEvent {
 		t.t.Fatalf("expected PanicEvent, got %v", resp.Type())
 	}
+
 	if !reflect.DeepEqual(resp.panicVal, expected) {
 		t.t.Fatalf("expected panic with %v, got %v", expected, resp.panicVal)
 	}
 }
+
 func (t *TestInvocation) GetResponse() *TestResponse {
 	// Check if we already have a return value or panic
 	if t.returned != nil {
@@ -103,6 +111,7 @@ func (t *TestInvocation) GetResponse() *TestResponse {
 			returnVal: t.returned,
 		}
 	}
+
 	if t.panicked != nil {
 		return &TestResponse{
 			eventType: PanicEvent,
@@ -114,12 +123,14 @@ func (t *TestInvocation) GetResponse() *TestResponse {
 	select {
 	case ret := <-t.returnChan:
 		t.returned = &ret
+
 		return &TestResponse{
 			eventType: ReturnEvent,
 			returnVal: &ret,
 		}
 	case p := <-t.panicChan:
 		t.panicked = p
+
 		return &TestResponse{
 			eventType: PanicEvent,
 			panicVal:  p,
@@ -137,6 +148,7 @@ func (e *TestResponse) Type() EventType {
 	if e.eventType == "" {
 		return "stub"
 	}
+
 	return e.eventType
 }
 
@@ -144,6 +156,7 @@ func (e *TestResponse) AsReturn() TestReturn {
 	if e.returnVal != nil {
 		return *e.returnVal
 	}
+
 	return TestReturn{}
 }
 
@@ -151,7 +164,7 @@ func (e *TestResponse) AsReturn() TestReturn {
 
 type TestReturn []any
 
-// EventType is an enum for event types in imptest
+// EventType is an enum for event types in imptest.
 type EventType string
 
 const (

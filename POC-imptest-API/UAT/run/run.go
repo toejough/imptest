@@ -13,5 +13,6 @@ func PrintSum(a, b int, deps IntOps) (int, int, string) {
 	sum := deps.Add(a, b)
 	formatted := deps.Format(sum)
 	deps.Print(formatted)
+
 	return a, b, formatted
 }

@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	// "github.com/toejough/imptest/POC-imptest-API/UAT/run"
+
+	"github.com/toejough/imptest/POC-imptest-API/UAT/run"
 )
 
 type exampleStruct struct{}
@@ -16,12 +17,12 @@ func (exampleStruct) Add(a, b int) int {
 	return a + b
 }
 
-func (exampleStruct) Transform(f float64) (error, []byte) {
-	fmt.Println("exampleStruct.transform called with:", f)
-	return nil, []byte{1, 2, 3}
+func (exampleStruct) Format(i int) string {
+	fmt.Println("exampleStruct.transform called with:", i)
+	return fmt.Sprintf("Number: %d", i)
 }
 
 func main() {
 	fmt.Println("Hello, World!")
-	// run.RunExample(exampleStruct{})
+	run.PrintSum(1, 2, exampleStruct{})
 }
