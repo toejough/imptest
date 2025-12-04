@@ -91,12 +91,12 @@ func Test_PrintSum_Manual(t *testing.T) {
 		t.Fatalf("expected call to Print, got %s", call.Name())
 	}
 
-	print := call.AsPrint()
-	if print.S != normalFormatResult {
-		t.Fatalf("expected arg %q; got %q", normalFormatResult, print.S)
+	printCall := call.AsPrint()
+	if printCall.S != normalFormatResult {
+		t.Fatalf("expected arg %q; got %q", normalFormatResult, printCall.S)
 	}
 
-	print.Resolve() // there's no return value to inject, but we do need to mark this event as resolved
+	printCall.Resolve() // there's no return value to inject, but we do need to mark this event as resolved
 
 	// return a, b, formatted
 	// printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
