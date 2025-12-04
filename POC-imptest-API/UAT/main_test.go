@@ -13,6 +13,7 @@ import (
 // TODO: allow a function imp, which just allows static compile-time checking of args and return values
 
 func Test_PrintSum_Auto(t *testing.T) {
+	t.Parallel()
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
@@ -37,7 +38,11 @@ func Test_PrintSum_Auto(t *testing.T) {
 	printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
 }
 
-func Test_PrintSum_Manual(t *testing.T) {
+func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop
+	// disabling the cyclop linter because this is not actually that complex, but also
+	// because whatever complexity is here is here by design, to demonstrate how to manually
+	// validate imptest events
+
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t)
@@ -61,7 +66,10 @@ func Test_PrintSum_Manual(t *testing.T) {
 	add := call.AsAdd()
 	// validate args are inputA and inputB
 	if add.A != inputA || add.B != inputB {
-		t.Fatalf("expected args %d, %d; got %d, %d", inputA, inputB, add.A, add.B)
+		t.Fatalf(
+			"expected args %d, %d; got %d, %d",
+			inputA, inputB, add.A, add.B,
+		)
 	}
 	// inject the result normalAddResult
 	add.InjectResult(normalAddResult)
@@ -118,6 +126,7 @@ func Test_PrintSum_Manual(t *testing.T) {
 }
 
 func Test_PrintSum_Panic(t *testing.T) {
+	t.Parallel()
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
@@ -135,6 +144,7 @@ func Test_PrintSum_Panic(t *testing.T) {
 }
 
 func Test_PrintSum_WithDuration(t *testing.T) {
+	t.Parallel()
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
 	// get the generated implementation of IntOps
 	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
@@ -151,7 +161,7 @@ func Test_PrintSum_WithDuration(t *testing.T) {
 	printSumImp.ExpectPanicWith("mock panic")
 }
 
-func Test_MultiMulti(t *testing.T) {
+func Test_MultiMulti(_ *testing.T) {
 	// we want to validate a complex scenario with multiple functions and multiple imps and concurrency
 
 	// Test a ping pong match between two players. Each player randomly hits or misses the ball.
