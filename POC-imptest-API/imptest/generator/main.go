@@ -441,22 +441,10 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			}
 
 			methodCallName := impName + methodName.Name + "Call"
-
 			// Build parameter list with names for function signature
 			var paramNames []string
 
 			if ftype.Params != nil && len(ftype.Params.List) > 0 {
-				// Count total parameters
-				totalParams := 0
-
-				for _, param := range ftype.Params.List {
-					if len(param.Names) > 0 {
-						totalParams += len(param.Names)
-					} else {
-						totalParams++
-					}
-				}
-
 				paramIndex := 0
 
 				for _, param := range ftype.Params.List {
@@ -678,17 +666,6 @@ func generateImplementationCode(identifiedInterface *ast.InterfaceType, info str
 			var paramNames []string
 
 			if ftype.Params != nil && len(ftype.Params.List) > 0 {
-				// Count total parameters
-				totalParams := 0
-
-				for _, param := range ftype.Params.List {
-					if len(param.Names) > 0 {
-						totalParams += len(param.Names)
-					} else {
-						totalParams++
-					}
-				}
-
 				paramIndex := 0
 
 				for _, param := range ftype.Params.List {
