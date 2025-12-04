@@ -8,7 +8,7 @@ import (
 
 // Start validates that fn is a function, validates that args match the function signature,
 // calls the function in a goroutine, and stores the return values for retrieval.
-func Start(t *testing.T, fn interface{}, args ...interface{}) *TestInvocation {
+func Start(t *testing.T, fn any, args ...any) *TestInvocation {
 	// Validate that fn is a function
 	fnValue := reflect.ValueOf(fn)
 	if fnValue.Kind() != reflect.Func {
@@ -40,7 +40,7 @@ func Start(t *testing.T, fn interface{}, args ...interface{}) *TestInvocation {
 	inv := &TestInvocation{
 		t:          t,
 		returnChan: make(chan TestReturn, 1),
-		panicChan:  make(chan interface{}, 1),
+		panicChan:  make(chan any, 1),
 	}
 
 	// Call the function in a goroutine
@@ -69,12 +69,12 @@ func Start(t *testing.T, fn interface{}, args ...interface{}) *TestInvocation {
 type TestInvocation struct {
 	t          *testing.T
 	returnChan chan TestReturn
-	panicChan  chan interface{}
+	panicChan  chan any
 	returned   *TestReturn
-	panicked   interface{}
+	panicked   any
 }
 
-func (t *TestInvocation) ExpectReturnedValues(vals ...interface{}) {
+func (t *TestInvocation) ExpectReturnedValues(vals ...any) {
 	resp := t.GetResponse()
 	if resp.Type() != ReturnEvent {
 		t.t.Fatalf("expected ReturnEvent, got %v", resp.Type())
@@ -92,7 +92,7 @@ func (t *TestInvocation) ExpectReturnedValues(vals ...interface{}) {
 	}
 }
 
-func (t *TestInvocation) ExpectPanicWith(expected interface{}) {
+func (t *TestInvocation) ExpectPanicWith(expected any) {
 	resp := t.GetResponse()
 	if resp.Type() != PanicEvent {
 		t.t.Fatalf("expected PanicEvent, got %v", resp.Type())
@@ -141,7 +141,7 @@ func (t *TestInvocation) GetResponse() *TestResponse {
 type TestResponse struct {
 	eventType EventType
 	returnVal *TestReturn
-	panicVal  interface{}
+	panicVal  any
 }
 
 func (e *TestResponse) Type() EventType {
