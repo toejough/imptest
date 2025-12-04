@@ -21,6 +21,7 @@ allow = [
 	'github.com/alexflint/go-arg',
 	'github.com/akedrou/textdiff',
 	'github.com/davecgh/go-spew/spew',
+	'golang.org/x/tools/go/packages',
 ]
 
 [linters.settings.depguard.rules.test]
