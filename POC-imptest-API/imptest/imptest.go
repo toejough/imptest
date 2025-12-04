@@ -9,6 +9,7 @@ import (
 // Start validates that fn is a function, validates that args match the function signature,
 // calls the function in a goroutine, and stores the return values for retrieval.
 func Start(t *testing.T, fn any, args ...any) *TestInvocation {
+	t.Helper()
 	// Validate that fn is a function
 	fnValue := reflect.ValueOf(fn)
 	if fnValue.Kind() != reflect.Func {
@@ -25,16 +26,16 @@ func Start(t *testing.T, fn any, args ...any) *TestInvocation {
 	// Validate that each arg type matches the function parameter type
 	argValues := make([]reflect.Value, len(args))
 
-	for i := range args {
-		argType := fnType.In(i)
+	for argIndex := range args {
+		argType := fnType.In(argIndex)
 
-		argValue := reflect.ValueOf(args[i])
+		argValue := reflect.ValueOf(args[argIndex])
 
 		if !argValue.Type().AssignableTo(argType) {
-			panic(fmt.Sprintf("Start: argument %d: expected %v, got %v", i, argType, argValue.Type()))
+			panic(fmt.Sprintf("Start: argument %d: expected %v, got %v", argIndex, argType, argValue.Type()))
 		}
 
-		argValues[i] = argValue
+		argValues[argIndex] = argValue
 	}
 
 	inv := &TestInvocation{
