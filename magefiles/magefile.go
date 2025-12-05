@@ -103,6 +103,7 @@ func Check(c context.Context) error {
 	fmt.Println("Checking...")
 	for _, cmd := range []func(context.Context) error{
 		Tidy,          // clean up the module dependencies
+		Generate,      // generate code
 		Test,          // verify the stuff you explicitly care about works
 		Deadcode,      // verify there's no dead code
 		Lint,          // make it follow the standards you care about
@@ -207,6 +208,16 @@ func LintForFail(c context.Context) error {
 		"--fix=false",
 		"--max-issues-per-linter=1",
 		"--max-same-issues=1",
+	)
+}
+
+func Generate(c context.Context) error {
+	fmt.Println("Generating...")
+	return run(
+		c,
+		"go",
+		"generate",
+		"./...",
 	)
 }
 
