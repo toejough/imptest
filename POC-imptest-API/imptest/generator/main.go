@@ -18,13 +18,13 @@ import (
 
 func main() {
 	info := getGeneratorInfo()
-	fmt.Printf("Generator info: %+v\n", info)
+	// fmt.Printf("Generator info: %+v\n", info)
 
 	pkgImportPath, matchName := getPackageAndMatchName(info)
-	fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
+	// fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
 
 	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir)
-	fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
+	// fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
 
 	iface := getMatchingInterfaceFromAST(astFiles, matchName)
 	if iface == nil {
@@ -32,11 +32,11 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Found interface %q in package %q:\n", matchName, pkgImportPath)
-	printAstTree(iface, "  ")
+	// fmt.Printf("Found interface %q in package %q:\n", matchName, pkgImportPath)
+	// printAstTree(iface, "  ")
 
 	code := generateImplementationCode(iface, info, fset)
-	fmt.Printf("Generated implementation code:\n%s\n", code)
+	// fmt.Printf("Generated implementation code:\n%s\n", code)
 
 	writeGeneratedCodeToFile(code, info.impName)
 }
@@ -66,7 +66,11 @@ func getGeneratorInfo() struct {
 	matchName := ""
 	impName := ""
 
-	args := os.Args[1:]
+	var args []string
+	if len(os.Args) > 1 {
+		args = os.Args[1:]
+	}
+
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--name" && i+1 < len(args) {
 			impName = args[i+1]
@@ -401,7 +405,7 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 
 	returnIndex := 0
 
-	var returnParamNames []string
+	returnParamNames := make([]string, 0)
 
 	for _, result := range ftype.Results.List {
 		resultType := exprToString(gen.fset, result.Type)
@@ -841,7 +845,7 @@ func countTotalReturns(results *ast.FieldList) int {
 }
 
 func extractParamNames(ftype *ast.FuncType) []string {
-	var paramNames []string
+	paramNames := make([]string, 0)
 	if ftype.Params == nil || len(ftype.Params.List) == 0 {
 		return paramNames
 	}
@@ -898,30 +902,30 @@ func writeGeneratedCodeToFile(code string, impName string) {
 }
 
 // printAstTree recursively prints the AST node tree with indentation.
-func printAstTree(node any, indent string) {
-	switch typedNode := node.(type) {
-	case nil:
-		return
-	case *ast.Ident:
-		typeName := fmt.Sprintf("%T", typedNode)
-		fmt.Printf("%s%s (Name: %q)\n", indent, typeName, typedNode.Name)
+// func printAstTree(node any, indent string) {
+// 	switch typedNode := node.(type) {
+// 	case nil:
+// 		return
+// 	case *ast.Ident:
+// 		typeName := fmt.Sprintf("%T", typedNode)
+// 		fmt.Printf("%s%s (Name: %q)\n", indent, typeName, typedNode.Name)
 
-		return
-	case ast.Node:
-		typeName := fmt.Sprintf("%T", typedNode)
-		fmt.Printf("%s%s\n", indent, typeName)
-		indent2 := indent + "  "
+// 		return
+// 	case ast.Node:
+// 		typeName := fmt.Sprintf("%T", typedNode)
+// 		fmt.Printf("%s%s\n", indent, typeName)
+// 		indent2 := indent + "  "
 
-		ast.Inspect(typedNode, func(child ast.Node) bool {
-			if child != typedNode && child != nil {
-				printAstTree(child, indent2)
-				return false
-			}
+// 		ast.Inspect(typedNode, func(child ast.Node) bool {
+// 			if child != typedNode && child != nil {
+// 				printAstTree(child, indent2)
+// 				return false
+// 			}
 
-			return true
-		})
-	}
-}
+// 			return true
+// 		})
+// 	}
+// }
 
 // renderFieldList renders a *ast.FieldList as Go code (params/results).
 func renderFieldList(fset *token.FileSet, fieldList *ast.FieldList, isParams bool) string {
