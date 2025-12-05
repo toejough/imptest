@@ -23,8 +23,8 @@ type IntOpsImp struct {
 type IntOpsImpAddCall struct {
 	responseChan chan IntOpsImpAddCallResponse
 	done         bool
-	A            int
-	B            int
+	a            int
+	b            int
 }
 
 type IntOpsImpAddCallResponse struct {
@@ -45,7 +45,7 @@ func (c *IntOpsImpAddCall) InjectPanic(msg interface{}) {
 type IntOpsImpFormatCall struct {
 	responseChan chan IntOpsImpFormatCallResponse
 	done         bool
-	Input        int
+	i            int
 }
 
 type IntOpsImpFormatCallResponse struct {
@@ -66,7 +66,7 @@ func (c *IntOpsImpFormatCall) InjectPanic(msg interface{}) {
 type IntOpsImpPrintCall struct {
 	responseChan chan IntOpsImpPrintCallResponse
 	done         bool
-	S            string
+	s            string
 }
 
 type IntOpsImpPrintCallResponse struct {
@@ -83,13 +83,13 @@ func (c *IntOpsImpPrintCall) InjectPanic(msg interface{}) {
 	c.responseChan <- IntOpsImpPrintCallResponse{Type: "panic", PanicValue: msg}
 }
 
-func (m *IntOpsImpMock) Add(param0 int, param1 int) int {
+func (m *IntOpsImpMock) Add(a int, b int) int {
 	responseChan := make(chan IntOpsImpAddCallResponse, 1)
 
 	call := &IntOpsImpAddCall{
 		responseChan: responseChan,
-		A:            param0,
-		B:            param1,
+		a:            a,
+		b:            b,
 	}
 
 	callEvent := &IntOpsImpCall{
@@ -107,12 +107,12 @@ func (m *IntOpsImpMock) Add(param0 int, param1 int) int {
 	return resp.Result0
 }
 
-func (m *IntOpsImpMock) Format(param0 int) string {
+func (m *IntOpsImpMock) Format(i int) string {
 	responseChan := make(chan IntOpsImpFormatCallResponse, 1)
 
 	call := &IntOpsImpFormatCall{
 		responseChan: responseChan,
-		Input:        param0,
+		i:            i,
 	}
 
 	callEvent := &IntOpsImpCall{
@@ -130,12 +130,12 @@ func (m *IntOpsImpMock) Format(param0 int) string {
 	return resp.Result0
 }
 
-func (m *IntOpsImpMock) Print(param0 string) {
+func (m *IntOpsImpMock) Print(s string) {
 	responseChan := make(chan IntOpsImpPrintCallResponse, 1)
 
 	call := &IntOpsImpPrintCall{
 		responseChan: responseChan,
-		S:            param0,
+		s:            s,
 	}
 
 	callEvent := &IntOpsImpCall{
@@ -196,16 +196,16 @@ type IntOpsImpExpectCallTo struct {
 	timeout time.Duration
 }
 
-func (e *IntOpsImpExpectCallTo) Add(param0 int, param1 int) *IntOpsImpAddCall {
+func (e *IntOpsImpExpectCallTo) Add(a int, b int) *IntOpsImpAddCall {
 	validator := func(c *IntOpsImpCall) bool {
 		if c.Name() != "Add" {
 			return false
 		}
 		methodCall := c.AsAdd()
-		if methodCall.A != param0 {
+		if methodCall.a != a {
 			return false
 		}
-		if methodCall.B != param1 {
+		if methodCall.b != b {
 			return false
 		}
 		return true
@@ -215,13 +215,13 @@ func (e *IntOpsImpExpectCallTo) Add(param0 int, param1 int) *IntOpsImpAddCall {
 	return call.AsAdd()
 }
 
-func (e *IntOpsImpExpectCallTo) Format(param0 int) *IntOpsImpFormatCall {
+func (e *IntOpsImpExpectCallTo) Format(i int) *IntOpsImpFormatCall {
 	validator := func(c *IntOpsImpCall) bool {
 		if c.Name() != "Format" {
 			return false
 		}
 		methodCall := c.AsFormat()
-		if methodCall.Input != param0 {
+		if methodCall.i != i {
 			return false
 		}
 		return true
@@ -231,13 +231,13 @@ func (e *IntOpsImpExpectCallTo) Format(param0 int) *IntOpsImpFormatCall {
 	return call.AsFormat()
 }
 
-func (e *IntOpsImpExpectCallTo) Print(param0 string) *IntOpsImpPrintCall {
+func (e *IntOpsImpExpectCallTo) Print(s string) *IntOpsImpPrintCall {
 	validator := func(c *IntOpsImpCall) bool {
 		if c.Name() != "Print" {
 			return false
 		}
 		methodCall := c.AsPrint()
-		if methodCall.S != param0 {
+		if methodCall.s != s {
 			return false
 		}
 		return true

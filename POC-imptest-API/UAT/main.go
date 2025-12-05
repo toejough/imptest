@@ -24,5 +24,11 @@ func (exampleStruct) Format(i int) string {
 
 func main() {
 	fmt.Println("Hello, World!")
-	run.PrintSum(1, 2, exampleStruct{})
+
+	const (
+		inputA = 1
+		inputB = 2
+	)
+
+	run.PrintSum(inputA, inputB, exampleStruct{})
 }

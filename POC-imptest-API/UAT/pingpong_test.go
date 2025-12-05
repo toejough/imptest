@@ -12,6 +12,7 @@ import (
 //go:generate go run ../imptest/generator/main.go run.CoinFlipper --name CoinFlipperImp
 
 func Test_PingPong_Match(t *testing.T) {
+	t.Parallel()
 	trackerImp := NewTrackerImp(t)
 	flipperImp := NewCoinFlipperImp(t)
 

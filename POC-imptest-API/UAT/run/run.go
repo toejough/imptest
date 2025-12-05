@@ -1,10 +1,10 @@
 package run
 
-// exampleInt is an interface for demonstration.
+// IntOps is an interface for demonstration.
 type IntOps interface {
-	Add(int, int) int
-	Format(int) string
-	Print(string)
+	Add(a, b int) int
+	Format(i int) string
+	Print(s string)
 }
 
 // PrintSum calculates the sum of two integers using the provided ExampleInt dependency,

@@ -38,7 +38,8 @@ func Test_PrintSum_Auto(t *testing.T) {
 	printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
 }
 
-func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop
+func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
+	t.Parallel()
 	// disabling the cyclop linter because this is not actually that complex, but also
 	// because whatever complexity is here is here by design, to demonstrate how to manually
 	// validate imptest events
@@ -65,15 +66,17 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop
 	// get the args
 	add := call.AsAdd()
 	// validate args are inputA and inputB
-	if add.A != inputA || add.B != inputB {
+	if add.a != inputA || add.b != inputB {
 		t.Fatalf(
 			"expected args %d, %d; got %d, %d",
-			inputA, inputB, add.A, add.B,
+			inputA, inputB, add.a, add.b,
 		)
 	}
 	// inject the result normalAddResult
 	add.InjectResult(normalAddResult)
-	// it is up to the caller to perform any timeout-based retries in the above, if they want, in order to handle any expected concurrency. GetCurrentEvent will always block until the next event is available, with an optional timeout arg. The default is 1s.
+	// it is up to the caller to perform any timeout-based retries in the above, if they want, in order to handle any
+	// expected concurrency. GetCurrentEvent will always block until the next event is available, with an optional
+	// timeout arg. The default is 1s.
 
 	// formatted := deps.Format(sum)
 	normalFormatResult := "42"
@@ -85,8 +88,8 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop
 	}
 
 	format := call.AsFormat()
-	if format.Input != normalAddResult {
-		t.Fatalf("expected arg %d; got %d", normalAddResult, format.Input)
+	if format.i != normalAddResult {
+		t.Fatalf("expected arg %d; got %d", normalAddResult, format.i)
 	}
 
 	format.InjectResult(normalFormatResult)
@@ -100,8 +103,8 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop
 	}
 
 	printCall := call.AsPrint()
-	if printCall.S != normalFormatResult {
-		t.Fatalf("expected arg %q; got %q", normalFormatResult, printCall.S)
+	if printCall.s != normalFormatResult {
+		t.Fatalf("expected arg %q; got %q", normalFormatResult, printCall.s)
 	}
 
 	printCall.Resolve() // there's no return value to inject, but we do need to mark this event as resolved
@@ -161,7 +164,8 @@ func Test_PrintSum_WithDuration(t *testing.T) {
 	printSumImp.ExpectPanicWith("mock panic")
 }
 
-func Test_MultiMulti(_ *testing.T) {
+func Test_MultiMulti(t *testing.T) {
+	t.Parallel()
 	// we want to validate a complex scenario with multiple functions and multiple imps and concurrency
 
 	// Test a ping pong match between two players. Each player randomly hits or misses the ball.
