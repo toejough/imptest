@@ -1,4 +1,4 @@
-package main
+package generate
 
 import (
 	"errors"
@@ -203,10 +203,3 @@ type ComplexInterface interface {
 		}
 	}
 }
-
-// func contains(s, substr string) bool {
-// 	return len(s) >= len(substr) && s[0:len(substr)] == substr ||
-// 		len(s) > len(substr) && contains(s[1:], substr)
-// }
-// Wait, strings.Contains is better but I didn't import strings.
-// I'll just add "strings" to imports.
