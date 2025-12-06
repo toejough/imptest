@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,19 +28,21 @@ func globs(dir string, ext []string) ([]string, error) {
 		if err != nil {
 			return fmt.Errorf("unable to find all glob matches: %w", err)
 		}
+
 		for _, each := range ext {
 			if filepath.Ext(path) == each {
 				files = append(files, path)
 				return nil
 			}
 		}
+
 		return nil
 	})
 
 	return files, err
 }
 
-// Watch, and re-run Check whenever the files change
+// Watch, and re-run Check whenever the files change.
 func Watch() error {
 	fmt.Println("Watching...")
 
@@ -52,8 +55,18 @@ func Watch() error {
 	// when did this last finish?
 	var lastFinishedTime time.Time // never
 
+	// Track the current cancel function
+	var currentCancel context.CancelFunc
+
+	defer func() {
+		if currentCancel != nil {
+			currentCancel()
+		}
+	}()
+
 	// cancellation context so we can cancel the check
-	c, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	currentCancel = cancel
 
 	// func to run the check
 	checkFunc := func(c context.Context) {
@@ -68,7 +81,7 @@ func Watch() error {
 	}
 
 	// run the check
-	go checkFunc(c)
+	go checkFunc(ctx)
 
 	for {
 		// don't run more than 1x/sec
@@ -88,19 +101,25 @@ func Watch() error {
 		// cancel & re-run if we got a change
 		if changeDetected {
 			fmt.Println("Change detected...")
-			cancelFunc()
 
-			// cancellation context so we can cancel the check
-			c, cancelFunc = context.WithCancel(context.Background())
-			go checkFunc(c)
+			// Cancel the old context
+			if currentCancel != nil {
+				currentCancel()
+			}
+
+			// Create new context
+			ctx, cancel := context.WithCancel(context.Background())
+			currentCancel = cancel
+
+			go checkFunc(ctx)
 		}
-
 	}
 }
 
-// Run all checks on the code
+// Run all checks on the code.
 func Check(c context.Context) error {
 	fmt.Println("Checking...")
+
 	for _, cmd := range []func(context.Context) error{
 		Tidy,          // clean up the module dependencies
 		Generate,      // generate code
@@ -118,22 +137,25 @@ func Check(c context.Context) error {
 			return fmt.Errorf("unable to finish checking: %w", err)
 		}
 	}
+
 	return nil
 }
 
-// Run all checks on the code for determining whether any fail
+// Run all checks on the code for determining whether any fail.
 func CheckForFail(c context.Context) error {
 	fmt.Println("Checking...")
+
 	for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
 		err := cmd(c)
 		if err != nil {
 			return fmt.Errorf("unable to finish checking: %w", err)
 		}
 	}
+
 	return nil
 }
 
-// Tidy tidies up go.mod
+// Tidy tidies up go.mod.
 func Tidy(c context.Context) error {
 	fmt.Println("Tidying go.mod...")
 	return run(c, "go", "mod", "tidy")
@@ -145,6 +167,7 @@ func run(c context.Context, command string, arg ...string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
 	return cmd.Run()
 }
 
@@ -155,10 +178,11 @@ func output(c context.Context, command string, arg ...string) (string, error) {
 	cmd.Stdout = buf
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
+
 	return strings.TrimSuffix(buf.String(), "\n"), err
 }
 
-// Lint lints the codebase
+// Lint lints the codebase.
 func Lint(c context.Context) error {
 	fmt.Println("Linting...")
 	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci.toml")
@@ -173,23 +197,26 @@ func TodoCheck(c context.Context) error {
 	return run(c, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
 }
 
-// Deadcode checks that there's no dead code in codebase
+// Deadcode checks that there's no dead code in codebase.
 func Deadcode(c context.Context) error {
 	fmt.Println("Checking for dead code...")
+
 	out, err := output(c, "deadcode", "-test", "./...")
 	if err != nil {
 		return err
 	}
+
 	fmt.Println(out)
+
 	lines := strings.Split(out, "\n")
 	if len(lines) > 0 && len(lines[0]) > 0 {
-		return fmt.Errorf("found dead code")
+		return errors.New("found dead code")
 	}
 
 	return nil
 }
 
-// LintForFail lints the codebase purely to find out whether anything fails
+// LintForFail lints the codebase purely to find out whether anything fails.
 func LintForFail(c context.Context) error {
 	fmt.Println("Linting to check for overall pass/fail...")
 	// _, err := sh.Exec(
@@ -213,6 +240,7 @@ func LintForFail(c context.Context) error {
 
 func Generate(c context.Context) error {
 	fmt.Println("Generating...")
+
 	return run(
 		c,
 		"go",
@@ -221,7 +249,7 @@ func Generate(c context.Context) error {
 	)
 }
 
-// Run the unit tests
+// Run the unit tests.
 func Test(c context.Context) error {
 	fmt.Println("Running unit tests...")
 	// return sh.RunV(
@@ -242,6 +270,7 @@ func Test(c context.Context) error {
 		"-timeout=5s",
 		// "-shuffle=1725149006359140000",
 		"-race",
+		// "-p=1",
 		"-coverprofile=coverage.out",
 		"-coverpkg=./UAT/run,.,./generator/run",
 		"./...",
@@ -249,9 +278,10 @@ func Test(c context.Context) error {
 	)
 }
 
-// Run the mutation tests
+// Run the mutation tests.
 func Mutate(c context.Context) error {
 	fmt.Println("Running mutation tests...")
+
 	for _, cmd := range []func(context.Context) error{
 		TestForFail,
 		func(c context.Context) error {
@@ -278,45 +308,59 @@ func Mutate(c context.Context) error {
 
 func CheckCoverage(c context.Context) error {
 	fmt.Println("Checking coverage...")
+
 	out, err := output(c, "go", "tool", "cover", "-func=coverage.out")
 	if err != nil {
 		return err
 	}
+
 	lines := strings.Split(out, "\n")
 	linesAndCoverage := []lineAndCoverage{}
+
 	for _, line := range lines {
 		percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
+
 		percent, err := strconv.ParseFloat(percentString, 64)
 		if err != nil {
 			return err
 		}
+
 		if strings.Contains(line, "_string.go") {
 			continue
 		}
+
 		if strings.Contains(line, "total:") {
 			continue
 		}
+
 		linesAndCoverage = append(linesAndCoverage, lineAndCoverage{line, percent})
 	}
+
 	slices.SortStableFunc(linesAndCoverage, func(a, b lineAndCoverage) int {
 		if a.coverage < b.coverage {
 			return -1
 		}
+
 		if a.coverage > b.coverage {
 			return 1
 		}
+
 		return 0
 	})
 	lc := linesAndCoverage[0]
+
 	sortedLines := make([]string, len(linesAndCoverage))
 	for i := range linesAndCoverage {
 		sortedLines[i] = linesAndCoverage[i].line
 	}
+
 	fmt.Println(strings.Join(sortedLines, "\n"))
+
 	coverage := 80.0
 	if lc.coverage < coverage {
 		return fmt.Errorf("function coverage was less than the limit of %.1f:\n  %s", coverage, lc.line)
 	}
+
 	return nil
 }
 
@@ -325,20 +369,7 @@ type lineAndCoverage struct {
 	coverage float64
 }
 
-func errorIfBadCoverage(line string) error {
-	percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
-	percent, err := strconv.ParseFloat(percentString, 64)
-	if err != nil {
-		return err
-	}
-	coverage := 80.0
-	if percent < coverage {
-		return fmt.Errorf("coverage was less than the limit of %.1f:\n  %s", coverage, line)
-	}
-	return nil
-}
-
-// Run the unit tests purely to find out whether any fail
+// Run the unit tests purely to find out whether any fail.
 func TestForFail(c context.Context) error {
 	fmt.Println("Running unit tests for overall pass/fail...")
 
@@ -355,25 +386,25 @@ func TestForFail(c context.Context) error {
 	)
 }
 
-// Run the fuzz tests
+// Run the fuzz tests.
 func Fuzz(c context.Context) error {
 	fmt.Println("Running fuzz tests...")
 	return run(c, "./dev/fuzz.fish")
 }
 
-// Check for nils
+// Check for nils.
 func CheckNils(c context.Context) error {
 	fmt.Println("Running check for nils...")
 	return run(c, "nilaway", "./...")
 }
 
-// Install development tooling
+// Install development tooling.
 func InstallTools(c context.Context) error {
 	fmt.Println("Installing development tools...")
 	return run(c, "./dev/dev-install.sh")
 }
 
-// Clean up the dev env
+// Clean up the dev env.
 func Clean() {
 	fmt.Println("Cleaning...")
 	os.Remove("coverage.out")
