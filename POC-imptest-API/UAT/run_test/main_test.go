@@ -1,4 +1,4 @@
-package main
+package run_test
 
 import (
 	"testing"
@@ -7,10 +7,16 @@ import (
 	"github.com/toejough/imptest/POC-imptest-API/imptest"
 )
 
-//go:generate go run ../imptest/generator/main.go run.IntOps --name IntOpsImp
+//go:generate go run ../../imptest/generator/main.go run.IntOps --name IntOpsImp
 // TODO: pull this generate function out into its own package
 // TODO: allow another arg for generate to name the runner
 // TODO: allow a function imp, which just allows static compile-time checking of args and return values
+
+const (
+	addMethod    = "Add"
+	formatMethod = "Format"
+	printMethod  = "Print"
+)
 
 func Test_PrintSum_Auto(t *testing.T) {
 	t.Parallel()
@@ -60,7 +66,7 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
 	// get the current call
 	call := imp.GetCurrentCall()
 	// validate it's Add
-	if call.Name() != "Add" {
+	if call.Name() != addMethod {
 		t.Fatalf("expected call to Add, got %s", call.Name())
 	}
 	// get the args
@@ -83,7 +89,7 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
 	// imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
 	// get the current call
 	call = imp.GetCurrentCall()
-	if call.Name() != "Format" {
+	if call.Name() != formatMethod {
 		t.Fatalf("expected call to Format, got %s", call.Name())
 	}
 
@@ -98,7 +104,7 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
 	// imp.ExpectCallTo.Print(normalFormatResult)
 	// get the current call
 	call = imp.GetCurrentCall()
-	if call.Name() != "Print" {
+	if call.Name() != printMethod {
 		t.Fatalf("expected call to Print, got %s", call.Name())
 	}
 
