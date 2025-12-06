@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/toejough/imptest/POC-imptest-API/imptest/generator/generate"
+	"github.com/toejough/imptest/generator/run"
 )
 
 // RealFileSystem implements FileSystem using os package.
@@ -15,6 +15,7 @@ func (fs *RealFileSystem) Getwd() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get working directory: %w", err)
 	}
+
 	return wd, nil
 }
 
@@ -23,6 +24,7 @@ func (fs *RealFileSystem) ReadDir(name string) ([]os.DirEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read directory %s: %w", name, err)
 	}
+
 	return entries, nil
 }
 
@@ -31,18 +33,21 @@ func (fs *RealFileSystem) ReadFile(name string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", name, err)
 	}
+
 	return data, nil
 }
 
 func (fs *RealFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	if err := os.WriteFile(name, data, perm); err != nil {
+	err := os.WriteFile(name, data, perm)
+	if err != nil {
 		return fmt.Errorf("failed to write file %s: %w", name, err)
 	}
+
 	return nil
 }
 
 func main() {
-	err := generate.Run(os.Args, os.Getenv, &RealFileSystem{})
+	err := run.Run(os.Args, os.Getenv, &RealFileSystem{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

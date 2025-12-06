@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/toejough/imptest/POC-imptest-API/UAT/run"
+	"github.com/toejough/imptest/UAT/run"
 )
 
 type exampleStruct struct{}

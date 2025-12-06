@@ -243,7 +243,7 @@ func Test(c context.Context) error {
 		// "-shuffle=1725149006359140000",
 		"-race",
 		"-coverprofile=coverage.out",
-		"-coverpkg=./POC-imptest-API/UAT/run,./POC-imptest-API/imptest/...",
+		"-coverpkg=./UAT/run,.,./generator/run",
 		"./...",
 		// -test.shuffle 1725149006359140000
 	)
