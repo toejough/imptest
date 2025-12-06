@@ -2,6 +2,7 @@ package run
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -16,6 +17,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+var errInterfaceNotFound = errors.New("interface not found")
+
 // FileSystem interface for mocking.
 type FileSystem interface {
 	Getwd() (string, error)
@@ -24,19 +27,19 @@ type FileSystem interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 }
 
-func Run(args []string, getEnv func(string) string, fs FileSystem) error {
-	info := getGeneratorInfo(args, getEnv, fs)
+func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
+	info := getGeneratorInfo(args, getEnv, fileSys)
 	// fmt.Printf("Generator info: %+v\n", info)
 
-	pkgImportPath, matchName := getPackageAndMatchName(info, fs)
+	pkgImportPath, matchName := getPackageAndMatchName(info, fileSys)
 	// fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
 
-	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir, fs)
+	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir, fileSys)
 	// fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
 
 	iface := getMatchingInterfaceFromAST(astFiles, matchName)
 	if iface == nil {
-		return fmt.Errorf("no interface named %q found in package %q", matchName, pkgImportPath)
+		return fmt.Errorf("%w: named %q in package %q", errInterfaceNotFound, matchName, pkgImportPath)
 	}
 
 	// fmt.Printf("Found interface %q in package %q:\n", matchName, pkgImportPath)
@@ -45,14 +48,14 @@ func Run(args []string, getEnv func(string) string, fs FileSystem) error {
 	code := generateImplementationCode(iface, info, fset)
 	// fmt.Printf("Generated implementation code:\n%s\n", code)
 
-	return writeGeneratedCodeToFile(code, info.impName, fs)
+	return writeGeneratedCodeToFile(code, info.impName, fileSys)
 }
 
 // getGeneratorInfo gathers basic information about the generator call.
-func getGeneratorInfo(args []string, getEnv func(string) string, fs FileSystem) struct {
+func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) struct {
 	cwd, pkgDir, pkgName, goFilePath, matchName, impName string
 } {
-	cwd, err := fs.Getwd()
+	cwd, err := fileSys.Getwd()
 	if err != nil {
 		panic(err)
 	}
@@ -95,7 +98,7 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fs FileSystem) 
 // getPackageAndMatchName determines the import path and interface name to match.
 func getPackageAndMatchName(info struct {
 	cwd, pkgDir, pkgName, goFilePath, matchName, impName string
-}, fs FileSystem,
+}, fileSys FileSystem,
 ) (string, string) {
 	matchName := info.matchName
 	// Check if matchName contains a dot, e.g. "run.ExampleInt"
@@ -103,7 +106,7 @@ func getPackageAndMatchName(info struct {
 		targetPkgImport := matchName[:dot]
 		matchName = matchName[dot+1:]
 		// Resolve the full import path for the target package
-		astFiles, _ := parsePackageFiles(info.pkgDir, fs)
+		astFiles, _ := parsePackageFiles(info.pkgDir, fileSys)
 		for _, fileAst := range astFiles {
 			for _, imp := range fileAst.Imports {
 				importPath, err := strconv.Unquote(imp.Path.Value)
@@ -125,9 +128,9 @@ func getPackageAndMatchName(info struct {
 }
 
 // parsePackageAST loads and parses the AST for the given package import path.
-func parsePackageAST(pkgImportPath, pkgDir string, fs FileSystem) ([]*ast.File, *token.FileSet) {
+func parsePackageAST(pkgImportPath, pkgDir string, fileSys FileSystem) ([]*ast.File, *token.FileSet) {
 	if pkgImportPath == pkgDir || pkgImportPath == "" {
-		return parsePackageFiles(pkgDir, fs)
+		return parsePackageFiles(pkgDir, fileSys)
 	}
 
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
@@ -142,8 +145,8 @@ func parsePackageAST(pkgImportPath, pkgDir string, fs FileSystem) ([]*ast.File, 
 }
 
 // parsePackageFiles reads and parses all Go files in the package directory.
-func parsePackageFiles(pkgDir string, fs FileSystem) ([]*ast.File, *token.FileSet) {
-	entries, err := fs.ReadDir(pkgDir)
+func parsePackageFiles(pkgDir string, fileSys FileSystem) ([]*ast.File, *token.FileSet) {
+	entries, err := fileSys.ReadDir(pkgDir)
 	if err != nil {
 		fmt.Printf("  error reading package dir %q: %v\n", pkgDir, err)
 		return nil, token.NewFileSet()
@@ -167,7 +170,7 @@ func parsePackageFiles(pkgDir string, fs FileSystem) ([]*ast.File, *token.FileSe
 	astFiles := make([]*ast.File, 0, len(files))
 
 	for _, file := range files {
-		data, err := fs.ReadFile(file)
+		data, err := fileSys.ReadFile(file)
 		if err != nil {
 			fmt.Printf("  error reading file %q: %v\n", file, err)
 			continue
@@ -893,7 +896,7 @@ func calculateUnnamedIndex(params *ast.FieldList, targetParam *ast.Field) int {
 }
 
 // writeGeneratedCodeToFile writes the generated code to <impName>.go.
-func writeGeneratedCodeToFile(code string, impName string, fs FileSystem) error {
+func writeGeneratedCodeToFile(code string, impName string, fileSys FileSystem) error {
 	const generatedFilePermissions = 0o600
 
 	filename := "generated.go"
@@ -901,7 +904,7 @@ func writeGeneratedCodeToFile(code string, impName string, fs FileSystem) error 
 		filename = impName + ".go"
 	}
 
-	err := fs.WriteFile(filename, []byte(code), generatedFilePermissions)
+	err := fileSys.WriteFile(filename, []byte(code), generatedFilePermissions)
 	if err != nil {
 		return fmt.Errorf("error writing %s: %w", filename, err)
 	}

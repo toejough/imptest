@@ -23,6 +23,7 @@ allow = [
 	'github.com/davecgh/go-spew/spew',
 	'golang.org/x/tools/go/packages',
 	'github.com/toejough/imptest/UAT/run',
+	'github.com/toejough/imptest/generator/run',
 ]
 
 [linters.settings.depguard.rules.test]
@@ -32,6 +33,7 @@ allow = [
 	'pgregory.net/rapid', 
 	'github.com/toejough/imptest',
 	'github.com/toejough/imptest/UAT/run',
+	'github.com/toejough/imptest/generator/run',
 ]
 
 [linters.settings.nlreturn]
