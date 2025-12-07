@@ -7,7 +7,7 @@ import (
 	"github.com/toejough/imptest/UAT/run"
 )
 
-//go:generate go run ../../generator/main.go run.IntOps --name IntOpsImp
+//go:generate go run ../../impgen/main.go run.IntOps --name IntOpsImp
 
 const (
 	addMethod    = "Add"
@@ -18,26 +18,28 @@ const (
 func Test_PrintSum_Auto(t *testing.T) {
 	t.Parallel()
 	// we want to validate that run.PrintSum calls the methods of IntOps correctly
-	// get the generated implementation of IntOps
-	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
 
-	// call the function under test
+	// Given: the generated implementation of IntOps
+	imp := NewIntOpsImp(t)
+
+	// When: the function under test is started with some args and the mocked dependencies...
 	inputA := 10
 	inputB := 32
 	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
 
-	// sum := deps.Add(a, b)
+	// Then: expect add to be called with a & b
+	// When: we return normalAddResult
 	normalAddResult := inputA + inputB
 	imp.ExpectCallTo.Add(inputA, inputB).InjectResult(normalAddResult)
-
-	// formatted := deps.Format(sum)
+	// Then: expect format to be called with normalAddResult
+	// When: we return normalFormatResult
 	normalFormatResult := "42"
 	imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
-
-	// deps.Print(formatted)
+	// Then: expect print to be called with normalFormatResult
+	// When: we resolve the print call
 	imp.ExpectCallTo.Print(normalFormatResult).Resolve()
 
-	// return a, b, formatted
+	// Then: expect the function under test to return inputA, inputB, normalFormatResult
 	printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
 }
 

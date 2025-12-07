@@ -8,8 +8,8 @@ import (
 	"github.com/toejough/imptest/UAT/run"
 )
 
-//go:generate go run ../../generator/main.go run.Tracker --name TrackerImp
-//go:generate go run ../../generator/main.go run.CoinFlipper --name CoinFlipperImp
+//go:generate go run ../../impgen/main.go run.Tracker --name TrackerImp
+//go:generate go run ../../impgen/main.go run.CoinFlipper --name CoinFlipperImp
 
 func Test_PingPong_Match(t *testing.T) {
 	t.Parallel()

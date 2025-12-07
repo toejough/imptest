@@ -272,7 +272,7 @@ func Test(c context.Context) error {
 		"-race",
 		// "-p=1",
 		"-coverprofile=coverage.out",
-		"-coverpkg=./UAT/run,.,./generator/run",
+		"-coverpkg=./UAT/run,.,./impgen/run",
 		"./...",
 		// -test.shuffle 1725149006359140000
 	)
