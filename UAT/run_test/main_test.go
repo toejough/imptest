@@ -8,9 +8,6 @@ import (
 )
 
 //go:generate go run ../../generator/main.go run.IntOps --name IntOpsImp
-// TODO: pull this generate function out into its own package
-// TODO: allow another arg for generate to name the runner
-// TODO: allow a function imp, which just allows static compile-time checking of args and return values
 
 const (
 	addMethod    = "Add"

@@ -596,34 +596,7 @@ func TestRun_ParseAST_Error(t *testing.T) {
 		}
 	})
 
-	// Test 2: Invalid package that packages.Load will fail on
-	t.Run("Packages Load Error", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		cwd, _ := os.Getwd()
-		mockFS.cwd = cwd
-
-		// Create a file with an import
-		sourceCode := `package mypkg
-import "invalid/package/path/that/does/not/exist/anywhere"
-`
-		mockFS.files[cwd+"/test.go"] = []byte(sourceCode)
-		mockFS.dirs[cwd] = []os.DirEntry{
-			MockDirEntry{name: "test.go", isDir: false},
-		}
-
-		// Use the imported package name
-		args := []string{"generator", "anywhere.Interface", "--name", "TestImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS)
-		if err == nil {
-			t.Error("Expected error loading invalid package, got nil")
-		}
-	})
-
-	// Test 3: Nonsense import path that packages.Load cannot resolve
+	// Test 2: Nonsense import path that packages.Load cannot resolve
 	t.Run("Nonsense Import Path", func(t *testing.T) {
 		t.Parallel()
 
