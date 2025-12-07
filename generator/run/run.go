@@ -136,7 +136,7 @@ func parsePackageAST(pkgImportPath, pkgDir string, fileSys FileSystem) ([]*ast.F
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
 
 	pkgs, err := packages.Load(cfg, pkgImportPath)
-	if err != nil || len(pkgs) == 0 {
+	if err != nil || len(pkgs) == 0 || pkgs[0].Errors != nil {
 		fmt.Printf("error loading package %q: %v\n", pkgImportPath, err)
 		return nil, token.NewFileSet()
 	}

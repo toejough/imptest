@@ -622,4 +622,30 @@ import "invalid/package/path/that/does/not/exist/anywhere"
 			t.Error("Expected error loading invalid package, got nil")
 		}
 	})
+
+	// Test 3: Nonsense import path that packages.Load cannot resolve
+	t.Run("Nonsense Import Path", func(t *testing.T) {
+		t.Parallel()
+
+		mockFS := NewMockFileSystem()
+		mockFS.cwd = "not/a/real/path/to/anywhere"
+
+		// Create a file with a nonsense import path
+		sourceCode := `package mypkg
+import "not/a/real/path"
+`
+		mockFS.files[mockFS.cwd+"/test.go"] = []byte(sourceCode)
+		mockFS.dirs[mockFS.cwd] = []os.DirEntry{
+			MockDirEntry{name: "test.go", isDir: false},
+		}
+
+		// Use the imported package name - "path" is the last segment
+		args := []string{"generator", "path.SomeInterface", "--name", "TestImp"}
+		env := func(_ string) string { return pkgName }
+
+		err := run.Run(args, env, mockFS)
+		if err == nil {
+			t.Error("Expected error loading nonsense package path, got nil")
+		}
+	})
 }
