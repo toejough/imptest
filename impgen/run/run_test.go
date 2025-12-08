@@ -589,6 +589,7 @@ type MyInterface interface {
 		if key == "GOPACKAGE" {
 			return "mypkg_test" // Simulate being in a _test package
 		}
+
 		return ""
 	}
 

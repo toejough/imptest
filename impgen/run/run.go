@@ -48,7 +48,7 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
 	code := generateImplementationCode(iface, info, fset)
 	// fmt.Printf("Generated implementation code:\n%s\n", code)
 
-	return writeGeneratedCodeToFile(code, info.impName, fileSys)
+	return writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys)
 }
 
 // getGeneratorInfo gathers basic information about the generator call.
@@ -896,12 +896,18 @@ func calculateUnnamedIndex(params *ast.FieldList, targetParam *ast.Field) int {
 }
 
 // writeGeneratedCodeToFile writes the generated code to <impName>.go.
-func writeGeneratedCodeToFile(code string, impName string, fileSys FileSystem) error {
+func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
 	const generatedFilePermissions = 0o600
 
 	filename := "generated.go"
 	if impName != "" {
-		filename = impName + ".go"
+		filename = impName
+		// If we're in a test package, append _test to the filename
+		if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
+			filename = strings.TrimSuffix(impName, ".go") + "_test.go"
+		} else if !strings.HasSuffix(filename, ".go") {
+			filename += ".go"
+		}
 	}
 
 	err := fileSys.WriteFile(filename, []byte(code), generatedFilePermissions)
