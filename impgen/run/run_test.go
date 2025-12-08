@@ -565,6 +565,48 @@ type EmbeddedInterface interface {
 	}
 }
 
+func TestRun_TestPackageAppendsTestToFilename(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockFS.cwd = appDir
+
+	// Setup mock files
+	sourceCode := `
+package mypkg_test
+
+type MyInterface interface {
+	DoSomething()
+}
+`
+	mockFS.files[appDir+"/source_test.go"] = []byte(sourceCode)
+	mockFS.dirs[appDir] = []os.DirEntry{
+		MockDirEntry{name: "source_test.go", isDir: false},
+	}
+
+	args := []string{"generator", "MyInterface", "--name", "MyImp"}
+	env := func(key string) string {
+		if key == "GOPACKAGE" {
+			return "mypkg_test" // Simulate being in a _test package
+		}
+		return ""
+	}
+
+	err := run.Run(args, env, mockFS)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	// Should create MyImp_test.go when in a _test package
+	if _, ok := mockFS.files["MyImp_test.go"]; !ok {
+		t.Error("Expected MyImp_test.go to be created in _test package")
+		// Show what files were actually created for debugging
+		for f := range mockFS.files {
+			t.Logf("Found file: %s", f)
+		}
+	}
+}
+
 func TestRun_ParseAST_Error(t *testing.T) {
 	t.Parallel()
 
