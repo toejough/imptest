@@ -58,26 +58,19 @@ type FileSystem interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 }
 
+// GeneratorInfo holds information gathered for generation.
+type GeneratorInfo struct {
+	pkgDir, pkgName, matchName, impName string
+}
+
 // getGeneratorInfo gathers basic information about the generator call.
-func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) struct {
-	cwd, pkgDir, pkgName, goFilePath, matchName, impName string
-} {
+func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) GeneratorInfo {
 	cwd, err := fileSys.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
 	pkgName := getEnv("GOPACKAGE")
-	goFile := getEnv("GOFILE")
-	goFilePath := ""
-
-	if goFile != "" {
-		if filepath.IsAbs(goFile) {
-			goFilePath = goFile
-		} else {
-			goFilePath = filepath.Join(cwd, goFile)
-		}
-	}
 
 	pkgDir := cwd // assume current dir is the package dir
 	matchName := ""
@@ -97,16 +90,11 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSys
 		}
 	}
 
-	return struct {
-		cwd, pkgDir, pkgName, goFilePath, matchName, impName string
-	}{cwd, pkgDir, pkgName, goFilePath, matchName, impName}
+	return GeneratorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}
 }
 
 // getPackageAndMatchName determines the import path and interface name to match.
-func getPackageAndMatchName(info struct {
-	cwd, pkgDir, pkgName, goFilePath, matchName, impName string
-}, fileSys FileSystem,
-) (string, string) {
+func getPackageAndMatchName(info GeneratorInfo, fileSys FileSystem) (string, string) {
 	matchName := info.matchName
 	// Check if matchName contains a dot, e.g. "run.ExampleInt"
 	if dot := strings.Index(matchName, "."); dot != -1 {
@@ -179,9 +167,10 @@ func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.In
 var errInterfaceNotFound = errors.New("interface not found")
 
 // generateImplementationCode creates the Go code for the interface implementation.
-func generateImplementationCode(identifiedInterface *ast.InterfaceType, info struct {
-	cwd, pkgDir, pkgName, goFilePath, matchName, impName string
-}, fset *token.FileSet,
+func generateImplementationCode(
+	identifiedInterface *ast.InterfaceType,
+	info GeneratorInfo,
+	fset *token.FileSet,
 ) string {
 	impName := info.impName
 	if impName == "" {
