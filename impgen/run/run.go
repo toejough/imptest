@@ -1,3 +1,4 @@
+// Package run implements the main logic for the impgen tool in a testable way.
 package run
 
 import (
@@ -17,22 +18,20 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var errInterfaceNotFound = errors.New("interface not found")
-
-// FileSystem interface for mocking.
-type FileSystem interface {
-	Getwd() (string, error)
-	ReadDir(name string) ([]os.DirEntry, error)
-	ReadFile(name string) ([]byte, error)
-	WriteFile(name string, data []byte, perm os.FileMode) error
-}
-
+// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, and a FileSystem
+// interface for file operations. It returns an error if any step fails. On success, it generates a Go source file
+// implementing the specified interface, in the calling test package.
 func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
 	info := getGeneratorInfo(args, getEnv, fileSys)
 	// fmt.Printf("Generator info: %+v\n", info)
 
 	pkgImportPath, matchName := getPackageAndMatchName(info, fileSys)
 	// fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
+
+	// set impname if not provided
+	if info.impName == "" {
+		info.impName = matchName + "Imp" // default implementation name
+	}
 
 	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir, fileSys)
 	// fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
@@ -49,6 +48,14 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
 	// fmt.Printf("Generated implementation code:\n%s\n", code)
 
 	return writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys)
+}
+
+// FileSystem interface for mocking.
+type FileSystem interface {
+	Getwd() (string, error)
+	ReadDir(name string) ([]os.DirEntry, error)
+	ReadFile(name string) ([]byte, error)
+	WriteFile(name string, data []byte, perm os.FileMode) error
 }
 
 // getGeneratorInfo gathers basic information about the generator call.
@@ -144,6 +151,102 @@ func parsePackageAST(pkgImportPath, pkgDir string, fileSys FileSystem) ([]*ast.F
 	return pkgs[0].Syntax, pkgs[0].Fset
 }
 
+// getMatchingInterfaceFromAST finds the interface by name in the ASTs.
+func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.InterfaceType {
+	for _, fileAst := range astFiles {
+		var found *ast.InterfaceType
+
+		ast.Inspect(fileAst, func(n ast.Node) bool {
+			ts, ok := n.(*ast.TypeSpec)
+			if ok {
+				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
+					found = iface
+					return false
+				}
+			}
+
+			return true
+		})
+
+		if found != nil {
+			return found
+		}
+	}
+
+	return nil
+}
+
+var errInterfaceNotFound = errors.New("interface not found")
+
+// generateImplementationCode creates the Go code for the interface implementation.
+func generateImplementationCode(identifiedInterface *ast.InterfaceType, info struct {
+	cwd, pkgDir, pkgName, goFilePath, matchName, impName string
+}, fset *token.FileSet,
+) string {
+	impName := info.impName
+	if impName == "" {
+		impName = "interfaceImplementation"
+	}
+
+	gen := &codeGenerator{
+		fset:                fset,
+		pkgName:             info.pkgName,
+		impName:             impName,
+		mockName:            impName + "Mock",
+		callName:            impName + "Call",
+		expectCallToName:    impName + "ExpectCallTo",
+		timedName:           impName + "Timed",
+		identifiedInterface: identifiedInterface,
+	}
+
+	gen.generateHeader()
+	gen.generateMockStruct()
+	gen.generateMainStruct()
+
+	methodNames := gen.generateMethodStructs()
+	gen.generateMockMethods()
+	gen.generateCallStruct(methodNames)
+	gen.generateExpectCallToStruct()
+	gen.generateExpectCallToMethods()
+	gen.generateTimedStruct()
+	gen.generateGetCallMethod()
+	gen.generateGetCurrentCallMethod()
+	gen.generateConstructor()
+
+	formatted, err := format.Source(gen.buf.Bytes())
+	if err != nil {
+		fmt.Printf("error formatting generated code: %v\n", err)
+		return gen.buf.String()
+	}
+
+	return string(formatted)
+}
+
+// writeGeneratedCodeToFile writes the generated code to <impName>.go.
+func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
+	const generatedFilePermissions = 0o600
+
+	filename := "generated.go"
+	if impName != "" {
+		filename = impName
+		// If we're in a test package, append _test to the filename
+		if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
+			filename = strings.TrimSuffix(impName, ".go") + "_test.go"
+		} else if !strings.HasSuffix(filename, ".go") {
+			filename += ".go"
+		}
+	}
+
+	err := fileSys.WriteFile(filename, []byte(code), generatedFilePermissions)
+	if err != nil {
+		return fmt.Errorf("error writing %s: %w", filename, err)
+	}
+
+	fmt.Printf("%s written successfully.\n", filename)
+
+	return nil
+}
+
 // parsePackageFiles reads and parses all Go files in the package directory.
 func parsePackageFiles(pkgDir string, fileSys FileSystem) ([]*ast.File, *token.FileSet) {
 	entries, err := fileSys.ReadDir(pkgDir)
@@ -188,31 +291,6 @@ func parsePackageFiles(pkgDir string, fileSys FileSystem) ([]*ast.File, *token.F
 	return astFiles, fset
 }
 
-// getMatchingInterfaceFromAST finds the interface by name in the ASTs.
-func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.InterfaceType {
-	for _, fileAst := range astFiles {
-		var found *ast.InterfaceType
-
-		ast.Inspect(fileAst, func(n ast.Node) bool {
-			ts, ok := n.(*ast.TypeSpec)
-			if ok {
-				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
-					found = iface
-					return false
-				}
-			}
-
-			return true
-		})
-
-		if found != nil {
-			return found
-		}
-	}
-
-	return nil
-}
-
 // codeGenerator holds state for code generation.
 type codeGenerator struct {
 	buf                 bytes.Buffer
@@ -224,50 +302,6 @@ type codeGenerator struct {
 	expectCallToName    string
 	timedName           string
 	identifiedInterface *ast.InterfaceType
-}
-
-// generateImplementationCode creates the Go code for the interface implementation.
-func generateImplementationCode(identifiedInterface *ast.InterfaceType, info struct {
-	cwd, pkgDir, pkgName, goFilePath, matchName, impName string
-}, fset *token.FileSet,
-) string {
-	impName := info.impName
-	if impName == "" {
-		impName = "interfaceImplementation"
-	}
-
-	gen := &codeGenerator{
-		fset:                fset,
-		pkgName:             info.pkgName,
-		impName:             impName,
-		mockName:            impName + "Mock",
-		callName:            impName + "Call",
-		expectCallToName:    impName + "ExpectCallTo",
-		timedName:           impName + "Timed",
-		identifiedInterface: identifiedInterface,
-	}
-
-	gen.generateHeader()
-	gen.generateMockStruct()
-	gen.generateMainStruct()
-
-	methodNames := gen.generateMethodStructs()
-	gen.generateMockMethods()
-	gen.generateCallStruct(methodNames)
-	gen.generateExpectCallToStruct()
-	gen.generateExpectCallToMethods()
-	gen.generateTimedStruct()
-	gen.generateGetCallMethod()
-	gen.generateGetCurrentCallMethod()
-	gen.generateConstructor()
-
-	formatted, err := format.Source(gen.buf.Bytes())
-	if err != nil {
-		fmt.Printf("error formatting generated code: %v\n", err)
-		return gen.buf.String()
-	}
-
-	return string(formatted)
 }
 
 func (gen *codeGenerator) generateHeader() {
@@ -893,31 +927,6 @@ func calculateUnnamedIndex(params *ast.FieldList, targetParam *ast.Field) int {
 	}
 
 	return unnamedIndex
-}
-
-// writeGeneratedCodeToFile writes the generated code to <impName>.go.
-func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
-	const generatedFilePermissions = 0o600
-
-	filename := "generated.go"
-	if impName != "" {
-		filename = impName
-		// If we're in a test package, append _test to the filename
-		if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
-			filename = strings.TrimSuffix(impName, ".go") + "_test.go"
-		} else if !strings.HasSuffix(filename, ".go") {
-			filename += ".go"
-		}
-	}
-
-	err := fileSys.WriteFile(filename, []byte(code), generatedFilePermissions)
-	if err != nil {
-		return fmt.Errorf("error writing %s: %w", filename, err)
-	}
-
-	fmt.Printf("%s written successfully.\n", filename)
-
-	return nil
 }
 
 // renderFieldList renders a *ast.FieldList as Go code (params/results).
