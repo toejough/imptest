@@ -13,6 +13,15 @@ import (
 	"github.com/toejough/imptest/impgen/run"
 )
 
+// main is the entry point of the impgen tool.
+func main() {
+	err := run.Run(os.Args, os.Getenv, &RealFileSystem{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 // RealFileSystem implements FileSystem using os package.
 type RealFileSystem struct{}
 
@@ -54,13 +63,4 @@ func (fs *RealFileSystem) WriteFile(name string, data []byte, perm os.FileMode) 
 	}
 
 	return nil
-}
-
-// main is the entry point of the impgen tool.
-func main() {
-	err := run.Run(os.Args, os.Getenv, &RealFileSystem{})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
 }
