@@ -58,13 +58,13 @@ type FileSystem interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 }
 
-// GeneratorInfo holds information gathered for generation.
-type GeneratorInfo struct {
+// generatorInfo holds information gathered for generation.
+type generatorInfo struct {
 	pkgDir, pkgName, matchName, impName string
 }
 
 // getGeneratorInfo gathers basic information about the generator call.
-func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) GeneratorInfo {
+func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) generatorInfo {
 	cwd, err := fileSys.Getwd()
 	if err != nil {
 		panic(err)
@@ -90,11 +90,11 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSys
 		}
 	}
 
-	return GeneratorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}
+	return generatorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}
 }
 
 // getPackageAndMatchName determines the import path and interface name to match.
-func getPackageAndMatchName(info GeneratorInfo, fileSys FileSystem) (string, string) {
+func getPackageAndMatchName(info generatorInfo, fileSys FileSystem) (string, string) {
 	matchName := info.matchName
 	// Check if matchName contains a dot, e.g. "run.ExampleInt"
 	if dot := strings.Index(matchName, "."); dot != -1 {
@@ -169,7 +169,7 @@ var errInterfaceNotFound = errors.New("interface not found")
 // generateImplementationCode creates the Go code for the interface implementation.
 func generateImplementationCode(
 	identifiedInterface *ast.InterfaceType,
-	info GeneratorInfo,
+	info generatorInfo,
 	fset *token.FileSet,
 ) string {
 	impName := info.impName
