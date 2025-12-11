@@ -270,10 +270,10 @@ func Test(c context.Context) error {
 		"-timeout=5s",
 		// "-shuffle=1725149006359140000",
 		// "-race",
-		// "-p=1",
+		"-p=1",
 		"-coverprofile=coverage.out",
 		"-coverpkg=./UAT/run,.,./impgen/run",
-		// "-covermode=atomic",
+		"-covermode=atomic",
 		"./...",
 		// -test.shuffle 1725149006359140000
 	)

@@ -28,11 +28,6 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
 	pkgImportPath, matchName := getPackageAndMatchName(info, fileSys)
 	// fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
 
-	// set impname if not provided
-	if info.impName == "" {
-		info.impName = matchName + "Imp" // default implementation name
-	}
-
 	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir, fileSys)
 	// fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
 
@@ -87,6 +82,11 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSys
 		} else {
 			matchName = cmdArgs[i]
 		}
+	}
+
+	// set impname if not provided
+	if impName == "" {
+		impName = matchName + "Imp" // default implementation name
 	}
 
 	return generatorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}
