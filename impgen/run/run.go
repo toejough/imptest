@@ -65,14 +65,13 @@ type generatorInfo struct {
 
 // getGeneratorInfo gathers basic information about the generator call.
 func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) generatorInfo {
-	cwd, err := fileSys.Getwd()
+	pkgDir, err := fileSys.Getwd() // assume current dir is the package dir
 	if err != nil {
 		panic(err)
 	}
 
 	pkgName := getEnv("GOPACKAGE")
 
-	pkgDir := cwd // assume current dir is the package dir
 	matchName := ""
 	impName := ""
 
