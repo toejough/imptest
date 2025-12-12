@@ -263,7 +263,7 @@ func Test(c context.Context) error {
 	// 	"./...",
 	// 	// -test.shuffle 1725149006359140000
 	// )
-	return run(
+	err := run(
 		c,
 		"go",
 		"test",
@@ -272,11 +272,36 @@ func Test(c context.Context) error {
 		"-race",
 		// "-p=1",
 		"-coverprofile=coverage.out",
-		"-coverpkg=./UAT/run,.,./impgen/run",
+		// "-coverpkg=./UAT/run,.,./impgen/run",
+		"-cover",
 		// "-covermode=atomic",
 		"./...",
 		// -test.shuffle 1725149006359140000
 	)
+	if err != nil {
+		return err
+	}
+
+	// Strip main.go coverage lines from coverage.out
+	data, err := os.ReadFile("coverage.out")
+	if err != nil {
+		return fmt.Errorf("failed to read coverage.out: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var filtered []string
+	for _, line := range lines {
+		if !strings.Contains(line, "/main.go:") {
+			filtered = append(filtered, line)
+		}
+	}
+
+	err = os.WriteFile("coverage.out", []byte(strings.Join(filtered, "\n")), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write coverage.out: %w", err)
+	}
+
+	return nil
 }
 
 // Run the mutation tests.
