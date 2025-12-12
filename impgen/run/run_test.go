@@ -18,6 +18,7 @@ const (
 var (
 	errCannotReadDir  = errors.New("cannot read dir")
 	errCannotReadFile = errors.New("cannot read file")
+	errCannotGetwd    = errors.New("cannot get working directory")
 )
 
 const skipInterfaceSource = `package mypkg
@@ -32,6 +33,7 @@ var errNotImplemented = errors.New("not implemented")
 // MockFileSystem implements FileSystem for testing.
 type MockFileSystem struct {
 	cwd         string
+	cwdErr      error
 	files       map[string][]byte
 	dirs        map[string][]os.DirEntry
 	readDirErr  map[string]error
@@ -50,6 +52,10 @@ func NewMockFileSystem() *MockFileSystem {
 }
 
 func (m *MockFileSystem) Getwd() (string, error) {
+	if m.cwdErr != nil {
+		return "", m.cwdErr
+	}
+
 	return m.cwd, nil
 }
 
@@ -379,6 +385,21 @@ var _ fmt.Stringer
 	contentStr := string(content)
 	if !strings.Contains(contentStr, "func (m *StringerImpMock) String() string") {
 		t.Error("Expected Stringer method generated from fmt.Stringer")
+	}
+}
+
+func TestRun_GetwdError(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockFS.cwdErr = errCannotGetwd
+
+	args := []string{"generator", "MyInterface", "--name", "MyImp"}
+	env := func(_ string) string { return pkgName }
+
+	err := run.Run(args, env, mockFS)
+	if err == nil {
+		t.Error("Expected error from Getwd, got nil")
 	}
 }
 

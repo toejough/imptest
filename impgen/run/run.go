@@ -22,7 +22,10 @@ import (
 // interface for file operations. It returns an error if any step fails. On success, it generates a Go source file
 // implementing the specified interface, in the calling test package.
 func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
-	info := getGeneratorInfo(args, getEnv, fileSys)
+	info, err := getGeneratorInfo(args, getEnv, fileSys)
+	if err != nil {
+		return err
+	}
 	// fmt.Printf("Generator info: %+v\n", info)
 
 	pkgImportPath, matchName := getPackageAndMatchName(info, fileSys)
@@ -59,10 +62,10 @@ type generatorInfo struct {
 }
 
 // getGeneratorInfo gathers basic information about the generator call.
-func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) generatorInfo {
+func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) (generatorInfo, error) {
 	pkgDir, err := fileSys.Getwd() // assume current dir is the package dir
 	if err != nil {
-		panic(err)
+		return generatorInfo{}, fmt.Errorf("failed to get working directory: %w", err)
 	}
 
 	pkgName := getEnv("GOPACKAGE")
@@ -89,7 +92,7 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSys
 		impName = matchName + "Imp" // default implementation name
 	}
 
-	return generatorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}
+	return generatorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}, nil
 }
 
 // getPackageAndMatchName determines the import path and interface name to match.
