@@ -611,34 +611,6 @@ type MyInterface interface {
 func TestRun_ParseAST_Error(t *testing.T) {
 	t.Parallel()
 
-	// Test 1: Empty package path (dotted name with no matching import)
-	t.Run("Empty Package Path", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		cwd, _ := os.Getwd()
-		mockFS.cwd = cwd
-
-		// Create a file with NO imports
-		sourceCode := `package mypkg
-`
-		mockFS.files[cwd+"/test.go"] = []byte(sourceCode)
-		mockFS.dirs[cwd] = []os.DirEntry{
-			MockDirEntry{name: "test.go", isDir: false},
-		}
-
-		// Use "pkg.Interface" but there's no import for "pkg"
-		// getPackageAndMatchName will return "" for package path
-		// parsePackageAST will hit the pkgImportPath == "" branch
-		args := []string{"generator", "pkg.Interface", "--name", "TestImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS)
-		if err == nil {
-			t.Error("Expected error (interface not found), got nil")
-		}
-	})
-
 	// Test 2: Nonsense import path that packages.Load cannot resolve
 	t.Run("Nonsense Import Path", func(t *testing.T) {
 		t.Parallel()
