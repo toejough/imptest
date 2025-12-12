@@ -29,7 +29,10 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
 	}
 	// fmt.Printf("Generator info: %+v\n", info)
 
-	pkgImportPath, matchName := getPackageAndMatchName(info, fileSys)
+	pkgImportPath, matchName, err := getPackageAndMatchName(info, fileSys)
+	if err != nil {
+		return err
+	}
 	// fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
 
 	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir, fileSys)
@@ -116,7 +119,7 @@ func parseArgs(args []string) (cliArgs, error) {
 }
 
 // getPackageAndMatchName determines the import path and interface name to match.
-func getPackageAndMatchName(info generatorInfo, fileSys FileSystem) (string, string) {
+func getPackageAndMatchName(info generatorInfo, fileSys FileSystem) (string, string, error) {
 	matchName := info.matchName
 	// Check if matchName contains a dot, e.g. "run.ExampleInt"
 	if dot := strings.Index(matchName, "."); dot != -1 {
@@ -133,15 +136,15 @@ func getPackageAndMatchName(info generatorInfo, fileSys FileSystem) (string, str
 				// Check if the last segment matches the targetPkgImport
 				parts := strings.Split(importPath, "/")
 				if len(parts) > 0 && parts[len(parts)-1] == targetPkgImport {
-					return importPath, matchName
+					return importPath, matchName, nil
 				}
 			}
 		}
 
-		return "", matchName
+		return "", "", fmt.Errorf("%w: %q", errPackageNotFound, targetPkgImport)
 	}
 
-	return info.pkgDir, matchName
+	return info.pkgDir, matchName, nil
 }
 
 // parsePackageAST loads and parses the AST for the given package import path.
@@ -186,7 +189,10 @@ func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.In
 	return nil
 }
 
-var errInterfaceNotFound = errors.New("interface not found")
+var (
+	errInterfaceNotFound = errors.New("interface not found")
+	errPackageNotFound   = errors.New("package not found in imports")
+)
 
 // generateImplementationCode creates the Go code for the interface implementation.
 func generateImplementationCode(
