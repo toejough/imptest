@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alexflint/go-arg"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -61,6 +62,12 @@ type generatorInfo struct {
 	pkgDir, pkgName, matchName, impName string
 }
 
+// cliArgs defines the command-line arguments for the generator.
+type cliArgs struct {
+	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
+	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
+}
+
 // getGeneratorInfo gathers basic information about the generator call.
 func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) (generatorInfo, error) {
 	pkgDir, err := fileSys.Getwd() // assume current dir is the package dir
@@ -70,22 +77,13 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSys
 
 	pkgName := getEnv("GOPACKAGE")
 
-	matchName := ""
-	impName := ""
-
-	var cmdArgs []string
-	if len(args) > 1 {
-		cmdArgs = args[1:]
+	parsed, err := parseArgs(args)
+	if err != nil {
+		return generatorInfo{}, err
 	}
 
-	for i := 0; i < len(cmdArgs); i++ {
-		if cmdArgs[i] == "--name" && i+1 < len(cmdArgs) {
-			impName = cmdArgs[i+1]
-			i++
-		} else {
-			matchName = cmdArgs[i]
-		}
-	}
+	matchName := parsed.Interface
+	impName := parsed.Name
 
 	// set impname if not provided
 	if impName == "" {
@@ -93,6 +91,28 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSys
 	}
 
 	return generatorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}, nil
+}
+
+// parseArgs parses command-line arguments into cliArgs.
+func parseArgs(args []string) (cliArgs, error) {
+	var parsed cliArgs
+
+	parser, err := arg.NewParser(arg.Config{}, &parsed)
+	if err != nil {
+		return cliArgs{}, fmt.Errorf("failed to create argument parser: %w", err)
+	}
+
+	var cmdArgs []string
+	if len(args) > 1 {
+		cmdArgs = args[1:]
+	}
+
+	err = parser.Parse(cmdArgs)
+	if err != nil {
+		return cliArgs{}, fmt.Errorf("failed to parse arguments: %w", err)
+	}
+
+	return parsed, nil
 }
 
 // getPackageAndMatchName determines the import path and interface name to match.

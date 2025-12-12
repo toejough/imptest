@@ -3,12 +3,14 @@ module github.com/toejough/imptest
 go 1.24.0
 
 require (
+	github.com/alexflint/go-arg v1.6.0
 	github.com/gtramontina/ooze v0.2.0
 	github.com/magefile/mage v1.15.0
 	golang.org/x/tools v0.39.0
 )
 
 require (
+	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
