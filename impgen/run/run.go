@@ -149,7 +149,7 @@ func getPackageAndMatchName(info generatorInfo, fileSys FileSystem) (string, str
 
 // parsePackageAST loads and parses the AST for the given package import path.
 func parsePackageAST(pkgImportPath, pkgDir string, fileSys FileSystem) ([]*ast.File, *token.FileSet) {
-	if pkgImportPath == pkgDir || pkgImportPath == "" {
+	if pkgImportPath == pkgDir {
 		return parsePackageFiles(pkgDir, fileSys)
 	}
 
