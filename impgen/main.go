@@ -7,15 +7,24 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"go/ast"
+	"go/token"
 	"os"
 
 	"github.com/toejough/imptest/impgen/run"
+	"golang.org/x/tools/go/packages"
+)
+
+var (
+	errNoPackagesFound = errors.New("no packages found")
+	errPackageErrors   = errors.New("package errors")
 )
 
 // main is the entry point of the impgen tool.
 func main() {
-	err := run.Run(os.Args, os.Getenv, &RealFileSystem{})
+	err := run.Run(os.Args, os.Getenv, &RealFileSystem{}, &RealPackageLoader{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -25,36 +34,6 @@ func main() {
 // RealFileSystem implements FileSystem using os package.
 type RealFileSystem struct{}
 
-// Getwd returns the current working directory.
-func (fs *RealFileSystem) Getwd() (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	return wd, nil
-}
-
-// ReadDir reads the contents of the directory named by name.
-func (fs *RealFileSystem) ReadDir(name string) ([]os.DirEntry, error) {
-	entries, err := os.ReadDir(name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read directory %s: %w", name, err)
-	}
-
-	return entries, nil
-}
-
-// ReadFile reads the file named by name and returns the contents.
-func (fs *RealFileSystem) ReadFile(name string) ([]byte, error) {
-	data, err := os.ReadFile(name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", name, err)
-	}
-
-	return data, nil
-}
-
 // WriteFile writes data to the file named by name.
 func (fs *RealFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
 	err := os.WriteFile(name, data, perm)
@@ -63,4 +42,52 @@ func (fs *RealFileSystem) WriteFile(name string, data []byte, perm os.FileMode) 
 	}
 
 	return nil
+}
+
+// RealPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
+type RealPackageLoader struct{}
+
+// Load loads a package by import path and returns its AST files and FileSet.
+func (pl *RealPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, error) {
+	cfg := &packages.Config{
+		Mode:  packages.LoadAllSyntax,
+		Tests: true,
+	}
+
+	pkgs, err := packages.Load(cfg, importPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load package: %w", err)
+	}
+
+	if len(pkgs) == 0 {
+		return nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+	}
+
+	// Collect all AST files from all packages (including test packages)
+	var (
+		allFiles []*ast.File
+		fset     *token.FileSet
+	)
+
+	for _, pkg := range pkgs {
+		if len(pkg.Errors) > 0 {
+			continue
+		}
+
+		if fset == nil {
+			fset = pkg.Fset
+		}
+
+		allFiles = append(allFiles, pkg.Syntax...)
+	}
+
+	if len(allFiles) == 0 {
+		if len(pkgs[0].Errors) > 0 {
+			return nil, nil, fmt.Errorf("%w: %v", errPackageErrors, pkgs[0].Errors)
+		}
+
+		return nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+	}
+
+	return allFiles, fset, nil
 }

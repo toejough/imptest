@@ -7,35 +7,32 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/parser"
 	"go/printer"
 	"go/token"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/alexflint/go-arg"
-	"golang.org/x/tools/go/packages"
 )
 
 // Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, and a FileSystem
 // interface for file operations. It returns an error if any step fails. On success, it generates a Go source file
 // implementing the specified interface, in the calling test package.
-func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
-	info, err := getGeneratorInfo(args, getEnv, fileSys)
+func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
+	info, err := getGeneratorInfo(args, getEnv)
 	if err != nil {
 		return err
 	}
 	// fmt.Printf("Generator info: %+v\n", info)
 
-	pkgImportPath, matchName, err := getPackageAndMatchName(info, fileSys)
+	pkgImportPath, matchName, err := getPackageAndMatchName(info, pkgLoader)
 	if err != nil {
 		return err
 	}
 	// fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
 
-	astFiles, fset := parsePackageAST(pkgImportPath, info.pkgDir, fileSys)
+	astFiles, fset := parsePackageAST(pkgImportPath, pkgLoader)
 	// fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
 
 	iface := getMatchingInterfaceFromAST(astFiles, matchName)
@@ -54,15 +51,17 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem) error {
 
 // FileSystem interface for mocking.
 type FileSystem interface {
-	Getwd() (string, error)
-	ReadDir(name string) ([]os.DirEntry, error)
-	ReadFile(name string) ([]byte, error)
 	WriteFile(name string, data []byte, perm os.FileMode) error
+}
+
+// PackageLoader interface for loading external packages.
+type PackageLoader interface {
+	Load(importPath string) ([]*ast.File, *token.FileSet, error)
 }
 
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
-	pkgDir, pkgName, matchName, impName string
+	pkgName, matchName, impName string
 }
 
 // cliArgs defines the command-line arguments for the generator.
@@ -72,12 +71,7 @@ type cliArgs struct {
 }
 
 // getGeneratorInfo gathers basic information about the generator call.
-func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSystem) (generatorInfo, error) {
-	pkgDir, err := fileSys.Getwd() // assume current dir is the package dir
-	if err != nil {
-		return generatorInfo{}, fmt.Errorf("failed to get working directory: %w", err)
-	}
-
+func getGeneratorInfo(args []string, getEnv func(string) string) (generatorInfo, error) {
 	pkgName := getEnv("GOPACKAGE")
 
 	parsed, err := parseArgs(args)
@@ -93,7 +87,7 @@ func getGeneratorInfo(args []string, getEnv func(string) string, fileSys FileSys
 		impName = matchName + "Imp" // default implementation name
 	}
 
-	return generatorInfo{pkgDir: pkgDir, pkgName: pkgName, matchName: matchName, impName: impName}, nil
+	return generatorInfo{pkgName: pkgName, matchName: matchName, impName: impName}, nil
 }
 
 // parseArgs parses command-line arguments into cliArgs.
@@ -119,14 +113,18 @@ func parseArgs(args []string) (cliArgs, error) {
 }
 
 // getPackageAndMatchName determines the import path and interface name to match.
-func getPackageAndMatchName(info generatorInfo, fileSys FileSystem) (string, string, error) {
+func getPackageAndMatchName(info generatorInfo, pkgLoader PackageLoader) (string, string, error) {
 	matchName := info.matchName
 	// Check if matchName contains a dot, e.g. "run.ExampleInt"
 	if dot := strings.Index(matchName, "."); dot != -1 {
 		targetPkgImport := matchName[:dot]
 		matchName = matchName[dot+1:]
 		// Resolve the full import path for the target package
-		astFiles, _ := parsePackageFiles(info.pkgDir, fileSys)
+		astFiles, _, err := pkgLoader.Load(".")
+		if err != nil {
+			return "", "", fmt.Errorf("failed to load local package: %w", err)
+		}
+
 		for _, fileAst := range astFiles {
 			for _, imp := range fileAst.Imports {
 				importPath, err := strconv.Unquote(imp.Path.Value)
@@ -144,24 +142,18 @@ func getPackageAndMatchName(info generatorInfo, fileSys FileSystem) (string, str
 		return "", "", fmt.Errorf("%w: %q", errPackageNotFound, targetPkgImport)
 	}
 
-	return info.pkgDir, matchName, nil
+	return ".", matchName, nil
 }
 
 // parsePackageAST loads and parses the AST for the given package import path.
-func parsePackageAST(pkgImportPath, pkgDir string, fileSys FileSystem) ([]*ast.File, *token.FileSet) {
-	if pkgImportPath == pkgDir {
-		return parsePackageFiles(pkgDir, fileSys)
-	}
-
-	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
-
-	pkgs, err := packages.Load(cfg, pkgImportPath)
-	if err != nil || len(pkgs) == 0 || pkgs[0].Errors != nil {
+func parsePackageAST(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet) {
+	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
+	if err != nil {
 		fmt.Printf("error loading package %q: %v\n", pkgImportPath, err)
 		return nil, token.NewFileSet()
 	}
 
-	return pkgs[0].Syntax, pkgs[0].Fset
+	return astFiles, fset
 }
 
 // getMatchingInterfaceFromAST finds the interface by name in the ASTs.
@@ -262,50 +254,6 @@ func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileS
 	fmt.Printf("%s written successfully.\n", filename)
 
 	return nil
-}
-
-// parsePackageFiles reads and parses all Go files in the package directory.
-func parsePackageFiles(pkgDir string, fileSys FileSystem) ([]*ast.File, *token.FileSet) {
-	entries, err := fileSys.ReadDir(pkgDir)
-	if err != nil {
-		fmt.Printf("  error reading package dir %q: %v\n", pkgDir, err)
-		return nil, token.NewFileSet()
-	}
-
-	var files []string
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		if len(name) > 3 && name[len(name)-3:] == ".go" && name != "generated.go" {
-			files = append(files, filepath.Join(pkgDir, name))
-		}
-	}
-
-	fset := token.NewFileSet()
-
-	astFiles := make([]*ast.File, 0, len(files))
-
-	for _, file := range files {
-		data, err := fileSys.ReadFile(file)
-		if err != nil {
-			fmt.Printf("  error reading file %q: %v\n", file, err)
-			continue
-		}
-
-		parsedFile, err := parser.ParseFile(fset, file, data, parser.ParseComments)
-		if err != nil {
-			fmt.Printf("  error parsing file %q: %v\n", file, err)
-			continue
-		}
-
-		astFiles = append(astFiles, parsedFile)
-	}
-
-	return astFiles, fset
 }
 
 // codeGenerator holds state for code generation.

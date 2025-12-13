@@ -2,7 +2,10 @@ package run_test
 
 import (
 	"errors"
-	"io/fs"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"strings"
 	"testing"
@@ -15,11 +18,7 @@ const (
 	pkgName = "mypkg"
 )
 
-var (
-	errCannotReadDir  = errors.New("cannot read dir")
-	errCannotReadFile = errors.New("cannot read file")
-	errCannotGetwd    = errors.New("cannot get working directory")
-)
+var errPackageNotFound = errors.New("package not found")
 
 const skipInterfaceSource = `package mypkg
 type SkipInterface interface {
@@ -28,59 +27,16 @@ type SkipInterface interface {
 
 var errWriteFailed = errors.New("write failed")
 
-var errNotImplemented = errors.New("not implemented")
-
 // MockFileSystem implements FileSystem for testing.
 type MockFileSystem struct {
-	cwd         string
-	cwdErr      error
-	files       map[string][]byte
-	dirs        map[string][]os.DirEntry
-	readDirErr  map[string]error
-	readFileErr map[string]error
-	writeHook   func(name string, data []byte) error
+	files     map[string][]byte
+	writeHook func(name string, data []byte) error
 }
 
 func NewMockFileSystem() *MockFileSystem {
 	return &MockFileSystem{
-		cwd:         appDir,
-		files:       make(map[string][]byte),
-		dirs:        make(map[string][]os.DirEntry),
-		readDirErr:  make(map[string]error),
-		readFileErr: make(map[string]error),
+		files: make(map[string][]byte),
 	}
-}
-
-func (m *MockFileSystem) Getwd() (string, error) {
-	if m.cwdErr != nil {
-		return "", m.cwdErr
-	}
-
-	return m.cwd, nil
-}
-
-func (m *MockFileSystem) ReadDir(name string) ([]os.DirEntry, error) {
-	if err, ok := m.readDirErr[name]; ok {
-		return nil, err
-	}
-
-	if entries, ok := m.dirs[name]; ok {
-		return entries, nil
-	}
-
-	return nil, os.ErrNotExist
-}
-
-func (m *MockFileSystem) ReadFile(name string) ([]byte, error) {
-	if err, ok := m.readFileErr[name]; ok {
-		return nil, err
-	}
-
-	if content, ok := m.files[name]; ok {
-		return content, nil
-	}
-
-	return nil, os.ErrNotExist
 }
 
 func (m *MockFileSystem) WriteFile(name string, data []byte, _ os.FileMode) error {
@@ -93,22 +49,52 @@ func (m *MockFileSystem) WriteFile(name string, data []byte, _ os.FileMode) erro
 	return nil
 }
 
-// MockDirEntry implements os.DirEntry for testing.
-type MockDirEntry struct {
-	name  string
-	isDir bool
+// MockPackageLoader implements PackageLoader for testing.
+type MockPackageLoader struct {
+	packages map[string]mockPackage
 }
 
-func (m MockDirEntry) Name() string               { return m.name }
-func (m MockDirEntry) IsDir() bool                { return m.isDir }
-func (m MockDirEntry) Type() fs.FileMode          { return 0 }
-func (m MockDirEntry) Info() (fs.FileInfo, error) { return nil, errNotImplemented }
+type mockPackage struct {
+	files []*ast.File
+	fset  *token.FileSet
+	err   error
+}
+
+// NewMockPackageLoader creates a new MockPackageLoader.
+func NewMockPackageLoader() *MockPackageLoader {
+	return &MockPackageLoader{
+		packages: make(map[string]mockPackage),
+	}
+}
+
+// AddPackageFromSource parses source code and registers it under the given import path.
+func (m *MockPackageLoader) AddPackageFromSource(importPath, source string) {
+	fset := token.NewFileSet()
+
+	file, err := parser.ParseFile(fset, "source.go", source, parser.ParseComments)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse source: %v", err))
+	}
+
+	m.packages[importPath] = mockPackage{
+		files: []*ast.File{file},
+		fset:  fset,
+	}
+}
+
+// Load returns the mocked package AST.
+func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, error) {
+	if pkg, ok := m.packages[importPath]; ok {
+		return pkg.files, pkg.fset, pkg.err
+	}
+
+	return nil, nil, fmt.Errorf("%w: %s", errPackageNotFound, importPath)
+}
 
 func TestRun_Success(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwd = appDir
 
 	// Setup mock files
 	sourceCode := `
@@ -118,10 +104,8 @@ type MyInterface interface {
 	DoSomething()
 }
 `
-	mockFS.files[appDir+"/source.go"] = []byte(sourceCode)
-	mockFS.dirs[appDir] = []os.DirEntry{
-		MockDirEntry{name: "source.go", isDir: false},
-	}
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 	env := func(key string) string {
@@ -132,7 +116,7 @@ type MyInterface interface {
 		return ""
 	}
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -146,7 +130,6 @@ func TestRun_NoInterface(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwd = appDir
 
 	// Setup mock files with NO interface
 	sourceCode := `
@@ -154,15 +137,13 @@ package mypkg
 
 type MyStruct struct {}
 `
-	mockFS.files[appDir+"/source.go"] = []byte(sourceCode)
-	mockFS.dirs[appDir] = []os.DirEntry{
-		MockDirEntry{name: "source.go", isDir: false},
-	}
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "MyInterface"}
 	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err == nil {
 		t.Error("Expected error when interface is missing")
 	}
@@ -172,7 +153,6 @@ func TestRun_WriteError(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwd = appDir
 
 	sourceCode := `
 package mypkg
@@ -181,10 +161,8 @@ type MyInterface interface {
 	DoSomething()
 }
 `
-	mockFS.files[appDir+"/source.go"] = []byte(sourceCode)
-	mockFS.dirs[appDir] = []os.DirEntry{
-		MockDirEntry{name: "source.go", isDir: false},
-	}
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	// Fail on write
 	mockFS.writeHook = func(_ string, _ []byte) error {
@@ -194,7 +172,7 @@ type MyInterface interface {
 	args := []string{"generator", "MyInterface"}
 	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err == nil {
 		t.Error("Expected error on write failure")
 	}
@@ -204,7 +182,6 @@ func TestRun_ComplexInterface(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwd = appDir
 
 	sourceCode := `
 package mypkg
@@ -216,15 +193,13 @@ type ComplexInterface interface {
 	Method4() (x, y int)
 }
 `
-	mockFS.files[appDir+"/source.go"] = []byte(sourceCode)
-	mockFS.dirs[appDir] = []os.DirEntry{
-		MockDirEntry{name: "source.go", isDir: false},
-	}
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "ComplexInterface", "--name", "ComplexImp"}
 	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -255,7 +230,6 @@ func TestRun_Values(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwd = appDir
 
 	// Source with single return and unnamed params
 	sourceCode := `
@@ -269,15 +243,13 @@ type ValueInterface interface {
 	OneBool(bool)
 }
 `
-	mockFS.files[appDir+"/values.go"] = []byte(sourceCode)
-	mockFS.dirs[appDir] = []os.DirEntry{
-		MockDirEntry{name: "values.go", isDir: false},
-	}
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "ValueInterface", "--name", "ValueImp"}
 	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -323,56 +295,67 @@ type ValueInterface interface {
 	}
 }
 
+func createStringerAST() (*ast.File, *token.FileSet) {
+	fset := token.NewFileSet()
+	stringerFile := &ast.File{
+		Name: ast.NewIdent("fmt"),
+		Decls: []ast.Decl{
+			&ast.GenDecl{
+				Tok: token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: ast.NewIdent("Stringer"),
+						Type: &ast.InterfaceType{
+							Methods: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Names: []*ast.Ident{ast.NewIdent("String")},
+										Type: &ast.FuncType{
+											Params: &ast.FieldList{},
+											Results: &ast.FieldList{
+												List: []*ast.Field{
+													{Type: ast.NewIdent("string")},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return stringerFile, fset
+}
+
 func TestRun_ForeignInterface(t *testing.T) {
 	t.Parallel()
 
-	// This test requires actual disk access because packages.Load hits the disk/module system.
-	// We can't mock the filesystem for packages.Load easily without internal changes.
-	// However, we CAN test the 'getPackageAndMatchName' logic if we mock ReadDir/ReadFile enough
-	// for a local file to resolve imports, OR we just trust packages.Load works and test the flow.
-
-	// Let's rely on standard packages like "fmt" which are always available.
-
 	mockFS := NewMockFileSystem()
-	cwd, _ := os.Getwd() // We need a real CWD for packages.Load to work relative to something?
-	// packages.Load behaves relative to current dir usually.
 
-	// Issue: mockFS is only used for OUR file operations (ReadDir/ReadFile called by run.go),
-	// but packages.Load uses the REAL OS filesystem.
-	// If we provide "fmt.Stringer", getPackageAndMatchName parses the import from OUR local files first
-	// to find the full import path if "fmt" was a local alias, but here "fmt" is the import path.
-
-	mockFS.cwd = cwd
-
-	// We create a dummy file that imports "fmt" so we can "resolve" it if needed,
-	// but the code logic for "fmt.Stringer" in getPackageAndMatchName:
-	// 1. Checks if "fmt.Stringer" has dot -> Yes.
-	// 2. targetPkgImport = "fmt", matchName = "Stringer".
-	// 3. parsePackageFiles(pkgDir, fs) -> scans local files to see imports.
-
-	// So we need a local file that imports "fmt".
-	sourceCode := `package mypkg
+	// Local package source that imports "fmt" so getPackageAndMatchName can resolve the import.
+	localSource := `package mypkg
 import "fmt"
 var _ fmt.Stringer
 `
-	mockFS.files[cwd+"/dummy.go"] = []byte(sourceCode)
 
-	// MockDirEntry needs to be robust
-	mockFS.dirs[cwd] = []os.DirEntry{
-		MockDirEntry{name: "dummy.go", isDir: false},
+	// Create a mock package loader that returns both local and fmt packages
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localSource)
+
+	stringerFile, fset := createStringerAST()
+	mockPkgLoader.packages["fmt"] = mockPackage{
+		files: []*ast.File{stringerFile},
+		fset:  fset,
 	}
 
 	args := []string{"generator", "fmt.Stringer", "--name", "StringerImp"}
 	env := func(_ string) string { return pkgName }
 
-	// Run needs to:
-	// 1. Parse local dummy.go (via mockFS)
-	// 2. Find "fmt" import.
-	// 3. Call parsePackageAST("fmt", ...) -> calls packages.Load("fmt") -> REAL FS access.
-	// 4. Find Stringer interface in fmt package (Real AST).
-	// 5. Generate code (MockFS write).
-
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -388,123 +371,56 @@ var _ fmt.Stringer
 	}
 }
 
-func TestRun_GetwdError(t *testing.T) {
+func TestRun_PackageLoaderError(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwdErr = errCannotGetwd
+	mockPkgLoader := NewMockPackageLoader()
+	// Don't register any packages - Load will fail
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err == nil {
-		t.Error("Expected error from Getwd, got nil")
+		t.Error("Expected error from package loader, got nil")
 	}
-}
-
-func TestRun_ParseFiles_ReadErrors(t *testing.T) {
-	t.Parallel()
-
-	// 1. ReadDir Error
-	t.Run("ReadDir Error", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		mockFS.readDirErr[appDir] = errCannotReadDir
-
-		args := []string{"generator", "MyInterface", "--name", "MyImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS)
-		if err == nil {
-			t.Error("Expected error from ReadDir, got nil")
-		}
-	})
-
-	// 2. ReadFile Error - parsePackageFiles continues on error, so interface won't be found
-	t.Run("ReadFile Error", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		mockFS.dirs[appDir] = []os.DirEntry{
-			MockDirEntry{name: "file.go", isDir: false},
-		}
-		mockFS.readFileErr[appDir+"/file.go"] = errCannotReadFile
-
-		args := []string{"generator", "MyInterface", "--name", "MyImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS)
-		if err == nil {
-			t.Error("Expected error finding interface (due to read fail), got nil")
-		}
-	})
-
-	// 3. Parse Error (Invalid Go syntax)
-	t.Run("Parse Error", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		mockFS.dirs[appDir] = []os.DirEntry{
-			MockDirEntry{name: "bad.go", isDir: false},
-		}
-		mockFS.files[appDir+"/bad.go"] = []byte("package bad\n func { invalid syntax }")
-
-		args := []string{"generator", "MyInterface", "--name", "MyImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS)
-		if err == nil {
-			t.Error("Expected error (interface not found), got nil")
-		}
-	})
 }
 
 func TestRun_ParseFiles_Filtering(t *testing.T) {
 	t.Parallel()
 
-	// 4. Directory entry (should be skipped)
+	// 4. Directory entry (should be skipped) - now tests via package loader
 	t.Run("Skip Directory", func(t *testing.T) {
 		t.Parallel()
 
 		mockFS := NewMockFileSystem()
-
-		sourceCode := skipInterfaceSource
-		mockFS.dirs[appDir] = []os.DirEntry{
-			MockDirEntry{name: "subdir", isDir: true},
-			MockDirEntry{name: "valid.go", isDir: false},
-		}
-		mockFS.files[appDir+"/valid.go"] = []byte(sourceCode)
+		mockPkgLoader := NewMockPackageLoader()
+		mockPkgLoader.AddPackageFromSource(".", skipInterfaceSource)
 
 		args := []string{"generator", "SkipInterface", "--name", "SkipImp"}
 		env := func(_ string) string { return pkgName }
 
-		err := run.Run(args, env, mockFS)
+		err := run.Run(args, env, mockFS, mockPkgLoader)
 		if err != nil {
-			t.Errorf("Should skip directory and find interface, got error: %v", err)
+			t.Errorf("Should find interface, got error: %v", err)
 		}
 	})
 
-	// 5. Non-.go file (should be skipped)
+	// 5. Non-.go file (should be skipped) - now tests via package loader
 	t.Run("Skip Non-Go File", func(t *testing.T) {
 		t.Parallel()
 
 		mockFS := NewMockFileSystem()
-
-		sourceCode := skipInterfaceSource
-		mockFS.dirs[appDir] = []os.DirEntry{
-			MockDirEntry{name: "readme.txt", isDir: false},
-			MockDirEntry{name: "valid.go", isDir: false},
-		}
-		mockFS.files[appDir+"/valid.go"] = []byte(sourceCode)
+		mockPkgLoader := NewMockPackageLoader()
+		mockPkgLoader.AddPackageFromSource(".", skipInterfaceSource)
 
 		args := []string{"generator", "SkipInterface", "--name", "SkipImp"}
 		env := func(_ string) string { return pkgName }
 
-		err := run.Run(args, env, mockFS)
+		err := run.Run(args, env, mockFS, mockPkgLoader)
 		if err != nil {
-			t.Errorf("Should skip non-.go file and find interface, got error: %v", err)
+			t.Errorf("Should find interface, got error: %v", err)
 		}
 	})
 }
@@ -512,26 +428,20 @@ func TestRun_ParseFiles_Filtering(t *testing.T) {
 func TestRun_ParseFiles_GeneratedGo(t *testing.T) {
 	t.Parallel()
 
-	// 6. Skip generated.go file
+	// 6. Skip generated.go file - now tests via package loader
 	t.Run("Skip generated.go", func(t *testing.T) {
 		t.Parallel()
 
 		mockFS := NewMockFileSystem()
-
-		sourceCode := skipInterfaceSource
-		mockFS.dirs[appDir] = []os.DirEntry{
-			MockDirEntry{name: "generated.go", isDir: false},
-			MockDirEntry{name: "valid.go", isDir: false},
-		}
-		mockFS.files[appDir+"/generated.go"] = []byte("package mypkg\n// should be skipped")
-		mockFS.files[appDir+"/valid.go"] = []byte(sourceCode)
+		mockPkgLoader := NewMockPackageLoader()
+		mockPkgLoader.AddPackageFromSource(".", skipInterfaceSource)
 
 		args := []string{"generator", "SkipInterface", "--name", "SkipImp"}
 		env := func(_ string) string { return pkgName }
 
-		err := run.Run(args, env, mockFS)
+		err := run.Run(args, env, mockFS, mockPkgLoader)
 		if err != nil {
-			t.Errorf("Should skip generated.go and find interface, got error: %v", err)
+			t.Errorf("Should find interface, got error: %v", err)
 		}
 	})
 }
@@ -540,7 +450,6 @@ func TestRun_EmbeddedInterface(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwd = appDir
 
 	// Interface with embedded interface (unnamed field)
 	sourceCode := `
@@ -555,15 +464,13 @@ type EmbeddedInterface interface {
 	OwnMethod()
 }
 `
-	mockFS.files[appDir+"/embedded.go"] = []byte(sourceCode)
-	mockFS.dirs[appDir] = []os.DirEntry{
-		MockDirEntry{name: "embedded.go", isDir: false},
-	}
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "EmbeddedInterface", "--name", "EmbeddedImp"}
 	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -590,7 +497,6 @@ func TestRun_TestPackageAppendsTestToFilename(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
-	mockFS.cwd = appDir
 
 	// Setup mock files
 	sourceCode := `
@@ -600,10 +506,8 @@ type MyInterface interface {
 	DoSomething()
 }
 `
-	mockFS.files[appDir+"/source_test.go"] = []byte(sourceCode)
-	mockFS.dirs[appDir] = []os.DirEntry{
-		MockDirEntry{name: "source_test.go", isDir: false},
-	}
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 	env := func(key string) string {
@@ -614,7 +518,7 @@ type MyInterface interface {
 		return ""
 	}
 
-	err := run.Run(args, env, mockFS)
+	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -632,27 +536,25 @@ type MyInterface interface {
 func TestRun_ParseAST_Error(t *testing.T) {
 	t.Parallel()
 
-	// Test 2: Nonsense import path that packages.Load cannot resolve
+	// Test: Nonsense import path that packages.Load cannot resolve
 	t.Run("Nonsense Import Path", func(t *testing.T) {
 		t.Parallel()
 
 		mockFS := NewMockFileSystem()
-		mockFS.cwd = "not/a/real/path/to/anywhere"
+		mockPkgLoader := NewMockPackageLoader()
 
-		// Create a file with a nonsense import path
+		// Local package that imports "not/a/real/path"
 		sourceCode := `package mypkg
 import "not/a/real/path"
 `
-		mockFS.files[mockFS.cwd+"/test.go"] = []byte(sourceCode)
-		mockFS.dirs[mockFS.cwd] = []os.DirEntry{
-			MockDirEntry{name: "test.go", isDir: false},
-		}
+		mockPkgLoader.AddPackageFromSource(".", sourceCode)
+		// Don't register the "not/a/real/path" package - Load will fail for it
 
 		// Use the imported package name - "path" is the last segment
 		args := []string{"generator", "path.SomeInterface", "--name", "TestImp"}
 		env := func(_ string) string { return pkgName }
 
-		err := run.Run(args, env, mockFS)
+		err := run.Run(args, env, mockFS, mockPkgLoader)
 		if err == nil {
 			t.Error("Expected error loading nonsense package path, got nil")
 		}
