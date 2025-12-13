@@ -188,9 +188,6 @@ func generateImplementationCode(
 	fset *token.FileSet,
 ) (string, error) {
 	impName := info.impName
-	if impName == "" {
-		impName = "interfaceImplementation"
-	}
 
 	gen := &codeGenerator{
 		fset:                fset,
