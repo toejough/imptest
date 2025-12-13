@@ -99,8 +99,8 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string, prevErr err
 // getLocalInterfaceName extracts the local interface name from a possibly qualified name
 // (e.g., "MyInterface" from "pkg.MyInterface").
 func getLocalInterfaceName(name string) string {
-	if dot := strings.Index(name, "."); dot != -1 {
-		return name[dot+1:]
+	if _, after, ok := strings.Cut(name, "."); ok {
+		return after
 	}
 
 	return name
@@ -135,33 +135,68 @@ func getInterfacePackagePath(qualifiedName string, pkgLoader PackageLoader, prev
 		return "", prevErr
 	}
 
-	dot := strings.Index(qualifiedName, ".")
-	if dot == -1 {
-		return ".", nil
+	if isLocalInterface(qualifiedName) {
+		return getLocalPackagePath(), nil
 	}
 
-	targetPkgImport := qualifiedName[:dot]
+	return getNonLocalPackagePath(qualifiedName, pkgLoader)
+}
+
+// isLocalInterface checks if the interface name is local (no package qualifier).
+func isLocalInterface(qualifiedName string) bool {
+	return !strings.Contains(qualifiedName, ".")
+}
+
+// getLocalPackagePath returns the path for local package interfaces.
+func getLocalPackagePath() string {
+	return "."
+}
+
+// getNonLocalPackagePath resolves the full import path for a qualified interface name.
+func getNonLocalPackagePath(qualifiedName string, pkgLoader PackageLoader) (string, error) {
+	targetPkgImport := extractPackageName(qualifiedName)
 
 	astFiles, _, err := pkgLoader.Load(".")
 	if err != nil {
 		return "", fmt.Errorf("failed to load local package: %w", err)
 	}
 
+	importPath, err := findImportPath(astFiles, targetPkgImport)
+	if err != nil {
+		return "", err
+	}
+
+	return importPath, nil
+}
+
+// extractPackageName extracts the package name from a qualified interface name (e.g., "pkg" from "pkg.Interface").
+func extractPackageName(qualifiedName string) string {
+	before, _, _ := strings.Cut(qualifiedName, ".")
+	return before
+}
+
+// findImportPath searches through AST files to find the full import path for a package name.
+func findImportPath(astFiles []*ast.File, targetPkgImport string) (string, error) {
 	for _, fileAst := range astFiles {
 		for _, imp := range fileAst.Imports {
 			importPath, err := strconv.Unquote(imp.Path.Value)
 			if err != nil {
 				continue
 			}
-			// Check if the last segment matches the targetPkgImport
-			parts := strings.Split(importPath, "/")
-			if len(parts) > 0 && parts[len(parts)-1] == targetPkgImport {
+
+			if importPathMatchesPackageName(importPath, targetPkgImport) {
 				return importPath, nil
 			}
 		}
 	}
 
 	return "", fmt.Errorf("%w: %q", errPackageNotFound, targetPkgImport)
+}
+
+// importPathMatchesPackageName checks if the last segment of an import path matches the target package name.
+func importPathMatchesPackageName(importPath, targetPkgImport string) bool {
+	parts := strings.Split(importPath, "/")
+	return len(parts) > 0 && parts[len(parts)-1] == targetPkgImport
 }
 
 // getMatchingInterfaceFromAST finds the interface by name in the ASTs.
