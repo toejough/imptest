@@ -13,17 +13,9 @@ import (
 	"github.com/toejough/imptest/impgen/run"
 )
 
-const (
-	appDir  = "/app"
-	pkgName = "mypkg"
-)
+const pkgName = "mypkg"
 
 var errPackageNotFound = errors.New("package not found")
-
-const skipInterfaceSource = `package mypkg
-type SkipInterface interface {
-	Method()
-}`
 
 var errWriteFailed = errors.New("write failed")
 
@@ -57,7 +49,6 @@ type MockPackageLoader struct {
 type mockPackage struct {
 	files []*ast.File
 	fset  *token.FileSet
-	err   error
 }
 
 // NewMockPackageLoader creates a new MockPackageLoader.
@@ -85,11 +76,13 @@ func (m *MockPackageLoader) AddPackageFromSource(importPath, source string) {
 // Load returns the mocked package AST.
 func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, error) {
 	if pkg, ok := m.packages[importPath]; ok {
-		return pkg.files, pkg.fset, pkg.err
+		return pkg.files, pkg.fset, nil
 	}
 
 	return nil, nil, fmt.Errorf("%w: %s", errPackageNotFound, importPath)
 }
+
+func envWithPkgName(_ string) string { return pkgName }
 
 func TestRun_Success(t *testing.T) {
 	t.Parallel()
@@ -108,15 +101,8 @@ type MyInterface interface {
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
-	env := func(key string) string {
-		if key == "GOPACKAGE" {
-			return pkgName
-		}
 
-		return ""
-	}
-
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -141,9 +127,8 @@ type MyStruct struct {}
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "MyInterface"}
-	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err == nil {
 		t.Error("Expected error when interface is missing")
 	}
@@ -170,9 +155,8 @@ type MyInterface interface {
 	}
 
 	args := []string{"generator", "MyInterface"}
-	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err == nil {
 		t.Error("Expected error on write failure")
 	}
@@ -197,9 +181,8 @@ type ComplexInterface interface {
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "ComplexInterface", "--name", "ComplexImp"}
-	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -247,9 +230,8 @@ type ValueInterface interface {
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "ValueInterface", "--name", "ValueImp"}
-	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -320,9 +302,8 @@ type Stringer interface {
 	mockPkgLoader.AddPackageFromSource("fmt", fmtSource)
 
 	args := []string{"generator", "fmt.Stringer", "--name", "StringerImp"}
-	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -346,71 +327,11 @@ func TestRun_PackageLoaderError(t *testing.T) {
 	// Don't register any packages - Load will fail
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
-	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err == nil {
 		t.Error("Expected error from package loader, got nil")
 	}
-}
-
-func TestRun_ParseFiles_Filtering(t *testing.T) {
-	t.Parallel()
-
-	// 4. Directory entry (should be skipped) - now tests via package loader
-	t.Run("Skip Directory", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		mockPkgLoader := NewMockPackageLoader()
-		mockPkgLoader.AddPackageFromSource(".", skipInterfaceSource)
-
-		args := []string{"generator", "SkipInterface", "--name", "SkipImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS, mockPkgLoader)
-		if err != nil {
-			t.Errorf("Should find interface, got error: %v", err)
-		}
-	})
-
-	// 5. Non-.go file (should be skipped) - now tests via package loader
-	t.Run("Skip Non-Go File", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		mockPkgLoader := NewMockPackageLoader()
-		mockPkgLoader.AddPackageFromSource(".", skipInterfaceSource)
-
-		args := []string{"generator", "SkipInterface", "--name", "SkipImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS, mockPkgLoader)
-		if err != nil {
-			t.Errorf("Should find interface, got error: %v", err)
-		}
-	})
-}
-
-func TestRun_ParseFiles_GeneratedGo(t *testing.T) {
-	t.Parallel()
-
-	// 6. Skip generated.go file - now tests via package loader
-	t.Run("Skip generated.go", func(t *testing.T) {
-		t.Parallel()
-
-		mockFS := NewMockFileSystem()
-		mockPkgLoader := NewMockPackageLoader()
-		mockPkgLoader.AddPackageFromSource(".", skipInterfaceSource)
-
-		args := []string{"generator", "SkipInterface", "--name", "SkipImp"}
-		env := func(_ string) string { return pkgName }
-
-		err := run.Run(args, env, mockFS, mockPkgLoader)
-		if err != nil {
-			t.Errorf("Should find interface, got error: %v", err)
-		}
-	})
 }
 
 func TestRun_EmbeddedInterface(t *testing.T) {
@@ -435,9 +356,8 @@ type EmbeddedInterface interface {
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "EmbeddedInterface", "--name", "EmbeddedImp"}
-	env := func(_ string) string { return pkgName }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -477,13 +397,7 @@ type MyInterface interface {
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
-	env := func(key string) string {
-		if key == "GOPACKAGE" {
-			return "mypkg_test" // Simulate being in a _test package
-		}
-
-		return ""
-	}
+	env := func(_ string) string { return "mypkg_test" }
 
 	err := run.Run(args, env, mockFS, mockPkgLoader)
 	if err != nil {
@@ -500,30 +414,24 @@ type MyInterface interface {
 	}
 }
 
-func TestRun_ParseAST_Error(t *testing.T) {
+func TestRun_ForeignPackageLoadError(t *testing.T) {
 	t.Parallel()
 
-	// Test: Nonsense import path that packages.Load cannot resolve
-	t.Run("Nonsense Import Path", func(t *testing.T) {
-		t.Parallel()
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
 
-		mockFS := NewMockFileSystem()
-		mockPkgLoader := NewMockPackageLoader()
-
-		// Local package that imports "not/a/real/path"
-		sourceCode := `package mypkg
+	// Local package that imports "not/a/real/path"
+	sourceCode := `package mypkg
 import "not/a/real/path"
 `
-		mockPkgLoader.AddPackageFromSource(".", sourceCode)
-		// Don't register the "not/a/real/path" package - Load will fail for it
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+	// Don't register the "not/a/real/path" package - Load will fail for it
 
-		// Use the imported package name - "path" is the last segment
-		args := []string{"generator", "path.SomeInterface", "--name", "TestImp"}
-		env := func(_ string) string { return pkgName }
+	// Use the imported package name - "path" is the last segment
+	args := []string{"generator", "path.SomeInterface", "--name", "TestImp"}
 
-		err := run.Run(args, env, mockFS, mockPkgLoader)
-		if err == nil {
-			t.Error("Expected error loading nonsense package path, got nil")
-		}
-	})
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error loading nonsense package path, got nil")
+	}
 }
