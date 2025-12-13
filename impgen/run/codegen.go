@@ -28,9 +28,60 @@ type codeGenerator struct {
 
 // Methods on codeGenerator
 
-// p writes a formatted string to the buffer (short for "print").
-func (gen *codeGenerator) pf(format string, args ...any) {
-	fmt.Fprintf(&gen.buf, format, args...)
+// forEachMethod iterates over interface methods and calls the callback for each.
+func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
+	forEachInterfaceMethod(gen.identifiedInterface, callback)
+}
+
+func (gen *codeGenerator) generateCallAsMethod() {
+	for _, methodName := range gen.methodNames {
+		gen.pf("func (c *%s) As%s() *%s { return c.%s }\n\n",
+			gen.callName, methodName, gen.methodCallName(methodName), methodName)
+	}
+}
+
+func (gen *codeGenerator) generateCallDoneMethod() {
+	gen.pf(`func (c *%s) Done() bool {
+`, gen.callName)
+
+	for _, methodName := range gen.methodNames {
+		gen.pf(`	if c.%s != nil {
+		return c.%s.done
+	}
+`, methodName, methodName)
+	}
+
+	gen.pf(`	return false
+}
+
+`)
+}
+
+func (gen *codeGenerator) generateCallNameMethod() {
+	gen.pf("func (c *%s) Name() string {\n", gen.callName)
+
+	for _, methodName := range gen.methodNames {
+		gen.pf("\tif c.%s != nil {\n", methodName)
+		gen.pf("\t\treturn %q\n", methodName)
+		gen.pf("\t}\n")
+	}
+
+	gen.pf("\treturn \"\"\n")
+	gen.pf("}\n\n")
+}
+
+func (gen *codeGenerator) generateCallStruct() {
+	gen.pf("type %s struct {\n", gen.callName)
+
+	for _, methodName := range gen.methodNames {
+		gen.pf("\t%s *%s\n", methodName, gen.methodCallName(methodName))
+	}
+
+	gen.pf("}\n\n")
+
+	gen.generateCallNameMethod()
+	gen.generateCallDoneMethod()
+	gen.generateCallAsMethod()
 }
 
 // generateHeader writes the package declaration and imports for the generated file.
@@ -75,16 +126,16 @@ func (gen *codeGenerator) methodCallName(methodName string) string {
 	return gen.impName + methodName + "Call"
 }
 
+// pf writes a formatted string to the buffer (short for "print").
+func (gen *codeGenerator) pf(format string, args ...any) {
+	fmt.Fprintf(&gen.buf, format, args...)
+}
+
 // writeMethodSignature writes the method name and parameters (e.g., "MethodName(a int, b string)").
 func (gen *codeGenerator) writeMethodSignature(methodName string, ftype *ast.FuncType, paramNames []string) {
 	gen.pf("%s(", methodName)
 	gen.writeMethodParams(ftype, paramNames)
 	gen.pf(")")
-}
-
-// forEachMethod iterates over interface methods and calls the callback for each.
-func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
-	forEachInterfaceMethod(gen.identifiedInterface, callback)
 }
 
 // generateMethodStructs generates the call and response structs for each interface method.
@@ -511,57 +562,6 @@ func (gen *codeGenerator) writeReturnValue(result *ast.Field, returnIndex int) i
 	gen.pf(" resp.Result%d", returnIndex)
 
 	return returnIndex + 1
-}
-
-func (gen *codeGenerator) generateCallStruct() {
-	gen.pf("type %s struct {\n", gen.callName)
-
-	for _, methodName := range gen.methodNames {
-		gen.pf("\t%s *%s\n", methodName, gen.methodCallName(methodName))
-	}
-
-	gen.pf("}\n\n")
-
-	gen.generateCallNameMethod()
-	gen.generateCallDoneMethod()
-	gen.generateCallAsMethod()
-}
-
-func (gen *codeGenerator) generateCallNameMethod() {
-	gen.pf("func (c *%s) Name() string {\n", gen.callName)
-
-	for _, methodName := range gen.methodNames {
-		gen.pf("\tif c.%s != nil {\n", methodName)
-		gen.pf("\t\treturn %q\n", methodName)
-		gen.pf("\t}\n")
-	}
-
-	gen.pf("\treturn \"\"\n")
-	gen.pf("}\n\n")
-}
-
-func (gen *codeGenerator) generateCallDoneMethod() {
-	gen.pf(`func (c *%s) Done() bool {
-`, gen.callName)
-
-	for _, methodName := range gen.methodNames {
-		gen.pf(`	if c.%s != nil {
-		return c.%s.done
-	}
-`, methodName, methodName)
-	}
-
-	gen.pf(`	return false
-}
-
-`)
-}
-
-func (gen *codeGenerator) generateCallAsMethod() {
-	for _, methodName := range gen.methodNames {
-		gen.pf("func (c *%s) As%s() *%s { return c.%s }\n\n",
-			gen.callName, methodName, gen.methodCallName(methodName), methodName)
-	}
 }
 
 func (gen *codeGenerator) generateExpectCallToStruct() {
