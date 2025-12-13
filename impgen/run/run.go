@@ -448,9 +448,10 @@ func (gen *codeGenerator) generateMethodStructs() {
 
 func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
-	gen.pf("type %s struct {\n", callName)
-	gen.pf("\tresponseChan chan %sResponse\n", callName)
-	gen.pf("\tdone bool\n")
+	gen.pf(`type %s struct {
+	responseChan chan %sResponse
+	done bool
+`, callName, callName)
 
 	if hasParams(ftype) {
 		gen.generateCallStructParamFields(ftype)
@@ -489,15 +490,18 @@ func (gen *codeGenerator) generateUnnamedParamField(param *ast.Field, paramType 
 
 func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
-	gen.pf("type %sResponse struct {\n", callName)
-	gen.pf("\tType string // \"return\", \"panic\", or \"resolve\"\n")
+	gen.pf(`type %sResponse struct {
+	Type string // "return", "panic", or "resolve"
+`, callName)
 
 	if hasResults(ftype) {
 		gen.generateResponseStructResultFields(ftype)
 	}
 
-	gen.pf("\tPanicValue interface{}\n")
-	gen.pf("}\n\n")
+	gen.pf(`	PanicValue interface{}
+}
+
+`)
 }
 
 func (gen *codeGenerator) generateResponseStructResultFields(ftype *ast.FuncType) {
@@ -552,9 +556,9 @@ func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype
 
 func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftype *ast.FuncType) {
 	resultType := exprToString(gen.fset, ftype.Results.List[0].Type)
-	gen.pf("func (c *%s) InjectResult(result %s) {\n", methodCallName, resultType)
-	gen.pf("\tc.done = true\n")
-	gen.pf("\tc.responseChan <- %sResponse{Type: \"return\"", methodCallName)
+	gen.pf(`func (c *%s) InjectResult(result %s) {
+	c.done = true
+	c.responseChan <- %sResponse{Type: "return"`, methodCallName, resultType, methodCallName)
 
 	if len(ftype.Results.List[0].Names) > 0 {
 		gen.pf(", %s: result", ftype.Results.List[0].Names[0].Name)
@@ -562,8 +566,9 @@ func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftyp
 		gen.pf(", Result0: result")
 	}
 
-	gen.pf("}\n")
-	gen.pf("}\n")
+	gen.pf(`}
+}
+`)
 }
 
 func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, ftype *ast.FuncType) {
@@ -571,15 +576,16 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 
 	returnParamNames := gen.writeInjectResultsParams(ftype)
 
-	gen.pf(") {\n")
-	gen.pf("\tc.done = true\n")
-	gen.pf("\tresp := %sResponse{Type: \"return\"", methodCallName)
+	gen.pf(`) {
+	c.done = true
+	resp := %sResponse{Type: "return"`, methodCallName)
 
 	gen.writeInjectResultsResponseFields(ftype, returnParamNames)
 
-	gen.pf("}\n")
-	gen.pf("\tc.responseChan <- resp\n")
-	gen.pf("}\n")
+	gen.pf(`}
+	c.responseChan <- resp
+}
+`)
 }
 
 func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string {
@@ -682,26 +688,28 @@ func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncT
 	gen.pf("func (m *%s) ", gen.mockName)
 	gen.writeMethodSignature(methodName, ftype, paramNames)
 	gen.pf("%s", renderFieldList(gen.fset, ftype.Results))
-	gen.pf(" {\n")
+	gen.pf(` {
+	responseChan := make(chan %sResponse, 1)
 
-	gen.pf("\tresponseChan := make(chan %sResponse, 1)\n", callName)
-	gen.pf("\n")
-
-	gen.pf("\tcall := &%s{\n", callName)
-	gen.pf("\t\tresponseChan: responseChan,\n")
+	call := &%s{
+		responseChan: responseChan,
+`, callName, callName)
 	gen.writeCallStructFields(ftype, paramNames)
-	gen.pf("\t}\n\n")
+	gen.pf(`	}
 
-	gen.pf("\tcallEvent := &%s{\n", gen.callName)
-	gen.pf("\t\t%s: call,\n", methodName)
-	gen.pf("\t}\n\n")
+	callEvent := &%s{
+		%s: call,
+	}
 
-	gen.pf("\tm.imp.callChan <- callEvent\n\n")
-	gen.pf("\tresp := <-responseChan\n\n")
+	m.imp.callChan <- callEvent
 
-	gen.pf("\tif resp.Type == \"panic\" {\n")
-	gen.pf("\t\tpanic(resp.PanicValue)\n")
-	gen.pf("\t}\n\n")
+	resp := <-responseChan
+
+	if resp.Type == "panic" {
+		panic(resp.PanicValue)
+	}
+
+`, gen.callName, methodName)
 
 	gen.writeReturnStatement(ftype)
 	gen.pf("}\n\n")
@@ -858,16 +866,20 @@ func (gen *codeGenerator) generateCallNameMethod() {
 }
 
 func (gen *codeGenerator) generateCallDoneMethod() {
-	gen.pf("func (c *%s) Done() bool {\n", gen.callName)
+	gen.pf(`func (c *%s) Done() bool {
+`, gen.callName)
 
 	for _, methodName := range gen.methodNames {
-		gen.pf("\tif c.%s != nil {\n", methodName)
-		gen.pf("\t\treturn c.%s.done\n", methodName)
-		gen.pf("\t}\n")
+		gen.pf(`	if c.%s != nil {
+		return c.%s.done
+	}
+`, methodName, methodName)
 	}
 
-	gen.pf("\treturn false\n")
-	gen.pf("}\n\n")
+	gen.pf(`	return false
+}
+
+`)
 }
 
 func (gen *codeGenerator) generateCallAsMethod() {
@@ -878,10 +890,12 @@ func (gen *codeGenerator) generateCallAsMethod() {
 }
 
 func (gen *codeGenerator) generateExpectCallToStruct() {
-	gen.pf("type %s struct {\n", gen.expectCallToName)
-	gen.pf("\timp *%s\n", gen.impName)
-	gen.pf("\ttimeout time.Duration\n")
-	gen.pf("}\n\n")
+	gen.pf(`type %s struct {
+	imp *%s
+	timeout time.Duration
+}
+
+`, gen.expectCallToName, gen.impName)
 }
 
 func (gen *codeGenerator) generateExpectCallToMethods() {
@@ -900,24 +914,29 @@ func (gen *codeGenerator) generateExpectCallToMethod(methodName string, ftype *a
 
 	gen.generateValidatorFunction(methodName, ftype, paramNames)
 
-	gen.pf("\tcall := e.imp.GetCall(e.timeout, validator)\n")
-	gen.pf("\treturn call.As%s()\n", methodName)
-	gen.pf("}\n\n")
+	gen.pf(`	call := e.imp.GetCall(e.timeout, validator)
+	return call.As%s()
+}
+
+`, methodName)
 }
 
 func (gen *codeGenerator) generateValidatorFunction(methodName string, ftype *ast.FuncType, paramNames []string) {
-	gen.pf("\tvalidator := func(c *%s) bool {\n", gen.callName)
-	gen.pf("\t\tif c.Name() != %q {\n", methodName)
-	gen.pf("\t\t\treturn false\n")
-	gen.pf("\t\t}\n")
+	gen.pf(`	validator := func(c *%s) bool {
+		if c.Name() != %q {
+			return false
+		}
+`, gen.callName, methodName)
 
 	if hasParams(ftype) {
-		gen.pf("\t\tmethodCall := c.As%s()\n", methodName)
+		gen.pf("		methodCall := c.As%s()\n", methodName)
 		gen.writeValidatorChecks(ftype, paramNames)
 	}
 
-	gen.pf("\t\treturn true\n")
-	gen.pf("\t}\n\n")
+	gen.pf(`		return true
+	}
+
+`)
 }
 
 func (gen *codeGenerator) writeValidatorChecks(ftype *ast.FuncType, paramNames []string) {
@@ -939,9 +958,10 @@ func (gen *codeGenerator) writeValidatorCheck(
 	if len(param.Names) > 0 {
 		for i, name := range param.Names {
 			fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-			gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, name.Name)
-			gen.pf("\t\t\treturn false\n")
-			gen.pf("\t\t}\n")
+			gen.pf(`		if methodCall.%s != %s {
+			return false
+		}
+`, fieldName, name.Name)
 
 			paramNameIndex++
 		}
@@ -950,9 +970,10 @@ func (gen *codeGenerator) writeValidatorCheck(
 	}
 
 	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-	gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, paramNames[paramNameIndex])
-	gen.pf("\t\t\treturn false\n")
-	gen.pf("\t\t}\n")
+	gen.pf(`		if methodCall.%s != %s {
+			return false
+		}
+`, fieldName, paramNames[paramNameIndex])
 
 	return paramNameIndex + 1, unnamedIndex + 1
 }
