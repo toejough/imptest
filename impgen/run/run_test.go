@@ -295,42 +295,6 @@ type ValueInterface interface {
 	}
 }
 
-func createStringerAST() (*ast.File, *token.FileSet) {
-	fset := token.NewFileSet()
-	stringerFile := &ast.File{
-		Name: ast.NewIdent("fmt"),
-		Decls: []ast.Decl{
-			&ast.GenDecl{
-				Tok: token.TYPE,
-				Specs: []ast.Spec{
-					&ast.TypeSpec{
-						Name: ast.NewIdent("Stringer"),
-						Type: &ast.InterfaceType{
-							Methods: &ast.FieldList{
-								List: []*ast.Field{
-									{
-										Names: []*ast.Ident{ast.NewIdent("String")},
-										Type: &ast.FuncType{
-											Params: &ast.FieldList{},
-											Results: &ast.FieldList{
-												List: []*ast.Field{
-													{Type: ast.NewIdent("string")},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	return stringerFile, fset
-}
-
 func TestRun_ForeignInterface(t *testing.T) {
 	t.Parallel()
 
@@ -342,15 +306,18 @@ import "fmt"
 var _ fmt.Stringer
 `
 
+	// Fake fmt.Stringer interface
+	fmtSource := `package fmt
+
+type Stringer interface {
+	String() string
+}
+`
+
 	// Create a mock package loader that returns both local and fmt packages
 	mockPkgLoader := NewMockPackageLoader()
 	mockPkgLoader.AddPackageFromSource(".", localSource)
-
-	stringerFile, fset := createStringerAST()
-	mockPkgLoader.packages["fmt"] = mockPackage{
-		files: []*ast.File{stringerFile},
-		fset:  fset,
-	}
+	mockPkgLoader.AddPackageFromSource("fmt", fmtSource)
 
 	args := []string{"generator", "fmt.Stringer", "--name", "StringerImp"}
 	env := func(_ string) string { return pkgName }
