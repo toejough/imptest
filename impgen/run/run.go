@@ -941,7 +941,7 @@ func generateParamName(index int, paramType string, totalParams int) string {
 		}
 
 		if normalized == "int" {
-			return "Input"
+			return "I"
 		}
 	}
 

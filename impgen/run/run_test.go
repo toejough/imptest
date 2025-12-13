@@ -279,8 +279,8 @@ type ValueInterface interface {
 
 		// OneInt signature
 		"func (m *ValueImpMock) OneInt(param0 int)",
-		// Call struct uses Input
-		"Input:        param0",
+		// Call struct uses I
+		"I:            param0",
 
 		// OneBool signature
 		"func (m *ValueImpMock) OneBool(param0 bool)",
