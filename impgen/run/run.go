@@ -187,7 +187,12 @@ func extractPackageName(qualifiedName string) string {
 // findImportPath searches through AST files to find the full import path for a package name.
 func findImportPath(astFiles []*ast.File, targetPkgImport string) (string, error) {
 	for _, fileAst := range astFiles {
-		if importPath := searchFileImports(fileAst, targetPkgImport); importPath != "" {
+		importPath, err := searchFileImports(fileAst, targetPkgImport)
+		if err != nil {
+			return "", err
+		}
+
+		if importPath != "" {
 			return importPath, nil
 		}
 	}
@@ -196,20 +201,20 @@ func findImportPath(astFiles []*ast.File, targetPkgImport string) (string, error
 }
 
 // searchFileImports searches a single AST file's imports for a matching package name.
-// Returns the full import path if found, empty string otherwise.
-func searchFileImports(fileAst *ast.File, targetPkgImport string) string {
+// Returns the full import path if found, empty string if not found, or an error if import paths are malformed.
+func searchFileImports(fileAst *ast.File, targetPkgImport string) (string, error) {
 	for _, imp := range fileAst.Imports {
 		importPath, err := strconv.Unquote(imp.Path.Value)
 		if err != nil {
-			continue
+			return "", fmt.Errorf("failed to unquote import path %q: %w", imp.Path.Value, err)
 		}
 
 		if importPathMatchesPackageName(importPath, targetPkgImport) {
-			return importPath
+			return importPath, nil
 		}
 	}
 
-	return ""
+	return "", nil
 }
 
 // importPathMatchesPackageName checks if the last segment of an import path matches the target package name.

@@ -495,11 +495,33 @@ func TestRun_MalformedImportPath(t *testing.T) {
 		fset:  fset,
 	}
 
-	// Try to reference a package - should skip the malformed import and fail to find it
+	// Try to reference a package - should fail with error about malformed import
 	args := []string{"generator", "pkg.SomeInterface", "--name", "TestImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err == nil {
-		t.Error("Expected error when package not found (due to malformed import), got nil")
+		t.Error("Expected error for malformed import path, got nil")
+	}
+}
+
+func TestRun_PackageNotInImports(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	// Local package with valid imports, but not the one we're looking for
+	sourceCode := `package mypkg
+import "fmt"
+import "strings"
+`
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	// Try to reference a package that isn't imported
+	args := []string{"generator", "nothere.SomeInterface", "--name", "TestImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error when package not in imports, got nil")
 	}
 }
