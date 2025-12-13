@@ -406,15 +406,18 @@ func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *
 
 // processFieldMethods processes all method names in a field and calls the callback for each valid method.
 func (gen *codeGenerator) processFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
+	// Skip embedded interfaces (they have no names)
 	if len(field.Names) == 0 {
 		return
 	}
 
+	// Skip non-function types (shouldn't happen in a valid interface, but be safe)
 	ftype, ok := field.Type.(*ast.FuncType)
 	if !ok {
 		return
 	}
 
+	// Process each method name with the same function type
 	for _, methodName := range field.Names {
 		callback(methodName.Name, ftype)
 	}
