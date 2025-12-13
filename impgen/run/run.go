@@ -228,26 +228,40 @@ func getMatchingInterfaceFromAST(
 	astFiles []*ast.File, localInterfaceName, pkgImportPath string,
 ) (*ast.InterfaceType, error) {
 	for _, fileAst := range astFiles {
-		var found *ast.InterfaceType
-
-		ast.Inspect(fileAst, func(n ast.Node) bool {
-			ts, ok := n.(*ast.TypeSpec)
-			if ok {
-				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == localInterfaceName {
-					found = iface
-					return false
-				}
-			}
-
-			return true
-		})
-
-		if found != nil {
-			return found, nil
+		if iface := searchFileForInterface(fileAst, localInterfaceName); iface != nil {
+			return iface, nil
 		}
 	}
 
 	return nil, fmt.Errorf("%w: named %q in package %q", errInterfaceNotFound, localInterfaceName, pkgImportPath)
+}
+
+// searchFileForInterface searches a single AST file for an interface with the given name.
+// Returns the interface if found, nil otherwise.
+func searchFileForInterface(fileAst *ast.File, interfaceName string) *ast.InterfaceType {
+	var found *ast.InterfaceType
+
+	ast.Inspect(fileAst, func(n ast.Node) bool {
+		typeSpec, isTypeSpec := n.(*ast.TypeSpec)
+		if !isTypeSpec {
+			return true
+		}
+
+		if typeSpec.Name.Name != interfaceName {
+			return true
+		}
+
+		iface, isInterface := typeSpec.Type.(*ast.InterfaceType)
+		if !isInterface {
+			return true
+		}
+
+		found = iface
+
+		return false
+	})
+
+	return found
 }
 
 var (
