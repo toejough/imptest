@@ -351,6 +351,7 @@ func (gen *codeGenerator) pf(format string, args ...any) {
 	fmt.Fprintf(&gen.buf, format, args...)
 }
 
+// generateHeader writes the package declaration and imports for the generated file.
 func (gen *codeGenerator) generateHeader() {
 	gen.pf(`package %s
 
@@ -363,6 +364,7 @@ import "time"
 `, gen.pkgName)
 }
 
+// generateMockStruct generates the mock struct that wraps the implementation.
 func (gen *codeGenerator) generateMockStruct() {
 	gen.pf(`type %s struct {
 	imp *%s
@@ -371,6 +373,7 @@ func (gen *codeGenerator) generateMockStruct() {
 `, gen.mockName, gen.impName)
 }
 
+// generateMainStruct generates the main implementation struct that handles test call tracking.
 func (gen *codeGenerator) generateMainStruct() {
 	gen.pf(`type %s struct {
 	t *testing.T
@@ -428,6 +431,7 @@ func processFieldMethods(field *ast.Field, callback func(methodName string, ftyp
 	}
 }
 
+// collectMethodNames extracts all method names from an interface.
 func collectMethodNames(iface *ast.InterfaceType) []string {
 	var methodNames []string
 
@@ -438,6 +442,7 @@ func collectMethodNames(iface *ast.InterfaceType) []string {
 	return methodNames
 }
 
+// generateMethodStructs generates the call and response structs for each interface method.
 func (gen *codeGenerator) generateMethodStructs() {
 	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
 		gen.generateMethodCallStruct(methodName, ftype)
@@ -446,6 +451,7 @@ func (gen *codeGenerator) generateMethodStructs() {
 	})
 }
 
+// generateMethodCallStruct generates the call struct for a specific method, which tracks the method call parameters.
 func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
 	gen.pf(`type %s struct {
@@ -460,6 +466,7 @@ func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast
 	gen.pf("}\n\n")
 }
 
+// generateCallStructParamFields generates the parameter fields for a call struct.
 func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
 	totalParams := countFields(ftype.Params)
 	unnamedIndex := 0
@@ -476,6 +483,7 @@ func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
 	}
 }
 
+// generateNamedParamFields generates fields for named parameters.
 func (gen *codeGenerator) generateNamedParamFields(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
 	for i := range param.Names {
 		fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
@@ -483,11 +491,13 @@ func (gen *codeGenerator) generateNamedParamFields(param *ast.Field, paramType s
 	}
 }
 
+// generateUnnamedParamField generates a field for an unnamed parameter.
 func (gen *codeGenerator) generateUnnamedParamField(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
 	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
 	gen.pf("\t%s %s\n", fieldName, paramType)
 }
 
+// generateMethodResponseStruct generates the response struct for a method, which holds return values or panic data.
 func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
 	gen.pf(`type %sResponse struct {
@@ -504,6 +514,7 @@ func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype 
 `)
 }
 
+// generateResponseStructResultFields generates the result fields for a response struct.
 func (gen *codeGenerator) generateResponseStructResultFields(ftype *ast.FuncType) {
 	returnIndex := 0
 
@@ -513,6 +524,7 @@ func (gen *codeGenerator) generateResponseStructResultFields(ftype *ast.FuncType
 	}
 }
 
+// generateResultField generates a single result field (named or unnamed).
 func (gen *codeGenerator) generateResultField(result *ast.Field, resultType string, returnIndex int) int {
 	if len(result.Names) > 0 {
 		return gen.generateNamedResultFields(result, resultType, returnIndex)
@@ -523,6 +535,7 @@ func (gen *codeGenerator) generateResultField(result *ast.Field, resultType stri
 	return returnIndex + 1
 }
 
+// generateNamedResultFields generates fields for named return values.
 func (gen *codeGenerator) generateNamedResultFields(result *ast.Field, resultType string, returnIndex int) int {
 	for _, name := range result.Names {
 		gen.pf("\t%s %s\n", name.Name, resultType)
@@ -533,6 +546,8 @@ func (gen *codeGenerator) generateNamedResultFields(result *ast.Field, resultTyp
 	return returnIndex
 }
 
+// generateMethodResponseMethods generates the InjectResult, InjectResults, InjectPanic, and Resolve methods
+// for a call struct.
 func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
 
@@ -554,6 +569,7 @@ func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype
 	gen.pf("\n")
 }
 
+// generateInjectResultMethod generates the InjectResult method for methods with a single return value.
 func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftype *ast.FuncType) {
 	resultType := exprToString(gen.fset, ftype.Results.List[0].Type)
 	gen.pf(`func (c *%s) InjectResult(result %s) {
@@ -571,6 +587,7 @@ func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftyp
 `)
 }
 
+// generateInjectResultsMethod generates the InjectResults method for methods with multiple return values.
 func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, ftype *ast.FuncType) {
 	gen.pf("func (c *%s) InjectResults(", methodCallName)
 
@@ -588,6 +605,7 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 `)
 }
 
+// writeInjectResultsParams writes the parameter list for InjectResults method and returns parameter names.
 func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string {
 	returnIndex := 0
 	returnParamNames := make([]string, 0)
@@ -600,6 +618,7 @@ func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string
 	return returnParamNames
 }
 
+// writeInjectResultParam writes a single result parameter (named or unnamed).
 func (gen *codeGenerator) writeInjectResultParam(
 	result *ast.Field, resultType string, returnIndex int, returnParamNames []string,
 ) (int, []string) {
@@ -618,6 +637,7 @@ func (gen *codeGenerator) writeInjectResultParam(
 	return returnIndex + 1, returnParamNames
 }
 
+// writeNamedResultParams writes named result parameters.
 func (gen *codeGenerator) writeNamedResultParams(
 	result *ast.Field, resultType string, returnIndex int, returnParamNames []string,
 ) (int, []string) {
@@ -634,6 +654,7 @@ func (gen *codeGenerator) writeNamedResultParams(
 	return returnIndex, returnParamNames
 }
 
+// writeInjectResultsResponseFields writes the response struct field assignments for InjectResults.
 func (gen *codeGenerator) writeInjectResultsResponseFields(ftype *ast.FuncType, returnParamNames []string) {
 	returnIndex := 0
 
@@ -642,6 +663,7 @@ func (gen *codeGenerator) writeInjectResultsResponseFields(ftype *ast.FuncType, 
 	}
 }
 
+// writeInjectResultResponseField writes a single response field assignment.
 func (gen *codeGenerator) writeInjectResultResponseField(
 	result *ast.Field, returnParamNames []string, returnIndex int,
 ) int {
@@ -659,6 +681,7 @@ func (gen *codeGenerator) writeInjectResultResponseField(
 	return returnIndex + 1
 }
 
+// generateInjectPanicMethod generates the InjectPanic method for simulating panics.
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
 	gen.pf(`func (c *%s) InjectPanic(msg interface{}) {
 	c.done = true
@@ -667,6 +690,7 @@ func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
 `, methodCallName, methodCallName)
 }
 
+// generateResolveMethod generates the Resolve method for methods with no return values.
 func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
 	gen.pf(`func (c *%s) Resolve() {
 	c.done = true
@@ -675,12 +699,14 @@ func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
 `, methodCallName, methodCallName)
 }
 
+// generateMockMethods generates the mock methods that implement the interface on the mock struct.
 func (gen *codeGenerator) generateMockMethods() {
 	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
 		gen.generateMockMethod(methodName, ftype)
 	})
 }
 
+// generateMockMethod generates a single mock method that creates a call, sends it to the imp, and handles the response.
 func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
 	paramNames := extractParamNames(ftype)
@@ -715,6 +741,7 @@ func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncT
 	gen.pf("}\n\n")
 }
 
+// writeMethodParams writes the method parameters in the form "name type, name2 type2".
 func (gen *codeGenerator) writeMethodParams(ftype *ast.FuncType, paramNames []string) {
 	if !hasParams(ftype) {
 		return
@@ -732,6 +759,7 @@ func (gen *codeGenerator) writeMethodParams(ftype *ast.FuncType, paramNames []st
 	}
 }
 
+// writeParamForField writes parameters for a single field (which may contain multiple names).
 func (gen *codeGenerator) writeParamForField(
 	param *ast.Field, paramType string, paramNames []string, paramNameIndex int,
 ) int {
@@ -744,6 +772,7 @@ func (gen *codeGenerator) writeParamForField(
 	return paramNameIndex + 1
 }
 
+// writeNamedParams writes multiple named parameters of the same type.
 func (gen *codeGenerator) writeNamedParams(param *ast.Field, paramType string, paramNameIndex int) int {
 	for j, name := range param.Names {
 		if j > 0 {
@@ -758,6 +787,7 @@ func (gen *codeGenerator) writeNamedParams(param *ast.Field, paramType string, p
 	return paramNameIndex
 }
 
+// writeCallStructFields writes the field assignments for initializing a call struct.
 func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames []string) {
 	if !hasParams(ftype) {
 		return
