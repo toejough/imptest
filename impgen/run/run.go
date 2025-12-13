@@ -226,15 +226,12 @@ func generateImplementationCode(
 func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
 	const generatedFilePermissions = 0o600
 
-	filename := "generated.go"
-	if impName != "" {
-		filename = impName
-		// If we're in a test package, append _test to the filename
-		if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
-			filename = strings.TrimSuffix(impName, ".go") + "_test.go"
-		} else if !strings.HasSuffix(filename, ".go") {
-			filename += ".go"
-		}
+	filename := impName
+	// If we're in a test package, append _test to the filename
+	if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
+		filename = strings.TrimSuffix(impName, ".go") + "_test.go"
+	} else if !strings.HasSuffix(filename, ".go") {
+		filename += ".go"
 	}
 
 	err := fileSys.WriteFile(filename, []byte(code), generatedFilePermissions)
