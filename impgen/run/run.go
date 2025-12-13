@@ -21,12 +21,14 @@ import (
 // success, it generates a Go source file implementing the specified interface, in the calling test package.
 func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
 	var err error
+
 	info, err := getGeneratorCallInfo(args, getEnv, err)
 	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader, err)
 	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader, err)
 	iface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath, err)
 	code, err := generateImplementationCode(iface, info, fset, err)
 	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys, err)
+
 	return err
 }
 
@@ -34,10 +36,12 @@ func loadPackage(pkgImportPath string, pkgLoader PackageLoader, prevErr error) (
 	if prevErr != nil {
 		return nil, nil, prevErr
 	}
+
 	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
 	}
+
 	return astFiles, fset, nil
 }
 
@@ -67,6 +71,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string, prevErr err
 	if prevErr != nil {
 		return generatorInfo{}, prevErr
 	}
+
 	pkgName := getEnv("GOPACKAGE")
 
 	parsed, err := parseArgs(args)
@@ -97,6 +102,7 @@ func getLocalInterfaceName(name string) string {
 	if dot := strings.Index(name, "."); dot != -1 {
 		return name[dot+1:]
 	}
+
 	return name
 }
 
@@ -128,6 +134,7 @@ func getInterfacePackagePath(qualifiedName string, pkgLoader PackageLoader, prev
 	if prevErr != nil {
 		return "", prevErr
 	}
+
 	dot := strings.Index(qualifiedName, ".")
 	if dot == -1 {
 		return ".", nil
@@ -164,6 +171,7 @@ func getMatchingInterfaceFromAST(
 	if prevErr != nil {
 		return nil, prevErr
 	}
+
 	for _, fileAst := range astFiles {
 		var found *ast.InterfaceType
 
@@ -202,6 +210,7 @@ func generateImplementationCode(
 	if prevErr != nil {
 		return "", prevErr
 	}
+
 	impName := info.impName
 
 	gen := &codeGenerator{
@@ -242,6 +251,7 @@ func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileS
 	if prevErr != nil {
 		return prevErr
 	}
+
 	const generatedFilePermissions = 0o600
 
 	filename := impName

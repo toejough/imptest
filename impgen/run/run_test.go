@@ -435,3 +435,34 @@ import "not/a/real/path"
 		t.Error("Expected error loading nonsense package path, got nil")
 	}
 }
+
+func TestRun_InvalidArgs(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	// No interface argument provided - should fail argument parsing
+	args := []string{"generator"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error from invalid arguments, got nil")
+	}
+}
+
+func TestRun_LocalPackageLoadErrorForForeignInterface(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+	// Don't register any packages - Load will fail when trying to load "." to resolve imports
+
+	// Use a qualified interface name (pkg.Interface) which requires loading local package
+	args := []string{"generator", "pkg.SomeInterface", "--name", "TestImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error loading local package for foreign interface, got nil")
+	}
+}
