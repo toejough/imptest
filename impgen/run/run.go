@@ -364,21 +364,25 @@ import "time"
 }
 
 func (gen *codeGenerator) generateMockStruct() {
-	gen.pf("type %s struct {\n", gen.mockName)
-	gen.pf("\timp *%s\n", gen.impName)
-	gen.pf("}\n\n")
+	gen.pf(`type %s struct {
+	imp *%s
+}
+
+`, gen.mockName, gen.impName)
 }
 
 func (gen *codeGenerator) generateMainStruct() {
-	gen.pf("type %s struct {\n", gen.impName)
-	gen.pf("\tt *testing.T\n")
-	gen.pf("\tMock *%s\n", gen.mockName)
-	gen.pf("\tcallChan chan *%s\n", gen.callName)
-	gen.pf("\tExpectCallTo *%s\n", gen.expectCallToName)
-	gen.pf("\tcurrentCall *%s\n", gen.callName)
-	gen.pf("\tcallQueue []*%s\n", gen.callName)
-	gen.pf("\tqueueLock sync.Mutex\n")
-	gen.pf("}\n\n")
+	gen.pf(`type %s struct {
+	t *testing.T
+	Mock *%s
+	callChan chan *%s
+	ExpectCallTo *%s
+	currentCall *%s
+	callQueue []*%s
+	queueLock sync.Mutex
+}
+
+`, gen.impName, gen.mockName, gen.callName, gen.expectCallToName, gen.callName, gen.callName)
 }
 
 // methodCallName returns the call struct name for a method (e.g. "MyImpDoSomethingCall").
@@ -396,18 +400,23 @@ func (gen *codeGenerator) writeMethodSignature(methodName string, ftype *ast.Fun
 // forEachMethod iterates over interface methods and calls the callback for each.
 func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
 	for _, field := range gen.identifiedInterface.Methods.List {
-		if len(field.Names) == 0 {
-			continue
-		}
+		gen.processFieldMethods(field, callback)
+	}
+}
 
-		for _, methodName := range field.Names {
-			ftype, ok := field.Type.(*ast.FuncType)
-			if !ok {
-				continue
-			}
+// processFieldMethods processes all method names in a field and calls the callback for each valid method.
+func (gen *codeGenerator) processFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
+	if len(field.Names) == 0 {
+		return
+	}
 
-			callback(methodName.Name, ftype)
-		}
+	ftype, ok := field.Type.(*ast.FuncType)
+	if !ok {
+		return
+	}
+
+	for _, methodName := range field.Names {
+		callback(methodName.Name, ftype)
 	}
 }
 
@@ -585,17 +594,19 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 }
 
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
-	gen.pf("func (c *%s) InjectPanic(msg interface{}) {\n", methodCallName)
-	gen.pf("\tc.done = true\n")
-	gen.pf("\tc.responseChan <- %sResponse{Type: \"panic\", PanicValue: msg}\n", methodCallName)
-	gen.pf("}\n")
+	gen.pf(`func (c *%s) InjectPanic(msg interface{}) {
+	c.done = true
+	c.responseChan <- %sResponse{Type: "panic", PanicValue: msg}
+}
+`, methodCallName, methodCallName)
 }
 
 func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
-	gen.pf("func (c *%s) Resolve() {\n", methodCallName)
-	gen.pf("\tc.done = true\n")
-	gen.pf("\tc.responseChan <- %sResponse{Type: \"resolve\"}\n", methodCallName)
-	gen.pf("}\n")
+	gen.pf(`func (c *%s) Resolve() {
+	c.done = true
+	c.responseChan <- %sResponse{Type: "resolve"}
+}
+`, methodCallName, methodCallName)
 }
 
 func (gen *codeGenerator) generateMockMethods() {
