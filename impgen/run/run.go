@@ -20,34 +20,20 @@ import (
 // interface for file operations, and a PackageLoader for package operations. It returns an error if any step fails. On
 // success, it generates a Go source file implementing the specified interface, in the calling test package.
 func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
-	var (
-		err           error
-		info          generatorInfo
-		pkgImportPath string
-		astFiles      []*ast.File
-		fset          *token.FileSet
-		iface         *ast.InterfaceType
-		code          string
-	)
-
-	for _, step := range []func(){
-		func() { info, err = getGeneratorCallInfo(args, getEnv) },
-		func() { pkgImportPath, err = getInterfacePackagePath(info.interfaceName, pkgLoader) },
-		func() { astFiles, fset, err = loadPackage(pkgImportPath, pkgLoader) },
-		func() { iface, err = getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath) },
-		func() { code, err = generateImplementationCode(iface, info, fset) },
-		func() { err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys) },
-	} {
-		step()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	var err error
+	info, err := getGeneratorCallInfo(args, getEnv, err)
+	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader, err)
+	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader, err)
+	iface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath, err)
+	code, err := generateImplementationCode(iface, info, fset, err)
+	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys, err)
+	return err
 }
 
-func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, error) {
+func loadPackage(pkgImportPath string, pkgLoader PackageLoader, prevErr error) ([]*ast.File, *token.FileSet, error) {
+	if prevErr != nil {
+		return nil, nil, prevErr
+	}
 	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
@@ -77,7 +63,10 @@ type cliArgs struct {
 }
 
 // getGeneratorCallInfo returns basic information about the current call to the generator.
-func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorInfo, error) {
+func getGeneratorCallInfo(args []string, getEnv func(string) string, prevErr error) (generatorInfo, error) {
+	if prevErr != nil {
+		return generatorInfo{}, prevErr
+	}
 	pkgName := getEnv("GOPACKAGE")
 
 	parsed, err := parseArgs(args)
@@ -135,7 +124,10 @@ func parseArgs(args []string) (cliArgs, error) {
 
 // getInterfacePackagePath determines the import path for the interface. Returns "." for local interfaces, or resolves
 // the full import path for qualified names like "pkg.Interface".
-func getInterfacePackagePath(qualifiedName string, pkgLoader PackageLoader) (string, error) {
+func getInterfacePackagePath(qualifiedName string, pkgLoader PackageLoader, prevErr error) (string, error) {
+	if prevErr != nil {
+		return "", prevErr
+	}
 	dot := strings.Index(qualifiedName, ".")
 	if dot == -1 {
 		return ".", nil
@@ -167,8 +159,11 @@ func getInterfacePackagePath(qualifiedName string, pkgLoader PackageLoader) (str
 
 // getMatchingInterfaceFromAST finds the interface by name in the ASTs.
 func getMatchingInterfaceFromAST(
-	astFiles []*ast.File, localInterfaceName, pkgImportPath string,
+	astFiles []*ast.File, localInterfaceName, pkgImportPath string, prevErr error,
 ) (*ast.InterfaceType, error) {
+	if prevErr != nil {
+		return nil, prevErr
+	}
 	for _, fileAst := range astFiles {
 		var found *ast.InterfaceType
 
@@ -202,7 +197,11 @@ func generateImplementationCode(
 	identifiedInterface *ast.InterfaceType,
 	info generatorInfo,
 	fset *token.FileSet,
+	prevErr error,
 ) (string, error) {
+	if prevErr != nil {
+		return "", prevErr
+	}
 	impName := info.impName
 
 	gen := &codeGenerator{
@@ -239,7 +238,10 @@ func generateImplementationCode(
 }
 
 // writeGeneratedCodeToFile writes the generated code to <impName>.go.
-func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
+func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem, prevErr error) error {
+	if prevErr != nil {
+		return prevErr
+	}
 	const generatedFilePermissions = 0o600
 
 	filename := impName
