@@ -10,67 +10,7 @@ import (
 	"strings"
 )
 
-func generateImplementationCode(
-	identifiedInterface *ast.InterfaceType,
-	info generatorInfo,
-	fset *token.FileSet,
-) (string, error) {
-	impName := info.impName
-
-	gen := &codeGenerator{
-		fset:                fset,
-		pkgName:             info.pkgName,
-		impName:             impName,
-		mockName:            impName + "Mock",
-		callName:            impName + "Call",
-		expectCallToName:    impName + "ExpectCallTo",
-		timedName:           impName + "Timed",
-		identifiedInterface: identifiedInterface,
-		methodNames:         collectMethodNames(identifiedInterface),
-	}
-
-	gen.generateHeader()
-	gen.generateMockStruct()
-	gen.generateMainStruct()
-	gen.generateMethodStructs()
-	gen.generateMockMethods()
-	gen.generateCallStruct()
-	gen.generateExpectCallToStruct()
-	gen.generateExpectCallToMethods()
-	gen.generateTimedStruct()
-	gen.generateGetCallMethod()
-	gen.generateGetCurrentCallMethod()
-	gen.generateConstructor()
-
-	formatted, err := format.Source(gen.buf.Bytes())
-	if err != nil {
-		return "", fmt.Errorf("error formatting generated code: %w", err)
-	}
-
-	return string(formatted), nil
-}
-
-// writeGeneratedCodeToFile writes the generated code to <impName>.go.
-func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
-	const generatedFilePermissions = 0o600
-
-	filename := impName
-	// If we're in a test package, append _test to the filename
-	if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
-		filename = strings.TrimSuffix(impName, ".go") + "_test.go"
-	} else if !strings.HasSuffix(filename, ".go") {
-		filename += ".go"
-	}
-
-	err := fileSys.WriteFile(filename, []byte(code), generatedFilePermissions)
-	if err != nil {
-		return fmt.Errorf("error writing %s: %w", filename, err)
-	}
-
-	fmt.Printf("%s written successfully.\n", filename)
-
-	return nil
-}
+// Structs
 
 // codeGenerator holds state for code generation.
 type codeGenerator struct {
@@ -85,6 +25,8 @@ type codeGenerator struct {
 	identifiedInterface *ast.InterfaceType
 	methodNames         []string
 }
+
+// Methods on codeGenerator
 
 // p writes a formatted string to the buffer (short for "print").
 func (gen *codeGenerator) pf(format string, args ...any) {
@@ -143,43 +85,6 @@ func (gen *codeGenerator) writeMethodSignature(methodName string, ftype *ast.Fun
 // forEachMethod iterates over interface methods and calls the callback for each.
 func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
 	forEachInterfaceMethod(gen.identifiedInterface, callback)
-}
-
-// forEachInterfaceMethod iterates over interface methods and calls the callback for each.
-func forEachInterfaceMethod(iface *ast.InterfaceType, callback func(methodName string, ftype *ast.FuncType)) {
-	for _, field := range iface.Methods.List {
-		processFieldMethods(field, callback)
-	}
-}
-
-// processFieldMethods processes all method names in a field and calls the callback for each valid method.
-func processFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
-	// Skip embedded interfaces (they have no names)
-	if len(field.Names) == 0 {
-		return
-	}
-
-	// Skip non-function types (shouldn't happen in a valid interface, but be safe)
-	ftype, ok := field.Type.(*ast.FuncType)
-	if !ok {
-		return
-	}
-
-	// Process each method name with the same function type
-	for _, methodName := range field.Names {
-		callback(methodName.Name, ftype)
-	}
-}
-
-// collectMethodNames extracts all method names from an interface.
-func collectMethodNames(iface *ast.InterfaceType) []string {
-	var methodNames []string
-
-	forEachInterfaceMethod(iface, func(methodName string, ftype *ast.FuncType) {
-		methodNames = append(methodNames, methodName)
-	})
-
-	return methodNames
 }
 
 // generateMethodStructs generates the call and response structs for each interface method.
@@ -824,7 +729,86 @@ func (gen *codeGenerator) generateConstructor() {
 `, gen.impName, gen.impName, gen.impName, gen.callName, gen.mockName, gen.expectCallToName)
 }
 
-// Helper functions
+// Functions - Public
+
+func generateImplementationCode(
+	identifiedInterface *ast.InterfaceType,
+	info generatorInfo,
+	fset *token.FileSet,
+) (string, error) {
+	impName := info.impName
+
+	gen := &codeGenerator{
+		fset:                fset,
+		pkgName:             info.pkgName,
+		impName:             impName,
+		mockName:            impName + "Mock",
+		callName:            impName + "Call",
+		expectCallToName:    impName + "ExpectCallTo",
+		timedName:           impName + "Timed",
+		identifiedInterface: identifiedInterface,
+		methodNames:         collectMethodNames(identifiedInterface),
+	}
+
+	gen.generateHeader()
+	gen.generateMockStruct()
+	gen.generateMainStruct()
+	gen.generateMethodStructs()
+	gen.generateMockMethods()
+	gen.generateCallStruct()
+	gen.generateExpectCallToStruct()
+	gen.generateExpectCallToMethods()
+	gen.generateTimedStruct()
+	gen.generateGetCallMethod()
+	gen.generateGetCurrentCallMethod()
+	gen.generateConstructor()
+
+	formatted, err := format.Source(gen.buf.Bytes())
+	if err != nil {
+		return "", fmt.Errorf("error formatting generated code: %w", err)
+	}
+
+	return string(formatted), nil
+}
+
+// Functions - Private
+
+// collectMethodNames extracts all method names from an interface.
+func collectMethodNames(iface *ast.InterfaceType) []string {
+	var methodNames []string
+
+	forEachInterfaceMethod(iface, func(methodName string, ftype *ast.FuncType) {
+		methodNames = append(methodNames, methodName)
+	})
+
+	return methodNames
+}
+
+// forEachInterfaceMethod iterates over interface methods and calls the callback for each.
+func forEachInterfaceMethod(iface *ast.InterfaceType, callback func(methodName string, ftype *ast.FuncType)) {
+	for _, field := range iface.Methods.List {
+		processFieldMethods(field, callback)
+	}
+}
+
+// processFieldMethods processes all method names in a field and calls the callback for each valid method.
+func processFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
+	// Skip embedded interfaces (they have no names)
+	if len(field.Names) == 0 {
+		return
+	}
+
+	// Skip non-function types (shouldn't happen in a valid interface, but be safe)
+	ftype, ok := field.Type.(*ast.FuncType)
+	if !ok {
+		return
+	}
+
+	// Process each method name with the same function type
+	for _, methodName := range field.Names {
+		callback(methodName.Name, ftype)
+	}
+}
 
 func hasParams(ftype *ast.FuncType) bool {
 	return ftype.Params != nil && len(ftype.Params.List) > 0
