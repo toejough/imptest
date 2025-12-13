@@ -399,13 +399,18 @@ func (gen *codeGenerator) writeMethodSignature(methodName string, ftype *ast.Fun
 
 // forEachMethod iterates over interface methods and calls the callback for each.
 func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
-	for _, field := range gen.identifiedInterface.Methods.List {
-		gen.processFieldMethods(field, callback)
+	forEachInterfaceMethod(gen.identifiedInterface, callback)
+}
+
+// forEachInterfaceMethod iterates over interface methods and calls the callback for each.
+func forEachInterfaceMethod(iface *ast.InterfaceType, callback func(methodName string, ftype *ast.FuncType)) {
+	for _, field := range iface.Methods.List {
+		processFieldMethods(field, callback)
 	}
 }
 
 // processFieldMethods processes all method names in a field and calls the callback for each valid method.
-func (gen *codeGenerator) processFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
+func processFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
 	// Skip embedded interfaces (they have no names)
 	if len(field.Names) == 0 {
 		return
@@ -426,17 +431,9 @@ func (gen *codeGenerator) processFieldMethods(field *ast.Field, callback func(me
 func collectMethodNames(iface *ast.InterfaceType) []string {
 	var methodNames []string
 
-	for _, field := range iface.Methods.List {
-		if len(field.Names) == 0 {
-			continue
-		}
-
-		for _, methodName := range field.Names {
-			if _, ok := field.Type.(*ast.FuncType); ok {
-				methodNames = append(methodNames, methodName.Name)
-			}
-		}
-	}
+	forEachInterfaceMethod(iface, func(methodName string, ftype *ast.FuncType) {
+		methodNames = append(methodNames, methodName)
+	})
 
 	return methodNames
 }
