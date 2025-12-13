@@ -20,34 +20,31 @@ import (
 // interface for file operations, and a PackageLoader for package operations. It returns an error if any step fails. On
 // success, it generates a Go source file implementing the specified interface, in the calling test package.
 func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
-	info, err := getGeneratorCallInfo(args, getEnv)
-	if err != nil {
-		return err
+	var (
+		err           error
+		info          generatorInfo
+		pkgImportPath string
+		astFiles      []*ast.File
+		fset          *token.FileSet
+		iface         *ast.InterfaceType
+		code          string
+	)
+
+	for _, step := range []func(){
+		func() { info, err = getGeneratorCallInfo(args, getEnv) },
+		func() { pkgImportPath, err = getInterfacePackagePath(info.interfaceName, pkgLoader) },
+		func() { astFiles, fset, err = loadPackage(pkgImportPath, pkgLoader) },
+		func() { iface, err = getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath) },
+		func() { code, err = generateImplementationCode(iface, info, fset) },
+		func() { err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys) },
+	} {
+		step()
+		if err != nil {
+			return err
+		}
 	}
 
-	localInterfaceName := getLocalInterfaceName(info.interfaceName)
-
-	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader)
-	if err != nil {
-		return err
-	}
-
-	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader)
-	if err != nil {
-		return err
-	}
-
-	iface, err := getMatchingInterfaceFromAST(astFiles, localInterfaceName, pkgImportPath)
-	if err != nil {
-		return err
-	}
-
-	code, err := generateImplementationCode(iface, info, fset)
-	if err != nil {
-		return err
-	}
-
-	return writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys)
+	return nil
 }
 
 func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, error) {
@@ -70,7 +67,7 @@ type PackageLoader interface {
 
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
-	pkgName, interfaceName, impName string
+	pkgName, interfaceName, localInterfaceName, impName string
 }
 
 // cliArgs defines the command-line arguments for the generator.
@@ -89,14 +86,29 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 	}
 
 	interfaceName := parsed.Interface
+	localInterfaceName := getLocalInterfaceName(interfaceName)
 	impName := parsed.Name
 
 	// set impname if not provided
 	if impName == "" {
-		impName = interfaceName + "Imp" // default implementation name
+		impName = localInterfaceName + "Imp" // default implementation name
 	}
 
-	return generatorInfo{pkgName: pkgName, interfaceName: interfaceName, impName: impName}, nil
+	return generatorInfo{
+		pkgName:            pkgName,
+		interfaceName:      interfaceName,
+		localInterfaceName: localInterfaceName,
+		impName:            impName,
+	}, nil
+}
+
+// getLocalInterfaceName extracts the local interface name from a possibly qualified name
+// (e.g., "MyInterface" from "pkg.MyInterface").
+func getLocalInterfaceName(name string) string {
+	if dot := strings.Index(name, "."); dot != -1 {
+		return name[dot+1:]
+	}
+	return name
 }
 
 // parseArgs parses command-line arguments into cliArgs.
@@ -119,16 +131,6 @@ func parseArgs(args []string) (cliArgs, error) {
 	}
 
 	return parsed, nil
-}
-
-// getLocalInterfaceName extracts the local interface name from a possibly qualified name (e.g., "MyInterface" from
-// "pkg.MyInterface").
-func getLocalInterfaceName(name string) string {
-	if dot := strings.Index(name, "."); dot != -1 {
-		return name[dot+1:]
-	}
-
-	return name
 }
 
 // getInterfacePackagePath determines the import path for the interface. Returns "." for local interfaces, or resolves
