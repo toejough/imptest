@@ -16,16 +16,18 @@ import (
 	"github.com/alexflint/go-arg"
 )
 
-// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, and a FileSystem
-// interface for file operations. It returns an error if any step fails. On success, it generates a Go source file
-// implementing the specified interface, in the calling test package.
+// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, a FileSystem
+// interface for file operations, and a PackageLoader for package operations. It returns an error if any step fails. On
+// success, it generates a Go source file implementing the specified interface, in the calling test package.
 func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
-	info, err := getGeneratorInfo(args, getEnv)
+	info, err := getGeneratorCallInfo(args, getEnv)
 	if err != nil {
 		return err
 	}
 
-	pkgImportPath, matchName, err := getPackageAndMatchName(info, pkgLoader)
+	localInterfaceName := getLocalInterfaceName(info.interfaceName)
+
+	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader)
 	if err != nil {
 		return err
 	}
@@ -35,9 +37,9 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 		return fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
 	}
 
-	iface := getMatchingInterfaceFromAST(astFiles, matchName)
-	if iface == nil {
-		return fmt.Errorf("%w: named %q in package %q", errInterfaceNotFound, matchName, pkgImportPath)
+	iface, err := getMatchingInterfaceFromAST(astFiles, localInterfaceName, pkgImportPath)
+	if err != nil {
+		return err
 	}
 
 	code, err := generateImplementationCode(iface, info, fset)
@@ -60,7 +62,7 @@ type PackageLoader interface {
 
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
-	pkgName, matchName, impName string
+	pkgName, interfaceName, impName string
 }
 
 // cliArgs defines the command-line arguments for the generator.
@@ -69,8 +71,8 @@ type cliArgs struct {
 	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
 }
 
-// getGeneratorInfo gathers basic information about the generator call.
-func getGeneratorInfo(args []string, getEnv func(string) string) (generatorInfo, error) {
+// getGeneratorCallInfo returns basic information about the current call to the generator.
+func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorInfo, error) {
 	pkgName := getEnv("GOPACKAGE")
 
 	parsed, err := parseArgs(args)
@@ -78,15 +80,15 @@ func getGeneratorInfo(args []string, getEnv func(string) string) (generatorInfo,
 		return generatorInfo{}, err
 	}
 
-	matchName := parsed.Interface
+	interfaceName := parsed.Interface
 	impName := parsed.Name
 
 	// set impname if not provided
 	if impName == "" {
-		impName = matchName + "Imp" // default implementation name
+		impName = interfaceName + "Imp" // default implementation name
 	}
 
-	return generatorInfo{pkgName: pkgName, matchName: matchName, impName: impName}, nil
+	return generatorInfo{pkgName: pkgName, interfaceName: interfaceName, impName: impName}, nil
 }
 
 // parseArgs parses command-line arguments into cliArgs.
@@ -111,48 +113,59 @@ func parseArgs(args []string) (cliArgs, error) {
 	return parsed, nil
 }
 
-// getPackageAndMatchName determines the import path and interface name to match.
-func getPackageAndMatchName(info generatorInfo, pkgLoader PackageLoader) (string, string, error) {
-	matchName := info.matchName
-	// Check if matchName contains a dot, e.g. "run.ExampleInt"
-	if dot := strings.Index(matchName, "."); dot != -1 {
-		targetPkgImport := matchName[:dot]
-		matchName = matchName[dot+1:]
-		// Resolve the full import path for the target package
-		astFiles, _, err := pkgLoader.Load(".")
-		if err != nil {
-			return "", "", fmt.Errorf("failed to load local package: %w", err)
-		}
-
-		for _, fileAst := range astFiles {
-			for _, imp := range fileAst.Imports {
-				importPath, err := strconv.Unquote(imp.Path.Value)
-				if err != nil {
-					continue
-				}
-				// Check if the last segment matches the targetPkgImport
-				parts := strings.Split(importPath, "/")
-				if len(parts) > 0 && parts[len(parts)-1] == targetPkgImport {
-					return importPath, matchName, nil
-				}
-			}
-		}
-
-		return "", "", fmt.Errorf("%w: %q", errPackageNotFound, targetPkgImport)
+// getLocalInterfaceName extracts the local interface name from a possibly qualified name (e.g., "MyInterface" from
+// "pkg.MyInterface").
+func getLocalInterfaceName(name string) string {
+	if dot := strings.Index(name, "."); dot != -1 {
+		return name[dot+1:]
 	}
 
-	return ".", matchName, nil
+	return name
+}
+
+// getInterfacePackagePath determines the import path for the interface. Returns "." for local interfaces, or resolves
+// the full import path for qualified names like "pkg.Interface".
+func getInterfacePackagePath(qualifiedName string, pkgLoader PackageLoader) (string, error) {
+	dot := strings.Index(qualifiedName, ".")
+	if dot == -1 {
+		return ".", nil
+	}
+
+	targetPkgImport := qualifiedName[:dot]
+
+	astFiles, _, err := pkgLoader.Load(".")
+	if err != nil {
+		return "", fmt.Errorf("failed to load local package: %w", err)
+	}
+
+	for _, fileAst := range astFiles {
+		for _, imp := range fileAst.Imports {
+			importPath, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				continue
+			}
+			// Check if the last segment matches the targetPkgImport
+			parts := strings.Split(importPath, "/")
+			if len(parts) > 0 && parts[len(parts)-1] == targetPkgImport {
+				return importPath, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("%w: %q", errPackageNotFound, targetPkgImport)
 }
 
 // getMatchingInterfaceFromAST finds the interface by name in the ASTs.
-func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.InterfaceType {
+func getMatchingInterfaceFromAST(
+	astFiles []*ast.File, localInterfaceName, pkgImportPath string,
+) (*ast.InterfaceType, error) {
 	for _, fileAst := range astFiles {
 		var found *ast.InterfaceType
 
 		ast.Inspect(fileAst, func(n ast.Node) bool {
 			ts, ok := n.(*ast.TypeSpec)
 			if ok {
-				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == matchName {
+				if iface, ok2 := ts.Type.(*ast.InterfaceType); ok2 && ts.Name.Name == localInterfaceName {
 					found = iface
 					return false
 				}
@@ -162,11 +175,11 @@ func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.In
 		})
 
 		if found != nil {
-			return found
+			return found, nil
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("%w: named %q in package %q", errInterfaceNotFound, localInterfaceName, pkgImportPath)
 }
 
 var (
