@@ -466,3 +466,40 @@ func TestRun_LocalPackageLoadErrorForForeignInterface(t *testing.T) {
 		t.Error("Expected error loading local package for foreign interface, got nil")
 	}
 }
+
+func TestRun_MalformedImportPath(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	// Create a file with a malformed import (missing closing quote)
+	fset := token.NewFileSet()
+	file := &ast.File{
+		Name: &ast.Ident{Name: "mypkg"},
+		Imports: []*ast.ImportSpec{
+			{
+				Path: &ast.BasicLit{
+					Value: `"valid/import"`,
+				},
+			},
+			{
+				Path: &ast.BasicLit{
+					Value: `malformed`, // Invalid - not quoted properly
+				},
+			},
+		},
+	}
+	mockPkgLoader.packages["."] = mockPackage{
+		files: []*ast.File{file},
+		fset:  fset,
+	}
+
+	// Try to reference a package - should skip the malformed import and fail to find it
+	args := []string{"generator", "pkg.SomeInterface", "--name", "TestImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error when package not found (due to malformed import), got nil")
+	}
+}
