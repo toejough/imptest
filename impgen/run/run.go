@@ -453,26 +453,38 @@ func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast
 	gen.pf("\tdone bool\n")
 
 	if hasParams(ftype) {
-		totalParams := countFields(ftype.Params)
-		unnamedIndex := 0
-
-		for _, param := range ftype.Params.List {
-			paramType := exprToString(gen.fset, param.Type)
-			if len(param.Names) > 0 {
-				for i := range param.Names {
-					fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-					gen.pf("\t%s %s\n", fieldName, paramType)
-				}
-			} else {
-				fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-				gen.pf("\t%s %s\n", fieldName, paramType)
-
-				unnamedIndex++
-			}
-		}
+		gen.generateCallStructParamFields(ftype)
 	}
 
 	gen.pf("}\n\n")
+}
+
+func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
+	totalParams := countFields(ftype.Params)
+	unnamedIndex := 0
+
+	for _, param := range ftype.Params.List {
+		paramType := exprToString(gen.fset, param.Type)
+
+		if len(param.Names) > 0 {
+			gen.generateNamedParamFields(param, paramType, unnamedIndex, totalParams)
+		} else {
+			gen.generateUnnamedParamField(param, paramType, unnamedIndex, totalParams)
+			unnamedIndex++
+		}
+	}
+}
+
+func (gen *codeGenerator) generateNamedParamFields(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
+	for i := range param.Names {
+		fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+		gen.pf("\t%s %s\n", fieldName, paramType)
+	}
+}
+
+func (gen *codeGenerator) generateUnnamedParamField(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
+	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+	gen.pf("\t%s %s\n", fieldName, paramType)
 }
 
 func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype *ast.FuncType) {
@@ -481,25 +493,40 @@ func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype 
 	gen.pf("\tType string // \"return\", \"panic\", or \"resolve\"\n")
 
 	if hasResults(ftype) {
-		returnIndex := 0
-
-		for _, result := range ftype.Results.List {
-			resultType := exprToString(gen.fset, result.Type)
-			if len(result.Names) > 0 {
-				for _, name := range result.Names {
-					gen.pf("\t%s %s\n", name.Name, resultType)
-
-					returnIndex++
-				}
-			} else {
-				gen.pf("\tResult%d %s\n", returnIndex, resultType)
-				returnIndex++
-			}
-		}
+		gen.generateResponseStructResultFields(ftype)
 	}
 
 	gen.pf("\tPanicValue interface{}\n")
 	gen.pf("}\n\n")
+}
+
+func (gen *codeGenerator) generateResponseStructResultFields(ftype *ast.FuncType) {
+	returnIndex := 0
+
+	for _, result := range ftype.Results.List {
+		resultType := exprToString(gen.fset, result.Type)
+		returnIndex = gen.generateResultField(result, resultType, returnIndex)
+	}
+}
+
+func (gen *codeGenerator) generateResultField(result *ast.Field, resultType string, returnIndex int) int {
+	if len(result.Names) > 0 {
+		return gen.generateNamedResultFields(result, resultType, returnIndex)
+	}
+
+	gen.pf("\tResult%d %s\n", returnIndex, resultType)
+
+	return returnIndex + 1
+}
+
+func (gen *codeGenerator) generateNamedResultFields(result *ast.Field, resultType string, returnIndex int) int {
+	for _, name := range result.Names {
+		gen.pf("\t%s %s\n", name.Name, resultType)
+
+		returnIndex++
+	}
+
+	return returnIndex
 }
 
 func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype *ast.FuncType) {
@@ -542,55 +569,88 @@ func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftyp
 func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, ftype *ast.FuncType) {
 	gen.pf("func (c *%s) InjectResults(", methodCallName)
 
-	returnIndex := 0
-
-	returnParamNames := make([]string, 0)
-
-	for _, result := range ftype.Results.List {
-		resultType := exprToString(gen.fset, result.Type)
-		if len(result.Names) > 0 {
-			for _, name := range result.Names {
-				if returnIndex > 0 {
-					gen.pf(", ")
-				}
-
-				gen.pf("%s %s", name.Name, resultType)
-				returnParamNames = append(returnParamNames, name.Name)
-				returnIndex++
-			}
-		} else {
-			if returnIndex > 0 {
-				gen.pf(", ")
-			}
-
-			paramName := fmt.Sprintf("result%d", returnIndex)
-			gen.pf("%s %s", paramName, resultType)
-			returnParamNames = append(returnParamNames, paramName)
-			returnIndex++
-		}
-	}
+	returnParamNames := gen.writeInjectResultsParams(ftype)
 
 	gen.pf(") {\n")
 	gen.pf("\tc.done = true\n")
 	gen.pf("\tresp := %sResponse{Type: \"return\"", methodCallName)
 
-	returnIndex = 0
-
-	for _, result := range ftype.Results.List {
-		if len(result.Names) > 0 {
-			for _, name := range result.Names {
-				gen.pf(", %s: %s", name.Name, returnParamNames[returnIndex])
-				returnIndex++
-			}
-		} else {
-			gen.pf(", Result%d: %s", returnIndex, returnParamNames[returnIndex])
-			returnIndex++
-		}
-	}
+	gen.writeInjectResultsResponseFields(ftype, returnParamNames)
 
 	gen.pf("}\n")
 	gen.pf("\tc.responseChan <- resp\n")
 	gen.pf("}\n")
+}
+
+func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string {
+	returnIndex := 0
+	returnParamNames := make([]string, 0)
+
+	for _, result := range ftype.Results.List {
+		resultType := exprToString(gen.fset, result.Type)
+		returnIndex, returnParamNames = gen.writeInjectResultParam(result, resultType, returnIndex, returnParamNames)
+	}
+
+	return returnParamNames
+}
+
+func (gen *codeGenerator) writeInjectResultParam(
+	result *ast.Field, resultType string, returnIndex int, returnParamNames []string,
+) (int, []string) {
+	if len(result.Names) > 0 {
+		return gen.writeNamedResultParams(result, resultType, returnIndex, returnParamNames)
+	}
+
+	if returnIndex > 0 {
+		gen.pf(", ")
+	}
+
+	paramName := fmt.Sprintf("result%d", returnIndex)
+	gen.pf("%s %s", paramName, resultType)
+	returnParamNames = append(returnParamNames, paramName)
+
+	return returnIndex + 1, returnParamNames
+}
+
+func (gen *codeGenerator) writeNamedResultParams(
+	result *ast.Field, resultType string, returnIndex int, returnParamNames []string,
+) (int, []string) {
+	for _, name := range result.Names {
+		if returnIndex > 0 {
+			gen.pf(", ")
+		}
+
+		gen.pf("%s %s", name.Name, resultType)
+		returnParamNames = append(returnParamNames, name.Name)
+		returnIndex++
+	}
+
+	return returnIndex, returnParamNames
+}
+
+func (gen *codeGenerator) writeInjectResultsResponseFields(ftype *ast.FuncType, returnParamNames []string) {
+	returnIndex := 0
+
+	for _, result := range ftype.Results.List {
+		returnIndex = gen.writeInjectResultResponseField(result, returnParamNames, returnIndex)
+	}
+}
+
+func (gen *codeGenerator) writeInjectResultResponseField(
+	result *ast.Field, returnParamNames []string, returnIndex int,
+) int {
+	if len(result.Names) > 0 {
+		for _, name := range result.Names {
+			gen.pf(", %s: %s", name.Name, returnParamNames[returnIndex])
+			returnIndex++
+		}
+
+		return returnIndex
+	}
+
+	gen.pf(", Result%d: %s", returnIndex, returnParamNames[returnIndex])
+
+	return returnIndex + 1
 }
 
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
@@ -660,21 +720,34 @@ func (gen *codeGenerator) writeMethodParams(ftype *ast.FuncType, paramNames []st
 		}
 
 		paramType := exprToString(gen.fset, param.Type)
-		if len(param.Names) > 0 {
-			for j, name := range param.Names {
-				if j > 0 {
-					gen.pf(", ")
-				}
-
-				gen.pf("%s %s", name.Name, paramType)
-
-				paramNameIndex++
-			}
-		} else {
-			gen.pf("%s %s", paramNames[paramNameIndex], paramType)
-			paramNameIndex++
-		}
+		paramNameIndex = gen.writeParamForField(param, paramType, paramNames, paramNameIndex)
 	}
+}
+
+func (gen *codeGenerator) writeParamForField(
+	param *ast.Field, paramType string, paramNames []string, paramNameIndex int,
+) int {
+	if len(param.Names) > 0 {
+		return gen.writeNamedParams(param, paramType, paramNameIndex)
+	}
+
+	gen.pf("%s %s", paramNames[paramNameIndex], paramType)
+
+	return paramNameIndex + 1
+}
+
+func (gen *codeGenerator) writeNamedParams(param *ast.Field, paramType string, paramNameIndex int) int {
+	for j, name := range param.Names {
+		if j > 0 {
+			gen.pf(", ")
+		}
+
+		gen.pf("%s %s", name.Name, paramType)
+
+		paramNameIndex++
+	}
+
+	return paramNameIndex
 }
 
 func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames []string) {
@@ -688,20 +761,30 @@ func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames 
 
 	for _, param := range ftype.Params.List {
 		paramType := exprToString(gen.fset, param.Type)
-		if len(param.Names) > 0 {
-			for i, name := range param.Names {
-				fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-				gen.pf("\t\t%s: %s,\n", fieldName, name.Name)
-
-				paramNameIndex++
-			}
-		} else {
-			fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-			gen.pf("\t\t%s: %s,\n", fieldName, paramNames[paramNameIndex])
-			paramNameIndex++
-			unnamedIndex++
-		}
+		paramNameIndex, unnamedIndex = gen.writeCallStructField(
+			param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
+		)
 	}
+}
+
+func (gen *codeGenerator) writeCallStructField(
+	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
+) (int, int) {
+	if len(param.Names) > 0 {
+		for i, name := range param.Names {
+			fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+			gen.pf("\t\t%s: %s,\n", fieldName, name.Name)
+
+			paramNameIndex++
+		}
+
+		return paramNameIndex, unnamedIndex
+	}
+
+	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+	gen.pf("\t\t%s: %s,\n", fieldName, paramNames[paramNameIndex])
+
+	return paramNameIndex + 1, unnamedIndex + 1
 }
 
 func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
@@ -711,31 +794,40 @@ func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
 	}
 
 	gen.pf("\treturn")
+	gen.writeReturnValues(ftype)
+	gen.pf("\n")
+}
 
+func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
 	returnIndex := 0
 
 	for _, result := range ftype.Results.List {
-		if len(result.Names) > 0 {
-			for _, name := range result.Names {
-				if returnIndex > 0 {
-					gen.pf(", ")
-				}
+		returnIndex = gen.writeReturnValue(result, returnIndex)
+	}
+}
 
-				gen.pf(" resp.%s", name.Name)
-
-				returnIndex++
-			}
-		} else {
+func (gen *codeGenerator) writeReturnValue(result *ast.Field, returnIndex int) int {
+	if len(result.Names) > 0 {
+		for _, name := range result.Names {
 			if returnIndex > 0 {
 				gen.pf(", ")
 			}
 
-			gen.pf(" resp.Result%d", returnIndex)
+			gen.pf(" resp.%s", name.Name)
+
 			returnIndex++
 		}
+
+		return returnIndex
 	}
 
-	gen.pf("\n")
+	if returnIndex > 0 {
+		gen.pf(", ")
+	}
+
+	gen.pf(" resp.Result%d", returnIndex)
+
+	return returnIndex + 1
 }
 
 func (gen *codeGenerator) generateCallStruct() {
@@ -835,25 +927,34 @@ func (gen *codeGenerator) writeValidatorChecks(ftype *ast.FuncType, paramNames [
 
 	for _, param := range ftype.Params.List {
 		paramType := exprToString(gen.fset, param.Type)
-		if len(param.Names) > 0 {
-			for i, name := range param.Names {
-				fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-				gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, name.Name)
-				gen.pf("\t\t\treturn false\n")
-				gen.pf("\t\t}\n")
+		paramNameIndex, unnamedIndex = gen.writeValidatorCheck(
+			param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
+		)
+	}
+}
 
-				paramNameIndex++
-			}
-		} else {
-			fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-			gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, paramNames[paramNameIndex])
+func (gen *codeGenerator) writeValidatorCheck(
+	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
+) (int, int) {
+	if len(param.Names) > 0 {
+		for i, name := range param.Names {
+			fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+			gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, name.Name)
 			gen.pf("\t\t\treturn false\n")
 			gen.pf("\t\t}\n")
 
 			paramNameIndex++
-			unnamedIndex++
 		}
+
+		return paramNameIndex, unnamedIndex
 	}
+
+	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+	gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, paramNames[paramNameIndex])
+	gen.pf("\t\t\treturn false\n")
+	gen.pf("\t\t}\n")
+
+	return paramNameIndex + 1, unnamedIndex + 1
 }
 
 func (gen *codeGenerator) generateTimedStruct() {
@@ -975,18 +1076,25 @@ func extractParamNames(ftype *ast.FuncType) []string {
 	paramIndex := 0
 
 	for _, param := range ftype.Params.List {
-		if len(param.Names) > 0 {
-			for _, name := range param.Names {
-				paramNames = append(paramNames, name.Name)
-			}
-		} else {
-			paramName := fmt.Sprintf("param%d", paramIndex)
-			paramNames = append(paramNames, paramName)
-			paramIndex++
-		}
+		paramNames, paramIndex = appendParamNames(param, paramNames, paramIndex)
 	}
 
 	return paramNames
+}
+
+func appendParamNames(param *ast.Field, paramNames []string, paramIndex int) ([]string, int) {
+	if len(param.Names) > 0 {
+		for _, name := range param.Names {
+			paramNames = append(paramNames, name.Name)
+		}
+
+		return paramNames, paramIndex
+	}
+
+	paramName := fmt.Sprintf("param%d", paramIndex)
+	paramNames = append(paramNames, paramName)
+
+	return paramNames, paramIndex + 1
 }
 
 // renderFieldList renders a *ast.FieldList as Go code for return types.
@@ -1002,25 +1110,31 @@ func renderFieldList(fset *token.FileSet, fieldList *ast.FieldList) string {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		// Names
-		for j, name := range field.Names {
-			if j > 0 {
-				buf.WriteString(", ")
-			}
 
-			buf.WriteString(name.Name)
-		}
-		// Type
-		if len(field.Names) > 0 {
-			buf.WriteString(" ")
-		}
-
-		buf.WriteString(exprToString(fset, field.Type))
+		renderField(fset, field, &buf)
 	}
 
 	buf.WriteString(")")
 
 	return buf.String()
+}
+
+func renderField(fset *token.FileSet, field *ast.Field, buf *bytes.Buffer) {
+	// Names
+	for j, name := range field.Names {
+		if j > 0 {
+			buf.WriteString(", ")
+		}
+
+		buf.WriteString(name.Name)
+	}
+
+	// Type
+	if len(field.Names) > 0 {
+		buf.WriteString(" ")
+	}
+
+	buf.WriteString(exprToString(fset, field.Type))
 }
 
 // exprToString renders an ast.Expr to Go code.
