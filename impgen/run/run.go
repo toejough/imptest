@@ -286,15 +286,15 @@ func generateImplementationCode(
 		expectCallToName:    impName + "ExpectCallTo",
 		timedName:           impName + "Timed",
 		identifiedInterface: identifiedInterface,
+		methodNames:         collectMethodNames(identifiedInterface),
 	}
 
 	gen.generateHeader()
 	gen.generateMockStruct()
 	gen.generateMainStruct()
-
-	methodNames := gen.generateMethodStructs()
+	gen.generateMethodStructs()
 	gen.generateMockMethods()
-	gen.generateCallStruct(methodNames)
+	gen.generateCallStruct()
 	gen.generateExpectCallToStruct()
 	gen.generateExpectCallToMethods()
 	gen.generateTimedStruct()
@@ -343,6 +343,7 @@ type codeGenerator struct {
 	expectCallToName    string
 	timedName           string
 	identifiedInterface *ast.InterfaceType
+	methodNames         []string
 }
 
 // p writes a formatted string to the buffer (short for "print").
@@ -410,17 +411,30 @@ func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *
 	}
 }
 
-func (gen *codeGenerator) generateMethodStructs() []string {
+func collectMethodNames(iface *ast.InterfaceType) []string {
 	var methodNames []string
 
+	for _, field := range iface.Methods.List {
+		if len(field.Names) == 0 {
+			continue
+		}
+
+		for _, methodName := range field.Names {
+			if _, ok := field.Type.(*ast.FuncType); ok {
+				methodNames = append(methodNames, methodName.Name)
+			}
+		}
+	}
+
+	return methodNames
+}
+
+func (gen *codeGenerator) generateMethodStructs() {
 	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
-		methodNames = append(methodNames, methodName)
 		gen.generateMethodCallStruct(methodName, ftype)
 		gen.generateMethodResponseStruct(methodName, ftype)
 		gen.generateMethodResponseMethods(methodName, ftype)
 	})
-
-	return methodNames
 }
 
 func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast.FuncType) {
@@ -713,24 +727,24 @@ func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
 	gen.pf("\n")
 }
 
-func (gen *codeGenerator) generateCallStruct(methodNames []string) {
+func (gen *codeGenerator) generateCallStruct() {
 	gen.pf("type %s struct {\n", gen.callName)
 
-	for _, methodName := range methodNames {
+	for _, methodName := range gen.methodNames {
 		gen.pf("\t%s *%s\n", methodName, gen.methodCallName(methodName))
 	}
 
 	gen.pf("}\n\n")
 
-	gen.generateCallNameMethod(methodNames)
-	gen.generateCallDoneMethod(methodNames)
-	gen.generateCallAsMethod(methodNames)
+	gen.generateCallNameMethod()
+	gen.generateCallDoneMethod()
+	gen.generateCallAsMethod()
 }
 
-func (gen *codeGenerator) generateCallNameMethod(methodNames []string) {
+func (gen *codeGenerator) generateCallNameMethod() {
 	gen.pf("func (c *%s) Name() string {\n", gen.callName)
 
-	for _, methodName := range methodNames {
+	for _, methodName := range gen.methodNames {
 		gen.pf("\tif c.%s != nil {\n", methodName)
 		gen.pf("\t\treturn %q\n", methodName)
 		gen.pf("\t}\n")
@@ -740,10 +754,10 @@ func (gen *codeGenerator) generateCallNameMethod(methodNames []string) {
 	gen.pf("}\n\n")
 }
 
-func (gen *codeGenerator) generateCallDoneMethod(methodNames []string) {
+func (gen *codeGenerator) generateCallDoneMethod() {
 	gen.pf("func (c *%s) Done() bool {\n", gen.callName)
 
-	for _, methodName := range methodNames {
+	for _, methodName := range gen.methodNames {
 		gen.pf("\tif c.%s != nil {\n", methodName)
 		gen.pf("\t\treturn c.%s.done\n", methodName)
 		gen.pf("\t}\n")
@@ -753,8 +767,8 @@ func (gen *codeGenerator) generateCallDoneMethod(methodNames []string) {
 	gen.pf("}\n\n")
 }
 
-func (gen *codeGenerator) generateCallAsMethod(methodNames []string) {
-	for _, methodName := range methodNames {
+func (gen *codeGenerator) generateCallAsMethod() {
+	for _, methodName := range gen.methodNames {
 		gen.pf("func (c *%s) As%s() *%s { return c.%s }\n\n",
 			gen.callName, methodName, gen.methodCallName(methodName), methodName)
 	}
