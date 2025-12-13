@@ -32,7 +32,10 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 	}
 	// fmt.Printf("Target package import path: %q, matchName: %q\n", pkgImportPath, matchName)
 
-	astFiles, fset := parsePackageAST(pkgImportPath, pkgLoader)
+	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
+	if err != nil {
+		return fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
+	}
 	// fmt.Printf("Parsed %d AST files for package %q\n", len(astFiles), pkgImportPath)
 
 	iface := getMatchingInterfaceFromAST(astFiles, matchName)
@@ -43,7 +46,10 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 	// fmt.Printf("Found interface %q in package %q:\n", matchName, pkgImportPath)
 	// printAstTree(iface, "  ")
 
-	code := generateImplementationCode(iface, info, fset)
+	code, err := generateImplementationCode(iface, info, fset)
+	if err != nil {
+		return err
+	}
 	// fmt.Printf("Generated implementation code:\n%s\n", code)
 
 	return writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys)
@@ -145,17 +151,6 @@ func getPackageAndMatchName(info generatorInfo, pkgLoader PackageLoader) (string
 	return ".", matchName, nil
 }
 
-// parsePackageAST loads and parses the AST for the given package import path.
-func parsePackageAST(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet) {
-	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
-	if err != nil {
-		fmt.Printf("error loading package %q: %v\n", pkgImportPath, err)
-		return nil, token.NewFileSet()
-	}
-
-	return astFiles, fset
-}
-
 // getMatchingInterfaceFromAST finds the interface by name in the ASTs.
 func getMatchingInterfaceFromAST(astFiles []*ast.File, matchName string) *ast.InterfaceType {
 	for _, fileAst := range astFiles {
@@ -191,7 +186,7 @@ func generateImplementationCode(
 	identifiedInterface *ast.InterfaceType,
 	info generatorInfo,
 	fset *token.FileSet,
-) string {
+) (string, error) {
 	impName := info.impName
 	if impName == "" {
 		impName = "interfaceImplementation"
@@ -224,11 +219,10 @@ func generateImplementationCode(
 
 	formatted, err := format.Source(gen.buf.Bytes())
 	if err != nil {
-		fmt.Printf("error formatting generated code: %v\n", err)
-		return gen.buf.String()
+		return "", fmt.Errorf("error formatting generated code: %w", err)
 	}
 
-	return string(formatted)
+	return string(formatted), nil
 }
 
 // writeGeneratedCodeToFile writes the generated code to <impName>.go.
