@@ -32,9 +32,9 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 		return err
 	}
 
-	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
+	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader)
 	if err != nil {
-		return fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
+		return err
 	}
 
 	iface, err := getMatchingInterfaceFromAST(astFiles, localInterfaceName, pkgImportPath)
@@ -48,6 +48,14 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 	}
 
 	return writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys)
+}
+
+func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, error) {
+	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
+	}
+	return astFiles, fset, nil
 }
 
 // FileSystem interface for mocking.
