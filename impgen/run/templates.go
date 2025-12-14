@@ -28,6 +28,19 @@ type methodTemplateData struct {
 	MethodCallName string
 }
 
+// callStructMethodData holds data for generating call struct methods with method field info.
+type callStructMethodData struct {
+	Name     string // Method name (e.g., "DoSomething")
+	CallName string // Full call struct name (e.g., "MyImpDoSomethingCall")
+}
+
+// callStructTemplateData holds data for generating the call struct and its methods.
+type callStructTemplateData struct {
+	templateData
+
+	Methods []callStructMethodData
+}
+
 // mustParse is a helper to parse template strings and panic on error.
 func mustParse(name, text string) *template.Template {
 	return template.Must(template.New(name).Parse(text))
@@ -159,6 +172,28 @@ func (i *{{.ImpName}}) Within(d time.Duration) *{{.TimedName}} {
 	c.responseChan <- {{.MethodCallName}}Response{Type: "resolve"}
 }
 `)
+
+	callStructTemplate = mustParse("callStruct", `type {{.CallName}} struct {
+{{range .Methods}}	{{.Name}} *{{.CallName}}
+{{end}}}
+
+func (c *{{.CallName}}) Name() string {
+{{range .Methods}}	if c.{{.Name}} != nil {
+		return "{{.Name}}"
+	}
+{{end}}	return ""
+}
+
+func (c *{{.CallName}}) Done() bool {
+{{range .Methods}}	if c.{{.Name}} != nil {
+		return c.{{.Name}}.done
+	}
+{{end}}	return false
+}
+
+{{range .Methods}}func (c *{{$.CallName}}) As{{.Name}}() *{{.CallName}} { return c.{{.Name}} }
+
+{{end}}`)
 )
 
 // executeTemplate executes a template and returns the result as a string.

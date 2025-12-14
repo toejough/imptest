@@ -56,62 +56,25 @@ func (gen *codeGenerator) methodTemplateData(methodCallName string) methodTempla
 	}
 }
 
-// generateCallAsMethod generates As{Method}() methods that return typed call structs.
-func (gen *codeGenerator) generateCallAsMethod() {
-	for _, methodName := range gen.methodNames {
-		gen.pf("func (c *%s) As%s() *%s { return c.%s }\n\n",
-			gen.callName, methodName, gen.methodCallName(methodName), methodName)
-	}
-}
-
-// generateCallDoneMethod generates the Done() method that checks if any method call is completed.
-func (gen *codeGenerator) generateCallDoneMethod() {
-	gen.pf(`func (c *%s) Done() bool {
-`, gen.callName)
-
-	for _, methodName := range gen.methodNames {
-		gen.pf(`	if c.%s != nil {
-		return c.%s.done
-	}
-`, methodName, methodName)
+// callStructTemplateData returns template data for generating the call struct.
+func (gen *codeGenerator) callStructData() callStructTemplateData {
+	methods := make([]callStructMethodData, len(gen.methodNames))
+	for i, methodName := range gen.methodNames {
+		methods[i] = callStructMethodData{
+			Name:     methodName,
+			CallName: gen.methodCallName(methodName),
+		}
 	}
 
-	gen.pf(`	return false
-}
-
-`)
-}
-
-// generateCallNameMethod generates the Name() method that returns the called method's name.
-func (gen *codeGenerator) generateCallNameMethod() {
-	gen.pf("func (c *%s) Name() string {\n", gen.callName)
-
-	for _, methodName := range gen.methodNames {
-		gen.pf(`	if c.%s != nil {
-		return %q
+	return callStructTemplateData{
+		templateData: gen.templateData(),
+		Methods:      methods,
 	}
-`, methodName, methodName)
-	}
-
-	gen.pf(`	return ""
-}
-
-`)
 }
 
 // generateCallStruct generates the union call struct that can hold any method call.
 func (gen *codeGenerator) generateCallStruct() {
-	gen.pf("type %s struct {\n", gen.callName)
-
-	for _, methodName := range gen.methodNames {
-		gen.pf("\t%s *%s\n", methodName, gen.methodCallName(methodName))
-	}
-
-	gen.pf("}\n\n")
-
-	gen.generateCallNameMethod()
-	gen.generateCallDoneMethod()
-	gen.generateCallAsMethod()
+	gen.ps(executeTemplate(callStructTemplate, gen.callStructData()))
 }
 
 // generateHeader writes the package declaration and imports for the generated file.
