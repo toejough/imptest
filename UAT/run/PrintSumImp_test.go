@@ -4,6 +4,7 @@ package run_test
 
 import (
 	run "github.com/toejough/imptest/UAT/run"
+	"reflect"
 	"testing"
 )
 
@@ -87,5 +88,83 @@ func (s *PrintSumImp) ExpectReturnedValues(v1 int, v2 int, v3 string) {
 	case p := <-s.panicChan:
 		s.panicked = p
 		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
+	}
+}
+
+func (s *PrintSumImp) ExpectPanicWith(expected any) {
+	s.t.Helper()
+
+	// Check if we already have a return value or panic
+	if s.panicked != nil {
+		if !reflect.DeepEqual(s.panicked, expected) {
+			s.t.Fatalf("expected panic with %v, got %v", expected, s.panicked)
+		}
+		return
+	}
+
+	if s.returned != nil {
+		s.t.Fatalf("expected function to panic, but it returned")
+	}
+
+	// Wait for either return or panic
+	select {
+	case ret := <-s.returnChan:
+		s.returned = &ret
+		s.t.Fatalf("expected function to panic, but it returned")
+	case p := <-s.panicChan:
+		s.panicked = p
+		if !reflect.DeepEqual(p, expected) {
+			s.t.Fatalf("expected panic with %v, got %v", expected, p)
+		}
+	}
+}
+
+type PrintSumImpResponse struct {
+	EventType string // "return" or "panic"
+	ReturnVal *PrintSumImpReturn
+	PanicVal  any
+}
+
+func (r *PrintSumImpResponse) Type() string {
+	return r.EventType
+}
+
+func (r *PrintSumImpResponse) AsReturn() []any {
+	if r.ReturnVal == nil {
+		return nil
+	}
+	return []any{r.ReturnVal.Val0, r.ReturnVal.Val1, r.ReturnVal.Val2}
+}
+
+func (s *PrintSumImp) GetResponse() *PrintSumImpResponse {
+	// Check if we already have a return value or panic
+	if s.returned != nil {
+		return &PrintSumImpResponse{
+			EventType: "ReturnEvent",
+			ReturnVal: s.returned,
+		}
+	}
+
+	if s.panicked != nil {
+		return &PrintSumImpResponse{
+			EventType: "PanicEvent",
+			PanicVal:  s.panicked,
+		}
+	}
+
+	// Wait for either return or panic
+	select {
+	case ret := <-s.returnChan:
+		s.returned = &ret
+		return &PrintSumImpResponse{
+			EventType: "ReturnEvent",
+			ReturnVal: &ret,
+		}
+	case p := <-s.panicChan:
+		s.panicked = p
+		return &PrintSumImpResponse{
+			EventType: "PanicEvent",
+			PanicVal:  p,
+		}
 	}
 }

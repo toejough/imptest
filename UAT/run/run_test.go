@@ -3,7 +3,6 @@ package run_test
 import (
 	"testing"
 
-	"github.com/toejough/imptest"
 	"github.com/toejough/imptest/UAT/run"
 )
 
@@ -57,7 +56,7 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
 	// call the function under test
 	inputA := 10
 	inputB := 32
-	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
+	printSumImp := NewPrintSumImp(t, run.PrintSum).Start(inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
 	normalAddResult := inputA + inputB
@@ -118,7 +117,7 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
 	// return a, b, formatted
 	// printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
 	response := printSumImp.GetResponse()
-	if response.Type() != imptest.ReturnEvent {
+	if response.Type() != "ReturnEvent" {
 		t.Fatalf("expected ReturnEvent, got %v", response.Type())
 	}
 
@@ -143,7 +142,7 @@ func Test_PrintSum_Panic(t *testing.T) {
 	// call the function under test
 	inputA := 10
 	inputB := 32
-	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
+	printSumImp := NewPrintSumImp(t, run.PrintSum).Start(inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
 	imp.ExpectCallTo.Add(inputA, inputB).InjectPanic("mock panic")
@@ -161,32 +160,11 @@ func Test_PrintSum_WithDuration(t *testing.T) {
 	// call the function under test
 	inputA := 10
 	inputB := 32
-	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
+	printSumImp := NewPrintSumImp(t, run.PrintSum).Start(inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
 	imp.ExpectCallTo.Add(inputA, inputB).InjectPanic("mock panic")
 
 	// panic with message
 	printSumImp.ExpectPanicWith("mock panic")
-}
-
-func Test_MultiMulti(t *testing.T) {
-	t.Parallel()
-	// we want to validate a complex scenario with multiple functions and multiple imps and concurrency
-
-	// Test a ping pong match between two players. Each player randomly hits or misses the ball.
-	// gameTracker := new GameTracker(randomizer)
-	// ping := NewPlayer("Ping", gameTracker, randomizer)
-	// pong := NewPlayer("Pong", gameTracker, randomizer)
-	// go ping.Play()
-	// go pong.Play()
-	// expect ping to tell gameTracker it is ready
-	// expect pong to tell gameTracker it is ready
-	// expect gameTracker to start the game
-	// expect gameTracker to pick a player to serve
-	// expect that player to serve through gameTracker
-	// expect the other player to receive through gameTracker
-	// expect the other player to randomly hit or miss
-	// now expect a series of hits and misses until one player wins
-	// expect gameTracker to announce the winner
 }

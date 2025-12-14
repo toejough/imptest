@@ -822,11 +822,15 @@ func generateCallableWrapperCode(
 	pkgPath, pkgName := getPackageInfo(funcDecl, info.interfaceName)
 	if pkgPath != "" {
 		fmt.Fprintf(&buf, "import (\n")
+		fmt.Fprintf(&buf, "\t\"reflect\"\n")
 		fmt.Fprintf(&buf, "\t\"testing\"\n")
 		fmt.Fprintf(&buf, "\t%s \"%s\"\n", pkgName, pkgPath)
 		fmt.Fprintf(&buf, ")\n\n")
 	} else {
-		fmt.Fprintf(&buf, "import \"testing\"\n\n")
+		fmt.Fprintf(&buf, "import (\n")
+		fmt.Fprintf(&buf, "\t\"reflect\"\n")
+		fmt.Fprintf(&buf, "\t\"testing\"\n")
+		fmt.Fprintf(&buf, ")\n\n")
 	}
 
 	// Return struct (if function has returns)
@@ -1045,6 +1049,123 @@ func generateCallableWrapperCode(
 	fmt.Fprintf(&buf, "\tcase p := <-s.panicChan:\n")
 	fmt.Fprintf(&buf, "\t\ts.panicked = p\n")
 	fmt.Fprintf(&buf, "\t\ts.t.Fatalf(\"expected function to return, but it panicked with: %%v\", p)\n")
+	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// ExpectPanicWith method
+	fmt.Fprintf(&buf, "func (s *%s) ExpectPanicWith(expected any) {\n", info.impName)
+	fmt.Fprintf(&buf, "\ts.t.Helper()\n\n")
+	fmt.Fprintf(&buf, "\t// Check if we already have a return value or panic\n")
+	fmt.Fprintf(&buf, "\tif s.panicked != nil {\n")
+	fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(s.panicked, expected) {\n")
+	fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected panic with %%v, got %%v\", expected, s.panicked)\n")
+	fmt.Fprintf(&buf, "\t\t}\n")
+	fmt.Fprintf(&buf, "\t\treturn\n")
+	fmt.Fprintf(&buf, "\t}\n\n")
+	fmt.Fprintf(&buf, "\tif s.returned != nil {\n")
+	fmt.Fprintf(&buf, "\t\ts.t.Fatalf(\"expected function to panic, but it returned\")\n")
+	fmt.Fprintf(&buf, "\t}\n\n")
+	fmt.Fprintf(&buf, "\t// Wait for either return or panic\n")
+	fmt.Fprintf(&buf, "\tselect {\n")
+	fmt.Fprintf(&buf, "\tcase ret := <-s.returnChan:\n")
+	fmt.Fprintf(&buf, "\t\ts.returned = &ret\n")
+	fmt.Fprintf(&buf, "\t\ts.t.Fatalf(\"expected function to panic, but it returned\")\n")
+	fmt.Fprintf(&buf, "\tcase p := <-s.panicChan:\n")
+	fmt.Fprintf(&buf, "\t\ts.panicked = p\n")
+	fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(p, expected) {\n")
+	fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected panic with %%v, got %%v\", expected, p)\n")
+	fmt.Fprintf(&buf, "\t\t}\n")
+	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// Response struct
+	fmt.Fprintf(&buf, "type %sResponse struct {\n", info.impName)
+	fmt.Fprintf(&buf, "\tEventType string // \"return\" or \"panic\"\n")
+
+	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0 {
+		fmt.Fprintf(&buf, "\tReturnVal *%sReturn\n", info.impName)
+	}
+
+	fmt.Fprintf(&buf, "\tPanicVal  any\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// Type method on Response
+	fmt.Fprintf(&buf, "func (r *%sResponse) Type() string {\n", info.impName)
+	fmt.Fprintf(&buf, "\treturn r.EventType\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// AsReturn method on Response
+	fmt.Fprintf(&buf, "func (r *%sResponse) AsReturn() []any {\n", info.impName)
+
+	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0 {
+		// Count total return values
+		numReturns := 0
+
+		for _, field := range funcDecl.Type.Results.List {
+			if len(field.Names) > 0 {
+				numReturns += len(field.Names)
+			} else {
+				numReturns++
+			}
+		}
+
+		fmt.Fprintf(&buf, "\tif r.ReturnVal == nil {\n")
+		fmt.Fprintf(&buf, "\t\treturn nil\n")
+		fmt.Fprintf(&buf, "\t}\n")
+		fmt.Fprintf(&buf, "\treturn []any{")
+
+		for i := range numReturns {
+			if i > 0 {
+				fmt.Fprintf(&buf, ", ")
+			}
+
+			fmt.Fprintf(&buf, "r.ReturnVal.Val%d", i)
+		}
+
+		fmt.Fprintf(&buf, "}\n")
+	} else {
+		fmt.Fprintf(&buf, "\treturn nil\n")
+	}
+
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// GetResponse method
+	fmt.Fprintf(&buf, "func (s *%s) GetResponse() *%sResponse {\n", info.impName, info.impName)
+	fmt.Fprintf(&buf, "\t// Check if we already have a return value or panic\n")
+	fmt.Fprintf(&buf, "\tif s.returned != nil {\n")
+	fmt.Fprintf(&buf, "\t\treturn &%sResponse{\n", info.impName)
+	fmt.Fprintf(&buf, "\t\t\tEventType: \"ReturnEvent\",\n")
+
+	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0 {
+		fmt.Fprintf(&buf, "\t\t\tReturnVal: s.returned,\n")
+	}
+
+	fmt.Fprintf(&buf, "\t\t}\n")
+	fmt.Fprintf(&buf, "\t}\n\n")
+	fmt.Fprintf(&buf, "\tif s.panicked != nil {\n")
+	fmt.Fprintf(&buf, "\t\treturn &%sResponse{\n", info.impName)
+	fmt.Fprintf(&buf, "\t\t\tEventType: \"PanicEvent\",\n")
+	fmt.Fprintf(&buf, "\t\t\tPanicVal:  s.panicked,\n")
+	fmt.Fprintf(&buf, "\t\t}\n")
+	fmt.Fprintf(&buf, "\t}\n\n")
+	fmt.Fprintf(&buf, "\t// Wait for either return or panic\n")
+	fmt.Fprintf(&buf, "\tselect {\n")
+	fmt.Fprintf(&buf, "\tcase ret := <-s.returnChan:\n")
+	fmt.Fprintf(&buf, "\t\ts.returned = &ret\n")
+	fmt.Fprintf(&buf, "\t\treturn &%sResponse{\n", info.impName)
+	fmt.Fprintf(&buf, "\t\t\tEventType: \"ReturnEvent\",\n")
+
+	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0 {
+		fmt.Fprintf(&buf, "\t\t\tReturnVal: &ret,\n")
+	}
+
+	fmt.Fprintf(&buf, "\t\t}\n")
+	fmt.Fprintf(&buf, "\tcase p := <-s.panicChan:\n")
+	fmt.Fprintf(&buf, "\t\ts.panicked = p\n")
+	fmt.Fprintf(&buf, "\t\treturn &%sResponse{\n", info.impName)
+	fmt.Fprintf(&buf, "\t\t\tEventType: \"PanicEvent\",\n")
+	fmt.Fprintf(&buf, "\t\t\tPanicVal:  p,\n")
+	fmt.Fprintf(&buf, "\t\t}\n")
 	fmt.Fprintf(&buf, "\t}\n")
 	fmt.Fprintf(&buf, "}\n\n")
 
