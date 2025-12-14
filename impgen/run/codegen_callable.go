@@ -1,7 +1,6 @@
 package run
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -13,18 +12,13 @@ import (
 
 // callableGenerator holds state for generating callable wrapper code.
 type callableGenerator struct {
-	buf       bytes.Buffer
-	fset      *token.FileSet
+	codeWriter
+
 	pkgName   string
 	impName   string
 	funcDecl  *ast.FuncDecl
 	pkgPath   string
 	qualifier string
-}
-
-// pf writes a formatted string to the buffer.
-func (g *callableGenerator) pf(format string, args ...any) {
-	fmt.Fprintf(&g.buf, format, args...)
 }
 
 // hasReturns returns true if the function has return values.
@@ -553,12 +547,12 @@ func generateCallableWrapperCode(
 	pkgPath, qualifier := getCallablePackageInfo(funcDecl, info.interfaceName)
 
 	gen := &callableGenerator{
-		fset:      fset,
-		pkgName:   info.pkgName,
-		impName:   info.impName,
-		funcDecl:  funcDecl,
-		pkgPath:   pkgPath,
-		qualifier: qualifier,
+		codeWriter: codeWriter{fset: fset},
+		pkgName:    info.pkgName,
+		impName:    info.impName,
+		funcDecl:   funcDecl,
+		pkgPath:    pkgPath,
+		qualifier:  qualifier,
 	}
 
 	gen.generateHeader()
@@ -572,7 +566,7 @@ func generateCallableWrapperCode(
 	gen.generateResponseMethods()
 	gen.generateGetResponseMethod()
 
-	formatted, err := format.Source(gen.buf.Bytes())
+	formatted, err := format.Source(gen.bytes())
 	if err != nil {
 		return "", fmt.Errorf("error formatting generated code: %w", err)
 	}

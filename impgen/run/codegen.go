@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/printer"
 	"go/token"
 	"strings"
 )
@@ -17,8 +16,8 @@ var errFunctionNotFound = errors.New("function not found")
 
 // codeGenerator holds state for code generation.
 type codeGenerator struct {
-	buf                 bytes.Buffer
-	fset                *token.FileSet
+	codeWriter
+
 	pkgName             string
 	impName             string
 	mockName            string
@@ -134,11 +133,6 @@ func (gen *codeGenerator) generateMainStruct() {
 // methodCallName returns the call struct name for a method (e.g. "MyImpDoSomethingCall").
 func (gen *codeGenerator) methodCallName(methodName string) string {
 	return gen.impName + methodName + "Call"
-}
-
-// pf writes a formatted string to the buffer (short for "print").
-func (gen *codeGenerator) pf(format string, args ...any) {
-	fmt.Fprintf(&gen.buf, format, args...)
 }
 
 // writeMethodSignature writes the method name and parameters (e.g., "MethodName(a int, b string)").
@@ -764,7 +758,7 @@ func generateImplementationCode(
 	impName := info.impName
 
 	gen := &codeGenerator{
-		fset:                fset,
+		codeWriter:          codeWriter{fset: fset},
 		pkgName:             info.pkgName,
 		impName:             impName,
 		mockName:            impName + "Mock",
@@ -788,7 +782,7 @@ func generateImplementationCode(
 	gen.generateGetCurrentCallMethod()
 	gen.generateConstructor()
 
-	formatted, err := format.Source(gen.buf.Bytes())
+	formatted, err := format.Source(gen.bytes())
 	if err != nil {
 		return "", fmt.Errorf("error formatting generated code: %w", err)
 	}
@@ -835,16 +829,6 @@ func processFieldMethods(field *ast.Field, callback func(methodName string, ftyp
 	}
 }
 
-// hasParams returns true if the function type has parameters.
-func hasParams(ftype *ast.FuncType) bool {
-	return ftype.Params != nil && len(ftype.Params.List) > 0
-}
-
-// hasResults returns true if the function type has return values.
-func hasResults(ftype *ast.FuncType) bool {
-	return ftype.Results != nil && len(ftype.Results.List) > 0
-}
-
 // getParamFieldName returns the struct field name for a parameter.
 // For named params, returns the name. For unnamed params, generates a name based on type/index.
 func getParamFieldName(param *ast.Field, nameIdx int, unnamedIdx int, paramType string, totalParams int) string {
@@ -853,21 +837,6 @@ func getParamFieldName(param *ast.Field, nameIdx int, unnamedIdx int, paramType 
 	}
 
 	return generateParamName(unnamedIdx, paramType, totalParams)
-}
-
-// countFields counts the total number of individual fields in a field list.
-func countFields(fields *ast.FieldList) int {
-	total := 0
-
-	for _, field := range fields.List {
-		if len(field.Names) > 0 {
-			total += len(field.Names)
-		} else {
-			total++
-		}
-	}
-
-	return total
 }
 
 // extractParamNames extracts or generates parameter names from a function type.
@@ -941,14 +910,6 @@ func renderField(fset *token.FileSet, field *ast.Field, buf *bytes.Buffer) {
 	}
 
 	buf.WriteString(exprToString(fset, field.Type))
-}
-
-// exprToString renders an ast.Expr to Go code.
-func exprToString(fset *token.FileSet, expr ast.Expr) string {
-	var buf bytes.Buffer
-	printer.Fprint(&buf, fset, expr)
-
-	return buf.String()
 }
 
 // generateParamName generates a field name for an unnamed parameter
