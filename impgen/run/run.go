@@ -71,7 +71,7 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 func generateCode(info generatorInfo, err error, astFiles []*ast.File, fset *token.FileSet, pkgImportPath string) (string, error) {
 	var code string
 	if info.isCallable {
-		code, err = generateCallableWrapperCode(astFiles, info, fset, pkgImportPath)
+		code, err = generateCodeForCallable(astFiles, info, fset, pkgImportPath)
 		if err != nil {
 			return "", err
 		}
@@ -81,7 +81,7 @@ func generateCode(info generatorInfo, err error, astFiles []*ast.File, fset *tok
 			return "", err
 		}
 
-		code, err = generateImplementationCode(iface, info, fset)
+		code, err = generateCodeForInterface(iface, info, fset)
 		if err != nil {
 			return "", err
 		}
