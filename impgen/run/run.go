@@ -54,7 +54,7 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 		return err
 	}
 
-	code, err := generateCode(info, err, astFiles, fset, pkgImportPath)
+	code, err := generateCode(info, astFiles, fset, pkgImportPath)
 	if err != nil {
 		return err
 	}
@@ -68,25 +68,22 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 }
 
 // generateCode generates the Go code based on the generatorInfo and AST files.
-func generateCode(info generatorInfo, err error, astFiles []*ast.File, fset *token.FileSet, pkgImportPath string) (string, error) {
-	var code string
+func generateCode(
+	info generatorInfo,
+	astFiles []*ast.File,
+	fset *token.FileSet,
+	pkgImportPath string,
+) (string, error) {
 	if info.isCallable {
-		code, err = generateCodeForCallable(astFiles, info, fset, pkgImportPath)
-		if err != nil {
-			return "", err
-		}
-	} else {
-		iface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
-		if err != nil {
-			return "", err
-		}
-
-		code, err = generateCodeForInterface(iface, info, fset)
-		if err != nil {
-			return "", err
-		}
+		return generateCallableWrapperCode(astFiles, info, fset, pkgImportPath)
 	}
-	return code, nil
+
+	iface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
+	if err != nil {
+		return "", err
+	}
+
+	return generateImplementationCode(iface, info, fset)
 }
 
 // Functions - Private
