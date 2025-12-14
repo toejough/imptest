@@ -8,6 +8,7 @@ import (
 	"go/format"
 	"go/token"
 	"strings"
+	"text/template"
 )
 
 var errFunctionNotFound = errors.New("function not found")
@@ -72,24 +73,29 @@ func (gen *codeGenerator) callStructData() callStructTemplateData {
 	}
 }
 
+// execTemplate executes a template and writes the result to the buffer.
+func (gen *codeGenerator) execTemplate(tmpl *template.Template, data any) {
+	gen.ps(executeTemplate(tmpl, data))
+}
+
 // generateCallStruct generates the union call struct that can hold any method call.
 func (gen *codeGenerator) generateCallStruct() {
-	gen.ps(executeTemplate(callStructTemplate, gen.callStructData()))
+	gen.execTemplate(callStructTemplate, gen.callStructData())
 }
 
 // generateHeader writes the package declaration and imports for the generated file.
 func (gen *codeGenerator) generateHeader() {
-	gen.ps(executeTemplate(headerTemplate, gen.templateData()))
+	gen.execTemplate(headerTemplate, gen.templateData())
 }
 
 // generateMockStruct generates the mock struct that wraps the implementation.
 func (gen *codeGenerator) generateMockStruct() {
-	gen.ps(executeTemplate(mockStructTemplate, gen.templateData()))
+	gen.execTemplate(mockStructTemplate, gen.templateData())
 }
 
 // generateMainStruct generates the main implementation struct that handles test call tracking.
 func (gen *codeGenerator) generateMainStruct() {
-	gen.ps(executeTemplate(mainStructTemplate, gen.templateData()))
+	gen.execTemplate(mainStructTemplate, gen.templateData())
 }
 
 // methodCallName returns the call struct name for a method (e.g. "MyImpDoSomethingCall").
@@ -267,12 +273,12 @@ func (gen *codeGenerator) writeInjectResultsResponseFields(ftype *ast.FuncType, 
 
 // generateInjectPanicMethod generates the InjectPanic method for simulating panics.
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
-	gen.ps(executeTemplate(injectPanicMethodTemplate, gen.methodTemplateData(methodCallName)))
+	gen.execTemplate(injectPanicMethodTemplate, gen.methodTemplateData(methodCallName))
 }
 
 // generateResolveMethod generates the Resolve method for methods with no return values.
 func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
-	gen.ps(executeTemplate(resolveMethodTemplate, gen.methodTemplateData(methodCallName)))
+	gen.execTemplate(resolveMethodTemplate, gen.methodTemplateData(methodCallName))
 }
 
 // generateMockMethods generates the mock methods that implement the interface on the mock struct.
@@ -418,7 +424,7 @@ func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
 
 // generateExpectCallToStruct generates the struct for expecting specific method calls.
 func (gen *codeGenerator) generateExpectCallToStruct() {
-	gen.ps(executeTemplate(expectCallToStructTemplate, gen.templateData()))
+	gen.execTemplate(expectCallToStructTemplate, gen.templateData())
 }
 
 // generateExpectCallToMethods generates expectation methods for each interface method.
@@ -503,22 +509,22 @@ func (gen *codeGenerator) writeValidatorCheck(
 
 // generateTimedStruct generates the struct and method for timed call expectations.
 func (gen *codeGenerator) generateTimedStruct() {
-	gen.ps(executeTemplate(timedStructTemplate, gen.templateData()))
+	gen.execTemplate(timedStructTemplate, gen.templateData())
 }
 
 // generateGetCallMethod generates the GetCall method that retrieves matching calls from queue or channel.
 func (gen *codeGenerator) generateGetCallMethod() {
-	gen.ps(executeTemplate(getCallMethodTemplate, gen.templateData()))
+	gen.execTemplate(getCallMethodTemplate, gen.templateData())
 }
 
 // generateGetCurrentCallMethod generates the GetCurrentCall method that returns the current or next call.
 func (gen *codeGenerator) generateGetCurrentCallMethod() {
-	gen.ps(executeTemplate(getCurrentCallMethodTemplate, gen.templateData()))
+	gen.execTemplate(getCurrentCallMethodTemplate, gen.templateData())
 }
 
 // generateConstructor generates the New{ImpName} constructor function.
 func (gen *codeGenerator) generateConstructor() {
-	gen.ps(executeTemplate(constructorTemplate, gen.templateData()))
+	gen.execTemplate(constructorTemplate, gen.templateData())
 }
 
 // Functions - Public
