@@ -140,3 +140,29 @@ func paramNamesToString(params []fieldInfo) string {
 
 	return strings.Join(names, ", ")
 }
+
+// paramVisitor is called for each parameter during iteration.
+// Returns the next (paramNameIndex, unnamedIndex).
+type paramVisitor func(
+	param *ast.Field,
+	paramType string,
+	paramNameIndex, unnamedIndex, totalParams int,
+) (nextParamNameIndex, nextUnnamedIndex int)
+
+// visitParams iterates over function parameters and calls the visitor for each.
+// The visitor receives each parameter with its type string and current indices,
+// and returns the updated indices for the next iteration.
+func visitParams(fset *token.FileSet, ftype *ast.FuncType, visit paramVisitor) {
+	if !hasParams(ftype) {
+		return
+	}
+
+	totalParams := countFields(ftype.Params)
+	paramNameIndex := 0
+	unnamedIndex := 0
+
+	for _, param := range ftype.Params.List {
+		paramType := exprToString(fset, param.Type)
+		paramNameIndex, unnamedIndex = visit(param, paramType, paramNameIndex, unnamedIndex, totalParams)
+	}
+}

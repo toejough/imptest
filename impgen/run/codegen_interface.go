@@ -130,19 +130,18 @@ func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast
 
 // generateCallStructParamFields generates the parameter fields for a call struct.
 func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
-	totalParams := countFields(ftype.Params)
-	unnamedIndex := 0
-
-	for _, param := range ftype.Params.List {
-		paramType := exprToString(gen.fset, param.Type)
-
+	visitParams(gen.fset, ftype, func(
+		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
+	) (int, int) {
 		if len(param.Names) > 0 {
 			gen.generateNamedParamFields(param, paramType, unnamedIndex, totalParams)
-		} else {
-			gen.generateUnnamedParamField(param, paramType, unnamedIndex, totalParams)
-			unnamedIndex++
+			return paramNameIndex + len(param.Names), unnamedIndex
 		}
-	}
+
+		gen.generateUnnamedParamField(param, paramType, unnamedIndex, totalParams)
+
+		return paramNameIndex + 1, unnamedIndex + 1
+	})
 }
 
 // generateNamedParamFields generates fields for named parameters.
@@ -366,20 +365,11 @@ func (gen *codeGenerator) writeNamedParams(param *ast.Field, paramType string, p
 
 // writeCallStructFields writes the field assignments for initializing a call struct.
 func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames []string) {
-	if !hasParams(ftype) {
-		return
-	}
-
-	totalParams := countFields(ftype.Params)
-	paramNameIndex := 0
-	unnamedIndex := 0
-
-	for _, param := range ftype.Params.List {
-		paramType := exprToString(gen.fset, param.Type)
-		paramNameIndex, unnamedIndex = gen.writeCallStructField(
-			param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
-		)
-	}
+	visitParams(gen.fset, ftype, func(
+		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
+	) (int, int) {
+		return gen.writeCallStructField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams)
+	})
 }
 
 // writeCallStructField writes a single field assignment for a call struct initialization.
@@ -477,16 +467,11 @@ func (gen *codeGenerator) generateValidatorFunction(methodName string, ftype *as
 
 // writeValidatorChecks writes parameter validation checks for an expectation method.
 func (gen *codeGenerator) writeValidatorChecks(ftype *ast.FuncType, paramNames []string) {
-	totalParams := countFields(ftype.Params)
-	paramNameIndex := 0
-	unnamedIndex := 0
-
-	for _, param := range ftype.Params.List {
-		paramType := exprToString(gen.fset, param.Type)
-		paramNameIndex, unnamedIndex = gen.writeValidatorCheck(
-			param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
-		)
-	}
+	visitParams(gen.fset, ftype, func(
+		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
+	) (int, int) {
+		return gen.writeValidatorCheck(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams)
+	})
 }
 
 // writeValidatorCheck writes a single parameter validation check.

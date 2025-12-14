@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "mcp__gopls__go_workspace",
+      "Bash(grep:*)",
+      "mcp__gopls__go_diagnostics",
+      "Bash(mage check:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "outputStyle": "Explanatory"
+}
