@@ -4,12 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toejough/imptest"
 	"github.com/toejough/imptest/UAT/run"
 )
 
 //go:generate go run ../../impgen/main.go run.Tracker --name TrackerImp
 //go:generate go run ../../impgen/main.go run.CoinFlipper --name CoinFlipperImp
+//go:generate go run ../../impgen/main.go run.PingPongPlayer.Play --name PingPongPlayerImp --call
 
 func Test_PingPong_Match(t *testing.T) {
 	t.Parallel()
@@ -20,8 +20,10 @@ func Test_PingPong_Match(t *testing.T) {
 	pong := run.NewPingPongPlayer(trackerImp.Mock, flipperImp.Mock, "Pong")
 
 	// Start both players
-	pingInv := imptest.Start(t, ping.Play)
-	pongInv := imptest.Start(t, pong.Play)
+	pingInv := NewPingPongPlayerImp(t, ping.Play).Start()
+	pongInv := NewPingPongPlayerImp(t, pong.Play).Start()
+	// pingInv := imptest.Start(t, ping.Play)
+	// pongInv := imptest.Start(t, pong.Play)
 
 	// Expect Ping then Pong or vice versa.
 	// Use Within to handle non-deterministic order

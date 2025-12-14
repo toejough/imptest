@@ -9,6 +9,7 @@ import (
 	"go/printer"
 	"go/token"
 	"strings"
+	"unicode"
 )
 
 var errFunctionNotFound = errors.New("function not found")
@@ -1359,8 +1360,14 @@ func generateParamName(index int, paramType string, totalParams int) string {
 	return fmt.Sprintf("Arg%d", index)
 }
 
-// findFunctionInAST finds a function declaration in the AST files.
+// findFunctionInAST finds a function or method declaration in the AST files.
+// funcName can be a plain function name like "PrintSum" or a method reference like "PingPongPlayer.Play".
+//
+//nolint:cyclop,nestif // AST searching requires some complexity
 func findFunctionInAST(astFiles []*ast.File, funcName string, pkgImportPath string) (*ast.FuncDecl, error) {
+	// Check if this is a method reference (TypeName.MethodName)
+	typeName, methodName, isMethod := strings.Cut(funcName, ".")
+
 	for _, file := range astFiles {
 		for _, decl := range file.Decls {
 			funcDecl, ok := decl.(*ast.FuncDecl)
@@ -1368,13 +1375,49 @@ func findFunctionInAST(astFiles []*ast.File, funcName string, pkgImportPath stri
 				continue
 			}
 
-			if funcDecl.Name.Name == funcName {
-				return funcDecl, nil
+			if isMethod {
+				// Looking for a method - must have a receiver with matching type and method name
+				if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
+					continue
+				}
+
+				if funcDecl.Name.Name != methodName {
+					continue
+				}
+
+				if matchesReceiverType(funcDecl.Recv.List[0].Type, typeName) {
+					return funcDecl, nil
+				}
+			} else {
+				// Looking for a plain function - must not have a receiver
+				if funcDecl.Recv != nil {
+					continue
+				}
+
+				if funcDecl.Name.Name == funcName {
+					return funcDecl, nil
+				}
 			}
 		}
 	}
 
 	return nil, fmt.Errorf("%w: named %q in package %q", errFunctionNotFound, funcName, pkgImportPath)
+}
+
+// matchesReceiverType checks if the receiver type expression matches the given type name.
+// Handles both value receivers (T) and pointer receivers (*T).
+func matchesReceiverType(expr ast.Expr, typeName string) bool {
+	switch recv := expr.(type) {
+	case *ast.Ident:
+		return recv.Name == typeName
+	case *ast.StarExpr:
+		// Pointer receiver - check the underlying type
+		if ident, ok := recv.X.(*ast.Ident); ok {
+			return ident.Name == typeName
+		}
+	}
+
+	return false
 }
 
 // writeCallableParamsWithQualifiers writes function parameters to the buffer with package qualifiers.
@@ -1494,20 +1537,90 @@ func writeCallableParamNames(buf *bytes.Buffer, params *ast.FieldList) {
 
 // writeCallableResultNames writes only the result names (for passing to a function call).
 // getPackageInfo extracts package import path and name from the interface name.
-// Returns empty strings if no package qualification is present.
-func getPackageInfo(_ *ast.FuncDecl, interfaceName string) (pkgPath, pkgName string) {
+// Returns empty strings if no package qualification is present or if the function
+// doesn't use any types that require the package import.
+func getPackageInfo(funcDecl *ast.FuncDecl, interfaceName string) (pkgPath, pkgName string) {
 	// Check if interfaceName contains a package qualifier (e.g., "run.PrintSum")
-	parts := strings.Split(interfaceName, ".")
-	if len(parts) > 1 {
-		// For now, assume the package name is the same as the last part of the path
-		// This is a simplification - a more robust solution would look up the actual import path
-		pkgName = parts[0]
-		pkgPath = "github.com/toejough/imptest/UAT/" + pkgName
-
-		return pkgPath, pkgName
+	if !strings.Contains(interfaceName, ".") {
+		return "", ""
 	}
 
-	return "", ""
+	parts := strings.Split(interfaceName, ".")
+
+	// Check if the function signature uses any types that would need the package import
+	if !funcUsesExportedTypes(funcDecl) {
+		return "", ""
+	}
+
+	// For now, assume the package name is the same as the last part of the path
+	// This is a simplification - a more robust solution would look up the actual import path
+	pkgName = parts[0]
+	pkgPath = "github.com/toejough/imptest/UAT/" + pkgName
+
+	return pkgPath, pkgName
+}
+
+// funcUsesExportedTypes checks if a function's parameters or return types include
+// any exported identifiers that might need package qualification.
+func funcUsesExportedTypes(funcDecl *ast.FuncDecl) bool {
+	// Check parameters
+	if funcDecl.Type.Params != nil {
+		for _, field := range funcDecl.Type.Params.List {
+			if hasExportedIdent(field.Type) {
+				return true
+			}
+		}
+	}
+
+	// Check results
+	if funcDecl.Type.Results != nil {
+		for _, field := range funcDecl.Type.Results.List {
+			if hasExportedIdent(field.Type) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// hasExportedIdent recursively checks if an expression contains an exported identifier.
+func hasExportedIdent(expr ast.Expr) bool {
+	switch typeExpr := expr.(type) {
+	case *ast.Ident:
+		// Check if it's an exported identifier (starts with uppercase)
+		// and not a builtin type
+		if unicode.IsUpper(rune(typeExpr.Name[0])) && !isBuiltinType(typeExpr.Name) {
+			return true
+		}
+	case *ast.StarExpr:
+		return hasExportedIdent(typeExpr.X)
+	case *ast.ArrayType:
+		return hasExportedIdent(typeExpr.Elt)
+	case *ast.MapType:
+		return hasExportedIdent(typeExpr.Key) || hasExportedIdent(typeExpr.Value)
+	case *ast.ChanType:
+		return hasExportedIdent(typeExpr.Value)
+	case *ast.SelectorExpr:
+		// Package-qualified type - definitely needs import
+		return true
+	}
+
+	return false
+}
+
+// isBuiltinType checks if a type name is a Go builtin.
+func isBuiltinType(name string) bool {
+	builtins := map[string]bool{
+		"bool": true, "byte": true, "complex64": true, "complex128": true,
+		"error": true, "float32": true, "float64": true, "int": true,
+		"int8": true, "int16": true, "int32": true, "int64": true,
+		"rune": true, "string": true, "uint": true, "uint8": true,
+		"uint16": true, "uint32": true, "uint64": true, "uintptr": true,
+		"any": true,
+	}
+
+	return builtins[name]
 }
 
 // printTypeWithQualifier prints a type expression, adding package qualifiers for identifiers that need them.

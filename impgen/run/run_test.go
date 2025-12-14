@@ -684,3 +684,118 @@ func ProcessMap(data map[string]int, ch chan<- string) map[int][]string {
 		}
 	}
 }
+
+func Test_Run_CallableWrapper_MethodReference(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Source includes: a standalone function, a method with the name we want,
+	// and another method with a different name - this exercises all branches
+	sourceCode := `package run
+
+func StandaloneFunc() {}
+
+type Player struct{ name string }
+
+func (p *Player) OtherMethod() {}
+func (p *Player) Play() {}
+
+type OtherType struct{}
+func (o OtherType) Play() {}
+`
+	localPackageSource := `package run_test
+
+import "github.com/toejough/imptest/UAT/run"
+
+var _ = run.Player{}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.Player.Play", "--name", "PlayerPlayImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["PlayerPlayImp.go"]
+	if !ok {
+		t.Fatal("Expected PlayerPlayImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	expected := []string{
+		"type PlayerPlayImp struct",
+		"func NewPlayerPlayImp",
+		"func (s *PlayerPlayImp) Start",
+		"func (s *PlayerPlayImp) ExpectReturnedValues",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+		}
+	}
+
+	// Should not import the run package since Play() has no params or returns
+	if strings.Contains(contentStr, `"github.com/toejough/imptest/UAT/run"`) {
+		t.Error("Should not import run package for method with no params or returns")
+	}
+}
+
+func Test_Run_CallableWrapper_MethodReferenceWithParams(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Source with a struct and method that uses a VALUE receiver (not pointer)
+	sourceCode := `package run
+
+type Calculator struct{}
+
+func (c Calculator) Add(a, b int) int {
+return a + b
+}
+`
+	localPackageSource := `package run_test
+
+import "github.com/toejough/imptest/UAT/run"
+
+var _ = run.Calculator{}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.Calculator.Add", "--name", "CalculatorAddImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["CalculatorAddImp.go"]
+	if !ok {
+		t.Fatal("Expected CalculatorAddImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify structure
+	expected := []string{
+		"type CalculatorAddImp struct",
+		"type CalculatorAddImpReturn struct",
+		"func NewCalculatorAddImp",
+		"func (s *CalculatorAddImp) Start(a, b int)",
+		"func (s *CalculatorAddImp) ExpectReturnedValues",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
