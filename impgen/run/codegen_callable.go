@@ -25,8 +25,22 @@ type callableGenerator struct {
 type callableExtendedTemplateData struct {
 	callableTemplateData //nolint:unused // embedded fields accessed via templates
 
-	CallableSignature string
-	CallableReturns   string
+	CallableSignature  string
+	CallableReturns    string
+	ParamNames         string   // comma-separated parameter names for calling
+	ReturnVars         string   // comma-separated return variable names (ret0, ret1, ...)
+	ReturnVarsList     []string // slice of return variable names
+	ReturnFields       []returnFieldData
+	ResultParams       string // parameters for ExpectReturnedValues (v1 Type1, v2 Type2, ...)
+	ResultComparisons  string // comparisons for ExpectReturnedValues
+	ResultComparisons2 string // comparisons using "ret" variable
+}
+
+// returnFieldData holds data for a single return field.
+type returnFieldData struct {
+	Index int
+	Name  string
+	Type  string // Type name for struct field definitions
 }
 
 // hasReturns returns true if the function has return values.
@@ -80,11 +94,58 @@ func (g *callableGenerator) templateData() callableTemplateData {
 
 // extendedTemplateData returns template data with dynamic signature info.
 func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData {
+	returnVars := g.returnVarNames()
+	returnFields := g.buildReturnFieldData(returnVars)
+
 	return callableExtendedTemplateData{
 		callableTemplateData: g.templateData(),
 		CallableSignature:    g.paramsString(),
 		CallableReturns:      g.returnsString(),
+		ParamNames:           g.paramNamesString(),
+		ReturnVars:           strings.Join(returnVars, ", "),
+		ReturnVarsList:       returnVars,
+		ReturnFields:         returnFields,
+		ResultParams:         g.resultParamsString(),
+		ResultComparisons:    g.resultComparisonsString("s.returned"),
+		ResultComparisons2:   g.resultComparisonsString("ret"),
 	}
+}
+
+// buildReturnFieldData builds return field data with types for templates.
+func (g *callableGenerator) buildReturnFieldData(returnVars []string) []returnFieldData {
+	if !g.hasReturns() {
+		return nil
+	}
+
+	var fields []returnFieldData
+
+	resultIdx := 0
+
+	for _, field := range g.funcDecl.Type.Results.List {
+		numNames := len(field.Names)
+		if numNames == 0 {
+			numNames = 1
+		}
+
+		typeStr := g.typeWithQualifier(field.Type)
+
+		for range numNames {
+			name := ""
+			if resultIdx < len(returnVars) {
+				name = returnVars[resultIdx]
+			}
+
+			fields = append(fields, returnFieldData{
+				Index: resultIdx,
+				Name:  name,
+				Type:  typeStr,
+			})
+
+			resultIdx++
+		}
+	}
+
+	return fields
 }
 
 // paramsString returns the parameter list as a string.
@@ -115,31 +176,9 @@ func (g *callableGenerator) generateHeader() {
 }
 
 // generateReturnStruct generates the return value struct if function has returns.
+// generateReturnStruct generates the return value struct if function has returns.
 func (g *callableGenerator) generateReturnStruct() {
-	if !g.hasReturns() {
-		return
-	}
-
-	g.pf("type %sReturn struct {\n", g.impName)
-
-	resultIdx := 0
-
-	for _, field := range g.funcDecl.Type.Results.List {
-		numNames := len(field.Names)
-		if numNames == 0 {
-			numNames = 1
-		}
-
-		for range numNames {
-			g.pf("\tVal%d ", resultIdx)
-			_ = g.printTypeWithQualifier(field.Type)
-			g.pf("\n")
-
-			resultIdx++
-		}
-	}
-
-	g.pf("}\n\n")
+	g.ps(executeTemplate(callableReturnStructTemplate, g.extendedTemplateData()))
 }
 
 // generateMainStruct generates the main wrapper struct.
@@ -154,70 +193,12 @@ func (g *callableGenerator) generateConstructor() {
 
 // generateStartMethod generates the Start method.
 func (g *callableGenerator) generateStartMethod() {
-	g.pf("func (s *%s) Start(", g.impName)
-	g.writeParamsWithQualifiers(g.funcDecl.Type.Params)
-	g.pf(") *%s {\n", g.impName)
-	g.pf(`	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				s.panicChan <- r
-			}
-		}()
-
-`)
-
-	if g.hasReturns() {
-		returnVars := g.returnVarNames()
-		g.pf("\t\t%s := s.callable(", strings.Join(returnVars, ", "))
-		g.writeParamNames()
-		g.pf(")\n")
-		g.pf("\t\ts.returnChan <- %sReturn{\n", g.impName)
-
-		for i, name := range returnVars {
-			g.pf("\t\t\tVal%d: %s,\n", i, name)
-		}
-
-		g.pf("\t\t}\n")
-	} else {
-		g.pf("\t\ts.callable(")
-		g.writeParamNames()
-		g.pf(")\n")
-		g.pf("\t\ts.returnChan <- struct{}{}\n")
-	}
-
-	g.pf("\t}()\n")
-	g.pf("\treturn s\n")
-	g.pf("}\n\n")
+	g.ps(executeTemplate(callableStartMethodTemplate, g.extendedTemplateData()))
 }
 
 // generateExpectReturnedValuesMethod generates the ExpectReturnedValues method.
 func (g *callableGenerator) generateExpectReturnedValuesMethod() {
-	g.pf("func (s *%s) ExpectReturnedValues(", g.impName)
-	g.writeResultsWithQualifiers()
-	g.pf(") {\n")
-	g.pf("\ts.t.Helper()\n\n")
-	g.pf("\t// Check if we already have a return value or panic\n")
-	g.pf("\tif s.returned != nil {\n")
-
-	g.writeReturnValueComparisons("s.returned")
-
-	g.pf("\t\treturn\n")
-	g.pf("\t}\n\n")
-	g.pf("\tif s.panicked != nil {\n")
-	g.pf("\t\ts.t.Fatalf(\"expected function to return, but it panicked with: %%v\", s.panicked)\n")
-	g.pf("\t}\n\n")
-	g.pf("\t// Wait for either return or panic\n")
-	g.pf("\tselect {\n")
-	g.pf("\tcase ret := <-s.returnChan:\n")
-	g.pf("\t\ts.returned = &ret\n")
-
-	g.writeReturnValueComparisons("ret")
-
-	g.pf("\tcase p := <-s.panicChan:\n")
-	g.pf("\t\ts.panicked = p\n")
-	g.pf("\t\ts.t.Fatalf(\"expected function to return, but it panicked with: %%v\", p)\n")
-	g.pf("\t}\n")
-	g.pf("}\n\n")
+	g.ps(executeTemplate(callableExpectReturnedValuesTemplate, g.extendedTemplateData()))
 }
 
 // generateExpectPanicWithMethod generates the ExpectPanicWith method.
@@ -236,83 +217,22 @@ func (g *callableGenerator) generateResponseMethods() {
 	g.ps(executeTemplate(callableResponseTypeMethodTemplate, g.templateData()))
 
 	// AsReturn method
-	g.pf("func (r *%sResponse) AsReturn() []any {\n", g.impName)
-
-	if g.hasReturns() {
-		numReturns := g.numReturns()
-		g.pf("\tif r.ReturnVal == nil {\n")
-		g.pf("\t\treturn nil\n")
-		g.pf("\t}\n")
-		g.pf("\treturn []any{")
-
-		for i := range numReturns {
-			if i > 0 {
-				g.pf(", ")
-			}
-
-			g.pf("r.ReturnVal.Val%d", i)
-		}
-
-		g.pf("}\n")
-	} else {
-		g.pf("\treturn nil\n")
-	}
-
-	g.pf("}\n\n")
+	g.ps(executeTemplate(callableAsReturnMethodTemplate, g.extendedTemplateData()))
 }
 
 // generateGetResponseMethod generates the GetResponse method.
 func (g *callableGenerator) generateGetResponseMethod() {
-	g.pf(`func (s *%s) GetResponse() *%sResponse {
-	// Check if we already have a return value or panic
-	if s.returned != nil {
-		return &%sResponse{
-			EventType: "ReturnEvent",
-`, g.impName, g.impName, g.impName)
-
-	if g.hasReturns() {
-		g.pf("\t\t\tReturnVal: s.returned,\n")
-	}
-
-	g.pf(`		}
-	}
-
-	if s.panicked != nil {
-		return &%sResponse{
-			EventType: "PanicEvent",
-			PanicVal:  s.panicked,
-		}
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		return &%sResponse{
-			EventType: "ReturnEvent",
-`, g.impName, g.impName)
-
-	if g.hasReturns() {
-		g.pf("\t\t\tReturnVal: &ret,\n")
-	}
-
-	g.pf(`		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		return &%sResponse{
-			EventType: "PanicEvent",
-			PanicVal:  p,
-		}
-	}
-}
-
-`, g.impName)
+	g.ps(executeTemplate(callableGetResponseMethodTemplate, g.extendedTemplateData()))
 }
 
 // Helper methods
 
 // returnVarNames generates return variable names for the function call.
 func (g *callableGenerator) returnVarNames() []string {
+	if !g.hasReturns() {
+		return nil
+	}
+
 	numReturns := g.numReturns()
 	vars := make([]string, numReturns)
 
@@ -323,31 +243,84 @@ func (g *callableGenerator) returnVarNames() []string {
 	return vars
 }
 
-// writeParamsWithQualifiers writes function parameters with package qualifiers.
-func (g *callableGenerator) writeParamsWithQualifiers(params *ast.FieldList) {
+// paramNamesString returns comma-separated parameter names for function calls.
+func (g *callableGenerator) paramNamesString() string {
+	params := g.funcDecl.Type.Params
 	if params == nil || len(params.List) == 0 {
-		return
+		return ""
 	}
 
-	for i, field := range params.List {
-		if i > 0 {
-			g.pf(", ")
+	var names []string
+
+	for _, field := range params.List {
+		for _, name := range field.Names {
+			names = append(names, name.Name)
+		}
+	}
+
+	return strings.Join(names, ", ")
+}
+
+// resultParamsString returns parameters for ExpectReturnedValues (v1 Type1, v2 Type2, ...).
+func (g *callableGenerator) resultParamsString() string {
+	if !g.hasReturns() {
+		return ""
+	}
+
+	var buf strings.Builder
+
+	for fieldIdx, field := range g.funcDecl.Type.Results.List {
+		if fieldIdx > 0 {
+			buf.WriteString(", ")
 		}
 
-		if len(field.Names) > 0 {
-			for j, name := range field.Names {
-				if j > 0 {
-					g.pf(", ")
-				}
+		numNames := len(field.Names)
+		if numNames == 0 {
+			numNames = 1
+		}
 
-				g.pf("%s", name.Name)
+		for nameIdx := range numNames {
+			if nameIdx > 0 {
+				buf.WriteString(", ")
 			}
 
-			g.pf(" ")
+			fmt.Fprintf(&buf, "v%d ", fieldIdx*numNames+nameIdx+1)
 		}
 
-		_ = g.printTypeWithQualifier(field.Type)
+		buf.WriteString(g.typeWithQualifier(field.Type))
 	}
+
+	return buf.String()
+}
+
+// resultComparisonsString returns comparison code for return values.
+func (g *callableGenerator) resultComparisonsString(varName string) string {
+	if !g.hasReturns() {
+		return ""
+	}
+
+	var buf strings.Builder
+
+	resultIdx := 0
+
+	for fieldIdx, field := range g.funcDecl.Type.Results.List {
+		numNames := len(field.Names)
+		if numNames == 0 {
+			numNames = 1
+		}
+
+		for nameIdx := range numNames {
+			resultName := fmt.Sprintf("v%d", fieldIdx*numNames+nameIdx+1)
+			fmt.Fprintf(&buf, "\t\tif %s.Val%d != %s {\n", varName, resultIdx, resultName)
+			fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Val%d)\n",
+				resultIdx, resultName, varName, resultIdx)
+			buf.WriteString("\t\t}\n")
+
+			resultIdx++
+		}
+	}
+
+	return buf.String()
 }
 
 // writeParamsWithQualifiersTo writes function parameters with package qualifiers to a buffer.
@@ -434,118 +407,6 @@ func (g *callableGenerator) typeWithQualifier(expr ast.Expr) string {
 	}
 
 	return buf.String()
-}
-
-// writeResultsWithQualifiers writes function return values with names.
-func (g *callableGenerator) writeResultsWithQualifiers() {
-	if !g.hasReturns() {
-		return
-	}
-
-	for fieldIdx, field := range g.funcDecl.Type.Results.List {
-		if fieldIdx > 0 {
-			g.pf(", ")
-		}
-
-		numNames := len(field.Names)
-		if numNames == 0 {
-			numNames = 1
-		}
-
-		for nameIdx := range numNames {
-			if nameIdx > 0 {
-				g.pf(", ")
-			}
-
-			g.pf("v%d", fieldIdx*numNames+nameIdx+1)
-			g.pf(" ")
-		}
-
-		_ = g.printTypeWithQualifier(field.Type)
-	}
-}
-
-// writeParamNames writes only parameter names for function calls.
-func (g *callableGenerator) writeParamNames() {
-	params := g.funcDecl.Type.Params
-	if params == nil || len(params.List) == 0 {
-		return
-	}
-
-	first := true
-
-	for _, field := range params.List {
-		for _, name := range field.Names {
-			if !first {
-				g.pf(", ")
-			}
-
-			g.pf("%s", name.Name)
-
-			first = false
-		}
-	}
-}
-
-// writeReturnValueComparisons writes comparisons for return values.
-func (g *callableGenerator) writeReturnValueComparisons(varName string) {
-	if !g.hasReturns() {
-		return
-	}
-
-	resultIdx := 0
-
-	for fieldIdx, field := range g.funcDecl.Type.Results.List {
-		numNames := len(field.Names)
-		if numNames == 0 {
-			numNames = 1
-		}
-
-		for nameIdx := range numNames {
-			resultName := fmt.Sprintf("v%d", fieldIdx*numNames+nameIdx+1)
-			g.pf("\t\tif %s.Val%d != %s {\n", varName, resultIdx, resultName)
-			g.pf("\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Val%d)\n",
-				resultIdx, resultName, varName, resultIdx)
-			g.pf("\t\t}\n")
-
-			resultIdx++
-		}
-	}
-}
-
-// printTypeWithQualifier prints a type expression with package qualifier if needed.
-//
-//nolint:cyclop // AST type switching requires checking multiple cases
-func (g *callableGenerator) printTypeWithQualifier(expr ast.Expr) error {
-	switch typeExpr := expr.(type) {
-	case *ast.Ident:
-		if g.qualifier != "" && len(typeExpr.Name) > 0 &&
-			typeExpr.Name[0] >= 'A' && typeExpr.Name[0] <= 'Z' {
-			g.pf("%s.", g.qualifier)
-		}
-
-		g.pf("%s", typeExpr.Name)
-	case *ast.StarExpr:
-		g.pf("*")
-		return g.printTypeWithQualifier(typeExpr.X)
-	case *ast.ArrayType:
-		g.pf("[")
-
-		if typeExpr.Len != nil {
-			printer.Fprint(&g.buf, g.fset, typeExpr.Len)
-		}
-
-		g.pf("]")
-
-		return g.printTypeWithQualifier(typeExpr.Elt)
-	default:
-		err := printer.Fprint(&g.buf, g.fset, expr)
-		if err != nil {
-			return fmt.Errorf("error printing type expression: %w", err)
-		}
-	}
-
-	return nil
 }
 
 // Functions

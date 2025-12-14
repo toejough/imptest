@@ -225,6 +225,13 @@ import (
 
 `)
 
+	callableReturnStructTemplate = mustParse("callableReturnStruct",
+		`{{if .HasReturns}}type {{.ImpName}}Return struct {
+{{range .ReturnFields}}	Val{{.Index}} {{.Type}}
+{{end}}}
+
+{{end}}`)
+
 	callableExpectPanicWithTemplate = mustParse("callableExpectPanicWith",
 		`func (s *{{.ImpName}}) ExpectPanicWith(expected any) {
 	s.t.Helper()
@@ -269,6 +276,99 @@ import (
 		`func (r *{{.ImpName}}Response) Type() string {
 	return r.EventType
 }
+
+`)
+
+	callableStartMethodTemplate = mustParse("callableStartMethod",
+		`func (s *{{.ImpName}}) Start({{.CallableSignature}}) *{{.ImpName}} {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.panicChan <- r
+			}
+		}()
+
+{{if .HasReturns}}		{{.ReturnVars}} := s.callable({{.ParamNames}})
+		s.returnChan <- {{.ImpName}}Return{
+{{range .ReturnFields}}			Val{{.Index}}: {{.Name}},
+{{end}}		}
+{{else}}		s.callable({{.ParamNames}})
+		s.returnChan <- struct{}{}
+{{end}}	}()
+	return s
+}
+
+`)
+
+	callableExpectReturnedValuesTemplate = mustParse("callableExpectReturnedValues",
+		`func (s *{{.ImpName}}) ExpectReturnedValues({{.ResultParams}}) {
+	s.t.Helper()
+
+	// Check if we already have a return value or panic
+	if s.returned != nil {
+{{.ResultComparisons}}		return
+	}
+
+	if s.panicked != nil {
+		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
+	}
+
+	// Wait for either return or panic
+	select {
+	case ret := <-s.returnChan:
+		s.returned = &ret
+{{.ResultComparisons2}}	case p := <-s.panicChan:
+		s.panicked = p
+		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
+	}
+}
+
+`)
+
+	callableGetResponseMethodTemplate = mustParse("callableGetResponseMethod",
+		`func (s *{{.ImpName}}) GetResponse() *{{.ImpName}}Response {
+	// Check if we already have a return value or panic
+	if s.returned != nil {
+		return &{{.ImpName}}Response{
+			EventType: "ReturnEvent",
+{{if .HasReturns}}			ReturnVal: s.returned,
+{{end}}		}
+	}
+
+	if s.panicked != nil {
+		return &{{.ImpName}}Response{
+			EventType: "PanicEvent",
+			PanicVal:  s.panicked,
+		}
+	}
+
+	// Wait for either return or panic
+	select {
+	case ret := <-s.returnChan:
+		s.returned = &ret
+		return &{{.ImpName}}Response{
+			EventType: "ReturnEvent",
+{{if .HasReturns}}			ReturnVal: &ret,
+{{end}}		}
+	case p := <-s.panicChan:
+		s.panicked = p
+		return &{{.ImpName}}Response{
+			EventType: "PanicEvent",
+			PanicVal:  p,
+		}
+	}
+}
+
+`)
+
+	callableAsReturnMethodTemplate = mustParse("callableAsReturnMethod",
+		`func (r *{{.ImpName}}Response) AsReturn() []any {
+{{if .HasReturns}}	if r.ReturnVal == nil {
+		return nil
+	}
+	return []any{ {{- range $i, $_ := .ReturnFields}}{{if $i}}, {{end}}r.ReturnVal.Val{{$i}}{{end -}} }
+{{else}}	return nil
+{{end}}}
 
 `)
 )
