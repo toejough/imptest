@@ -10,9 +10,11 @@ import (
 //go:generate go run ../../impgen/main.go run.PrintSum --name PrintSumImp --call
 
 const (
-	addMethod    = "Add"
-	formatMethod = "Format"
-	printMethod  = "Print"
+	addMethod       = "Add"
+	formatMethod    = "Format"
+	printMethod     = "Print"
+	returnEventType = "ReturnEvent"
+	panicEventType  = "PanicEvent"
 )
 
 func Test_PrintSum_Auto(t *testing.T) {
@@ -117,7 +119,7 @@ func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
 	// return a, b, formatted
 	// printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
 	response := printSumImp.GetResponse()
-	if response.Type() != "ReturnEvent" {
+	if response.Type() != returnEventType {
 		t.Fatalf("expected ReturnEvent, got %v", response.Type())
 	}
 
