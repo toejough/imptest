@@ -61,17 +61,7 @@ func (g *callableGenerator) returnTypeName() string {
 // numReturns returns the total number of return values.
 // This should only be called when hasReturns() is true.
 func (g *callableGenerator) numReturns() int {
-	count := 0
-
-	for _, field := range g.funcDecl.Type.Results.List {
-		if len(field.Names) > 0 {
-			count += len(field.Names)
-		} else {
-			count++
-		}
-	}
-
-	return count
+	return countFields(g.funcDecl.Type.Results)
 }
 
 // templateData returns the base template data for this generator.
@@ -117,31 +107,19 @@ func (g *callableGenerator) buildReturnFieldData(returnVars []string) []returnFi
 		return nil
 	}
 
-	var fields []returnFieldData
+	results := extractResults(g.fset, g.funcDecl.Type)
+	fields := make([]returnFieldData, len(results))
 
-	resultIdx := 0
-
-	for _, field := range g.funcDecl.Type.Results.List {
-		numNames := len(field.Names)
-		if numNames == 0 {
-			numNames = 1
+	for resultIdx, result := range results {
+		name := ""
+		if resultIdx < len(returnVars) {
+			name = returnVars[resultIdx]
 		}
 
-		typeStr := g.typeWithQualifier(field.Type)
-
-		for range numNames {
-			name := ""
-			if resultIdx < len(returnVars) {
-				name = returnVars[resultIdx]
-			}
-
-			fields = append(fields, returnFieldData{
-				Index: resultIdx,
-				Name:  name,
-				Type:  typeStr,
-			})
-
-			resultIdx++
+		fields[resultIdx] = returnFieldData{
+			Index: result.Index,
+			Name:  name,
+			Type:  g.typeWithQualifier(result.Field.Type),
 		}
 	}
 
@@ -269,25 +247,14 @@ func (g *callableGenerator) resultParamsString() string {
 
 	var buf strings.Builder
 
-	for fieldIdx, field := range g.funcDecl.Type.Results.List {
-		if fieldIdx > 0 {
+	results := extractResults(g.fset, g.funcDecl.Type)
+
+	for i, r := range results {
+		if i > 0 {
 			buf.WriteString(", ")
 		}
 
-		numNames := len(field.Names)
-		if numNames == 0 {
-			numNames = 1
-		}
-
-		for nameIdx := range numNames {
-			if nameIdx > 0 {
-				buf.WriteString(", ")
-			}
-
-			fmt.Fprintf(&buf, "v%d ", fieldIdx*numNames+nameIdx+1)
-		}
-
-		buf.WriteString(g.typeWithQualifier(field.Type))
+		fmt.Fprintf(&buf, "v%d %s", r.Index+1, g.typeWithQualifier(r.Field.Type))
 	}
 
 	return buf.String()
@@ -301,23 +268,14 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 
 	var buf strings.Builder
 
-	resultIdx := 0
+	results := extractResults(g.fset, g.funcDecl.Type)
 
-	for fieldIdx, field := range g.funcDecl.Type.Results.List {
-		numNames := len(field.Names)
-		if numNames == 0 {
-			numNames = 1
-		}
-
-		for nameIdx := range numNames {
-			resultName := fmt.Sprintf("v%d", fieldIdx*numNames+nameIdx+1)
-			fmt.Fprintf(&buf, "\t\tif %s.Val%d != %s {\n", varName, resultIdx, resultName)
-			fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Val%d)\n",
-				resultIdx, resultName, varName, resultIdx)
-			buf.WriteString("\t\t}\n")
-
-			resultIdx++
-		}
+	for _, r := range results {
+		resultName := fmt.Sprintf("v%d", r.Index+1)
+		fmt.Fprintf(&buf, "\t\tif %s.Val%d != %s {\n", varName, r.Index, resultName)
+		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Val%d)\n",
+			r.Index, resultName, varName, r.Index)
+		buf.WriteString("\t\t}\n")
 	}
 
 	return buf.String()
@@ -357,23 +315,14 @@ func (g *callableGenerator) writeResultTypesWithQualifiersTo(buf *strings.Builde
 		return
 	}
 
-	first := true
+	results := extractResults(g.fset, g.funcDecl.Type)
 
-	for _, field := range g.funcDecl.Type.Results.List {
-		numNames := len(field.Names)
-		if numNames == 0 {
-			numNames = 1
+	for i, r := range results {
+		if i > 0 {
+			buf.WriteString(", ")
 		}
 
-		for range numNames {
-			if !first {
-				buf.WriteString(", ")
-			}
-
-			first = false
-
-			buf.WriteString(g.typeWithQualifier(field.Type))
-		}
+		buf.WriteString(g.typeWithQualifier(r.Field.Type))
 	}
 }
 

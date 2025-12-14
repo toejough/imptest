@@ -799,3 +799,57 @@ var _ = run.Calculator{}
 		}
 	}
 }
+
+func TestRunCallable_NamedReturns(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Source with a function that has named return values
+	sourceCode := `package run
+
+func Divide(a, b int) (quotient, remainder int) {
+	return a / b, a % b
+}
+`
+	localPackageSource := `package run_test
+
+import "github.com/toejough/imptest/UAT/run"
+
+var _ = run.Divide
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.Divide", "--name", "DivideImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["DivideImp.go"]
+	if !ok {
+		t.Fatal("Expected DivideImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify structure for named returns
+	expected := []string{
+		"type DivideImp struct",
+		"type DivideImpReturn struct",
+		"func NewDivideImp",
+		"func (s *DivideImp) Start(a, b int)",
+		"func (s *DivideImp) ExpectReturnedValues(v1 int, v2 int)",
+		"Val0 int",
+		"Val1 int",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}

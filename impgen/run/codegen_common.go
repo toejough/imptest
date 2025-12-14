@@ -52,12 +52,71 @@ func countFields(fields *ast.FieldList) int {
 	total := 0
 
 	for _, field := range fields.List {
-		if len(field.Names) > 0 {
-			total += len(field.Names)
-		} else {
-			total++
-		}
+		total += fieldNameCount(field)
 	}
 
 	return total
+}
+
+// fieldNameCount returns the number of names in a field (at least 1 for unnamed fields).
+func fieldNameCount(field *ast.Field) int {
+	if len(field.Names) > 0 {
+		return len(field.Names)
+	}
+
+	return 1
+}
+
+// fieldInfo represents extracted information about a single field entry.
+type fieldInfo struct {
+	Name  string     // The name (explicit or generated)
+	Type  string     // The type as a string
+	Index int        // The overall index across all fields
+	Field *ast.Field // The original AST field
+}
+
+// extractFields extracts all individual fields from a field list.
+// For unnamed fields, generates names using the provided prefix and index.
+// For named fields with multiple names, creates separate entries for each.
+func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []fieldInfo {
+	if fields == nil {
+		return nil
+	}
+
+	var result []fieldInfo
+
+	index := 0
+
+	for _, field := range fields.List {
+		typeStr := exprToString(fset, field.Type)
+
+		if len(field.Names) > 0 {
+			for _, name := range field.Names {
+				result = append(result, fieldInfo{
+					Name:  name.Name,
+					Type:  typeStr,
+					Index: index,
+					Field: field,
+				})
+
+				index++
+			}
+		} else {
+			result = append(result, fieldInfo{
+				Name:  fmt.Sprintf("%s%d", prefix, index),
+				Type:  typeStr,
+				Index: index,
+				Field: field,
+			})
+
+			index++
+		}
+	}
+
+	return result
+}
+
+// extractResults extracts result info from a function type.
+func extractResults(fset *token.FileSet, ftype *ast.FuncType) []fieldInfo {
+	return extractFields(fset, ftype.Results, "Result")
 }
