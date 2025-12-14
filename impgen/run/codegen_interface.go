@@ -701,46 +701,56 @@ func generateParamName(index int, paramType string, totalParams int) string {
 
 // findFunctionInAST finds a function or method declaration in the AST files.
 // funcName can be a plain function name like "PrintSum" or a method reference like "PingPongPlayer.Play".
-//
-//nolint:cyclop,nestif // AST searching requires some complexity
 func findFunctionInAST(astFiles []*ast.File, funcName string, pkgImportPath string) (*ast.FuncDecl, error) {
-	// Check if this is a method reference (TypeName.MethodName)
 	typeName, methodName, isMethod := strings.Cut(funcName, ".")
 
 	for _, file := range astFiles {
-		for _, decl := range file.Decls {
-			funcDecl, ok := decl.(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
-
-			if isMethod {
-				// Looking for a method - must have a receiver with matching type and method name
-				if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
-					continue
-				}
-
-				if funcDecl.Name.Name != methodName {
-					continue
-				}
-
-				if matchesReceiverType(funcDecl.Recv.List[0].Type, typeName) {
-					return funcDecl, nil
-				}
-			} else {
-				// Looking for a plain function - must not have a receiver
-				if funcDecl.Recv != nil {
-					continue
-				}
-
-				if funcDecl.Name.Name == funcName {
-					return funcDecl, nil
-				}
-			}
+		if found := findFunctionInFile(file, typeName, methodName, isMethod); found != nil {
+			return found, nil
 		}
 	}
 
 	return nil, fmt.Errorf("%w: named %q in package %q", errFunctionNotFound, funcName, pkgImportPath)
+}
+
+// findFunctionInFile searches a single file for a matching function or method declaration.
+func findFunctionInFile(file *ast.File, typeName, methodName string, isMethod bool) *ast.FuncDecl {
+	for _, decl := range file.Decls {
+		funcDecl, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+
+		if isMethod {
+			if matchesMethod(funcDecl, typeName, methodName) {
+				return funcDecl
+			}
+		} else {
+			if matchesFunction(funcDecl, typeName) {
+				return funcDecl
+			}
+		}
+	}
+
+	return nil
+}
+
+// matchesMethod checks if a function declaration is a method with the given receiver type and method name.
+func matchesMethod(funcDecl *ast.FuncDecl, typeName, methodName string) bool {
+	if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
+		return false
+	}
+
+	if funcDecl.Name.Name != methodName {
+		return false
+	}
+
+	return matchesReceiverType(funcDecl.Recv.List[0].Type, typeName)
+}
+
+// matchesFunction checks if a function declaration is a plain function (no receiver) with the given name.
+func matchesFunction(funcDecl *ast.FuncDecl, funcName string) bool {
+	return funcDecl.Recv == nil && funcDecl.Name.Name == funcName
 }
 
 // matchesReceiverType checks if the receiver type expression matches the given type name.
