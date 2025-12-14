@@ -11,9 +11,54 @@ import (
 	"text/template"
 )
 
+// Entry Point - Public
+
+// generateImplementationCode generates the complete mock implementation code for an interface.
+func generateImplementationCode(
+	identifiedInterface *ast.InterfaceType,
+	info generatorInfo,
+	fset *token.FileSet,
+) (string, error) {
+	impName := info.impName
+
+	gen := &codeGenerator{
+		codeWriter:          codeWriter{fset: fset},
+		pkgName:             info.pkgName,
+		impName:             impName,
+		mockName:            impName + "Mock",
+		callName:            impName + "Call",
+		expectCallToName:    impName + "ExpectCallTo",
+		timedName:           impName + "Timed",
+		identifiedInterface: identifiedInterface,
+		methodNames:         collectMethodNames(identifiedInterface),
+	}
+
+	gen.generateHeader()
+	gen.generateMockStruct()
+	gen.generateMainStruct()
+	gen.generateMethodStructs()
+	gen.generateMockMethods()
+	gen.generateCallStruct()
+	gen.generateExpectCallToStruct()
+	gen.generateExpectCallToMethods()
+	gen.generateTimedStruct()
+	gen.generateGetCallMethod()
+	gen.generateGetCurrentCallMethod()
+	gen.generateConstructor()
+
+	formatted, err := format.Source(gen.bytes())
+	if err != nil {
+		return "", fmt.Errorf("error formatting generated code: %w", err)
+	}
+
+	return string(formatted), nil
+}
+
+// Constants & Variables
+
 var errFunctionNotFound = errors.New("function not found")
 
-// Structs
+// Types
 
 // codeGenerator holds state for code generation.
 type codeGenerator struct {
@@ -29,7 +74,7 @@ type codeGenerator struct {
 	methodNames         []string
 }
 
-// Methods on codeGenerator
+// codeGenerator Methods
 
 // forEachMethod iterates over interface methods and calls the callback for each.
 func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
@@ -527,50 +572,7 @@ func (gen *codeGenerator) generateConstructor() {
 	gen.execTemplate(constructorTemplate, gen.templateData())
 }
 
-// Functions - Public
-
-// generateImplementationCode generates the complete mock implementation code for an interface.
-func generateImplementationCode(
-	identifiedInterface *ast.InterfaceType,
-	info generatorInfo,
-	fset *token.FileSet,
-) (string, error) {
-	impName := info.impName
-
-	gen := &codeGenerator{
-		codeWriter:          codeWriter{fset: fset},
-		pkgName:             info.pkgName,
-		impName:             impName,
-		mockName:            impName + "Mock",
-		callName:            impName + "Call",
-		expectCallToName:    impName + "ExpectCallTo",
-		timedName:           impName + "Timed",
-		identifiedInterface: identifiedInterface,
-		methodNames:         collectMethodNames(identifiedInterface),
-	}
-
-	gen.generateHeader()
-	gen.generateMockStruct()
-	gen.generateMainStruct()
-	gen.generateMethodStructs()
-	gen.generateMockMethods()
-	gen.generateCallStruct()
-	gen.generateExpectCallToStruct()
-	gen.generateExpectCallToMethods()
-	gen.generateTimedStruct()
-	gen.generateGetCallMethod()
-	gen.generateGetCurrentCallMethod()
-	gen.generateConstructor()
-
-	formatted, err := format.Source(gen.bytes())
-	if err != nil {
-		return "", fmt.Errorf("error formatting generated code: %w", err)
-	}
-
-	return string(formatted), nil
-}
-
-// Functions - Private
+// Private Functions
 
 // collectMethodNames extracts all method names from an interface.
 func collectMethodNames(iface *ast.InterfaceType) []string {
