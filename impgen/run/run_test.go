@@ -843,8 +843,8 @@ var _ = run.Divide
 		"func NewDivideImp",
 		"func (s *DivideImp) Start(a, b int)",
 		"func (s *DivideImp) ExpectReturnedValues(v1 int, v2 int)",
-		"Val0 int",
-		"Val1 int",
+		"Result0 int",
+		"Result1 int",
 	}
 	for _, exp := range expected {
 		if !strings.Contains(contentStr, exp) {

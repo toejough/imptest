@@ -262,7 +262,7 @@ import (
 
 	callableReturnStructTemplate = mustParse("callableReturnStruct",
 		`{{if .HasReturns}}type {{.ImpName}}Return struct {
-{{range .ReturnFields}}	Val{{.Index}} {{.Type}}
+{{range .ReturnFields}}	Result{{.Index}} {{.Type}}
 {{end}}}
 
 {{end}}`)
@@ -325,7 +325,7 @@ import (
 
 {{if .HasReturns}}		{{.ReturnVars}} := s.callable({{.ParamNames}})
 		s.returnChan <- {{.ImpName}}Return{
-{{range .ReturnFields}}			Val{{.Index}}: {{.Name}},
+{{range .ReturnFields}}			Result{{.Index}}: {{.Name}},
 {{end}}		}
 {{else}}		s.callable({{.ParamNames}})
 		s.returnChan <- struct{}{}
@@ -401,7 +401,7 @@ import (
 {{if .HasReturns}}	if r.ReturnVal == nil {
 		return nil
 	}
-	return []any{ {{- range $i, $_ := .ReturnFields}}{{if $i}}, {{end}}r.ReturnVal.Val{{$i}}{{end -}} }
+	return []any{ {{- range $i, $_ := .ReturnFields}}{{if $i}}, {{end}}r.ReturnVal.Result{{$i}}{{end -}} }
 {{else}}	return nil
 {{end}}}
 

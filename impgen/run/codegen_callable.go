@@ -260,8 +260,8 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 
 	for _, r := range results {
 		resultName := fmt.Sprintf("v%d", r.Index+1)
-		fmt.Fprintf(&buf, "\t\tif %s.Val%d != %s {\n", varName, r.Index, resultName)
-		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Val%d)\n",
+		fmt.Fprintf(&buf, "\t\tif %s.Result%d != %s {\n", varName, r.Index, resultName)
+		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Result%d)\n",
 			r.Index, resultName, varName, r.Index)
 		buf.WriteString("\t\t}\n")
 	}

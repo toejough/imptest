@@ -9,9 +9,9 @@ import (
 )
 
 type PrintSumImpReturn struct {
-	Val0 int
-	Val1 int
-	Val2 string
+	Result0 int
+	Result1 int
+	Result2 string
 }
 
 type PrintSumImp struct {
@@ -43,9 +43,9 @@ func (s *PrintSumImp) Start(a, b int, deps run.IntOps) *PrintSumImp {
 
 		ret0, ret1, ret2 := s.callable(a, b, deps)
 		s.returnChan <- PrintSumImpReturn{
-			Val0: ret0,
-			Val1: ret1,
-			Val2: ret2,
+			Result0: ret0,
+			Result1: ret1,
+			Result2: ret2,
 		}
 	}()
 	return s
@@ -56,14 +56,14 @@ func (s *PrintSumImp) ExpectReturnedValues(v1 int, v2 int, v3 string) {
 
 	// Check if we already have a return value or panic
 	if s.returned != nil {
-		if s.returned.Val0 != v1 {
-			s.t.Fatalf("expected return value %d to be %v, got %v", 0, v1, s.returned.Val0)
+		if s.returned.Result0 != v1 {
+			s.t.Fatalf("expected return value %d to be %v, got %v", 0, v1, s.returned.Result0)
 		}
-		if s.returned.Val1 != v2 {
-			s.t.Fatalf("expected return value %d to be %v, got %v", 1, v2, s.returned.Val1)
+		if s.returned.Result1 != v2 {
+			s.t.Fatalf("expected return value %d to be %v, got %v", 1, v2, s.returned.Result1)
 		}
-		if s.returned.Val2 != v3 {
-			s.t.Fatalf("expected return value %d to be %v, got %v", 2, v3, s.returned.Val2)
+		if s.returned.Result2 != v3 {
+			s.t.Fatalf("expected return value %d to be %v, got %v", 2, v3, s.returned.Result2)
 		}
 		return
 	}
@@ -76,14 +76,14 @@ func (s *PrintSumImp) ExpectReturnedValues(v1 int, v2 int, v3 string) {
 	select {
 	case ret := <-s.returnChan:
 		s.returned = &ret
-		if ret.Val0 != v1 {
-			s.t.Fatalf("expected return value %d to be %v, got %v", 0, v1, ret.Val0)
+		if ret.Result0 != v1 {
+			s.t.Fatalf("expected return value %d to be %v, got %v", 0, v1, ret.Result0)
 		}
-		if ret.Val1 != v2 {
-			s.t.Fatalf("expected return value %d to be %v, got %v", 1, v2, ret.Val1)
+		if ret.Result1 != v2 {
+			s.t.Fatalf("expected return value %d to be %v, got %v", 1, v2, ret.Result1)
 		}
-		if ret.Val2 != v3 {
-			s.t.Fatalf("expected return value %d to be %v, got %v", 2, v3, ret.Val2)
+		if ret.Result2 != v3 {
+			s.t.Fatalf("expected return value %d to be %v, got %v", 2, v3, ret.Result2)
 		}
 	case p := <-s.panicChan:
 		s.panicked = p
@@ -133,7 +133,7 @@ func (r *PrintSumImpResponse) AsReturn() []any {
 	if r.ReturnVal == nil {
 		return nil
 	}
-	return []any{r.ReturnVal.Val0, r.ReturnVal.Val1, r.ReturnVal.Val2}
+	return []any{r.ReturnVal.Result0, r.ReturnVal.Result1, r.ReturnVal.Result2}
 }
 
 func (s *PrintSumImp) GetResponse() *PrintSumImpResponse {
