@@ -624,7 +624,7 @@ func ProcessData(data []string, callback func(string) error) (*MyType, error) {
 		"func (s *ProcessDataImp) ExpectReturnedValues",
 		"[]string",           // slice type
 		"func(string) error", // function type
-		"*MyType",            // pointer to custom type (without qualifier since it's from same package)
+		"*run.MyType",        // pointer to custom type (with qualifier since it's from different package)
 	}
 	for _, exp := range expected {
 		if !strings.Contains(contentStr, exp) {

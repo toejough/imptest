@@ -861,12 +861,20 @@ func generateCallableWrapperCode(
 	// Main struct
 	fmt.Fprintf(&buf, "type %s struct {\n", info.impName)
 	fmt.Fprintf(&buf, "\tt          testing.TB\n")
-	fmt.Fprintf(&buf, "\tcallable   ")
+	fmt.Fprintf(&buf, "\tcallable   func(")
 
-	err = printFuncTypeWithQualifiers(&buf, fset, funcDecl.Type, pkgName)
-	if err != nil {
-		return "", fmt.Errorf("error printing function type: %w", err)
+	// Write parameters with qualifiers
+	writeCallableParamsWithQualifiers(&buf, funcDecl.Type.Params, fset, pkgName)
+	fmt.Fprintf(&buf, ")")
+
+	// Write return types with qualifiers (just types, no names)
+	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0 {
+		fmt.Fprintf(&buf, " (")
+		writeCallableResultTypesWithQualifiers(&buf, funcDecl.Type.Results, fset, pkgName)
+		fmt.Fprintf(&buf, ")")
 	}
+
+	fmt.Fprintf(&buf, "\n")
 
 	fmt.Fprintf(&buf, "\n")
 
@@ -888,11 +896,14 @@ func generateCallableWrapperCode(
 	fmt.Fprintf(&buf, "}\n\n")
 
 	// Constructor
-	fmt.Fprintf(&buf, "func New%s(t testing.TB, callable ", info.impName)
+	fmt.Fprintf(&buf, "func New%s(t testing.TB, callable func(", info.impName)
+	writeCallableParamsWithQualifiers(&buf, funcDecl.Type.Params, fset, pkgName)
+	fmt.Fprintf(&buf, ")")
 
-	err = printFuncTypeWithQualifiers(&buf, fset, funcDecl.Type, pkgName)
-	if err != nil {
-		return "", fmt.Errorf("error printing function type: %w", err)
+	if funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0 {
+		fmt.Fprintf(&buf, " (")
+		writeCallableResultTypesWithQualifiers(&buf, funcDecl.Type.Results, fset, pkgName)
+		fmt.Fprintf(&buf, ")")
 	}
 
 	fmt.Fprintf(&buf, ") *%s {\n", info.impName)
@@ -1274,6 +1285,35 @@ func writeCallableParamsWithQualifiers(buf *bytes.Buffer, params *ast.FieldList,
 	}
 }
 
+// writeCallableResultTypesWithQualifiers writes function return types (without names) with package qualifiers.
+func writeCallableResultTypesWithQualifiers(
+	buf *bytes.Buffer, results *ast.FieldList, fset *token.FileSet, pkgName string,
+) {
+	if results == nil || len(results.List) == 0 {
+		return
+	}
+
+	first := true
+
+	for _, field := range results.List {
+		numNames := len(field.Names)
+		if numNames == 0 {
+			numNames = 1
+		}
+
+		for range numNames {
+			if !first {
+				buf.WriteString(", ")
+			}
+
+			first = false
+
+			// Write type with qualifier
+			_ = printTypeWithQualifier(buf, fset, field.Type, pkgName)
+		}
+	}
+}
+
 // writeCallableResultsWithQualifiers writes function return values to the buffer with package qualifiers.
 func writeCallableResultsWithQualifiers(
 	buf *bytes.Buffer, results *ast.FieldList, fset *token.FileSet, pkgName string,
@@ -1349,80 +1389,40 @@ func getPackageInfo(_ *ast.FuncDecl, interfaceName string) (pkgPath, pkgName str
 	return "", ""
 }
 
-// printFuncTypeWithQualifiers prints a function type with package qualifiers for types.
+// printTypeWithQualifier prints a type expression, adding package qualifiers for identifiers that need them.
 //
-//nolint:gocognit,nestif,cyclop // Code generation is inherently complex
-func printFuncTypeWithQualifiers(buf *bytes.Buffer, fset *token.FileSet, ftype *ast.FuncType, pkgName string) error {
-	buf.WriteString("func(")
-
-	// Print parameters
-	if ftype.Params != nil {
-		for i, field := range ftype.Params.List {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-
-			// Write names if present
-			if len(field.Names) > 0 {
-				for j, name := range field.Names {
-					if j > 0 {
-						buf.WriteString(", ")
-					}
-
-					buf.WriteString(name.Name)
-				}
-
-				buf.WriteString(" ")
-			}
-
-			// Write type with qualifier if needed
-			err := printTypeWithQualifier(buf, fset, field.Type, pkgName)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	buf.WriteString(")")
-
-	// Print results
-	if ftype.Results != nil && len(ftype.Results.List) > 0 {
-		buf.WriteString(" (")
-
-		for i, field := range ftype.Results.List {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-
-			err := printTypeWithQualifier(buf, fset, field.Type, pkgName)
-			if err != nil {
-				return err
-			}
-		}
-
-		buf.WriteString(")")
-	}
-
-	return nil
-}
-
-// printTypeWithQualifier prints a type expression with package qualifier if it's an identifier.
+//nolint:cyclop // Code generation is inherently complex
 func printTypeWithQualifier(buf *bytes.Buffer, fset *token.FileSet, expr ast.Expr, pkgName string) error {
 	switch typeExpr := expr.(type) {
 	case *ast.Ident:
-		// Check if this is a type from the imported package (uppercase first letter)
-		if pkgName != "" && typeExpr.Name[0] >= 'A' && typeExpr.Name[0] <= 'Z' {
+		// If we have a package name and the identifier starts with uppercase (exported),
+		// it likely needs to be qualified
+		if pkgName != "" && len(typeExpr.Name) > 0 && typeExpr.Name[0] >= 'A' && typeExpr.Name[0] <= 'Z' {
 			buf.WriteString(pkgName)
 			buf.WriteString(".")
 		}
 
 		buf.WriteString(typeExpr.Name)
+	case *ast.StarExpr:
+		// Pointer type
+		buf.WriteString("*")
+		return printTypeWithQualifier(buf, fset, typeExpr.X, pkgName)
+	case *ast.ArrayType:
+		// Array or slice type
+		buf.WriteString("[")
+
+		if typeExpr.Len != nil {
+			printer.Fprint(buf, fset, typeExpr.Len)
+		}
+
+		buf.WriteString("]")
+
+		return printTypeWithQualifier(buf, fset, typeExpr.Elt, pkgName)
 	default:
-		// For other types, just print as-is
+		// For other complex types, use printer.Fprint
 		err := printer.Fprint(buf, fset, expr)
 		if err != nil {
-			// This should never happen in practice with valid AST nodes
-			return fmt.Errorf("error printing type: %w", err)
+			return fmt.Errorf("error printing type expression: %w", err)
 		}
 	}
 

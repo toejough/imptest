@@ -14,8 +14,9 @@ type PrintSumImpReturn struct {
 }
 
 type PrintSumImp struct {
-	t          testing.TB
-	callable   func(a, b int, deps run.IntOps) (int, int, string)
+	t        testing.TB
+	callable func(a, b int, deps run.IntOps) (int, int, string)
+
 	returnChan chan PrintSumImpReturn
 	panicChan  chan any
 	returned   *PrintSumImpReturn
