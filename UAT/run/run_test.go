@@ -26,7 +26,6 @@ func Test_PrintSum_Auto(t *testing.T) {
 	// When: the function under test is started with some args and the mocked dependencies...
 	inputA := 10
 	inputB := 32
-	// printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
 	printSumImp := NewPrintSumImp(t, run.PrintSum).Start(inputA, inputB, imp.Mock)
 
 	// Then: expect add to be called with a & b

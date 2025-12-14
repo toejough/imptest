@@ -15,6 +15,10 @@ import (
 
 const pkgName = "mypkg"
 
+const localPackageSource = `package mypkg
+import "github.com/toejough/imptest/UAT/run"
+`
+
 var errPackageNotFound = errors.New("package not found")
 
 var errWriteFailed = errors.New("write failed")
@@ -526,54 +530,157 @@ import "strings"
 	}
 }
 
-//
-// func TestRun_FunctionSignature_Simple(t *testing.T) {
-// 	t.Parallel()
-//
-// 	mockFS := NewMockFileSystem()
-//
-// 	// Package with a simple function
-// 	sourceCode := `package run
-//
-// func PrintSum(a, b int) int {
-// 	return a + b
-// }
-// `
-// 	// Local package source that imports "fmt" so getPackageAndMatchName can resolve the import.
-// 	localSource := `package mypkg
-// import "run"
-// `
-//
-// 	// Create a mock package loader that returns both local and fmt packages
-// 	mockPkgLoader := NewMockPackageLoader()
-// 	mockPkgLoader.AddPackageFromSource(".", localSource)
-// 	mockPkgLoader.AddPackageFromSource("run", sourceCode)
-//
-// 	// Generate test helper for this function
-// 	args := []string{"impgen", "run.PrintSum", "--name", "PrintSumImp", "--call"}
-//
-// 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
-// 	if err != nil {
-// 		t.Fatalf("Run failed: %v", err)
-// 	}
-//
-// 	content, ok := mockFS.files["PrintSumImp_test.go"]
-// 	if !ok {
-// 		t.Fatal("Expected PrintSumImp_test.go to be created")
-// 	}
-//
-// 	contentStr := string(content)
-//
-// 	expected := []string{
-// 		"type PrintSumTest struct",
-// 		"func New",
-// 		"Start(a int, b int) *PrintSumTest",
-// 		"ExpectReturnedValues(result int)",
-// 	}
-// 	for _, exp := range expected {
-// 		if !strings.Contains(contentStr, exp) {
-// 			t.Errorf("Expected generated code to contain %q", exp)
-// 			t.Logf("Generated code:\n%s", contentStr)
-// 		}
-// 	}
-// }
+func TestRun_CallableWrapper_Simple(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Package with a simple function
+	sourceCode := `package run
+
+func PrintSum(a, b int) int {
+	return a + b
+}
+`
+	// Create a mock package loader that returns both local and run packages
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	// Generate test helper for this function
+	args := []string{"impgen", "run.PrintSum", "--name", "PrintSumImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["PrintSumImp.go"]
+	if !ok {
+		t.Fatal("Expected PrintSumImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	expected := []string{
+		"type PrintSumImp struct",
+		"type PrintSumImpReturn struct",
+		"func NewPrintSumImp",
+		"func (s *PrintSumImp) Start(a, b int)",
+		"func (s *PrintSumImp) ExpectReturnedValues(v1 int)",
+		"returnChan",
+		"panicChan",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRun_CallableWrapper_ComplexTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Package with a function that uses complex types
+	sourceCode := `package run
+
+type MyType struct {
+	Value int
+}
+
+func ProcessData(data []string, callback func(string) error) (*MyType, error) {
+	return &MyType{Value: 42}, nil
+}
+`
+	// Create a mock package loader
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	// Generate test helper
+	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessDataImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessDataImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify complex types are handled correctly
+	expected := []string{
+		"type ProcessDataImp struct",
+		"type ProcessDataImpReturn struct",
+		"func NewProcessDataImp",
+		"func (s *ProcessDataImp) Start",
+		"func (s *ProcessDataImp) ExpectReturnedValues",
+		"[]string",           // slice type
+		"func(string) error", // function type
+		"*MyType",            // pointer to custom type (without qualifier since it's from same package)
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRun_CallableWrapper_MapAndChannelTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Package with a function that uses map and channel types
+	sourceCode := `package run
+
+func ProcessMap(data map[string]int, ch chan<- string) map[int][]string {
+	return make(map[int][]string)
+}
+`
+	// Create a mock package loader
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	// Generate test helper
+	args := []string{"impgen", "run.ProcessMap", "--name", "ProcessMapImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessMapImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessMapImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify map and channel types are handled correctly
+	expected := []string{
+		"type ProcessMapImp struct",
+		"type ProcessMapImpReturn struct",
+		"func NewProcessMapImp",
+		"func (s *ProcessMapImp) Start",
+		"func (s *ProcessMapImp) ExpectReturnedValues",
+		"map[string]int",   // map type
+		"chan<- string",    // send-only channel
+		"map[int][]string", // return map type with slice value
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
