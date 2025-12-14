@@ -223,20 +223,8 @@ func (g *callableGenerator) returnVarNames() []string {
 
 // paramNamesString returns comma-separated parameter names for function calls.
 func (g *callableGenerator) paramNamesString() string {
-	params := g.funcDecl.Type.Params
-	if params == nil || len(params.List) == 0 {
-		return ""
-	}
-
-	var names []string
-
-	for _, field := range params.List {
-		for _, name := range field.Names {
-			names = append(names, name.Name)
-		}
-	}
-
-	return strings.Join(names, ", ")
+	params := extractParams(g.fset, g.funcDecl.Type)
+	return paramNamesToString(params)
 }
 
 // resultParamsString returns parameters for ExpectReturnedValues (v1 Type1, v2 Type2, ...).

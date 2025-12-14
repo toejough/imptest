@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"strings"
 )
 
 // codeWriter provides common buffer writing functionality for code generators.
@@ -119,4 +120,23 @@ func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []
 // extractResults extracts result info from a function type.
 func extractResults(fset *token.FileSet, ftype *ast.FuncType) []fieldInfo {
 	return extractFields(fset, ftype.Results, "Result")
+}
+
+// extractParams extracts parameter info from a function type.
+func extractParams(fset *token.FileSet, ftype *ast.FuncType) []fieldInfo {
+	return extractFields(fset, ftype.Params, "param")
+}
+
+// paramNamesToString returns a comma-separated string of parameter names.
+func paramNamesToString(params []fieldInfo) string {
+	if len(params) == 0 {
+		return ""
+	}
+
+	names := make([]string, len(params))
+	for i, p := range params {
+		names[i] = p.Name
+	}
+
+	return strings.Join(names, ", ")
 }

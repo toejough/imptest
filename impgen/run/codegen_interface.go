@@ -286,7 +286,7 @@ func (gen *codeGenerator) generateMockMethods() {
 // generateMockMethod generates a single mock method that creates a call, sends it to the imp, and handles the response.
 func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
-	paramNames := extractParamNames(ftype)
+	paramNames := extractParamNames(gen.fset, ftype)
 
 	gen.pf("func (m *%s) ", gen.mockName)
 	gen.writeMethodSignature(methodName, ftype, paramNames)
@@ -441,7 +441,7 @@ func (gen *codeGenerator) generateExpectCallToMethods() {
 // generateExpectCallToMethod generates a single expectation method that validates and returns a call.
 func (gen *codeGenerator) generateExpectCallToMethod(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
-	paramNames := extractParamNames(ftype)
+	paramNames := extractParamNames(gen.fset, ftype)
 
 	gen.pf("func (e *%s) ", gen.expectCallToName)
 	gen.writeMethodSignature(methodName, ftype, paramNames)
@@ -629,35 +629,15 @@ func getParamFieldName(param *ast.Field, nameIdx int, unnamedIdx int, paramType 
 }
 
 // extractParamNames extracts or generates parameter names from a function type.
-func extractParamNames(ftype *ast.FuncType) []string {
-	paramNames := make([]string, 0)
-	if !hasParams(ftype) {
-		return paramNames
+func extractParamNames(fset *token.FileSet, ftype *ast.FuncType) []string {
+	params := extractParams(fset, ftype)
+	names := make([]string, len(params))
+
+	for i, p := range params {
+		names[i] = p.Name
 	}
 
-	paramIndex := 0
-
-	for _, param := range ftype.Params.List {
-		paramNames, paramIndex = appendParamNames(param, paramNames, paramIndex)
-	}
-
-	return paramNames
-}
-
-// appendParamNames appends parameter names to the list, generating names for unnamed parameters.
-func appendParamNames(param *ast.Field, paramNames []string, paramIndex int) ([]string, int) {
-	if len(param.Names) > 0 {
-		for _, name := range param.Names {
-			paramNames = append(paramNames, name.Name)
-		}
-
-		return paramNames, paramIndex
-	}
-
-	paramName := fmt.Sprintf("param%d", paramIndex)
-	paramNames = append(paramNames, paramName)
-
-	return paramNames, paramIndex + 1
+	return names
 }
 
 // renderFieldList renders a *ast.FieldList as Go code for return types.
