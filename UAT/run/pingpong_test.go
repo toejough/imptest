@@ -23,25 +23,22 @@ func Test_PingPong_Match(t *testing.T) {
 	pingInv := imptest.Start(t, ping.Play)
 	pongInv := imptest.Start(t, pong.Play)
 
-	// Register sequence (order might vary, but we can enforce one for the test or handle both)
-	// For simplicity, we'll expect Ping then Pong or vice versa.
-	// Since imptest is strict, we might need to be careful with concurrency.
-	// However, since we control the scheduler via the mocks, we can serialize the events.
-	// But wait, the players run in goroutines. They will race to Register.
-	// To handle this deterministically in the test, we might need to rely on the fact that
-	// imptest's ExpectCallTo blocks until the call happens.
-	// Actually, `ExpectCallTo` *waits* for the call. So we can just say:
+	// Expect Ping then Pong or vice versa.
 	// Use Within to handle non-deterministic order
 	trackerImp.Within(1 * time.Second).ExpectCallTo.Register("Ping").Resolve()
 	trackerImp.Within(1 * time.Second).ExpectCallTo.Register("Pong").Resolve()
 
-	// Ping serves
-	trackerImp.ExpectCallTo.IsServing("Ping").InjectResult(true)
-	trackerImp.ExpectCallTo.Hit("Ping").Resolve()
+	// Ping and Pong are registered, and both will try to serve first.
+	// Use Within to handle non-deterministic order
+	trackerImp.Within(1 * time.Second).ExpectCallTo.IsServing("Ping").InjectResult(true)
+	trackerImp.Within(1 * time.Second).ExpectCallTo.IsServing("Pong").InjectResult(false)
 
-	// Pong receives (not serving)
-	trackerImp.ExpectCallTo.IsServing("Pong").InjectResult(false)
-	// Pong waits for receive
+	// from here on, even though we are running ping and pong concurrently,
+	// the sequence of calls is deterministic, so we can just expect them in order
+
+	// 1st serve by Ping
+	// serves
+	trackerImp.ExpectCallTo.Hit("Ping").Resolve()
 
 	// Pong receives the serve
 	trackerImp.ExpectCallTo.Receive("Pong").InjectResult(true)
@@ -64,12 +61,10 @@ func Test_PingPong_Match(t *testing.T) {
 	// Pong misses
 	trackerImp.ExpectCallTo.Miss("Pong").Resolve()
 	// Pong should return now
+	pongInv.ExpectReturnedValues()
 
 	// Ping receives game over
 	trackerImp.ExpectCallTo.Receive("Ping").InjectResult(false)
 	// Ping should return now
-
-	// Verify both finished
 	pingInv.ExpectReturnedValues()
-	pongInv.ExpectReturnedValues()
 }
