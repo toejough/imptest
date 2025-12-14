@@ -29,12 +29,14 @@ type MockFileSystem struct {
 	writeHook func(name string, data []byte) error
 }
 
+// NewMockFileSystem creates a new MockFileSystem for testing file operations.
 func NewMockFileSystem() *MockFileSystem {
 	return &MockFileSystem{
 		files: make(map[string][]byte),
 	}
 }
 
+// WriteFile implements FileSystem.WriteFile for testing.
 func (m *MockFileSystem) WriteFile(name string, data []byte, _ os.FileMode) error {
 	if m.writeHook != nil {
 		return m.writeHook(name, data)
@@ -86,6 +88,7 @@ func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet
 	return nil, nil, fmt.Errorf("%w: %s", errPackageNotFound, importPath)
 }
 
+// envWithPkgName returns the test package name, ignoring the provided cwd parameter.
 func envWithPkgName(_ string) string { return pkgName }
 
 func TestRun_Success(t *testing.T) {

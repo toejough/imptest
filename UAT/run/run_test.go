@@ -152,21 +152,3 @@ func Test_PrintSum_Panic(t *testing.T) {
 	// panic with message
 	printSumImp.ExpectPanicWith("mock panic")
 }
-
-func Test_PrintSum_WithDuration(t *testing.T) {
-	t.Parallel()
-	// we want to validate that run.PrintSum calls the methods of IntOps correctly
-	// get the generated implementation of IntOps
-	imp := NewIntOpsImp(t) // if passed multiple in the generate call, this should return multiple imps in the same order
-
-	// call the function under test
-	inputA := 10
-	inputB := 32
-	printSumImp := NewPrintSumImp(t, run.PrintSum).Start(inputA, inputB, imp.Mock)
-
-	// sum := deps.Add(a, b)
-	imp.ExpectCallTo.Add(inputA, inputB).InjectPanic("mock panic")
-
-	// panic with message
-	printSumImp.ExpectPanicWith("mock panic")
-}
