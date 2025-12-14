@@ -26,6 +26,16 @@ func (g *callableGenerator) hasReturns() bool {
 	return g.funcDecl.Type.Results != nil && len(g.funcDecl.Type.Results.List) > 0
 }
 
+// returnTypeName returns the appropriate type name for return channels and fields.
+// Returns "{impName}Return" if the function has returns, otherwise "struct{}".
+func (g *callableGenerator) returnTypeName() string {
+	if g.hasReturns() {
+		return g.impName + "Return"
+	}
+
+	return "struct{}"
+}
+
 // numReturns returns the total number of return values.
 // This should only be called when hasReturns() is true.
 func (g *callableGenerator) numReturns() int {
@@ -107,24 +117,16 @@ func (g *callableGenerator) generateMainStruct() {
 		g.pf(")")
 	}
 
-	g.pf("\n\n")
+	retType := g.returnTypeName()
+	g.pf(`
 
-	if g.hasReturns() {
-		g.pf("\treturnChan chan %sReturn\n", g.impName)
-	} else {
-		g.pf("\treturnChan chan struct{}\n")
-	}
+	returnChan chan %s
+	panicChan  chan any
+	returned   *%s
+	panicked   any
+}
 
-	g.pf("\tpanicChan  chan any\n")
-
-	if g.hasReturns() {
-		g.pf("\treturned   *%sReturn\n", g.impName)
-	} else {
-		g.pf("\treturned   *struct{}\n")
-	}
-
-	g.pf("\tpanicked   any\n")
-	g.pf("}\n\n")
+`, retType, retType)
 }
 
 // generateConstructor generates the New{ImpName} constructor function.
@@ -139,20 +141,16 @@ func (g *callableGenerator) generateConstructor() {
 		g.pf(")")
 	}
 
-	g.pf(") *%s {\n", g.impName)
-	g.pf("\treturn &%s{\n", g.impName)
-	g.pf("\t\tt:        t,\n")
-	g.pf("\t\tcallable: callable,\n")
-
-	if g.hasReturns() {
-		g.pf("\t\treturnChan: make(chan %sReturn, 1),\n", g.impName)
-	} else {
-		g.pf("\t\treturnChan: make(chan struct{}, 1),\n")
+	g.pf(`) *%s {
+	return &%s{
+		t:          t,
+		callable:   callable,
+		returnChan: make(chan %s, 1),
+		panicChan:  make(chan any, 1),
 	}
+}
 
-	g.pf("\t\tpanicChan:  make(chan any, 1),\n")
-	g.pf("\t}\n")
-	g.pf("}\n\n")
+`, g.impName, g.impName, g.returnTypeName())
 }
 
 // generateStartMethod generates the Start method.
