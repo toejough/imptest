@@ -1,3 +1,4 @@
+// Package main demonstrates imptest usage with example interfaces.
 package main
 
 import (

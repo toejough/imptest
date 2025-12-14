@@ -1,3 +1,4 @@
+// Package run provides example interfaces and functions for demonstrating imptest usage.
 package run
 
 // IntOps is an interface for demonstration.
