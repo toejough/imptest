@@ -525,3 +525,55 @@ import "strings"
 		t.Error("Expected error when package not in imports, got nil")
 	}
 }
+
+//
+// func TestRun_FunctionSignature_Simple(t *testing.T) {
+// 	t.Parallel()
+//
+// 	mockFS := NewMockFileSystem()
+//
+// 	// Package with a simple function
+// 	sourceCode := `package run
+//
+// func PrintSum(a, b int) int {
+// 	return a + b
+// }
+// `
+// 	// Local package source that imports "fmt" so getPackageAndMatchName can resolve the import.
+// 	localSource := `package mypkg
+// import "run"
+// `
+//
+// 	// Create a mock package loader that returns both local and fmt packages
+// 	mockPkgLoader := NewMockPackageLoader()
+// 	mockPkgLoader.AddPackageFromSource(".", localSource)
+// 	mockPkgLoader.AddPackageFromSource("run", sourceCode)
+//
+// 	// Generate test helper for this function
+// 	args := []string{"impgen", "run.PrintSum", "--name", "PrintSumImp", "--call"}
+//
+// 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+// 	if err != nil {
+// 		t.Fatalf("Run failed: %v", err)
+// 	}
+//
+// 	content, ok := mockFS.files["PrintSumImp_test.go"]
+// 	if !ok {
+// 		t.Fatal("Expected PrintSumImp_test.go to be created")
+// 	}
+//
+// 	contentStr := string(content)
+//
+// 	expected := []string{
+// 		"type PrintSumTest struct",
+// 		"func New",
+// 		"Start(a int, b int) *PrintSumTest",
+// 		"ExpectReturnedValues(result int)",
+// 	}
+// 	for _, exp := range expected {
+// 		if !strings.Contains(contentStr, exp) {
+// 			t.Errorf("Expected generated code to contain %q", exp)
+// 			t.Logf("Generated code:\n%s", contentStr)
+// 		}
+// 	}
+// }

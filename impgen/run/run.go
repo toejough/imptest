@@ -22,11 +22,13 @@ type FileSystem interface {
 type cliArgs struct {
 	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
 	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
+	Call      bool   `arg:"--call"              help:"generate a type-safe callable wrapper instead of interface mock"`
 }
 
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
+	isCallable                                          bool
 }
 
 // Functions - Public
@@ -50,14 +52,22 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 		return err
 	}
 
-	iface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
-	if err != nil {
-		return err
-	}
+	var code string
+	if info.isCallable {
+		code, err = generateCallableWrapperCode(astFiles, info, fset, pkgImportPath)
+		if err != nil {
+			return err
+		}
+	} else {
+		iface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
+		if err != nil {
+			return err
+		}
 
-	code, err := generateImplementationCode(iface, info, fset)
-	if err != nil {
-		return err
+		code, err = generateImplementationCode(iface, info, fset)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys)
@@ -93,6 +103,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		interfaceName:      interfaceName,
 		localInterfaceName: localInterfaceName,
 		impName:            impName,
+		isCallable:         parsed.Call,
 	}, nil
 }
 

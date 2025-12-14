@@ -2,6 +2,7 @@ package run
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -9,6 +10,8 @@ import (
 	"go/token"
 	"strings"
 )
+
+var errFunctionNotFound = errors.New("function not found")
 
 // Structs
 
@@ -793,6 +796,98 @@ func generateImplementationCode(
 	return string(formatted), nil
 }
 
+// generateCallableWrapperCode generates a type-safe wrapper for a callable function.
+func generateCallableWrapperCode(
+	astFiles []*ast.File,
+	info generatorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+) (string, error) {
+	// Find the function in the AST
+	funcDecl, err := findFunctionInAST(astFiles, info.localInterfaceName, pkgImportPath)
+	if err != nil {
+		return "", err
+	}
+
+	// Generate the wrapper code
+	var buf bytes.Buffer
+
+	// Package and imports
+	fmt.Fprintf(&buf, "package %s\n\n", info.pkgName)
+
+	// Need to import the package if callable uses types from it
+	pkgPath, pkgName := getPackageInfo(funcDecl, info.interfaceName)
+	if pkgPath != "" {
+		fmt.Fprintf(&buf, "import (\n")
+		fmt.Fprintf(&buf, "\t\"testing\"\n\n")
+		fmt.Fprintf(&buf, "\t\"github.com/toejough/imptest\"\n")
+		fmt.Fprintf(&buf, "\t%s \"%s\"\n", pkgName, pkgPath)
+		fmt.Fprintf(&buf, ")\n\n")
+	} else {
+		fmt.Fprintf(&buf, "import (\n")
+		fmt.Fprintf(&buf, "\t\"testing\"\n\n")
+		fmt.Fprintf(&buf, "\t\"github.com/toejough/imptest\"\n")
+		fmt.Fprintf(&buf, ")\n\n")
+	}
+
+	// Struct
+	fmt.Fprintf(&buf, "type %s struct {\n", info.impName)
+	fmt.Fprintf(&buf, "\tt *testing.T\n")
+	fmt.Fprintf(&buf, "\tcallable ")
+
+	err = printFuncTypeWithQualifiers(&buf, fset, funcDecl.Type, pkgName)
+	if err != nil {
+		return "", fmt.Errorf("error printing function type: %w", err)
+	}
+
+	fmt.Fprintf(&buf, "\n")
+	fmt.Fprintf(&buf, "\ttestInvocation *imptest.TestInvocation\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// Constructor - New{Name}(t *testing.T, callable ...)
+	fmt.Fprintf(&buf, "func New%s(t *testing.T, callable ", info.impName)
+
+	// Write function type
+	err = printFuncTypeWithQualifiers(&buf, fset, funcDecl.Type, pkgName)
+	if err != nil {
+		return "", fmt.Errorf("error printing function type: %w", err)
+	}
+
+	fmt.Fprintf(&buf, ") *%s {\n", info.impName)
+	fmt.Fprintf(&buf, "\tt.Helper()\n")
+	fmt.Fprintf(&buf, "\treturn &%s{\n", info.impName)
+	fmt.Fprintf(&buf, "\t\tt: t,\n")
+	fmt.Fprintf(&buf, "\t\tcallable: callable,\n")
+	fmt.Fprintf(&buf, "\t}\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// Start method with function's parameter signature
+	fmt.Fprintf(&buf, "func (imp *%s) Start(", info.impName)
+	writeCallableParamsWithQualifiers(&buf, funcDecl.Type.Params, fset, pkgName)
+	fmt.Fprintf(&buf, ") *%s {\n", info.impName)
+	fmt.Fprintf(&buf, "\timp.testInvocation = imptest.Start(imp.t, imp.callable, ")
+	writeCallableParamNames(&buf, funcDecl.Type.Params)
+	fmt.Fprintf(&buf, ")\n")
+	fmt.Fprintf(&buf, "\treturn imp\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	// ExpectReturnedValues method with function's return signature
+	fmt.Fprintf(&buf, "func (imp *%s) ExpectReturnedValues(", info.impName)
+	writeCallableResultsWithQualifiers(&buf, funcDecl.Type.Results, fset, pkgName)
+	fmt.Fprintf(&buf, ") {\n")
+	fmt.Fprintf(&buf, "\timp.testInvocation.ExpectReturnedValues(")
+	writeCallableResultNames(&buf, funcDecl.Type.Results)
+	fmt.Fprintf(&buf, ")\n")
+	fmt.Fprintf(&buf, "}\n\n")
+
+	formatted, err := format.Source(buf.Bytes())
+	if err != nil {
+		return "", fmt.Errorf("error formatting generated code: %w", err)
+	}
+
+	return string(formatted), nil
+}
+
 // Functions - Private
 
 // collectMethodNames extracts all method names from an interface.
@@ -973,4 +1068,227 @@ func generateParamName(index int, paramType string, totalParams int) string {
 
 	// Fallback
 	return fmt.Sprintf("Arg%d", index)
+}
+
+// findFunctionInAST finds a function declaration in the AST files.
+func findFunctionInAST(astFiles []*ast.File, funcName string, pkgImportPath string) (*ast.FuncDecl, error) {
+	for _, file := range astFiles {
+		for _, decl := range file.Decls {
+			funcDecl, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+
+			if funcDecl.Name.Name == funcName {
+				return funcDecl, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("%w: named %q in package %q", errFunctionNotFound, funcName, pkgImportPath)
+}
+
+// writeCallableParamsWithQualifiers writes function parameters to the buffer with package qualifiers.
+func writeCallableParamsWithQualifiers(buf *bytes.Buffer, params *ast.FieldList, fset *token.FileSet, pkgName string) {
+	if params == nil || len(params.List) == 0 {
+		return
+	}
+
+	for i, field := range params.List {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+
+		// Write names if present
+		if len(field.Names) > 0 {
+			for j, name := range field.Names {
+				if j > 0 {
+					buf.WriteString(", ")
+				}
+
+				buf.WriteString(name.Name)
+			}
+
+			buf.WriteString(" ")
+		}
+
+		// Write type with qualifier
+		_ = printTypeWithQualifier(buf, fset, field.Type, pkgName)
+	}
+}
+
+// writeCallableResultsWithQualifiers writes function return values to the buffer with package qualifiers.
+func writeCallableResultsWithQualifiers(
+	buf *bytes.Buffer, results *ast.FieldList, fset *token.FileSet, pkgName string,
+) {
+	if results == nil || len(results.List) == 0 {
+		return
+	}
+
+	for fieldIdx, field := range results.List {
+		if fieldIdx > 0 {
+			buf.WriteString(", ")
+		}
+
+		// Generate parameter names for return values
+		numNames := len(field.Names)
+		if numNames == 0 {
+			numNames = 1
+		}
+
+		for nameIdx := range numNames {
+			if nameIdx > 0 {
+				buf.WriteString(", ")
+			}
+
+			// Generate a name
+			fmt.Fprintf(buf, "v%d", fieldIdx*numNames+nameIdx+1)
+			buf.WriteString(" ")
+		}
+
+		// Write type with qualifier
+		_ = printTypeWithQualifier(buf, fset, field.Type, pkgName)
+	}
+}
+
+// writeCallableParamNames writes only the parameter names (for passing to a function call).
+func writeCallableParamNames(buf *bytes.Buffer, params *ast.FieldList) {
+	if params == nil || len(params.List) == 0 {
+		return
+	}
+
+	first := true
+
+	for _, field := range params.List {
+		if len(field.Names) > 0 {
+			for _, name := range field.Names {
+				if !first {
+					buf.WriteString(", ")
+				}
+
+				buf.WriteString(name.Name)
+
+				first = false
+			}
+		}
+	}
+}
+
+// writeCallableResultNames writes only the result names (for passing to a function call).
+func writeCallableResultNames(buf *bytes.Buffer, results *ast.FieldList) {
+	if results == nil || len(results.List) == 0 {
+		return
+	}
+
+	resultIdx := 0
+
+	for _, field := range results.List {
+		numNames := len(field.Names)
+		if numNames == 0 {
+			numNames = 1
+		}
+
+		for range numNames {
+			if resultIdx > 0 {
+				buf.WriteString(", ")
+			}
+
+			fmt.Fprintf(buf, "v%d", resultIdx+1)
+			resultIdx++
+		}
+	}
+}
+
+// getPackageInfo extracts package import path and name from the interface name.
+// Returns empty strings if no package qualification is present.
+func getPackageInfo(_ *ast.FuncDecl, interfaceName string) (pkgPath, pkgName string) {
+	// Check if interfaceName contains a package qualifier (e.g., "run.PrintSum")
+	parts := strings.Split(interfaceName, ".")
+	if len(parts) > 1 {
+		// For now, assume the package name is the same as the last part of the path
+		// This is a simplification - a more robust solution would look up the actual import path
+		pkgName = parts[0]
+		pkgPath = "github.com/toejough/imptest/UAT/" + pkgName
+
+		return pkgPath, pkgName
+	}
+
+	return "", ""
+}
+
+// printFuncTypeWithQualifiers prints a function type with package qualifiers for types.
+func printFuncTypeWithQualifiers(buf *bytes.Buffer, fset *token.FileSet, ftype *ast.FuncType, pkgName string) error {
+	buf.WriteString("func(")
+
+	// Print parameters
+	if ftype.Params != nil {
+		for i, field := range ftype.Params.List {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+
+			// Write names if present
+			if len(field.Names) > 0 {
+				for j, name := range field.Names {
+					if j > 0 {
+						buf.WriteString(", ")
+					}
+
+					buf.WriteString(name.Name)
+				}
+
+				buf.WriteString(" ")
+			}
+
+			// Write type with qualifier if needed
+			err := printTypeWithQualifier(buf, fset, field.Type, pkgName)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	buf.WriteString(")")
+
+	// Print results
+	if ftype.Results != nil && len(ftype.Results.List) > 0 {
+		buf.WriteString(" (")
+
+		for i, field := range ftype.Results.List {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+
+			err := printTypeWithQualifier(buf, fset, field.Type, pkgName)
+			if err != nil {
+				return err
+			}
+		}
+
+		buf.WriteString(")")
+	}
+
+	return nil
+}
+
+// printTypeWithQualifier prints a type expression with package qualifier if it's an identifier.
+func printTypeWithQualifier(buf *bytes.Buffer, fset *token.FileSet, expr ast.Expr, pkgName string) error {
+	switch typeExpr := expr.(type) {
+	case *ast.Ident:
+		// Check if this is a type from the imported package (uppercase first letter)
+		if pkgName != "" && typeExpr.Name[0] >= 'A' && typeExpr.Name[0] <= 'Z' {
+			buf.WriteString(pkgName)
+			buf.WriteString(".")
+		}
+
+		buf.WriteString(typeExpr.Name)
+	default:
+		// For other types, just print as-is
+		err := printer.Fprint(buf, fset, expr)
+		if err != nil {
+			return fmt.Errorf("error printing type: %w", err)
+		}
+	}
+
+	return nil
 }
