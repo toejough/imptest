@@ -20,26 +20,311 @@ import (
 	"github.com/magefile/mage/target"
 )
 
-// better glob expansion
-// https://stackoverflow.com/a/26809999
-func globs(dir string, ext []string) ([]string, error) {
-	files := []string{}
-	err := filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
+// Types
+
+type lineAndCoverage struct {
+	line     string
+	coverage float64
+}
+
+// Public Functions (Mage Targets)
+
+// Run all checks on the code.
+func Check(c context.Context) error {
+	fmt.Println("Checking...")
+
+	for _, cmd := range []func(context.Context) error{
+		Tidy,          // clean up the module dependencies
+		Generate,      // generate code
+		Test,          // verify the stuff you explicitly care about works
+		Deadcode,      // verify there's no dead code
+		Lint,          // make it follow the standards you care about
+		CheckNils,     // suss out nils
+		CheckCoverage, // verify desired coverage
+		Mutate,        // check for untested code
+		Fuzz,          // suss out unsafe assumptions about your function inputs
+		TodoCheck,     // look for any fixme's or todos
+	} {
+		err := cmd(c)
 		if err != nil {
-			return fmt.Errorf("unable to find all glob matches: %w", err)
+			return fmt.Errorf("unable to finish checking: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// CheckCoverage checks that function coverage meets the minimum threshold.
+func CheckCoverage(c context.Context) error {
+	fmt.Println("Checking coverage...")
+
+	out, err := output(c, "go", "tool", "cover", "-func=coverage.out")
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(out, "\n")
+	linesAndCoverage := []lineAndCoverage{}
+
+	for _, line := range lines {
+		percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
+
+		percent, err := strconv.ParseFloat(percentString, 64)
+		if err != nil {
+			return err
 		}
 
-		for _, each := range ext {
-			if filepath.Ext(path) == each {
-				files = append(files, path)
-				return nil
-			}
+		if strings.Contains(line, "_string.go") {
+			continue
 		}
 
-		return nil
+		if strings.Contains(line, "total:") {
+			continue
+		}
+
+		linesAndCoverage = append(linesAndCoverage, lineAndCoverage{line, percent})
+	}
+
+	slices.SortStableFunc(linesAndCoverage, func(a, b lineAndCoverage) int {
+		if a.coverage < b.coverage {
+			return -1
+		}
+
+		if a.coverage > b.coverage {
+			return 1
+		}
+
+		return 0
 	})
+	lc := linesAndCoverage[0]
 
-	return files, err
+	sortedLines := make([]string, len(linesAndCoverage))
+	for i := range linesAndCoverage {
+		sortedLines[i] = linesAndCoverage[i].line
+	}
+
+	fmt.Println(strings.Join(sortedLines, "\n"))
+
+	coverage := 80.0
+	if lc.coverage < coverage {
+		return fmt.Errorf("function coverage was less than the limit of %.1f:\n  %s", coverage, lc.line)
+	}
+
+	return nil
+}
+
+// Run all checks on the code for determining whether any fail.
+func CheckForFail(c context.Context) error {
+	fmt.Println("Checking...")
+
+	for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
+		err := cmd(c)
+		if err != nil {
+			return fmt.Errorf("unable to finish checking: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// Check for nils.
+func CheckNils(c context.Context) error {
+	fmt.Println("Running check for nils...")
+	return run(c, "nilaway", "./...")
+}
+
+// Clean up the dev env.
+func Clean() {
+	fmt.Println("Cleaning...")
+	os.Remove("coverage.out")
+}
+
+// Deadcode checks that there's no dead code in codebase.
+func Deadcode(c context.Context) error {
+	fmt.Println("Checking for dead code...")
+
+	out, err := output(c, "deadcode", "-test", "./...")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(out)
+
+	lines := strings.Split(out, "\n")
+	if len(lines) > 0 && len(lines[0]) > 0 {
+		return errors.New("found dead code")
+	}
+
+	return nil
+}
+
+// Run the fuzz tests.
+func Fuzz(c context.Context) error {
+	fmt.Println("Running fuzz tests...")
+	return run(c, "./dev/fuzz.fish")
+}
+
+// Generate runs go generate on all packages.
+func Generate(c context.Context) error {
+	fmt.Println("Generating...")
+
+	return run(
+		c,
+		"go",
+		"generate",
+		"./...",
+	)
+}
+
+// Install development tooling.
+func InstallTools(c context.Context) error {
+	fmt.Println("Installing development tools...")
+	return run(c, "./dev/dev-install.sh")
+}
+
+// Lint lints the codebase.
+func Lint(c context.Context) error {
+	fmt.Println("Linting...")
+	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci.toml")
+	// return err
+	return run(c, "golangci-lint", "run", "-c", "dev/golangci.toml")
+}
+
+// LintForFail lints the codebase purely to find out whether anything fails.
+func LintForFail(c context.Context) error {
+	fmt.Println("Linting to check for overall pass/fail...")
+	// _, err := sh.Exec(
+	// 	nil, os.Stdout, nil,
+	// 	"golangci-lint", "run",
+	// 	"-c", "dev/golangci.toml",
+	// 	"--fix=false",
+	// 	"--max-issues-per-linter=1",
+	// 	"--max-same-issues=1",
+	// )
+	// return err
+	return run(
+		c,
+		"golangci-lint", "run",
+		"-c", "dev/golangci.toml",
+		"--fix=false",
+		"--max-issues-per-linter=1",
+		"--max-same-issues=1",
+	)
+}
+
+// Run the mutation tests.
+func Mutate(c context.Context) error {
+	fmt.Println("Running mutation tests...")
+
+	for _, cmd := range []func(context.Context) error{
+		TestForFail,
+		func(c context.Context) error {
+			return run(
+				c,
+				"go",
+				"test",
+				// "-v",
+				"-tags=mutation",
+				"./...",
+				"-run=TestMutation",
+				// "-ooze.v",
+			)
+		},
+	} {
+		err := cmd(c)
+		if err != nil {
+			return fmt.Errorf("unable to finish checking: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// Run the unit tests.
+func Test(c context.Context) error {
+	fmt.Println("Running unit tests...")
+	// return sh.RunV(
+	// 	"go",
+	// 	"test",
+	// 	"-timeout=5s",
+	// 	// "-shuffle=1725149006359140000",
+	// 	"-race",
+	// 	"-coverprofile=coverage.out",
+	// 	"-coverpkg=./imptest",
+	// 	"./...",
+	// 	// -test.shuffle 1725149006359140000
+	// )
+	err := run(
+		c,
+		"go",
+		"test",
+		"-timeout=5s",
+		// "-shuffle=1725149006359140000",
+		"-race",
+		// "-p=1",
+		"-coverprofile=coverage.out",
+		// "-coverpkg=./UAT/run,.,./impgen/run",
+		"-cover",
+		// "-covermode=atomic",
+		"./...",
+		// -test.shuffle 1725149006359140000
+	)
+	if err != nil {
+		return err
+	}
+
+	// Strip main.go coverage lines from coverage.out
+	data, err := os.ReadFile("coverage.out")
+	if err != nil {
+		return fmt.Errorf("failed to read coverage.out: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var filtered []string
+	for _, line := range lines {
+		if !strings.Contains(line, "/main.go:") {
+			filtered = append(filtered, line)
+		}
+	}
+
+	err = os.WriteFile("coverage.out", []byte(strings.Join(filtered, "\n")), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write coverage.out: %w", err)
+	}
+
+	return nil
+}
+
+// Run the unit tests purely to find out whether any fail.
+func TestForFail(c context.Context) error {
+	fmt.Println("Running unit tests for overall pass/fail...")
+
+	return run(
+		c,
+		"go",
+		"test",
+		"-timeout=1s",
+		"./...",
+		// "-rapid.nofailfile",
+		"-failfast",
+		"-shuffle=on",
+		"-race",
+	)
+}
+
+// Tidy tidies up go.mod.
+func Tidy(c context.Context) error {
+	fmt.Println("Tidying go.mod...")
+	return run(c, "go", "mod", "tidy")
+	// return sh.RunWithV(map[string]string{"GOPRIVATE": "github.com/toejough/protest"}, "go", "mod", "tidy")
+}
+
+// TodoCheck checks for TODO and FIXME comments using golangci-lint.
+func TodoCheck(c context.Context) error {
+	fmt.Println("Linting...")
+	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
+	// return err
+	return run(c, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
 }
 
 // Watch, and re-run Check whenever the files change.
@@ -116,59 +401,28 @@ func Watch() error {
 	}
 }
 
-// Run all checks on the code.
-func Check(c context.Context) error {
-	fmt.Println("Checking...")
+// Private Functions
 
-	for _, cmd := range []func(context.Context) error{
-		Tidy,          // clean up the module dependencies
-		Generate,      // generate code
-		Test,          // verify the stuff you explicitly care about works
-		Deadcode,      // verify there's no dead code
-		Lint,          // make it follow the standards you care about
-		CheckNils,     // suss out nils
-		CheckCoverage, // verify desired coverage
-		Mutate,        // check for untested code
-		Fuzz,          // suss out unsafe assumptions about your function inputs
-		TodoCheck,     // look for any fixme's or todos
-	} {
-		err := cmd(c)
+// better glob expansion
+// https://stackoverflow.com/a/26809999
+func globs(dir string, ext []string) ([]string, error) {
+	files := []string{}
+	err := filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("unable to finish checking: %w", err)
+			return fmt.Errorf("unable to find all glob matches: %w", err)
 		}
-	}
 
-	return nil
-}
-
-// Run all checks on the code for determining whether any fail.
-func CheckForFail(c context.Context) error {
-	fmt.Println("Checking...")
-
-	for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
-		err := cmd(c)
-		if err != nil {
-			return fmt.Errorf("unable to finish checking: %w", err)
+		for _, each := range ext {
+			if filepath.Ext(path) == each {
+				files = append(files, path)
+				return nil
+			}
 		}
-	}
 
-	return nil
-}
+		return nil
+	})
 
-// Tidy tidies up go.mod.
-func Tidy(c context.Context) error {
-	fmt.Println("Tidying go.mod...")
-	return run(c, "go", "mod", "tidy")
-	// return sh.RunWithV(map[string]string{"GOPRIVATE": "github.com/toejough/protest"}, "go", "mod", "tidy")
-}
-
-func run(c context.Context, command string, arg ...string) error {
-	cmd := exec.CommandContext(c, command, arg...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
+	return files, err
 }
 
 func output(c context.Context, command string, arg ...string) (string, error) {
@@ -182,256 +436,11 @@ func output(c context.Context, command string, arg ...string) (string, error) {
 	return strings.TrimSuffix(buf.String(), "\n"), err
 }
 
-// Lint lints the codebase.
-func Lint(c context.Context) error {
-	fmt.Println("Linting...")
-	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci.toml")
-	// return err
-	return run(c, "golangci-lint", "run", "-c", "dev/golangci.toml")
-}
+func run(c context.Context, command string, arg ...string) error {
+	cmd := exec.CommandContext(c, command, arg...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-func TodoCheck(c context.Context) error {
-	fmt.Println("Linting...")
-	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
-	// return err
-	return run(c, "golangci-lint", "run", "-c", "dev/golangci-todos.toml")
-}
-
-// Deadcode checks that there's no dead code in codebase.
-func Deadcode(c context.Context) error {
-	fmt.Println("Checking for dead code...")
-
-	out, err := output(c, "deadcode", "-test", "./...")
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(out)
-
-	lines := strings.Split(out, "\n")
-	if len(lines) > 0 && len(lines[0]) > 0 {
-		return errors.New("found dead code")
-	}
-
-	return nil
-}
-
-// LintForFail lints the codebase purely to find out whether anything fails.
-func LintForFail(c context.Context) error {
-	fmt.Println("Linting to check for overall pass/fail...")
-	// _, err := sh.Exec(
-	// 	nil, os.Stdout, nil,
-	// 	"golangci-lint", "run",
-	// 	"-c", "dev/golangci.toml",
-	// 	"--fix=false",
-	// 	"--max-issues-per-linter=1",
-	// 	"--max-same-issues=1",
-	// )
-	// return err
-	return run(
-		c,
-		"golangci-lint", "run",
-		"-c", "dev/golangci.toml",
-		"--fix=false",
-		"--max-issues-per-linter=1",
-		"--max-same-issues=1",
-	)
-}
-
-func Generate(c context.Context) error {
-	fmt.Println("Generating...")
-
-	return run(
-		c,
-		"go",
-		"generate",
-		"./...",
-	)
-}
-
-// Run the unit tests.
-func Test(c context.Context) error {
-	fmt.Println("Running unit tests...")
-	// return sh.RunV(
-	// 	"go",
-	// 	"test",
-	// 	"-timeout=5s",
-	// 	// "-shuffle=1725149006359140000",
-	// 	"-race",
-	// 	"-coverprofile=coverage.out",
-	// 	"-coverpkg=./imptest",
-	// 	"./...",
-	// 	// -test.shuffle 1725149006359140000
-	// )
-	err := run(
-		c,
-		"go",
-		"test",
-		"-timeout=5s",
-		// "-shuffle=1725149006359140000",
-		"-race",
-		// "-p=1",
-		"-coverprofile=coverage.out",
-		// "-coverpkg=./UAT/run,.,./impgen/run",
-		"-cover",
-		// "-covermode=atomic",
-		"./...",
-		// -test.shuffle 1725149006359140000
-	)
-	if err != nil {
-		return err
-	}
-
-	// Strip main.go coverage lines from coverage.out
-	data, err := os.ReadFile("coverage.out")
-	if err != nil {
-		return fmt.Errorf("failed to read coverage.out: %w", err)
-	}
-
-	lines := strings.Split(string(data), "\n")
-	var filtered []string
-	for _, line := range lines {
-		if !strings.Contains(line, "/main.go:") {
-			filtered = append(filtered, line)
-		}
-	}
-
-	err = os.WriteFile("coverage.out", []byte(strings.Join(filtered, "\n")), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write coverage.out: %w", err)
-	}
-
-	return nil
-}
-
-// Run the mutation tests.
-func Mutate(c context.Context) error {
-	fmt.Println("Running mutation tests...")
-
-	for _, cmd := range []func(context.Context) error{
-		TestForFail,
-		func(c context.Context) error {
-			return run(
-				c,
-				"go",
-				"test",
-				// "-v",
-				"-tags=mutation",
-				"./...",
-				"-run=TestMutation",
-				// "-ooze.v",
-			)
-		},
-	} {
-		err := cmd(c)
-		if err != nil {
-			return fmt.Errorf("unable to finish checking: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func CheckCoverage(c context.Context) error {
-	fmt.Println("Checking coverage...")
-
-	out, err := output(c, "go", "tool", "cover", "-func=coverage.out")
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(out, "\n")
-	linesAndCoverage := []lineAndCoverage{}
-
-	for _, line := range lines {
-		percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
-
-		percent, err := strconv.ParseFloat(percentString, 64)
-		if err != nil {
-			return err
-		}
-
-		if strings.Contains(line, "_string.go") {
-			continue
-		}
-
-		if strings.Contains(line, "total:") {
-			continue
-		}
-
-		linesAndCoverage = append(linesAndCoverage, lineAndCoverage{line, percent})
-	}
-
-	slices.SortStableFunc(linesAndCoverage, func(a, b lineAndCoverage) int {
-		if a.coverage < b.coverage {
-			return -1
-		}
-
-		if a.coverage > b.coverage {
-			return 1
-		}
-
-		return 0
-	})
-	lc := linesAndCoverage[0]
-
-	sortedLines := make([]string, len(linesAndCoverage))
-	for i := range linesAndCoverage {
-		sortedLines[i] = linesAndCoverage[i].line
-	}
-
-	fmt.Println(strings.Join(sortedLines, "\n"))
-
-	coverage := 80.0
-	if lc.coverage < coverage {
-		return fmt.Errorf("function coverage was less than the limit of %.1f:\n  %s", coverage, lc.line)
-	}
-
-	return nil
-}
-
-type lineAndCoverage struct {
-	line     string
-	coverage float64
-}
-
-// Run the unit tests purely to find out whether any fail.
-func TestForFail(c context.Context) error {
-	fmt.Println("Running unit tests for overall pass/fail...")
-
-	return run(
-		c,
-		"go",
-		"test",
-		"-timeout=1s",
-		"./...",
-		// "-rapid.nofailfile",
-		"-failfast",
-		"-shuffle=on",
-		"-race",
-	)
-}
-
-// Run the fuzz tests.
-func Fuzz(c context.Context) error {
-	fmt.Println("Running fuzz tests...")
-	return run(c, "./dev/fuzz.fish")
-}
-
-// Check for nils.
-func CheckNils(c context.Context) error {
-	fmt.Println("Running check for nils...")
-	return run(c, "nilaway", "./...")
-}
-
-// Install development tooling.
-func InstallTools(c context.Context) error {
-	fmt.Println("Installing development tools...")
-	return run(c, "./dev/dev-install.sh")
-}
-
-// Clean up the dev env.
-func Clean() {
-	fmt.Println("Cleaning...")
-	os.Remove("coverage.out")
+	return cmd.Run()
 }
