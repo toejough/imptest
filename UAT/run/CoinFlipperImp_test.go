@@ -109,7 +109,9 @@ func (i *CoinFlipperImp) Within(d time.Duration) *CoinFlipperImpTimed {
 	}
 }
 
-func (i *CoinFlipperImp) GetCall(d time.Duration, validator func(*CoinFlipperImpCall) bool) *CoinFlipperImpCall {
+func (i *CoinFlipperImp) GetCall(
+	d time.Duration, validator func(*CoinFlipperImpCall) bool,
+) *CoinFlipperImpCall {
 	i.queueLock.Lock()
 	defer i.queueLock.Unlock()
 

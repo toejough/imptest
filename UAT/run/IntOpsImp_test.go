@@ -257,7 +257,9 @@ func (i *IntOpsImp) Within(d time.Duration) *IntOpsImpTimed {
 	}
 }
 
-func (i *IntOpsImp) GetCall(d time.Duration, validator func(*IntOpsImpCall) bool) *IntOpsImpCall {
+func (i *IntOpsImp) GetCall(
+	d time.Duration, validator func(*IntOpsImpCall) bool,
+) *IntOpsImpCall {
 	i.queueLock.Lock()
 	defer i.queueLock.Unlock()
 

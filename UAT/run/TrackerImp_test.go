@@ -388,7 +388,9 @@ func (i *TrackerImp) Within(d time.Duration) *TrackerImpTimed {
 	}
 }
 
-func (i *TrackerImp) GetCall(d time.Duration, validator func(*TrackerImpCall) bool) *TrackerImpCall {
+func (i *TrackerImp) GetCall(
+	d time.Duration, validator func(*TrackerImpCall) bool,
+) *TrackerImpCall {
 	i.queueLock.Lock()
 	defer i.queueLock.Unlock()
 

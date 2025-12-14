@@ -19,6 +19,11 @@ func (w *codeWriter) pf(format string, args ...any) {
 	fmt.Fprintf(&w.buf, format, args...)
 }
 
+// ps writes a string to the buffer.
+func (w *codeWriter) ps(s string) {
+	w.buf.WriteString(s)
+}
+
 // bytes returns the buffer contents.
 func (w *codeWriter) bytes() []byte {
 	return w.buf.Bytes()
