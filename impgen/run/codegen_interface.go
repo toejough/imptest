@@ -178,34 +178,9 @@ func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype 
 
 // generateResponseStructResultFields generates the result fields for a response struct.
 func (gen *codeGenerator) generateResponseStructResultFields(ftype *ast.FuncType) {
-	returnIndex := 0
-
-	for _, result := range ftype.Results.List {
-		resultType := exprToString(gen.fset, result.Type)
-		returnIndex = gen.generateResultField(result, resultType, returnIndex)
+	for _, r := range extractResults(gen.fset, ftype) {
+		gen.pf("\t%s %s\n", r.Name, r.Type)
 	}
-}
-
-// generateResultField generates a single result field (named or unnamed).
-func (gen *codeGenerator) generateResultField(result *ast.Field, resultType string, returnIndex int) int {
-	if len(result.Names) > 0 {
-		return gen.generateNamedResultFields(result, resultType, returnIndex)
-	}
-
-	gen.pf("\tResult%d %s\n", returnIndex, resultType)
-
-	return returnIndex + 1
-}
-
-// generateNamedResultFields generates fields for named return values.
-func (gen *codeGenerator) generateNamedResultFields(result *ast.Field, resultType string, returnIndex int) int {
-	for _, name := range result.Names {
-		gen.pf("\t%s %s\n", name.Name, resultType)
-
-		returnIndex++
-	}
-
-	return returnIndex
 }
 
 // generateMethodResponseMethods generates the InjectResult, InjectResults, InjectPanic, and Resolve methods
@@ -267,80 +242,28 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 `)
 }
 
-// writeInjectResultsParams writes the parameter list for InjectResults method and returns parameter names.
+// writeInjectResultsParams writes the parameter list for InjectResults method and returns the result names.
 func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string {
-	returnIndex := 0
-	returnParamNames := make([]string, 0)
+	results := extractResults(gen.fset, ftype)
+	names := make([]string, len(results))
 
-	for _, result := range ftype.Results.List {
-		resultType := exprToString(gen.fset, result.Type)
-		returnIndex, returnParamNames = gen.writeInjectResultParam(result, resultType, returnIndex, returnParamNames)
-	}
-
-	return returnParamNames
-}
-
-// writeInjectResultParam writes a single result parameter (named or unnamed).
-func (gen *codeGenerator) writeInjectResultParam(
-	result *ast.Field, resultType string, returnIndex int, returnParamNames []string,
-) (int, []string) {
-	if len(result.Names) > 0 {
-		return gen.writeNamedResultParams(result, resultType, returnIndex, returnParamNames)
-	}
-
-	if returnIndex > 0 {
-		gen.pf(", ")
-	}
-
-	paramName := fmt.Sprintf("result%d", returnIndex)
-	gen.pf("%s %s", paramName, resultType)
-	returnParamNames = append(returnParamNames, paramName)
-
-	return returnIndex + 1, returnParamNames
-}
-
-// writeNamedResultParams writes named result parameters.
-func (gen *codeGenerator) writeNamedResultParams(
-	result *ast.Field, resultType string, returnIndex int, returnParamNames []string,
-) (int, []string) {
-	for _, name := range result.Names {
-		if returnIndex > 0 {
+	for resultIdx, result := range results {
+		if resultIdx > 0 {
 			gen.pf(", ")
 		}
 
-		gen.pf("%s %s", name.Name, resultType)
-		returnParamNames = append(returnParamNames, name.Name)
-		returnIndex++
+		gen.pf("%s %s", result.Name, result.Type)
+		names[resultIdx] = result.Name
 	}
 
-	return returnIndex, returnParamNames
+	return names
 }
 
 // writeInjectResultsResponseFields writes the response struct field assignments for InjectResults.
 func (gen *codeGenerator) writeInjectResultsResponseFields(ftype *ast.FuncType, returnParamNames []string) {
-	returnIndex := 0
-
-	for _, result := range ftype.Results.List {
-		returnIndex = gen.writeInjectResultResponseField(result, returnParamNames, returnIndex)
+	for resultIdx, result := range extractResults(gen.fset, ftype) {
+		gen.pf(", %s: %s", result.Name, returnParamNames[resultIdx])
 	}
-}
-
-// writeInjectResultResponseField writes a single response field assignment.
-func (gen *codeGenerator) writeInjectResultResponseField(
-	result *ast.Field, returnParamNames []string, returnIndex int,
-) int {
-	if len(result.Names) > 0 {
-		for _, name := range result.Names {
-			gen.pf(", %s: %s", name.Name, returnParamNames[returnIndex])
-			returnIndex++
-		}
-
-		return returnIndex
-	}
-
-	gen.pf(", Result%d: %s", returnIndex, returnParamNames[returnIndex])
-
-	return returnIndex + 1
 }
 
 // generateInjectPanicMethod generates the InjectPanic method for simulating panics.
@@ -494,36 +417,13 @@ func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
 
 // writeReturnValues writes all return values from the response struct.
 func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
-	returnIndex := 0
-
-	for _, result := range ftype.Results.List {
-		returnIndex = gen.writeReturnValue(result, returnIndex)
-	}
-}
-
-// writeReturnValue writes a single return value from the response struct.
-func (gen *codeGenerator) writeReturnValue(result *ast.Field, returnIndex int) int {
-	if len(result.Names) > 0 {
-		for _, name := range result.Names {
-			if returnIndex > 0 {
-				gen.pf(", ")
-			}
-
-			gen.pf(" resp.%s", name.Name)
-
-			returnIndex++
+	for i, r := range extractResults(gen.fset, ftype) {
+		if i > 0 {
+			gen.pf(",")
 		}
 
-		return returnIndex
+		gen.pf(" resp.%s", r.Name)
 	}
-
-	if returnIndex > 0 {
-		gen.pf(", ")
-	}
-
-	gen.pf(" resp.Result%d", returnIndex)
-
-	return returnIndex + 1
 }
 
 // generateExpectCallToStruct generates the struct for expecting specific method calls.
