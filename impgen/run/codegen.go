@@ -33,6 +33,7 @@ func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *
 	forEachInterfaceMethod(gen.identifiedInterface, callback)
 }
 
+// generateCallAsMethod generates As{Method}() methods that return typed call structs.
 func (gen *codeGenerator) generateCallAsMethod() {
 	for _, methodName := range gen.methodNames {
 		gen.pf("func (c *%s) As%s() *%s { return c.%s }\n\n",
@@ -40,6 +41,7 @@ func (gen *codeGenerator) generateCallAsMethod() {
 	}
 }
 
+// generateCallDoneMethod generates the Done() method that checks if any method call is completed.
 func (gen *codeGenerator) generateCallDoneMethod() {
 	gen.pf(`func (c *%s) Done() bool {
 `, gen.callName)
@@ -57,19 +59,24 @@ func (gen *codeGenerator) generateCallDoneMethod() {
 `)
 }
 
+// generateCallNameMethod generates the Name() method that returns the called method's name.
 func (gen *codeGenerator) generateCallNameMethod() {
 	gen.pf("func (c *%s) Name() string {\n", gen.callName)
 
 	for _, methodName := range gen.methodNames {
-		gen.pf("\tif c.%s != nil {\n", methodName)
-		gen.pf("\t\treturn %q\n", methodName)
-		gen.pf("\t}\n")
+		gen.pf(`	if c.%s != nil {
+		return %q
+	}
+`, methodName, methodName)
 	}
 
-	gen.pf("\treturn \"\"\n")
-	gen.pf("}\n\n")
+	gen.pf(`	return ""
 }
 
+`)
+}
+
+// generateCallStruct generates the union call struct that can hold any method call.
 func (gen *codeGenerator) generateCallStruct() {
 	gen.pf("type %s struct {\n", gen.callName)
 
@@ -501,6 +508,7 @@ func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames 
 	}
 }
 
+// writeCallStructField writes a single field assignment for a call struct initialization.
 func (gen *codeGenerator) writeCallStructField(
 	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
 ) (int, int) {
@@ -521,6 +529,7 @@ func (gen *codeGenerator) writeCallStructField(
 	return paramNameIndex + 1, unnamedIndex + 1
 }
 
+// writeReturnStatement writes the return statement for a mock method.
 func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
 	if !hasResults(ftype) {
 		gen.pf("\treturn\n")
@@ -532,6 +541,7 @@ func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
 	gen.pf("\n")
 }
 
+// writeReturnValues writes all return values from the response struct.
 func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
 	returnIndex := 0
 
@@ -540,6 +550,7 @@ func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
 	}
 }
 
+// writeReturnValue writes a single return value from the response struct.
 func (gen *codeGenerator) writeReturnValue(result *ast.Field, returnIndex int) int {
 	if len(result.Names) > 0 {
 		for _, name := range result.Names {
@@ -564,6 +575,7 @@ func (gen *codeGenerator) writeReturnValue(result *ast.Field, returnIndex int) i
 	return returnIndex + 1
 }
 
+// generateExpectCallToStruct generates the struct for expecting specific method calls.
 func (gen *codeGenerator) generateExpectCallToStruct() {
 	gen.pf(`type %s struct {
 	imp *%s
@@ -573,12 +585,14 @@ func (gen *codeGenerator) generateExpectCallToStruct() {
 `, gen.expectCallToName, gen.impName)
 }
 
+// generateExpectCallToMethods generates expectation methods for each interface method.
 func (gen *codeGenerator) generateExpectCallToMethods() {
 	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
 		gen.generateExpectCallToMethod(methodName, ftype)
 	})
 }
 
+// generateExpectCallToMethod generates a single expectation method that validates and returns a call.
 func (gen *codeGenerator) generateExpectCallToMethod(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
 	paramNames := extractParamNames(ftype)
@@ -596,6 +610,7 @@ func (gen *codeGenerator) generateExpectCallToMethod(methodName string, ftype *a
 `, methodName)
 }
 
+// generateValidatorFunction generates a validator closure that checks method name and parameters.
 func (gen *codeGenerator) generateValidatorFunction(methodName string, ftype *ast.FuncType, paramNames []string) {
 	gen.pf(`	validator := func(c *%s) bool {
 		if c.Name() != %q {
@@ -614,6 +629,7 @@ func (gen *codeGenerator) generateValidatorFunction(methodName string, ftype *as
 `)
 }
 
+// writeValidatorChecks writes parameter validation checks for an expectation method.
 func (gen *codeGenerator) writeValidatorChecks(ftype *ast.FuncType, paramNames []string) {
 	totalParams := countFields(ftype.Params)
 	paramNameIndex := 0
@@ -627,6 +643,7 @@ func (gen *codeGenerator) writeValidatorChecks(ftype *ast.FuncType, paramNames [
 	}
 }
 
+// writeValidatorCheck writes a single parameter validation check.
 func (gen *codeGenerator) writeValidatorCheck(
 	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
 ) (int, int) {
@@ -653,6 +670,7 @@ func (gen *codeGenerator) writeValidatorCheck(
 	return paramNameIndex + 1, unnamedIndex + 1
 }
 
+// generateTimedStruct generates the struct and method for timed call expectations.
 func (gen *codeGenerator) generateTimedStruct() {
 	gen.pf(`type %s struct {
 	ExpectCallTo *%s
@@ -667,6 +685,7 @@ func (i *%s) Within(d time.Duration) *%s {
 `, gen.timedName, gen.expectCallToName, gen.impName, gen.timedName, gen.timedName, gen.expectCallToName)
 }
 
+// generateGetCallMethod generates the GetCall method that retrieves matching calls from queue or channel.
 func (gen *codeGenerator) generateGetCallMethod() {
 	gen.pf(`func (i *%s) GetCall(d time.Duration, validator func(*%s) bool) *%s {
 	i.queueLock.Lock()
@@ -703,6 +722,7 @@ func (gen *codeGenerator) generateGetCallMethod() {
 `, gen.impName, gen.callName, gen.callName)
 }
 
+// generateGetCurrentCallMethod generates the GetCurrentCall method that returns the current or next call.
 func (gen *codeGenerator) generateGetCurrentCallMethod() {
 	gen.pf(`func (i *%s) GetCurrentCall() *%s {
 	if i.currentCall != nil && !i.currentCall.Done() {
@@ -715,6 +735,7 @@ func (gen *codeGenerator) generateGetCurrentCallMethod() {
 `, gen.impName, gen.callName, gen.callName)
 }
 
+// generateConstructor generates the New{ImpName} constructor function.
 func (gen *codeGenerator) generateConstructor() {
 	gen.pf(`func New%s(t *testing.T) *%s {
 	imp := &%s{
@@ -731,6 +752,7 @@ func (gen *codeGenerator) generateConstructor() {
 
 // Functions - Public
 
+// generateImplementationCode generates the complete mock implementation code for an interface.
 func generateImplementationCode(
 	identifiedInterface *ast.InterfaceType,
 	info generatorInfo,
@@ -810,10 +832,12 @@ func processFieldMethods(field *ast.Field, callback func(methodName string, ftyp
 	}
 }
 
+// hasParams returns true if the function type has parameters.
 func hasParams(ftype *ast.FuncType) bool {
 	return ftype.Params != nil && len(ftype.Params.List) > 0
 }
 
+// hasResults returns true if the function type has return values.
 func hasResults(ftype *ast.FuncType) bool {
 	return ftype.Results != nil && len(ftype.Results.List) > 0
 }
@@ -828,6 +852,7 @@ func getParamFieldName(param *ast.Field, nameIdx int, unnamedIdx int, paramType 
 	return generateParamName(unnamedIdx, paramType, totalParams)
 }
 
+// countFields counts the total number of individual fields in a field list.
 func countFields(fields *ast.FieldList) int {
 	total := 0
 
@@ -842,6 +867,7 @@ func countFields(fields *ast.FieldList) int {
 	return total
 }
 
+// extractParamNames extracts or generates parameter names from a function type.
 func extractParamNames(ftype *ast.FuncType) []string {
 	paramNames := make([]string, 0)
 	if !hasParams(ftype) {
@@ -857,6 +883,7 @@ func extractParamNames(ftype *ast.FuncType) []string {
 	return paramNames
 }
 
+// appendParamNames appends parameter names to the list, generating names for unnamed parameters.
 func appendParamNames(param *ast.Field, paramNames []string, paramIndex int) ([]string, int) {
 	if len(param.Names) > 0 {
 		for _, name := range param.Names {
@@ -894,6 +921,7 @@ func renderFieldList(fset *token.FileSet, fieldList *ast.FieldList) string {
 	return buf.String()
 }
 
+// renderField renders a single field with its name and type.
 func renderField(fset *token.FileSet, field *ast.Field, buf *bytes.Buffer) {
 	// Names
 	for j, name := range field.Names {

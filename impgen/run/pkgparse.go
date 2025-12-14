@@ -112,6 +112,7 @@ func isLocalInterface(qualifiedName string) bool {
 	return !strings.Contains(qualifiedName, ".")
 }
 
+// loadPackage loads a package and returns its AST files and file set.
 func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, error) {
 	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
 	if err != nil {
