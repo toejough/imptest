@@ -24,31 +24,21 @@ var (
 
 // main is the entry point of the impgen tool.
 func main() {
-	err := run.Run(os.Args, os.Getenv, &RealFileSystem{}, &RealPackageLoader{})
+	err := run.Run(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-// RealFileSystem implements FileSystem using os package.
-type RealFileSystem struct{}
+// realFileSystem implements FileSystem using os package.
+type realFileSystem struct{}
 
-// WriteFile writes data to the file named by name.
-func (fs *RealFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	err := os.WriteFile(name, data, perm)
-	if err != nil {
-		return fmt.Errorf("failed to write file %s: %w", name, err)
-	}
-
-	return nil
-}
-
-// RealPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
-type RealPackageLoader struct{}
+// realPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
+type realPackageLoader struct{}
 
 // Load loads a package by import path and returns its AST files and FileSet.
-func (pl *RealPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, error) {
+func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, error) {
 	cfg := &packages.Config{
 		Mode:  packages.LoadAllSyntax,
 		Tests: true,
@@ -90,4 +80,14 @@ func (pl *RealPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	}
 
 	return allFiles, fset, nil
+}
+
+// WriteFile writes data to the file named by name.
+func (fs *realFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
+	err := os.WriteFile(name, data, perm)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s: %w", name, err)
+	}
+
+	return nil
 }

@@ -28,14 +28,14 @@ type CoinFlipperImpFlipCall struct {
 type CoinFlipperImpFlipCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    bool
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *CoinFlipperImpFlipCall) InjectResult(result bool) {
 	c.done = true
 	c.responseChan <- CoinFlipperImpFlipCallResponse{Type: "return", Result0: result}
 }
-func (c *CoinFlipperImpFlipCall) InjectPanic(msg interface{}) {
+func (c *CoinFlipperImpFlipCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- CoinFlipperImpFlipCallResponse{Type: "panic", PanicValue: msg}
 }

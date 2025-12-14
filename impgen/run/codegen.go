@@ -211,7 +211,7 @@ func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype 
 		gen.generateResponseStructResultFields(ftype)
 	}
 
-	gen.pf(`	PanicValue interface{}
+	gen.pf(`	PanicValue any
 }
 
 `)
@@ -386,7 +386,7 @@ func (gen *codeGenerator) writeInjectResultResponseField(
 
 // generateInjectPanicMethod generates the InjectPanic method for simulating panics.
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
-	gen.pf(`func (c *%s) InjectPanic(msg interface{}) {
+	gen.pf(`func (c *%s) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- %sResponse{Type: "panic", PanicValue: msg}
 }

@@ -28,14 +28,14 @@ type TrackerImpRegisterCall struct {
 
 type TrackerImpRegisterCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *TrackerImpRegisterCall) Resolve() {
 	c.done = true
 	c.responseChan <- TrackerImpRegisterCallResponse{Type: "resolve"}
 }
-func (c *TrackerImpRegisterCall) InjectPanic(msg interface{}) {
+func (c *TrackerImpRegisterCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- TrackerImpRegisterCallResponse{Type: "panic", PanicValue: msg}
 }
@@ -49,14 +49,14 @@ type TrackerImpIsServingCall struct {
 type TrackerImpIsServingCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    bool
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *TrackerImpIsServingCall) InjectResult(result bool) {
 	c.done = true
 	c.responseChan <- TrackerImpIsServingCallResponse{Type: "return", Result0: result}
 }
-func (c *TrackerImpIsServingCall) InjectPanic(msg interface{}) {
+func (c *TrackerImpIsServingCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- TrackerImpIsServingCallResponse{Type: "panic", PanicValue: msg}
 }
@@ -69,14 +69,14 @@ type TrackerImpHitCall struct {
 
 type TrackerImpHitCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *TrackerImpHitCall) Resolve() {
 	c.done = true
 	c.responseChan <- TrackerImpHitCallResponse{Type: "resolve"}
 }
-func (c *TrackerImpHitCall) InjectPanic(msg interface{}) {
+func (c *TrackerImpHitCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- TrackerImpHitCallResponse{Type: "panic", PanicValue: msg}
 }
@@ -89,14 +89,14 @@ type TrackerImpMissCall struct {
 
 type TrackerImpMissCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *TrackerImpMissCall) Resolve() {
 	c.done = true
 	c.responseChan <- TrackerImpMissCallResponse{Type: "resolve"}
 }
-func (c *TrackerImpMissCall) InjectPanic(msg interface{}) {
+func (c *TrackerImpMissCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- TrackerImpMissCallResponse{Type: "panic", PanicValue: msg}
 }
@@ -110,14 +110,14 @@ type TrackerImpReceiveCall struct {
 type TrackerImpReceiveCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    bool
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *TrackerImpReceiveCall) InjectResult(result bool) {
 	c.done = true
 	c.responseChan <- TrackerImpReceiveCallResponse{Type: "return", Result0: result}
 }
-func (c *TrackerImpReceiveCall) InjectPanic(msg interface{}) {
+func (c *TrackerImpReceiveCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- TrackerImpReceiveCallResponse{Type: "panic", PanicValue: msg}
 }

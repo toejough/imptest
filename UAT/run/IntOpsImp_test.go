@@ -30,14 +30,14 @@ type IntOpsImpAddCall struct {
 type IntOpsImpAddCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    int
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *IntOpsImpAddCall) InjectResult(result int) {
 	c.done = true
 	c.responseChan <- IntOpsImpAddCallResponse{Type: "return", Result0: result}
 }
-func (c *IntOpsImpAddCall) InjectPanic(msg interface{}) {
+func (c *IntOpsImpAddCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- IntOpsImpAddCallResponse{Type: "panic", PanicValue: msg}
 }
@@ -51,14 +51,14 @@ type IntOpsImpFormatCall struct {
 type IntOpsImpFormatCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    string
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *IntOpsImpFormatCall) InjectResult(result string) {
 	c.done = true
 	c.responseChan <- IntOpsImpFormatCallResponse{Type: "return", Result0: result}
 }
-func (c *IntOpsImpFormatCall) InjectPanic(msg interface{}) {
+func (c *IntOpsImpFormatCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- IntOpsImpFormatCallResponse{Type: "panic", PanicValue: msg}
 }
@@ -71,14 +71,14 @@ type IntOpsImpPrintCall struct {
 
 type IntOpsImpPrintCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
-	PanicValue interface{}
+	PanicValue any
 }
 
 func (c *IntOpsImpPrintCall) Resolve() {
 	c.done = true
 	c.responseChan <- IntOpsImpPrintCallResponse{Type: "resolve"}
 }
-func (c *IntOpsImpPrintCall) InjectPanic(msg interface{}) {
+func (c *IntOpsImpPrintCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- IntOpsImpPrintCallResponse{Type: "panic", PanicValue: msg}
 }
