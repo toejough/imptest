@@ -856,3 +856,132 @@ var _ = run.Divide
 		}
 	}
 }
+
+func TestRunCallable_LocalFunction(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Source with a simple local function (no qualified name)
+	sourceCode := `package mypkg
+
+func SimpleAdd(a, b int) int {
+	return a + b
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	// Generate callable for local function without package qualifier
+	args := []string{"impgen", "SimpleAdd", "--name", "SimpleAddImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["SimpleAddImp.go"]
+	if !ok {
+		t.Fatal("Expected SimpleAddImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify structure for local function
+	expected := []string{
+		"type SimpleAddImp struct",
+		"type SimpleAddImpReturn struct",
+		"func NewSimpleAddImp",
+		"func (s *SimpleAddImp) Start(a, b int)",
+		"func (s *SimpleAddImp) ExpectReturnedValues(v1 int)",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+
+	// Verify no package import is added for local function
+	if strings.Contains(contentStr, `import`) {
+		// Should only have imports for testing and reflect, not for any custom package
+		if !strings.Contains(contentStr, `"reflect"`) && !strings.Contains(contentStr, `"testing"`) {
+			t.Error("Unexpected import found for local function")
+		}
+	}
+}
+
+func TestRunCallable_PackageLoadErrorForExportedTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Package with a function that uses exported types
+	sourceCode := `package run
+
+type MyType struct {
+	Value int
+}
+
+func ProcessData(data *MyType) int {
+	return data.Value
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	// Register the target package but NOT the local package
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+	// Don't register "." - this will cause Load(".") to fail
+
+	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error when loading local package for callable with exported types, got nil")
+
+		return
+	}
+
+	if !strings.Contains(err.Error(), "failed to load local package") {
+		t.Errorf("Expected 'failed to load local package' error, got: %v", err)
+	}
+}
+
+func TestRunCallable_ImportPathNotFound(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Package with a function that uses exported types
+	sourceCode := `package run
+
+type MyType struct {
+	Value int
+}
+
+func ProcessData(data *MyType) int {
+	return data.Value
+}
+`
+	// Local package WITHOUT the needed import
+	localSource := `package mypkg
+
+import "fmt"
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localSource) // Has imports, but not "run"
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	// Try to generate callable for run.ProcessData, but "run" package not imported in local package
+	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error when import path not found, got nil")
+
+		return
+	}
+
+	if !strings.Contains(err.Error(), "package not found in imports") {
+		t.Errorf("Expected 'package not found in imports' error, got: %v", err)
+	}
+}
