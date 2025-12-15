@@ -9,69 +9,6 @@ import (
 // Using text/template reduces repetitive pf() calls and makes the generated
 // code structure more visible.
 
-// templateData holds common data passed to templates.
-type templateData struct {
-	ImpName          string
-	MockName         string
-	CallName         string
-	ExpectCallToName string
-	TimedName        string
-	PkgName          string
-	MethodNames      []string
-}
-
-// methodTemplateData holds data for method-specific templates.
-type methodTemplateData struct {
-	templateData
-
-	MethodName     string
-	MethodCallName string
-}
-
-// callStructMethodData holds data for generating call struct methods with method field info.
-type callStructMethodData struct {
-	Name     string // Method name (e.g., "DoSomething")
-	CallName string // Full call struct name (e.g., "MyImpDoSomethingCall")
-}
-
-// callStructTemplateData holds data for generating the call struct and its methods.
-type callStructTemplateData struct {
-	templateData
-
-	Methods []callStructMethodData
-}
-
-// callableTemplateData holds data for callable wrapper templates.
-type callableTemplateData struct {
-	PkgName    string
-	ImpName    string
-	PkgPath    string
-	Qualifier  string
-	HasReturns bool
-	ReturnType string // "{ImpName}Return" or "struct{}"
-	NumReturns int
-}
-
-// Functions
-
-// mustParse is a helper to parse template strings and panic on error.
-func mustParse(name, text string) *template.Template {
-	return template.Must(template.New(name).Parse(text))
-}
-
-// executeTemplate executes a template and returns the result as a string.
-func executeTemplate(tmpl *template.Template, data any) string {
-	var buf strings.Builder
-
-	err := tmpl.Execute(&buf, data)
-	if err != nil {
-		// Templates are compile-time validated, so this should never happen
-		panic("template execution failed: " + err.Error())
-	}
-
-	return buf.String()
-}
-
 // Template Variables
 
 // Interface generator templates
@@ -408,3 +345,68 @@ import (
 
 `)
 )
+
+// Types
+
+// templateData holds common data passed to templates.
+type templateData struct {
+	ImpName          string
+	MockName         string
+	CallName         string
+	ExpectCallToName string
+	TimedName        string
+	PkgName          string
+	MethodNames      []string
+}
+
+// methodTemplateData holds data for method-specific templates.
+type methodTemplateData struct {
+	templateData
+
+	MethodName     string
+	MethodCallName string
+}
+
+// callStructMethodData holds data for generating call struct methods with method field info.
+type callStructMethodData struct {
+	Name     string // Method name (e.g., "DoSomething")
+	CallName string // Full call struct name (e.g., "MyImpDoSomethingCall")
+}
+
+// callStructTemplateData holds data for generating the call struct and its methods.
+type callStructTemplateData struct {
+	templateData
+
+	Methods []callStructMethodData
+}
+
+// callableTemplateData holds data for callable wrapper templates.
+type callableTemplateData struct {
+	PkgName    string
+	ImpName    string
+	PkgPath    string
+	Qualifier  string
+	HasReturns bool
+	ReturnType string // "{ImpName}Return" or "struct{}"
+	NumReturns int
+}
+
+// Functions
+
+// mustParse is a helper to parse template strings and panic on error.
+func mustParse(name, text string) *template.Template {
+	return template.Must(template.New(name).Parse(text))
+}
+
+// executeTemplate executes a template and returns the result as a string.
+func executeTemplate(tmpl *template.Template, data any) string {
+	var buf strings.Builder
+
+	err := tmpl.Execute(&buf, data)
+	if err != nil {
+		// Templates are compile-time validated, so this should never happen
+		panic("template execution failed: " + err.Error())
+	}
+
+	return buf.String()
+}
