@@ -78,12 +78,7 @@ func generateCode(
 		return generateCallableWrapperCode(astFiles, info, fset, pkgImportPath)
 	}
 
-	iface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
-	if err != nil {
-		return "", err
-	}
-
-	return generateImplementationCode(iface, info, fset)
+	return generateImplementationCode(astFiles, info, fset, pkgImportPath)
 }
 
 // Functions - Private

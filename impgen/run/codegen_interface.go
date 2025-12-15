@@ -15,10 +15,16 @@ import (
 
 // generateImplementationCode generates the complete mock implementation code for an interface.
 func generateImplementationCode(
-	identifiedInterface *ast.InterfaceType,
+	astFiles []*ast.File,
 	info generatorInfo,
 	fset *token.FileSet,
+	pkgImportPath string,
 ) (string, error) {
+	identifiedInterface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
+	if err != nil {
+		return "", err
+	}
+
 	impName := info.impName
 
 	gen := &codeGenerator{

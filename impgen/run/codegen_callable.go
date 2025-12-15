@@ -10,6 +10,52 @@ import (
 	"unicode"
 )
 
+// Entry Point
+
+// generateCallableWrapperCode generates a type-safe wrapper for a callable function.
+func generateCallableWrapperCode(
+	astFiles []*ast.File,
+	info generatorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+) (string, error) {
+	funcDecl, err := findFunctionInAST(astFiles, info.localInterfaceName, pkgImportPath)
+	if err != nil {
+		return "", err
+	}
+
+	pkgPath, qualifier := getCallablePackageInfo(funcDecl, info.interfaceName)
+
+	gen := &callableGenerator{
+		codeWriter: codeWriter{fset: fset},
+		pkgName:    info.pkgName,
+		impName:    info.impName,
+		funcDecl:   funcDecl,
+		pkgPath:    pkgPath,
+		qualifier:  qualifier,
+	}
+
+	gen.generateHeader()
+	gen.generateReturnStruct()
+	gen.generateMainStruct()
+	gen.generateConstructor()
+	gen.generateStartMethod()
+	gen.generateExpectReturnedValuesMethod()
+	gen.generateExpectPanicWithMethod()
+	gen.generateResponseStruct()
+	gen.generateResponseMethods()
+	gen.generateGetResponseMethod()
+
+	formatted, err := format.Source(gen.bytes())
+	if err != nil {
+		return "", fmt.Errorf("error formatting generated code: %w", err)
+	}
+
+	return string(formatted), nil
+}
+
+// Types
+
 // callableGenerator holds state for generating callable wrapper code.
 type callableGenerator struct {
 	codeWriter
@@ -346,48 +392,6 @@ func (g *callableGenerator) typeWithQualifier(expr ast.Expr) string {
 }
 
 // Functions
-
-// generateCallableWrapperCode generates a type-safe wrapper for a callable function.
-func generateCallableWrapperCode(
-	astFiles []*ast.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	pkgImportPath string,
-) (string, error) {
-	funcDecl, err := findFunctionInAST(astFiles, info.localInterfaceName, pkgImportPath)
-	if err != nil {
-		return "", err
-	}
-
-	pkgPath, qualifier := getCallablePackageInfo(funcDecl, info.interfaceName)
-
-	gen := &callableGenerator{
-		codeWriter: codeWriter{fset: fset},
-		pkgName:    info.pkgName,
-		impName:    info.impName,
-		funcDecl:   funcDecl,
-		pkgPath:    pkgPath,
-		qualifier:  qualifier,
-	}
-
-	gen.generateHeader()
-	gen.generateReturnStruct()
-	gen.generateMainStruct()
-	gen.generateConstructor()
-	gen.generateStartMethod()
-	gen.generateExpectReturnedValuesMethod()
-	gen.generateExpectPanicWithMethod()
-	gen.generateResponseStruct()
-	gen.generateResponseMethods()
-	gen.generateGetResponseMethod()
-
-	formatted, err := format.Source(gen.bytes())
-	if err != nil {
-		return "", fmt.Errorf("error formatting generated code: %w", err)
-	}
-
-	return string(formatted), nil
-}
 
 // getCallablePackageInfo extracts package info for a callable function.
 func getCallablePackageInfo(funcDecl *ast.FuncDecl, interfaceName string) (pkgPath, pkgName string) {
