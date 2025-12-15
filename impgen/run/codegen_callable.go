@@ -154,7 +154,6 @@ func (g *callableGenerator) generateHeader() {
 }
 
 // generateReturnStruct generates the return value struct if function has returns.
-// generateReturnStruct generates the return value struct if function has returns.
 func (g *callableGenerator) generateReturnStruct() {
 	g.ps(executeTemplate(callableReturnStructTemplate, g.extendedTemplateData()))
 }
