@@ -2,7 +2,6 @@ package run
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -59,10 +58,6 @@ func generateImplementationCode(
 
 	return string(formatted), nil
 }
-
-// Constants & Variables
-
-var errFunctionNotFound = errors.New("function not found")
 
 // Types
 
@@ -191,26 +186,26 @@ func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
 		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
 	) (int, int) {
 		if len(param.Names) > 0 {
-			gen.generateNamedParamFields(param, paramType, unnamedIndex, totalParams)
+			gen.writeNamedParamFields(param, paramType, unnamedIndex, totalParams)
 			return paramNameIndex + len(param.Names), unnamedIndex
 		}
 
-		gen.generateUnnamedParamField(param, paramType, unnamedIndex, totalParams)
+		gen.writeUnnamedParamField(param, paramType, unnamedIndex, totalParams)
 
 		return paramNameIndex + 1, unnamedIndex + 1
 	})
 }
 
-// generateNamedParamFields generates fields for named parameters.
-func (gen *codeGenerator) generateNamedParamFields(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
+// writeNamedParamFields writes fields for named parameters.
+func (gen *codeGenerator) writeNamedParamFields(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
 	for i := range param.Names {
 		fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
 		gen.pf("\t%s %s\n", fieldName, paramType)
 	}
 }
 
-// generateUnnamedParamField generates a field for an unnamed parameter.
-func (gen *codeGenerator) generateUnnamedParamField(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
+// writeUnnamedParamField writes a field for an unnamed parameter.
+func (gen *codeGenerator) writeUnnamedParamField(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
 	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
 	gen.pf("\t%s %s\n", fieldName, paramType)
 }
@@ -705,74 +700,4 @@ func generateParamName(index int, paramType string, totalParams int) string {
 
 	// Fallback
 	return fmt.Sprintf("Arg%d", index)
-}
-
-// findFunctionInAST finds a function or method declaration in the AST files.
-// funcName can be a plain function name like "PrintSum" or a method reference like "PingPongPlayer.Play".
-func findFunctionInAST(astFiles []*ast.File, funcName string, pkgImportPath string) (*ast.FuncDecl, error) {
-	typeName, methodName, isMethod := strings.Cut(funcName, ".")
-
-	for _, file := range astFiles {
-		if found := findFunctionInFile(file, typeName, methodName, isMethod); found != nil {
-			return found, nil
-		}
-	}
-
-	return nil, fmt.Errorf("%w: named %q in package %q", errFunctionNotFound, funcName, pkgImportPath)
-}
-
-// findFunctionInFile searches a single file for a matching function or method declaration.
-func findFunctionInFile(file *ast.File, typeName, methodName string, isMethod bool) *ast.FuncDecl {
-	for _, decl := range file.Decls {
-		funcDecl, ok := decl.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-
-		if isMethod {
-			if matchesMethod(funcDecl, typeName, methodName) {
-				return funcDecl
-			}
-		} else {
-			if matchesFunction(funcDecl, typeName) {
-				return funcDecl
-			}
-		}
-	}
-
-	return nil
-}
-
-// matchesMethod checks if a function declaration is a method with the given receiver type and method name.
-func matchesMethod(funcDecl *ast.FuncDecl, typeName, methodName string) bool {
-	if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
-		return false
-	}
-
-	if funcDecl.Name.Name != methodName {
-		return false
-	}
-
-	return matchesReceiverType(funcDecl.Recv.List[0].Type, typeName)
-}
-
-// matchesFunction checks if a function declaration is a plain function (no receiver) with the given name.
-func matchesFunction(funcDecl *ast.FuncDecl, funcName string) bool {
-	return funcDecl.Recv == nil && funcDecl.Name.Name == funcName
-}
-
-// matchesReceiverType checks if the receiver type expression matches the given type name.
-// Handles both value receivers (T) and pointer receivers (*T).
-func matchesReceiverType(expr ast.Expr, typeName string) bool {
-	switch recv := expr.(type) {
-	case *ast.Ident:
-		return recv.Name == typeName
-	case *ast.StarExpr:
-		// Pointer receiver - check the underlying type
-		if ident, ok := recv.X.(*ast.Ident); ok {
-			return ident.Name == typeName
-		}
-	}
-
-	return false
 }
