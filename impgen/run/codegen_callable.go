@@ -7,6 +7,7 @@ import (
 	"go/printer"
 	"go/token"
 	"strings"
+	"text/template"
 	"unicode"
 )
 
@@ -89,15 +90,10 @@ type returnFieldData struct {
 	Type  string // Type name for struct field definitions
 }
 
-// hasReturns returns true if the function has return values.
-func (g *callableGenerator) hasReturns() bool {
-	return g.funcDecl.Type.Results != nil && len(g.funcDecl.Type.Results.List) > 0
-}
-
 // returnTypeName returns the appropriate type name for return channels and fields.
 // Returns "{impName}Return" if the function has returns, otherwise "struct{}".
 func (g *callableGenerator) returnTypeName() string {
-	if g.hasReturns() {
+	if hasResults(g.funcDecl.Type) {
 		return g.impName + "Return"
 	}
 
@@ -105,7 +101,7 @@ func (g *callableGenerator) returnTypeName() string {
 }
 
 // numReturns returns the total number of return values.
-// This should only be called when hasReturns() is true.
+// This should only be called when hasResults(g.funcDecl.Type) is true.
 func (g *callableGenerator) numReturns() int {
 	return countFields(g.funcDecl.Type.Results)
 }
@@ -113,7 +109,7 @@ func (g *callableGenerator) numReturns() int {
 // templateData returns the base template data for this generator.
 func (g *callableGenerator) templateData() callableTemplateData {
 	numReturns := 0
-	if g.hasReturns() {
+	if hasResults(g.funcDecl.Type) {
 		numReturns = g.numReturns()
 	}
 
@@ -122,7 +118,7 @@ func (g *callableGenerator) templateData() callableTemplateData {
 		ImpName:    g.impName,
 		PkgPath:    g.pkgPath,
 		Qualifier:  g.qualifier,
-		HasReturns: g.hasReturns(),
+		HasReturns: hasResults(g.funcDecl.Type),
 		ReturnType: g.returnTypeName(),
 		NumReturns: numReturns,
 	}
@@ -147,9 +143,14 @@ func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData 
 	}
 }
 
+// execTemplate executes a template and writes the result to the buffer.
+func (g *callableGenerator) execTemplate(tmpl *template.Template, data any) {
+	g.ps(executeTemplate(tmpl, data))
+}
+
 // buildReturnFieldData builds return field data with types for templates.
 func (g *callableGenerator) buildReturnFieldData(returnVars []string) []returnFieldData {
-	if !g.hasReturns() {
+	if !hasResults(g.funcDecl.Type) {
 		return nil
 	}
 
@@ -182,7 +183,7 @@ func (g *callableGenerator) paramsString() string {
 
 // returnsString returns the return type list as a string.
 func (g *callableGenerator) returnsString() string {
-	if !g.hasReturns() {
+	if !hasResults(g.funcDecl.Type) {
 		return ""
 	}
 
@@ -196,63 +197,63 @@ func (g *callableGenerator) returnsString() string {
 
 // generateHeader writes the package declaration and imports.
 func (g *callableGenerator) generateHeader() {
-	g.ps(executeTemplate(callableHeaderTemplate, g.templateData()))
+	g.execTemplate(callableHeaderTemplate, g.templateData())
 }
 
 // generateReturnStruct generates the return value struct if function has returns.
 func (g *callableGenerator) generateReturnStruct() {
-	g.ps(executeTemplate(callableReturnStructTemplate, g.extendedTemplateData()))
+	g.execTemplate(callableReturnStructTemplate, g.extendedTemplateData())
 }
 
 // generateMainStruct generates the main wrapper struct.
 func (g *callableGenerator) generateMainStruct() {
-	g.ps(executeTemplate(callableMainStructTemplate, g.extendedTemplateData()))
+	g.execTemplate(callableMainStructTemplate, g.extendedTemplateData())
 }
 
 // generateConstructor generates the New{ImpName} constructor function.
 func (g *callableGenerator) generateConstructor() {
-	g.ps(executeTemplate(callableConstructorTemplate, g.extendedTemplateData()))
+	g.execTemplate(callableConstructorTemplate, g.extendedTemplateData())
 }
 
 // generateStartMethod generates the Start method.
 func (g *callableGenerator) generateStartMethod() {
-	g.ps(executeTemplate(callableStartMethodTemplate, g.extendedTemplateData()))
+	g.execTemplate(callableStartMethodTemplate, g.extendedTemplateData())
 }
 
 // generateExpectReturnedValuesMethod generates the ExpectReturnedValues method.
 func (g *callableGenerator) generateExpectReturnedValuesMethod() {
-	g.ps(executeTemplate(callableExpectReturnedValuesTemplate, g.extendedTemplateData()))
+	g.execTemplate(callableExpectReturnedValuesTemplate, g.extendedTemplateData())
 }
 
 // generateExpectPanicWithMethod generates the ExpectPanicWith method.
 func (g *callableGenerator) generateExpectPanicWithMethod() {
-	g.ps(executeTemplate(callableExpectPanicWithTemplate, g.templateData()))
+	g.execTemplate(callableExpectPanicWithTemplate, g.templateData())
 }
 
 // generateResponseStruct generates the response struct.
 func (g *callableGenerator) generateResponseStruct() {
-	g.ps(executeTemplate(callableResponseStructTemplate, g.templateData()))
+	g.execTemplate(callableResponseStructTemplate, g.templateData())
 }
 
 // generateResponseMethods generates methods on the response struct.
 func (g *callableGenerator) generateResponseMethods() {
 	// Type method
-	g.ps(executeTemplate(callableResponseTypeMethodTemplate, g.templateData()))
+	g.execTemplate(callableResponseTypeMethodTemplate, g.templateData())
 
 	// AsReturn method
-	g.ps(executeTemplate(callableAsReturnMethodTemplate, g.extendedTemplateData()))
+	g.execTemplate(callableAsReturnMethodTemplate, g.extendedTemplateData())
 }
 
 // generateGetResponseMethod generates the GetResponse method.
 func (g *callableGenerator) generateGetResponseMethod() {
-	g.ps(executeTemplate(callableGetResponseMethodTemplate, g.extendedTemplateData()))
+	g.execTemplate(callableGetResponseMethodTemplate, g.extendedTemplateData())
 }
 
 // Helper methods
 
 // returnVarNames generates return variable names for the function call.
 func (g *callableGenerator) returnVarNames() []string {
-	if !g.hasReturns() {
+	if !hasResults(g.funcDecl.Type) {
 		return nil
 	}
 
@@ -274,7 +275,7 @@ func (g *callableGenerator) paramNamesString() string {
 
 // resultParamsString returns parameters for ExpectReturnedValues (v1 Type1, v2 Type2, ...).
 func (g *callableGenerator) resultParamsString() string {
-	if !g.hasReturns() {
+	if !hasResults(g.funcDecl.Type) {
 		return ""
 	}
 
@@ -295,7 +296,7 @@ func (g *callableGenerator) resultParamsString() string {
 
 // resultComparisonsString returns comparison code for return values.
 func (g *callableGenerator) resultComparisonsString(varName string) string {
-	if !g.hasReturns() {
+	if !hasResults(g.funcDecl.Type) {
 		return ""
 	}
 
@@ -344,7 +345,7 @@ func (g *callableGenerator) writeParamsWithQualifiersTo(buf *strings.Builder) {
 
 // writeResultTypesWithQualifiersTo writes function return types to a buffer.
 func (g *callableGenerator) writeResultTypesWithQualifiersTo(buf *strings.Builder) {
-	if !g.hasReturns() {
+	if !hasResults(g.funcDecl.Type) {
 		return
 	}
 
