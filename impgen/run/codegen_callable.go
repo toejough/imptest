@@ -19,13 +19,17 @@ func generateCallableWrapperCode(
 	info generatorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
+	pkgLoader PackageLoader,
 ) (string, error) {
 	funcDecl, err := findFunctionInAST(astFiles, info.localInterfaceName, pkgImportPath)
 	if err != nil {
 		return "", err
 	}
 
-	pkgPath, qualifier := getCallablePackageInfo(funcDecl, info.interfaceName)
+	pkgPath, qualifier, err := getCallablePackageInfo(funcDecl, info.interfaceName, pkgLoader)
+	if err != nil {
+		return "", fmt.Errorf("failed to get callable package info: %w", err)
+	}
 
 	gen := &callableGenerator{
 		codeWriter: codeWriter{fset: fset},
@@ -395,21 +399,32 @@ func (g *callableGenerator) typeWithQualifier(expr ast.Expr) string {
 // Functions
 
 // getCallablePackageInfo extracts package info for a callable function.
-func getCallablePackageInfo(funcDecl *ast.FuncDecl, interfaceName string) (pkgPath, pkgName string) {
+func getCallablePackageInfo(
+	funcDecl *ast.FuncDecl,
+	interfaceName string,
+	pkgLoader PackageLoader,
+) (pkgPath, pkgName string, err error) {
 	if !strings.Contains(interfaceName, ".") {
-		return "", ""
+		return "", "", nil
 	}
-
-	parts := strings.Split(interfaceName, ".")
 
 	if !callableFuncUsesExportedTypes(funcDecl) {
-		return "", ""
+		return "", "", nil
 	}
 
-	pkgName = parts[0]
-	pkgPath = "github.com/toejough/imptest/UAT/" + pkgName
+	pkgName = extractPackageName(interfaceName)
 
-	return pkgPath, pkgName
+	astFiles, _, err := pkgLoader.Load(".")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to load local package: %w", err)
+	}
+
+	pkgPath, err = findImportPath(astFiles, pkgName)
+	if err != nil {
+		return "", "", err
+	}
+
+	return pkgPath, pkgName, nil
 }
 
 // callableFuncUsesExportedTypes checks if a function uses exported types.
