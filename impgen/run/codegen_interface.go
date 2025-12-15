@@ -35,7 +35,7 @@ func generateImplementationCode(
 		expectCallToName:    impName + "ExpectCallTo",
 		timedName:           impName + "Timed",
 		identifiedInterface: identifiedInterface,
-		methodNames:         collectMethodNames(identifiedInterface),
+		methodNames:         interfaceCollectMethodNames(identifiedInterface),
 	}
 
 	gen.generateHeader()
@@ -199,14 +199,14 @@ func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
 // writeNamedParamFields writes fields for named parameters.
 func (gen *codeGenerator) writeNamedParamFields(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
 	for i := range param.Names {
-		fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+		fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
 		gen.pf("\t%s %s\n", fieldName, paramType)
 	}
 }
 
 // writeUnnamedParamField writes a field for an unnamed parameter.
 func (gen *codeGenerator) writeUnnamedParamField(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
-	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
 	gen.pf("\t%s %s\n", fieldName, paramType)
 }
 
@@ -337,36 +337,47 @@ func (gen *codeGenerator) generateMockMethods() {
 // generateMockMethod generates a single mock method that creates a call, sends it to the imp, and handles the response.
 func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
-	paramNames := extractParamNames(gen.fset, ftype)
+	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
-	gen.pf("func (m *%s) ", gen.mockName)
-	gen.writeMethodSignature(methodName, ftype, paramNames)
-	gen.pf("%s", renderFieldList(gen.fset, ftype.Results))
-	gen.pf(` {
-	responseChan := make(chan %sResponse, 1)
-
-	call := &%s{
-		responseChan: responseChan,
-`, callName, callName)
-	gen.writeCallStructFields(ftype, paramNames)
-	gen.pf(`	}
-
-	callEvent := &%s{
-		%s: call,
-	}
-
-	m.imp.callChan <- callEvent
-
-	resp := <-responseChan
-
-	if resp.Type == "panic" {
-		panic(resp.PanicValue)
-	}
-
-`, gen.callName, methodName)
-
+	gen.writeMockMethodSignature(methodName, ftype, paramNames)
+	gen.writeMockMethodCallCreation(callName, ftype, paramNames)
+	gen.writeMockMethodEventDispatch(methodName)
+	gen.writeMockMethodResponseHandling()
 	gen.writeReturnStatement(ftype)
 	gen.pf("}\n\n")
+}
+
+// writeMockMethodSignature writes the mock method signature and opening brace.
+func (gen *codeGenerator) writeMockMethodSignature(methodName string, ftype *ast.FuncType, paramNames []string) {
+	gen.pf("func (m *%s) ", gen.mockName)
+	gen.writeMethodSignature(methodName, ftype, paramNames)
+	gen.pf("%s", interfaceRenderFieldList(gen.fset, ftype.Results))
+	gen.pf(" {\n")
+}
+
+// writeMockMethodCallCreation writes the response channel and call struct creation.
+func (gen *codeGenerator) writeMockMethodCallCreation(callName string, ftype *ast.FuncType, paramNames []string) {
+	gen.pf("\tresponseChan := make(chan %sResponse, 1)\n\n", callName)
+	gen.pf("\tcall := &%s{\n", callName)
+	gen.pf("\t\tresponseChan: responseChan,\n")
+	gen.writeCallStructFields(ftype, paramNames)
+	gen.pf("\t}\n\n")
+}
+
+// writeMockMethodEventDispatch writes the call event creation and dispatch to the imp.
+func (gen *codeGenerator) writeMockMethodEventDispatch(methodName string) {
+	gen.pf("\tcallEvent := &%s{\n", gen.callName)
+	gen.pf("\t\t%s: call,\n", methodName)
+	gen.pf("\t}\n\n")
+	gen.pf("\tm.imp.callChan <- callEvent\n\n")
+}
+
+// writeMockMethodResponseHandling writes the response reception and panic handling.
+func (gen *codeGenerator) writeMockMethodResponseHandling() {
+	gen.pf("\tresp := <-responseChan\n\n")
+	gen.pf("\tif resp.Type == \"panic\" {\n")
+	gen.pf("\t\tpanic(resp.PanicValue)\n")
+	gen.pf("\t}\n\n")
 }
 
 // writeMethodParams writes the method parameters in the form "name type, name2 type2".
@@ -430,7 +441,7 @@ func (gen *codeGenerator) writeCallStructField(
 ) (int, int) {
 	if len(param.Names) > 0 {
 		for i, name := range param.Names {
-			fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+			fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
 			gen.pf("\t\t%s: %s,\n", fieldName, name.Name)
 
 			paramNameIndex++
@@ -439,7 +450,7 @@ func (gen *codeGenerator) writeCallStructField(
 		return paramNameIndex, unnamedIndex
 	}
 
-	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
 	gen.pf("\t\t%s: %s,\n", fieldName, paramNames[paramNameIndex])
 
 	return paramNameIndex + 1, unnamedIndex + 1
@@ -483,7 +494,7 @@ func (gen *codeGenerator) generateExpectCallToMethods() {
 // generateExpectCallToMethod generates a single expectation method that validates and returns a call.
 func (gen *codeGenerator) generateExpectCallToMethod(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
-	paramNames := extractParamNames(gen.fset, ftype)
+	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
 	gen.pf("func (e *%s) ", gen.expectCallToName)
 	gen.writeMethodSignature(methodName, ftype, paramNames)
@@ -532,7 +543,7 @@ func (gen *codeGenerator) writeValidatorCheck(
 ) (int, int) {
 	if len(param.Names) > 0 {
 		for i, name := range param.Names {
-			fieldName := getParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+			fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
 			gen.pf(`		if methodCall.%s != %s {
 			return false
 		}
@@ -544,7 +555,7 @@ func (gen *codeGenerator) writeValidatorCheck(
 		return paramNameIndex, unnamedIndex
 	}
 
-	fieldName := getParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
 	gen.pf(`		if methodCall.%s != %s {
 			return false
 		}
@@ -575,8 +586,8 @@ func (gen *codeGenerator) generateConstructor() {
 
 // Private Functions
 
-// collectMethodNames extracts all method names from an interface.
-func collectMethodNames(iface *ast.InterfaceType) []string {
+// interfaceCollectMethodNames extracts all method names from an interface.
+func interfaceCollectMethodNames(iface *ast.InterfaceType) []string {
 	var methodNames []string
 
 	forEachInterfaceMethod(iface, func(methodName string, _ *ast.FuncType) {
@@ -589,12 +600,12 @@ func collectMethodNames(iface *ast.InterfaceType) []string {
 // forEachInterfaceMethod iterates over interface methods and calls the callback for each.
 func forEachInterfaceMethod(iface *ast.InterfaceType, callback func(methodName string, ftype *ast.FuncType)) {
 	for _, field := range iface.Methods.List {
-		processFieldMethods(field, callback)
+		interfaceProcessFieldMethods(field, callback)
 	}
 }
 
-// processFieldMethods processes all method names in a field and calls the callback for each valid method.
-func processFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
+// interfaceProcessFieldMethods processes all method names in a field and calls the callback for each valid method.
+func interfaceProcessFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
 	// Skip embedded interfaces (they have no names)
 	if len(field.Names) == 0 {
 		return
@@ -612,18 +623,20 @@ func processFieldMethods(field *ast.Field, callback func(methodName string, ftyp
 	}
 }
 
-// getParamFieldName returns the struct field name for a parameter.
+// interfaceGetParamFieldName returns the struct field name for a parameter.
 // For named params, returns the name. For unnamed params, generates a name based on type/index.
-func getParamFieldName(param *ast.Field, nameIdx int, unnamedIdx int, paramType string, totalParams int) string {
+func interfaceGetParamFieldName(
+	param *ast.Field, nameIdx int, unnamedIdx int, paramType string, totalParams int,
+) string {
 	if len(param.Names) > 0 {
 		return param.Names[nameIdx].Name
 	}
 
-	return generateParamName(unnamedIdx, paramType, totalParams)
+	return interfaceGenerateParamName(unnamedIdx, paramType, totalParams)
 }
 
-// extractParamNames extracts or generates parameter names from a function type.
-func extractParamNames(fset *token.FileSet, ftype *ast.FuncType) []string {
+// interfaceExtractParamNames extracts or generates parameter names from a function type.
+func interfaceExtractParamNames(fset *token.FileSet, ftype *ast.FuncType) []string {
 	params := extractParams(fset, ftype)
 	names := make([]string, len(params))
 
@@ -634,8 +647,8 @@ func extractParamNames(fset *token.FileSet, ftype *ast.FuncType) []string {
 	return names
 }
 
-// renderFieldList renders a *ast.FieldList as Go code for return types.
-func renderFieldList(fset *token.FileSet, fieldList *ast.FieldList) string {
+// interfaceRenderFieldList renders a *ast.FieldList as Go code for return types.
+func interfaceRenderFieldList(fset *token.FileSet, fieldList *ast.FieldList) string {
 	if fieldList == nil || len(fieldList.List) == 0 {
 		return ""
 	}
@@ -648,7 +661,7 @@ func renderFieldList(fset *token.FileSet, fieldList *ast.FieldList) string {
 			buf.WriteString(", ")
 		}
 
-		renderField(fset, field, &buf)
+		interfaceRenderField(fset, field, &buf)
 	}
 
 	buf.WriteString(")")
@@ -656,8 +669,8 @@ func renderFieldList(fset *token.FileSet, fieldList *ast.FieldList) string {
 	return buf.String()
 }
 
-// renderField renders a single field with its name and type.
-func renderField(fset *token.FileSet, field *ast.Field, buf *bytes.Buffer) {
+// interfaceRenderField renders a single field with its name and type.
+func interfaceRenderField(fset *token.FileSet, field *ast.Field, buf *bytes.Buffer) {
 	// Names
 	for j, name := range field.Names {
 		if j > 0 {
@@ -675,9 +688,9 @@ func renderField(fset *token.FileSet, field *ast.Field, buf *bytes.Buffer) {
 	buf.WriteString(exprToString(fset, field.Type))
 }
 
-// generateParamName generates a field name for an unnamed parameter
+// interfaceGenerateParamName generates a field name for an unnamed parameter
 // Uses common conventions: single string -> "S", single int -> "Input", multiple -> "A", "B", "C", etc.
-func generateParamName(index int, paramType string, totalParams int) string {
+func interfaceGenerateParamName(index int, paramType string, totalParams int) string {
 	// Remove common prefixes/suffixes for comparison
 	normalized := strings.TrimSpace(paramType)
 
