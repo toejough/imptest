@@ -1,80 +1,173 @@
 # imptest
 
-An IMPure function TEST tool.
+**Zero mock code. Full control.**
 
-There are plenty of test tools written to facilitate testing pure functions: Inputs -> Outputs.
+## What is imptest?
 
-Impure functions, on the other hand, are characterized by calls to _other_ functions. The whole point of some (_most_?) functions is that they coordinate calls to other functions.
+**Test impure functions without writing mock implementations.**
 
-We often don't want to validate what those other functions _do_, as we already have tests for them, or they're 3rd parties that we trust. If we _do_ care about the end-to-end functionality, we can use integration tests or end-to-end testing.
+imptest generates type-safe mocks from your interfaces. Each test interactively controls the mock—expect calls, inject responses, and validate behavior—all with compile-time safety or flexible matchers. No manual mock code. No complex setup. Just point at an interface and test.
 
-This library is here to help where we really do just want to test that the function-under-test makes the calls it's supposed to, in the right order, shuffling inputs and outputs between them correctly.
-
-Let's look at the tests to see how this really works.
+## Quick Start
 
 ```go
-package run_test
+package mypackage_test
 
 import (
-	"testing"
-
-	"github.com/toejough/imptest"
-	"github.com/toejough/imptest/UAT/run"
+    "testing"
+    "github.com/toejough/imptest/UAT/run"
 )
 
-//go:generate go run ../../generator/main.go run.IntOps --name IntOpsImp
+//go:generate go run github.com/toejough/imptest/impgen run.IntOps --name IntOpsImp
+//go:generate go run github.com/toejough/imptest/impgen run.PrintSum --name PrintSumImp --call
 
-func Test_PrintSum_Auto(t *testing.T) {
-	t.Parallel()
-	// we want to validate that run.PrintSum calls the methods of IntOps correctly
+func Test_PrintSum(t *testing.T) {
+    t.Parallel()
 
-	// Given: the generated implementation of IntOps
-	imp := NewIntOpsImp(t)
+    // Create the generated mock
+    imp := NewIntOpsImp(t)
 
-	// When: the function under test is started with some args and the mocked dependencies...
-	inputA := 10
-	inputB := 32
-	printSumImp := imptest.Start(t, run.PrintSum, inputA, inputB, imp.Mock)
+    // Start the function under test
+    printSumImp := NewPrintSumImp(t, run.PrintSum).Start(10, 32, imp.Mock)
 
-	// Then: we expect the calls to the methods of IntOps to be made in the correct order and with the correct arguments
-	// sum := deps.Add(a, b)
-	normalAddResult := inputA + inputB
-	imp.ExpectCallTo.Add(inputA, inputB).InjectResult(normalAddResult)
-	// formatted := deps.Format(sum)
-	normalFormatResult := "42"
-	imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
-	// deps.Print(formatted)
-	imp.ExpectCallTo.Print(normalFormatResult).Resolve()
+    // Expect calls in order, inject responses
+    imp.ExpectCallIs.Add().ExpectArgsAre(10, 32).InjectResult(42)
+    imp.ExpectCallIs.Format().ExpectArgsAre(42).InjectResult("42")
+    imp.ExpectCallIs.Print().ExpectArgsAre("42").Resolve()
 
-	// Then: we expect the function under test to return the correct values
-	// return a, b, formatted
-	printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
+    // Validate return values
+    printSumImp.ExpectReturnedValuesAre(10, 32, "42")
 }
 ```
 
-## What's going on here?
+**What just happened?**
+1. `//go:generate` directives created type-safe mocks from interfaces
+2. The test controls the mock interactively—each `Expect*` call waits for the actual call
+3. Results are injected on-demand, simulating any behavior you want
+4. Return values and panics are validated synchronously
 
-The basic idea is to find a way to treat impure function call activity as pure input/output data, thereby allowing us to write fast, repeatable tests for it, just like we do for pure functions.
+## Flexible Matching with Gomega
 
-This library:
-* generates a mock implementation of a dependency interface (go:generate ...)
-* starts the function under test in a goroutine (imptest.Start...)
-* intercepts dependency calls, and pushes them onto a channel
-* provides compile-time-safe methods for validating those calls and args (imp.ExpectCallTo)
-* provides a way for the test to _interactively_ inject the result (.InjectResult...)
-* intercepts the function under test's response (either returns or panics) and validate those (.ExpectReturnedValues)
+Use [gomega](https://github.com/onsi/gomega) matchers for flexible assertions:
 
-It's this call & response via channels that is one of the key distinguishing features of this library vs other mock libraries - each test instruction is interacting synchronously with the function under test. If you want to make sure calls happen in a certain order, you check for them in that order. If you want to know what happens if a dependency returns true 30 times and then false the 31st time, you can control that in the test code itself, rather than having to write yet another mock implementation.
+```go
+import . "github.com/onsi/gomega"
+import "github.com/toejough/imptest/imptest"
 
-Oops, buried the lede there - that's one of the best things about this library: at _most_ you have to write a single mock for the dependencies, and you don't even have to implement any logic - all Imptest needs is the interface!
+func Test_PrintSum_Flexible(t *testing.T) {
+    t.Parallel()
 
-## API's 
+    imp := NewIntOpsImp(t)
+    printSumImp := NewPrintSumImp(t, run.PrintSum).Start(10, 32, imp.Mock)
 
-TBD
+    // Flexible matching with gomega
+    imp.ExpectCallIs.Add().ExpectArgsShould(
+        BeNumerically(">", 0),
+        BeNumerically(">", 0),
+    ).InjectResult(42)
 
-## alternatives/inspirations
-Why not https://github.com/stretchr/testify/blob/master/README.md#mock-package?
+    imp.ExpectCallIs.Format().ExpectArgsShould(imptest.Any()).InjectResult("42")
+    imp.ExpectCallIs.Print().InjectResult() // Don't care about args
 
-https://github.com/stretchr/testify/issues/741, highlights some challenges, and is answered by the author with some additional syntax and functionality. I still found myself wondering if something with what I considered simpler syntax was possible, mostly out of curiosity, and to learn. 
+    printSumImp.ExpectReturnedValuesShould(
+        Equal(10),
+        Equal(32),
+        ContainSubstring("4"),
+    )
+}
+```
 
-A couple (gulp) _years_ later, I'm pretty happy with what I've come up with. I hope you will be, too!
+## Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Interface Mocks** | Generate type-safe mocks from any interface with `//go:generate go run .../impgen <package.Interface> --name <Name>Imp` |
+| **Callable Wrappers** | Wrap functions to validate returns/panics with the `--call` flag: `//go:generate go run .../impgen <package.Function> --name <Name>Imp --call` |
+| **Two-Step Matching** | Match methods first (`ExpectCallIs.Method()`), then arguments (`ExpectArgsAre()` for exact, `ExpectArgsShould()` for matchers) |
+| **Type Safety** | `ExpectArgsAre(int, int)` is compile-time checked; `ExpectArgsShould(any, any)` accepts matchers |
+| **Concurrent Support** | Use `Within(timeout)` to handle out-of-order calls: `imp.Within(time.Second).ExpectCallIs.Add().ExpectArgsAre(1, 2)` |
+| **Matcher Compatibility** | Works with any gomega matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
+
+## Examples
+
+### Handling Concurrent Calls
+
+```go
+func Test_Concurrent(t *testing.T) {
+    imp := NewCalculatorImp(t)
+
+    go func() { imp.Mock.Add(1, 2) }()
+    go func() { imp.Mock.Add(5, 6) }()
+
+    // Match specific calls out-of-order within timeout
+    imp.Within(time.Second).ExpectCallIs.Add().ExpectArgsAre(5, 6).InjectResult(11)
+    imp.Within(time.Second).ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectResult(3)
+}
+```
+
+### Expecting Panics
+
+```go
+func Test_PrintSum_Panic(t *testing.T) {
+    imp := NewIntOpsImp(t)
+    printSumImp := NewPrintSumImp(t, run.PrintSum).Start(10, 32, imp.Mock)
+
+    // Inject a panic
+    imp.ExpectCallIs.Add().ExpectArgsAre(10, 32).InjectPanic("math overflow")
+
+    // Expect the function to panic with matching value
+    printSumImp.ExpectPanicWith(ContainSubstring("overflow"))
+}
+```
+
+### Manual Control
+
+For maximum control, use `GetCurrentCall()` to manually inspect and resolve calls:
+
+```go
+func Test_Manual(t *testing.T) {
+    imp := NewIntOpsImp(t)
+
+    go func() { imp.Mock.Add(1, 2) }()
+
+    call := imp.GetCurrentCall()
+    if call.Name() != "Add" {
+        t.Fatalf("expected Add, got %s", call.Name())
+    }
+
+    addCall := call.AsAdd()
+    addCall.InjectResult(addCall.a + addCall.b)
+}
+```
+
+## Installation
+
+```bash
+go get github.com/toejough/imptest
+```
+
+Then add `//go:generate` directives to your test files and run `go generate`:
+
+```bash
+go generate ./...
+```
+
+## Learn More
+
+- **API Reference**: [pkg.go.dev/github.com/toejough/imptest](https://pkg.go.dev/github.com/toejough/imptest)
+- **More Examples**: See [`UAT/run/run_test.go`](UAT/run/run_test.go) for comprehensive examples
+- **How It Works**: imptest generates mocks that communicate via channels, enabling synchronous test control of asynchronous function behavior
+
+## Why imptest?
+
+**Traditional mocking libraries** require you to:
+- Write mock implementations by hand, or
+- Configure complex expectations upfront, then run the code
+
+**imptest** lets you:
+- Generate mocks automatically from interfaces
+- Control mocks interactively—inject responses as calls happen
+- Choose type-safe exact matching OR flexible gomega matchers
+- Test concurrent behavior with timeout-based call matching
+
+**Zero mock code. Full control.**
