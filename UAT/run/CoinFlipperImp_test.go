@@ -14,7 +14,7 @@ type CoinFlipperImp struct {
 	t            *testing.T
 	Mock         *CoinFlipperImpMock
 	callChan     chan *CoinFlipperImpCall
-	ExpectCallTo *CoinFlipperImpExpectCallTo
+	ExpectCallIs *CoinFlipperImpExpectCallIs
 	currentCall  *CoinFlipperImpCall
 	callQueue    []*CoinFlipperImpCall
 	queueLock    sync.Mutex
@@ -82,12 +82,21 @@ func (c *CoinFlipperImpCall) Done() bool {
 
 func (c *CoinFlipperImpCall) AsFlip() *CoinFlipperImpFlipCall { return c.Flip }
 
-type CoinFlipperImpExpectCallTo struct {
+type CoinFlipperImpExpectCallIs struct {
 	imp     *CoinFlipperImp
 	timeout time.Duration
 }
 
-func (e *CoinFlipperImpExpectCallTo) Flip() *CoinFlipperImpFlipCall {
+type CoinFlipperImpFlipBuilder struct {
+	imp     *CoinFlipperImp
+	timeout time.Duration
+}
+
+func (e *CoinFlipperImpExpectCallIs) Flip() *CoinFlipperImpFlipBuilder {
+	return &CoinFlipperImpFlipBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+func (bldr *CoinFlipperImpFlipBuilder) ExpectArgsAre() *CoinFlipperImpFlipCall {
 	validator := func(c *CoinFlipperImpCall) bool {
 		if c.Name() != "Flip" {
 			return false
@@ -95,17 +104,51 @@ func (e *CoinFlipperImpExpectCallTo) Flip() *CoinFlipperImpFlipCall {
 		return true
 	}
 
-	call := e.imp.GetCall(e.timeout, validator)
+	call := bldr.imp.GetCall(bldr.timeout, validator)
 	return call.AsFlip()
 }
 
+func (bldr *CoinFlipperImpFlipBuilder) ExpectArgsShould() *CoinFlipperImpFlipCall {
+	validator := func(c *CoinFlipperImpCall) bool {
+		if c.Name() != "Flip" {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsFlip()
+}
+
+func (bldr *CoinFlipperImpFlipBuilder) InjectResult(result bool) *CoinFlipperImpFlipCall {
+	validator := func(c *CoinFlipperImpCall) bool {
+		return c.Name() == "Flip"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsFlip()
+	methodCall.InjectResult(result)
+	return methodCall
+}
+
+func (bldr *CoinFlipperImpFlipBuilder) InjectPanic(msg any) *CoinFlipperImpFlipCall {
+	validator := func(c *CoinFlipperImpCall) bool {
+		return c.Name() == "Flip"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsFlip()
+	methodCall.InjectPanic(msg)
+	return methodCall
+}
+
 type CoinFlipperImpTimed struct {
-	ExpectCallTo *CoinFlipperImpExpectCallTo
+	ExpectCallIs *CoinFlipperImpExpectCallIs
 }
 
 func (i *CoinFlipperImp) Within(d time.Duration) *CoinFlipperImpTimed {
 	return &CoinFlipperImpTimed{
-		ExpectCallTo: &CoinFlipperImpExpectCallTo{imp: i, timeout: d},
+		ExpectCallIs: &CoinFlipperImpExpectCallIs{imp: i, timeout: d},
 	}
 }
 
@@ -163,6 +206,6 @@ func NewCoinFlipperImp(t *testing.T) *CoinFlipperImp {
 		callChan: make(chan *CoinFlipperImpCall, 1),
 	}
 	imp.Mock = &CoinFlipperImpMock{imp: imp}
-	imp.ExpectCallTo = &CoinFlipperImpExpectCallTo{imp: imp}
+	imp.ExpectCallIs = &CoinFlipperImpExpectCallIs{imp: imp}
 	return imp
 }

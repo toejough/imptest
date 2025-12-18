@@ -4,7 +4,7 @@ package run_test
 
 import (
 	run "github.com/toejough/imptest/UAT/run"
-	"reflect"
+	"github.com/toejough/imptest/imptest"
 	"testing"
 )
 
@@ -51,7 +51,7 @@ func (s *PrintSumImp) Start(a, b int, deps run.IntOps) *PrintSumImp {
 	return s
 }
 
-func (s *PrintSumImp) ExpectReturnedValues(v1 int, v2 int, v3 string) {
+func (s *PrintSumImp) ExpectReturnedValuesAre(v1 int, v2 int, v3 string) {
 	s.t.Helper()
 
 	// Check if we already have a return value or panic
@@ -91,13 +91,64 @@ func (s *PrintSumImp) ExpectReturnedValues(v1 int, v2 int, v3 string) {
 	}
 }
 
+func (s *PrintSumImp) ExpectReturnedValuesShould(v1 any, v2 any, v3 any) {
+	s.t.Helper()
+
+	// Check if we already have a return value or panic
+	if s.returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = imptest.MatchValue(s.returned.Result0, v1)
+		if !ok {
+			s.t.Fatalf("return value %d: %s", 0, msg)
+		}
+		ok, msg = imptest.MatchValue(s.returned.Result1, v2)
+		if !ok {
+			s.t.Fatalf("return value %d: %s", 1, msg)
+		}
+		ok, msg = imptest.MatchValue(s.returned.Result2, v3)
+		if !ok {
+			s.t.Fatalf("return value %d: %s", 2, msg)
+		}
+		return
+	}
+
+	if s.panicked != nil {
+		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
+	}
+
+	// Wait for either return or panic
+	select {
+	case ret := <-s.returnChan:
+		s.returned = &ret
+		var ok bool
+		var msg string
+		ok, msg = imptest.MatchValue(ret.Result0, v1)
+		if !ok {
+			s.t.Fatalf("return value %d: %s", 0, msg)
+		}
+		ok, msg = imptest.MatchValue(ret.Result1, v2)
+		if !ok {
+			s.t.Fatalf("return value %d: %s", 1, msg)
+		}
+		ok, msg = imptest.MatchValue(ret.Result2, v3)
+		if !ok {
+			s.t.Fatalf("return value %d: %s", 2, msg)
+		}
+	case p := <-s.panicChan:
+		s.panicked = p
+		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
+	}
+}
+
 func (s *PrintSumImp) ExpectPanicWith(expected any) {
 	s.t.Helper()
 
 	// Check if we already have a return value or panic
 	if s.panicked != nil {
-		if !reflect.DeepEqual(s.panicked, expected) {
-			s.t.Fatalf("expected panic with %v, got %v", expected, s.panicked)
+		ok, msg := imptest.MatchValue(s.panicked, expected)
+		if !ok {
+			s.t.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
@@ -113,8 +164,9 @@ func (s *PrintSumImp) ExpectPanicWith(expected any) {
 		s.t.Fatalf("expected function to panic, but it returned")
 	case p := <-s.panicChan:
 		s.panicked = p
-		if !reflect.DeepEqual(p, expected) {
-			s.t.Fatalf("expected panic with %v, got %v", expected, p)
+		ok, msg := imptest.MatchValue(p, expected)
+		if !ok {
+			s.t.Fatalf("panic value: %s", msg)
 		}
 	}
 }

@@ -8,7 +8,10 @@
       "Bash(mage check:*)",
       "Bash(mage test:*)",
       "mcp__gopls__go_file_context",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(mage generate:*)",
+      "Bash(go build:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

@@ -32,6 +32,7 @@ allow = [
 	'$gostd',
 	'pgregory.net/rapid',
 	'github.com/toejough/imptest',
+	'github.com/toejough/imptest/imptest',
 	'github.com/toejough/imptest/UAT/run',
 	'github.com/toejough/imptest/impgen/run',
 ]

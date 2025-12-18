@@ -221,6 +221,25 @@ func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData 
 	}
 }
 
+// extendedTemplateDataForMatchers returns template data for matcher-based methods (ExpectReturnedValuesShould).
+func (g *callableGenerator) extendedTemplateDataForMatchers() callableExtendedTemplateData {
+	returnVars := g.returnVarNames()
+	returnFields := g.buildReturnFieldData(returnVars)
+
+	return callableExtendedTemplateData{
+		callableTemplateData: g.templateData(),
+		CallableSignature:    g.paramsString(),
+		CallableReturns:      g.returnsString(),
+		ParamNames:           g.paramNamesString(),
+		ReturnVars:           strings.Join(returnVars, ", "),
+		ReturnVarsList:       returnVars,
+		ReturnFields:         returnFields,
+		ResultParams:         g.resultParamsAsAnyString(),
+		ResultComparisons:    g.resultComparisonsMatcherString("s.returned"),
+		ResultComparisons2:   g.resultComparisonsMatcherString("ret"),
+	}
+}
+
 // execTemplate executes a template and writes the result to the buffer.
 func (g *callableGenerator) execTemplate(tmpl *template.Template, data any) {
 	g.ps(executeTemplate(tmpl, data))
@@ -298,9 +317,13 @@ func (g *callableGenerator) generateStartMethod() {
 	g.execTemplate(callableStartMethodTemplate, g.extendedTemplateData())
 }
 
-// generateExpectReturnedValuesMethod generates the ExpectReturnedValues method.
+// generateExpectReturnedValuesMethod generates both ExpectReturnedValuesAre and ExpectReturnedValuesShould methods.
 func (g *callableGenerator) generateExpectReturnedValuesMethod() {
-	g.execTemplate(callableExpectReturnedValuesTemplate, g.extendedTemplateData())
+	// Generate type-safe version
+	g.execTemplate(callableExpectReturnedValuesAreTemplate, g.extendedTemplateData())
+
+	// Generate matcher-based version
+	g.execTemplate(callableExpectReturnedValuesShouldTemplate, g.extendedTemplateDataForMatchers())
 }
 
 // generateExpectPanicWithMethod generates the ExpectPanicWith method.
@@ -394,6 +417,55 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 
 		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Result%d)\n",
 			result.Index, resultName, varName, result.Index)
+		buf.WriteString("\t\t}\n")
+	}
+
+	return buf.String()
+}
+
+// resultParamsAsAnyString returns parameters for ExpectReturnedValuesShould (v1 any, v2 any, ...).
+func (g *callableGenerator) resultParamsAsAnyString() string {
+	if !hasResults(g.funcDecl.Type) {
+		return ""
+	}
+
+	var buf strings.Builder
+
+	results := extractResults(g.fset, g.funcDecl.Type)
+
+	for i, r := range results {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+
+		fmt.Fprintf(&buf, "v%d any", r.Index+1)
+	}
+
+	return buf.String()
+}
+
+// resultComparisonsMatcherString returns comparison code for return values using matchers.
+func (g *callableGenerator) resultComparisonsMatcherString(varName string) string {
+	if !hasResults(g.funcDecl.Type) {
+		return ""
+	}
+
+	var buf strings.Builder
+
+	results := extractResults(g.fset, g.funcDecl.Type)
+
+	// Declare variables once
+	if len(results) > 0 {
+		buf.WriteString("\t\tvar ok bool\n")
+		buf.WriteString("\t\tvar msg string\n")
+	}
+
+	for _, result := range results {
+		resultName := fmt.Sprintf("v%d", result.Index+1)
+
+		fmt.Fprintf(&buf, "\t\tok, msg = imptest.MatchValue(%s.Result%d, %s)\n", varName, result.Index, resultName)
+		buf.WriteString("\t\tif !ok {\n")
+		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"return value %%d: %%s\", %d, msg)\n", result.Index)
 		buf.WriteString("\t\t}\n")
 	}
 

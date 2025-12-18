@@ -34,7 +34,7 @@ func generateImplementationCode(
 		impName:             impName,
 		mockName:            impName + "Mock",
 		callName:            impName + "Call",
-		expectCallToName:    impName + "ExpectCallTo",
+		expectCallIsName:    impName + "ExpectCallIs",
 		timedName:           impName + "Timed",
 		identifiedInterface: ifaceWithParams.iface,
 		typeParams:          ifaceWithParams.typeParams,
@@ -52,6 +52,8 @@ func generateImplementationCode(
 
 	// Pre-scan to determine if reflect import is needed
 	gen.checkIfReflectNeeded()
+	// Pre-scan to determine if imptest import is needed
+	gen.checkIfImptestNeeded()
 
 	gen.generateHeader()
 	gen.generateMockStruct()
@@ -59,8 +61,8 @@ func generateImplementationCode(
 	gen.generateMethodStructs()
 	gen.generateMockMethods()
 	gen.generateCallStruct()
-	gen.generateExpectCallToStruct()
-	gen.generateExpectCallToMethods()
+	gen.generateExpectCallIsStruct()
+	gen.generateMethodBuilders()
 	gen.generateTimedStruct()
 	gen.generateGetCallMethod()
 	gen.generateGetCurrentCallMethod()
@@ -84,12 +86,13 @@ type codeGenerator struct {
 	impName             string
 	mockName            string
 	callName            string
-	expectCallToName    string
+	expectCallIsName    string
 	timedName           string
 	identifiedInterface *ast.InterfaceType
 	typeParams          *ast.FieldList // Type parameters for generic interfaces
 	typesInfo           *types.Info    // Type information for comparability checks
 	needsReflect        bool           // Track if reflect import is needed
+	needsImptest        bool           // Track if imptest import is needed
 	methodNames         []string
 	astFiles            []*ast.File
 	pkgImportPath       string
@@ -113,6 +116,17 @@ func (gen *codeGenerator) checkIfReflectNeeded() {
 	})
 }
 
+// checkIfImptestNeeded pre-scans all interface methods to determine if imptest import is needed.
+// imptest is needed when any method has parameters (for ExpectArgsShould).
+func (gen *codeGenerator) checkIfImptestNeeded() {
+	gen.forEachMethod(func(_ string, ftype *ast.FuncType) {
+		if ftype.Params != nil && len(ftype.Params.List) > 0 {
+			gen.needsImptest = true
+			return // Early exit once we know imptest is needed
+		}
+	})
+}
+
 // forEachMethod iterates over interface methods and calls the callback for each.
 // This is safe to call without error checking because we already validated the interface
 // structure during method name collection in generateImplementationCode. If an error occurs
@@ -128,13 +142,14 @@ func (gen *codeGenerator) templateData() templateData {
 		ImpName:          gen.impName,
 		MockName:         gen.mockName,
 		CallName:         gen.callName,
-		ExpectCallToName: gen.expectCallToName,
+		ExpectCallIsName: gen.expectCallIsName,
 		TimedName:        gen.timedName,
 		PkgName:          gen.pkgName,
 		MethodNames:      gen.methodNames,
 		TypeParamsDecl:   gen.formatTypeParamsDecl(),
 		TypeParamsUse:    gen.formatTypeParamsUse(),
 		NeedsReflect:     gen.needsReflect,
+		NeedsImptest:     gen.needsImptest,
 	}
 }
 
@@ -255,6 +270,11 @@ func (gen *codeGenerator) generateMainStruct() {
 // methodCallName returns the call struct name for a method (e.g. "MyImpDoSomethingCall").
 func (gen *codeGenerator) methodCallName(methodName string) string {
 	return gen.impName + methodName + "Call"
+}
+
+// methodBuilderName returns the builder struct name for a method (e.g. "MyImpAddBuilder").
+func (gen *codeGenerator) methodBuilderName(methodName string) string {
+	return gen.impName + methodName + "Builder"
 }
 
 // writeMethodSignature writes the method name and parameters (e.g., "MethodName(a int, b string)").
@@ -587,101 +607,276 @@ func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
 	}
 }
 
-// generateExpectCallToStruct generates the struct for expecting specific method calls.
-func (gen *codeGenerator) generateExpectCallToStruct() {
-	gen.execTemplate(expectCallToStructTemplate, gen.templateData())
+// generateExpectCallIsStruct generates the struct for expecting specific method calls.
+func (gen *codeGenerator) generateExpectCallIsStruct() {
+	gen.execTemplate(expectCallIsStructTemplate, gen.templateData())
 }
 
-// generateExpectCallToMethods generates expectation methods for each interface method.
-func (gen *codeGenerator) generateExpectCallToMethods() {
+// generateMethodBuilders generates builder structs and methods for each interface method.
+func (gen *codeGenerator) generateMethodBuilders() {
 	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
-		gen.generateExpectCallToMethod(methodName, ftype)
+		gen.generateMethodBuilder(methodName, ftype)
 	})
 }
 
-// generateExpectCallToMethod generates a single expectation method that validates and returns a call.
-func (gen *codeGenerator) generateExpectCallToMethod(methodName string, ftype *ast.FuncType) {
+// generateMethodBuilder generates the builder struct and all its methods for a single interface method.
+func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *ast.FuncType) {
+	builderName := gen.methodBuilderName(methodName)
 	callName := gen.methodCallName(methodName)
+
+	// Generate builder struct
+	gen.pf("type %s struct {\n", builderName)
+	gen.pf("\timp     *%s%s\n", gen.impName, gen.formatTypeParamsUse())
+	gen.pf("\ttimeout time.Duration\n")
+	gen.pf("}\n\n")
+
+	// Generate ExpectCallIs.MethodName() -> returns builder
+	gen.pf("func (e *%s%s) %s() *%s {\n", gen.expectCallIsName, gen.formatTypeParamsUse(), methodName, builderName)
+	gen.pf("\treturn &%s{imp: e.imp, timeout: e.timeout}\n", builderName)
+	gen.pf("}\n\n")
+
+	// Generate ExpectArgsAre (type-safe)
+	gen.generateExpectArgsAre(methodName, ftype, builderName, callName)
+
+	// Generate ExpectArgsShould (matcher-based)
+	gen.generateExpectArgsShould(methodName, ftype, builderName, callName)
+
+	// Generate shortcut InjectResult/InjectPanic/Resolve
+	gen.generateBuilderShortcuts(methodName, ftype, builderName, callName)
+}
+
+// generateExpectArgsAre generates the type-safe ExpectArgsAre method on the builder.
+func (gen *codeGenerator) generateExpectArgsAre(methodName string, ftype *ast.FuncType, builderName, callName string) {
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
-	gen.pf("func (e *%s%s) ", gen.expectCallToName, gen.formatTypeParamsUse())
-	gen.writeMethodSignature(methodName, ftype, paramNames)
-	gen.pf(" *%s {\n", callName)
+	// Method signature
+	gen.pf("func (bldr *%s) ExpectArgsAre(", builderName)
+	gen.writeMethodParams(ftype, paramNames)
+	gen.pf(") *%s {\n", callName)
 
-	gen.generateValidatorFunction(methodName, ftype, paramNames)
-
-	gen.pf(`	call := e.imp.GetCall(e.timeout, validator)
-	return call.As%s()
-}
-
-`, methodName)
-}
-
-// generateValidatorFunction generates a validator closure that checks method name and parameters.
-func (gen *codeGenerator) generateValidatorFunction(methodName string, ftype *ast.FuncType, paramNames []string) {
-	gen.pf(`	validator := func(c *%s) bool {
-		if c.Name() != %q {
-			return false
-		}
-`, gen.callName, methodName)
+	// Validator function
+	gen.pf("\tvalidator := func(c *%s) bool {\n", gen.callName)
+	gen.pf("\t\tif c.Name() != %q {\n", methodName)
+	gen.pf("\t\t\treturn false\n")
+	gen.pf("\t\t}\n")
 
 	if hasParams(ftype) {
-		gen.pf("		methodCall := c.As%s()\n", methodName)
-		gen.writeValidatorChecks(ftype, paramNames)
+		gen.pf("\t\tmethodCall := c.As%s()\n", methodName)
+		gen.writeExpectArgsAreChecks(ftype, paramNames)
 	}
 
-	gen.pf(`		return true
-	}
+	gen.pf("\t\treturn true\n")
+	gen.pf("\t}\n\n")
 
-`)
+	// GetCall and return
+	gen.pf("\tcall := bldr.imp.GetCall(bldr.timeout, validator)\n")
+	gen.pf("\treturn call.As%s()\n", methodName)
+	gen.pf("}\n\n")
 }
 
-// writeValidatorChecks writes parameter validation checks for an expectation method.
-func (gen *codeGenerator) writeValidatorChecks(ftype *ast.FuncType, paramNames []string) {
+// writeExpectArgsAreChecks writes parameter equality checks for ExpectArgsAre.
+func (gen *codeGenerator) writeExpectArgsAreChecks(ftype *ast.FuncType, paramNames []string) {
 	visitParams(gen.fset, ftype, func(
 		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
 	) (int, int) {
-		return gen.writeValidatorCheck(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams)
+		isComparable := isComparableExpr(param.Type, gen.typesInfo)
+
+		if len(param.Names) > 0 {
+			for i, name := range param.Names {
+				fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+				gen.writeEqualityCheck(fieldName, name.Name, isComparable)
+
+				paramNameIndex++
+			}
+
+			return paramNameIndex, unnamedIndex
+		}
+
+		fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+		gen.writeEqualityCheck(fieldName, paramNames[paramNameIndex], isComparable)
+
+		return paramNameIndex + 1, unnamedIndex + 1
 	})
 }
 
-// writeValidatorCheck writes a single parameter validation check.
-func (gen *codeGenerator) writeValidatorCheck(
-	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
-) (int, int) {
-	// Check if the parameter type is comparable
-	isComparable := isComparableExpr(param.Type, gen.typesInfo)
+// writeEqualityCheck writes an equality check (== or DeepEqual).
+func (gen *codeGenerator) writeEqualityCheck(fieldName, expectedName string, isComparable bool) {
+	if isComparable {
+		gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, expectedName)
+	} else {
+		gen.needsReflect = true
+		gen.pf("\t\tif !reflect.DeepEqual(methodCall.%s, %s) {\n", fieldName, expectedName)
+	}
 
-	if len(param.Names) > 0 {
-		for i, name := range param.Names {
-			fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-			gen.writeComparisonCheck(fieldName, name.Name, isComparable)
+	gen.pf("\t\t\treturn false\n")
+	gen.pf("\t\t}\n")
+}
 
+// generateExpectArgsShould generates the matcher-based ExpectArgsShould method on the builder.
+func (gen *codeGenerator) generateExpectArgsShould(
+	methodName string, ftype *ast.FuncType, builderName, callName string,
+) {
+	paramNames := interfaceExtractParamNames(gen.fset, ftype)
+
+	// Method signature - all params are 'any'
+	gen.pf("func (bldr *%s) ExpectArgsShould(", builderName)
+	gen.writeMethodParamsAsAny(ftype, paramNames)
+	gen.pf(") *%s {\n", callName)
+
+	// Validator function
+	gen.pf("\tvalidator := func(c *%s) bool {\n", gen.callName)
+	gen.pf("\t\tif c.Name() != %q {\n", methodName)
+	gen.pf("\t\t\treturn false\n")
+	gen.pf("\t\t}\n")
+
+	if hasParams(ftype) {
+		gen.pf("\t\tmethodCall := c.As%s()\n", methodName)
+		gen.pf("\t\tvar ok bool\n")
+		gen.writeExpectArgsShouldChecks(ftype, paramNames)
+	}
+
+	gen.pf("\t\treturn true\n")
+	gen.pf("\t}\n\n")
+
+	// GetCall and return
+	gen.pf("\tcall := bldr.imp.GetCall(bldr.timeout, validator)\n")
+	gen.pf("\treturn call.As%s()\n", methodName)
+	gen.pf("}\n\n")
+}
+
+// writeExpectArgsShouldChecks writes matcher-based checks for ExpectArgsShould.
+func (gen *codeGenerator) writeExpectArgsShouldChecks(ftype *ast.FuncType, paramNames []string) {
+	visitParams(gen.fset, ftype, func(
+		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
+	) (int, int) {
+		if len(param.Names) > 0 {
+			for i, name := range param.Names {
+				fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+				gen.writeMatcherCheck(fieldName, name.Name)
+
+				paramNameIndex++
+			}
+
+			return paramNameIndex, unnamedIndex
+		}
+
+		fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+		gen.writeMatcherCheck(fieldName, paramNames[paramNameIndex])
+
+		return paramNameIndex + 1, unnamedIndex + 1
+	})
+}
+
+// writeMatcherCheck writes a MatchValue check.
+func (gen *codeGenerator) writeMatcherCheck(fieldName, expectedName string) {
+	gen.pf("\t\tok, _ = imptest.MatchValue(methodCall.%s, %s)\n", fieldName, expectedName)
+	gen.pf("\t\tif !ok {\n")
+	gen.pf("\t\t\treturn false\n")
+	gen.pf("\t\t}\n")
+}
+
+// generateBuilderShortcuts generates InjectResult/InjectPanic/Resolve shortcut methods on the builder.
+func (gen *codeGenerator) generateBuilderShortcuts(
+	methodName string, ftype *ast.FuncType, builderName, callName string,
+) {
+	// Validator that only checks method name
+	validatorCode := fmt.Sprintf(`validator := func(c *%s) bool {
+		return c.Name() == %q
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.As%s()
+`, gen.callName, methodName, methodName)
+
+	if hasResults(ftype) {
+		// Generate InjectResult shortcut
+		if len(ftype.Results.List) == 1 {
+			resultType := exprToString(gen.fset, ftype.Results.List[0].Type)
+			gen.pf("func (bldr *%s) InjectResult(result %s) *%s {\n", builderName, resultType, callName)
+			gen.pf("\t%s", validatorCode)
+			gen.pf("\tmethodCall.InjectResult(result)\n")
+			gen.pf("\treturn methodCall\n")
+			gen.pf("}\n\n")
+		} else {
+			// Multiple return values - InjectResults
+			gen.pf("func (bldr *%s) InjectResults(", builderName)
+			gen.writeInjectResultsParams(ftype)
+			gen.pf(") *%s {\n", callName)
+			gen.pf("\t%s", validatorCode)
+			gen.pf("\tmethodCall.InjectResults(")
+			gen.writeInjectResultsArgs(ftype)
+			gen.pf(")\n")
+			gen.pf("\treturn methodCall\n")
+			gen.pf("}\n\n")
+		}
+	} else {
+		// No results - generate Resolve shortcut
+		gen.pf("func (bldr *%s) Resolve() *%s {\n", builderName, callName)
+		gen.pf("\t%s", validatorCode)
+		gen.pf("\tmethodCall.Resolve()\n")
+		gen.pf("\treturn methodCall\n")
+		gen.pf("}\n\n")
+	}
+
+	// Generate InjectPanic shortcut (always available)
+	gen.pf("func (bldr *%s) InjectPanic(msg any) *%s {\n", builderName, callName)
+	gen.pf("\t%s", validatorCode)
+	gen.pf("\tmethodCall.InjectPanic(msg)\n")
+	gen.pf("\treturn methodCall\n")
+	gen.pf("}\n\n")
+}
+
+// writeMethodParamsAsAny writes method parameters with all types as 'any'.
+func (gen *codeGenerator) writeMethodParamsAsAny(ftype *ast.FuncType, paramNames []string) {
+	if !hasParams(ftype) {
+		return
+	}
+
+	paramNameIndex := 0
+	first := true
+
+	visitParams(gen.fset, ftype, func(
+		param *ast.Field, _ string, _, _, _ int,
+	) (int, int) {
+		if len(param.Names) > 0 {
+			for _, name := range param.Names {
+				if !first {
+					gen.pf(", ")
+				}
+
+				first = false
+
+				gen.pf("%s any", name.Name)
+
+				paramNameIndex++
+			}
+		} else {
+			if !first {
+				gen.pf(", ")
+			}
+
+			first = false
+
+			gen.pf("%s any", paramNames[paramNameIndex])
 			paramNameIndex++
 		}
 
-		return paramNameIndex, unnamedIndex
-	}
-
-	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-	gen.writeComparisonCheck(fieldName, paramNames[paramNameIndex], isComparable)
-
-	return paramNameIndex + 1, unnamedIndex + 1
+		return 0, 0 // Not used in this context
+	})
 }
 
-// writeComparisonCheck writes a comparison using != or reflect.DeepEqual based on type comparability.
-func (gen *codeGenerator) writeComparisonCheck(fieldName, expectedName string, isComparable bool) {
-	if isComparable {
-		gen.pf(`		if methodCall.%s != %s {
-			return false
+// writeInjectResultsArgs writes the argument list for InjectResults call.
+func (gen *codeGenerator) writeInjectResultsArgs(ftype *ast.FuncType) {
+	for resultIndex, result := range ftype.Results.List {
+		if resultIndex > 0 {
+			gen.pf(", ")
 		}
-`, fieldName, expectedName)
-	} else {
-		gen.needsReflect = true // Mark that reflect import is needed
-		gen.pf(`		if !reflect.DeepEqual(methodCall.%s, %s) {
-			return false
+
+		if len(result.Names) > 0 {
+			gen.pf("%s", result.Names[0].Name)
+		} else {
+			gen.pf("r%d", resultIndex)
 		}
-`, fieldName, expectedName)
 	}
 }
 

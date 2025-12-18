@@ -619,7 +619,7 @@ func PrintSum(a, b int) int {
 		"type PrintSumImpReturn struct",
 		"func NewPrintSumImp",
 		"func (s *PrintSumImp) Start(a, b int)",
-		"func (s *PrintSumImp) ExpectReturnedValues(v1 int)",
+		"func (s *PrintSumImp) ExpectReturnedValuesAre(v1 int)",
 		"returnChan",
 		"panicChan",
 	}
@@ -894,7 +894,7 @@ var _ = run.Divide
 		"type DivideImpReturn struct",
 		"func NewDivideImp",
 		"func (s *DivideImp) Start(a, b int)",
-		"func (s *DivideImp) ExpectReturnedValues(v1 int, v2 int)",
+		"func (s *DivideImp) ExpectReturnedValuesAre(v1 int, v2 int)",
 		"Result0 int",
 		"Result1 int",
 	}
@@ -942,7 +942,7 @@ func SimpleAdd(a, b int) int {
 		"type SimpleAddImpReturn struct",
 		"func NewSimpleAddImp",
 		"func (s *SimpleAddImp) Start(a, b int)",
-		"func (s *SimpleAddImp) ExpectReturnedValues(v1 int)",
+		"func (s *SimpleAddImp) ExpectReturnedValuesAre(v1 int)",
 	}
 	for _, exp := range expected {
 		if !strings.Contains(contentStr, exp) {
@@ -1354,14 +1354,23 @@ func GetNames() []string {
 
 	contentStr := string(content)
 
-	// Callable wrapper imports reflect
-	if !strings.Contains(contentStr, `"reflect"`) {
-		t.Error("Expected reflect import")
+	// Callable wrapper imports imptest for matcher support
+	if !strings.Contains(contentStr, `"github.com/toejough/imptest/imptest"`) {
+		t.Error("Expected imptest import")
 	}
 
-	// Should use reflect.DeepEqual for slice return value
-	if !strings.Contains(contentStr, "reflect.DeepEqual(ret.Result0, v1)") {
-		t.Error("Expected reflect.DeepEqual for slice return value")
+	// Should use imptest.MatchValue in ExpectReturnedValuesShould
+	if !strings.Contains(contentStr, "imptest.MatchValue") {
+		t.Error("Expected imptest.MatchValue for matcher-based comparison")
+	}
+
+	// Should generate both ExpectReturnedValuesAre and ExpectReturnedValuesShould
+	if !strings.Contains(contentStr, "ExpectReturnedValuesAre") {
+		t.Error("Expected ExpectReturnedValuesAre method")
+	}
+
+	if !strings.Contains(contentStr, "ExpectReturnedValuesShould") {
+		t.Error("Expected ExpectReturnedValuesShould method")
 	}
 }
 

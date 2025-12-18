@@ -34,11 +34,11 @@ func TestPrintSumImp_Start_Success(t *testing.T) {
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
 		// Inject expected calls
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
-		printSumImp.ExpectReturnedValues(2, 3, "5")
+		printSumImp.ExpectReturnedValuesAre(2, 3, "5")
 	})
 
 	t.Run("Function that panics", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestPrintSumImp_Start_Success(t *testing.T) {
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(1, 2, imp.Mock)
 
 		// Inject panic
-		imp.ExpectCallTo.Add(1, 2).InjectPanic("oops")
+		imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectPanic("oops")
 
 		printSumImp.ExpectPanicWith("oops")
 	})
@@ -65,7 +65,7 @@ func TestPrintSumImp_ExpectReturnedValues_WrongEventType(t *testing.T) {
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(1, 2, imp.Mock)
 
 		// Inject panic so we get a panic event
-		imp.ExpectCallTo.Add(1, 2).InjectPanic("oops")
+		imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectPanic("oops")
 
 		// Swap test interface to capture failure
 		mock := &mockT{}
@@ -85,7 +85,7 @@ func TestPrintSumImp_ExpectReturnedValues_WrongEventType(t *testing.T) {
 			}
 		}()
 
-		printSumImp.ExpectReturnedValues(1, 2, "3")
+		printSumImp.ExpectReturnedValuesAre(1, 2, "3")
 	})
 }
 
@@ -100,9 +100,9 @@ func TestPrintSumImp_ExpectReturnedValues_ValueMismatch(t *testing.T) {
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
 		// Inject calls
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
 		// Swap test interface
 		mock := &mockT{}
@@ -117,7 +117,7 @@ func TestPrintSumImp_ExpectReturnedValues_ValueMismatch(t *testing.T) {
 		}()
 
 		// Wrong third value
-		printSumImp.ExpectReturnedValues(2, 3, "wrong")
+		printSumImp.ExpectReturnedValuesAre(2, 3, "wrong")
 	})
 }
 
@@ -132,9 +132,9 @@ func TestPrintSumImp_ExpectPanicWith_Failures(t *testing.T) {
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
 		// Inject normal return
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
 		mock := &mockT{}
 		printSumImp.t = mock
@@ -157,7 +157,7 @@ func TestPrintSumImp_ExpectPanicWith_Failures(t *testing.T) {
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(1, 2, imp.Mock)
 
 		// Inject panic with different value
-		imp.ExpectCallTo.Add(1, 2).InjectPanic("foo")
+		imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectPanic("foo")
 
 		mock := &mockT{}
 		printSumImp.t = mock
@@ -184,9 +184,9 @@ func TestPrintSumImp_Response_Methods(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
 		resp := printSumImp.GetResponse()
 		if resp.Type() != returnEventType {
@@ -200,7 +200,7 @@ func TestPrintSumImp_Response_Methods(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(1, 2, imp.Mock)
 
-		imp.ExpectCallTo.Add(1, 2).InjectPanic("err")
+		imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectPanic("err")
 
 		resp := printSumImp.GetResponse()
 		if resp.Type() != panicEventType {
@@ -214,9 +214,9 @@ func TestPrintSumImp_Response_Methods(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
 		resp := printSumImp.GetResponse()
 		got := resp.AsReturn()
@@ -241,9 +241,9 @@ func TestPrintSumImp_GetResponse_Caching(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
 		// First call waits for result
 		resp1 := printSumImp.GetResponse()
@@ -264,7 +264,7 @@ func TestPrintSumImp_GetResponse_Caching(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(1, 2, imp.Mock)
 
-		imp.ExpectCallTo.Add(1, 2).InjectPanic("err")
+		imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectPanic("err")
 
 		resp1 := printSumImp.GetResponse()
 		if resp1.Type() != panicEventType {
@@ -288,14 +288,14 @@ func TestPrintSumImp_ExpectReturnedValues_Caching(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
 		// First call caches the result
-		printSumImp.ExpectReturnedValues(2, 3, "5")
+		printSumImp.ExpectReturnedValuesAre(2, 3, "5")
 		// Second call should use cached result (no deadlock/block)
-		printSumImp.ExpectReturnedValues(2, 3, "5")
+		printSumImp.ExpectReturnedValuesAre(2, 3, "5")
 	})
 
 	t.Run("Fails on cached panic", func(t *testing.T) {
@@ -304,7 +304,7 @@ func TestPrintSumImp_ExpectReturnedValues_Caching(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(1, 2, imp.Mock)
 
-		imp.ExpectCallTo.Add(1, 2).InjectPanic("err")
+		imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectPanic("err")
 
 		// First call caches the panic
 		_ = printSumImp.GetResponse()
@@ -321,7 +321,7 @@ func TestPrintSumImp_ExpectReturnedValues_Caching(t *testing.T) {
 		}()
 
 		// Now ExpectReturnedValues should fail because we have a cached panic
-		printSumImp.ExpectReturnedValues(1, 2, "3")
+		printSumImp.ExpectReturnedValuesAre(1, 2, "3")
 	})
 }
 
@@ -335,7 +335,7 @@ func TestPrintSumImp_ExpectPanicWith_Caching(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(1, 2, imp.Mock)
 
-		imp.ExpectCallTo.Add(1, 2).InjectPanic("err")
+		imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectPanic("err")
 
 		// First call caches the result
 		printSumImp.ExpectPanicWith("err")
@@ -349,9 +349,9 @@ func TestPrintSumImp_ExpectPanicWith_Caching(t *testing.T) {
 		imp := NewIntOpsImp(t)
 		printSumImp := NewPrintSumImp(t, run.PrintSum).Start(2, 3, imp.Mock)
 
-		imp.ExpectCallTo.Add(2, 3).InjectResult(5)
-		imp.ExpectCallTo.Format(5).InjectResult("5")
-		imp.ExpectCallTo.Print("5").Resolve()
+		imp.ExpectCallIs.Add().ExpectArgsAre(2, 3).InjectResult(5)
+		imp.ExpectCallIs.Format().ExpectArgsAre(5).InjectResult("5")
+		imp.ExpectCallIs.Print().ExpectArgsAre("5").Resolve()
 
 		// First call caches the return
 		_ = printSumImp.GetResponse()

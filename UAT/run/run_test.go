@@ -29,20 +29,22 @@ func Test_PrintSum_Auto(t *testing.T) {
 	inputB := 32
 	printSumImp := NewPrintSumImp(t, run.PrintSum).Start(inputA, inputB, imp.Mock)
 
-	// Then: expect add to be called with a & b
+	// Then: expect add to be called with a & b (type-safe exact match)
 	// When: we return normalAddResult
 	normalAddResult := inputA + inputB
-	imp.ExpectCallTo.Add(inputA, inputB).InjectResult(normalAddResult)
+	imp.ExpectCallIs.Add().ExpectArgsAre(inputA, inputB).InjectResult(normalAddResult)
+
 	// Then: expect format to be called with normalAddResult
 	// When: we return normalFormatResult
 	normalFormatResult := "42"
-	imp.ExpectCallTo.Format(normalAddResult).InjectResult(normalFormatResult)
+	imp.ExpectCallIs.Format().ExpectArgsAre(normalAddResult).InjectResult(normalFormatResult)
+
 	// Then: expect print to be called with normalFormatResult
 	// When: we resolve the print call
-	imp.ExpectCallTo.Print(normalFormatResult).Resolve()
+	imp.ExpectCallIs.Print().ExpectArgsAre(normalFormatResult).Resolve()
 
 	// Then: expect the function under test to return inputA, inputB, normalFormatResult
-	printSumImp.ExpectReturnedValues(inputA, inputB, normalFormatResult)
+	printSumImp.ExpectReturnedValuesAre(inputA, inputB, normalFormatResult)
 }
 
 func Test_PrintSum_Manual(t *testing.T) { //nolint:cyclop,funlen
@@ -147,7 +149,7 @@ func Test_PrintSum_Panic(t *testing.T) {
 	printSumImp := NewPrintSumImp(t, run.PrintSum).Start(inputA, inputB, imp.Mock)
 
 	// sum := deps.Add(a, b)
-	imp.ExpectCallTo.Add(inputA, inputB).InjectPanic("mock panic")
+	imp.ExpectCallIs.Add().ExpectArgsAre(inputA, inputB).InjectPanic("mock panic")
 
 	// panic with message
 	printSumImp.ExpectPanicWith("mock panic")

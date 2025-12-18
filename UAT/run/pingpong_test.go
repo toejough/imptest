@@ -27,46 +27,46 @@ func Test_PingPong_Match(t *testing.T) {
 
 	// Expect Ping then Pong or vice versa.
 	// Use Within to handle non-deterministic order
-	trackerImp.Within(1 * time.Second).ExpectCallTo.Register("Ping").Resolve()
-	trackerImp.Within(1 * time.Second).ExpectCallTo.Register("Pong").Resolve()
+	trackerImp.Within(1 * time.Second).ExpectCallIs.Register().ExpectArgsAre("Ping").Resolve()
+	trackerImp.Within(1 * time.Second).ExpectCallIs.Register().ExpectArgsAre("Pong").Resolve()
 
 	// Ping and Pong are registered, and both will try to serve first.
 	// Use Within to handle non-deterministic order
-	trackerImp.Within(1 * time.Second).ExpectCallTo.IsServing("Ping").InjectResult(true)
-	trackerImp.Within(1 * time.Second).ExpectCallTo.IsServing("Pong").InjectResult(false)
+	trackerImp.Within(1 * time.Second).ExpectCallIs.IsServing().ExpectArgsAre("Ping").InjectResult(true)
+	trackerImp.Within(1 * time.Second).ExpectCallIs.IsServing().ExpectArgsAre("Pong").InjectResult(false)
 
 	// from here on, even though we are running ping and pong concurrently,
 	// the sequence of calls is deterministic, so we can just expect them in order
 
 	// 1st serve by Ping
 	// serves
-	trackerImp.ExpectCallTo.Hit("Ping").Resolve()
+	trackerImp.ExpectCallIs.Hit().ExpectArgsAre("Ping").Resolve()
 
 	// Pong receives the serve
-	trackerImp.ExpectCallTo.Receive("Pong").InjectResult(true)
+	trackerImp.ExpectCallIs.Receive().ExpectArgsAre("Pong").InjectResult(true)
 	// Pong flips -> Heads (Hit)
-	flipperImp.ExpectCallTo.Flip().InjectResult(true)
+	flipperImp.ExpectCallIs.Flip().InjectResult(true)
 	// Pong hits back
-	trackerImp.ExpectCallTo.Hit("Pong").Resolve()
+	trackerImp.ExpectCallIs.Hit().ExpectArgsAre("Pong").Resolve()
 
 	// Ping receives
-	trackerImp.ExpectCallTo.Receive("Ping").InjectResult(true)
+	trackerImp.ExpectCallIs.Receive().ExpectArgsAre("Ping").InjectResult(true)
 	// Ping flips -> Heads (Hit)
-	flipperImp.ExpectCallTo.Flip().InjectResult(true)
+	flipperImp.ExpectCallIs.Flip().InjectResult(true)
 	// Ping hits back
-	trackerImp.ExpectCallTo.Hit("Ping").Resolve()
+	trackerImp.ExpectCallIs.Hit().ExpectArgsAre("Ping").Resolve()
 
 	// Pong receives
-	trackerImp.ExpectCallTo.Receive("Pong").InjectResult(true)
+	trackerImp.ExpectCallIs.Receive().ExpectArgsAre("Pong").InjectResult(true)
 	// Pong flips -> Tails (Miss)
-	flipperImp.ExpectCallTo.Flip().InjectResult(false)
+	flipperImp.ExpectCallIs.Flip().InjectResult(false)
 	// Pong misses
-	trackerImp.ExpectCallTo.Miss("Pong").Resolve()
+	trackerImp.ExpectCallIs.Miss().ExpectArgsAre("Pong").Resolve()
 	// Pong should return now
-	pongInv.ExpectReturnedValues()
+	pongInv.ExpectReturnedValuesAre()
 
 	// Ping receives game over
-	trackerImp.ExpectCallTo.Receive("Ping").InjectResult(false)
+	trackerImp.ExpectCallIs.Receive().ExpectArgsAre("Ping").InjectResult(false)
 	// Ping should return now
-	pingInv.ExpectReturnedValues()
+	pingInv.ExpectReturnedValuesAre()
 }

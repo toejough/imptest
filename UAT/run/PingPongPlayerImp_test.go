@@ -3,7 +3,7 @@
 package run_test
 
 import (
-	"reflect"
+	"github.com/toejough/imptest/imptest"
 	"testing"
 )
 
@@ -40,7 +40,29 @@ func (s *PingPongPlayerImp) Start() *PingPongPlayerImp {
 	return s
 }
 
-func (s *PingPongPlayerImp) ExpectReturnedValues() {
+func (s *PingPongPlayerImp) ExpectReturnedValuesAre() {
+	s.t.Helper()
+
+	// Check if we already have a return value or panic
+	if s.returned != nil {
+		return
+	}
+
+	if s.panicked != nil {
+		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
+	}
+
+	// Wait for either return or panic
+	select {
+	case ret := <-s.returnChan:
+		s.returned = &ret
+	case p := <-s.panicChan:
+		s.panicked = p
+		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
+	}
+}
+
+func (s *PingPongPlayerImp) ExpectReturnedValuesShould() {
 	s.t.Helper()
 
 	// Check if we already have a return value or panic
@@ -67,8 +89,9 @@ func (s *PingPongPlayerImp) ExpectPanicWith(expected any) {
 
 	// Check if we already have a return value or panic
 	if s.panicked != nil {
-		if !reflect.DeepEqual(s.panicked, expected) {
-			s.t.Fatalf("expected panic with %v, got %v", expected, s.panicked)
+		ok, msg := imptest.MatchValue(s.panicked, expected)
+		if !ok {
+			s.t.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
@@ -84,8 +107,9 @@ func (s *PingPongPlayerImp) ExpectPanicWith(expected any) {
 		s.t.Fatalf("expected function to panic, but it returned")
 	case p := <-s.panicChan:
 		s.panicked = p
-		if !reflect.DeepEqual(p, expected) {
-			s.t.Fatalf("expected panic with %v, got %v", expected, p)
+		ok, msg := imptest.MatchValue(p, expected)
+		if !ok {
+			s.t.Fatalf("panic value: %s", msg)
 		}
 	}
 }
