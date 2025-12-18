@@ -5,7 +5,9 @@
       "mcp__gopls__go_workspace",
       "Bash(grep:*)",
       "mcp__gopls__go_diagnostics",
-      "Bash(mage check:*)"
+      "Bash(mage check:*)",
+      "Bash(mage test:*)",
+      "mcp__gopls__go_file_context"
     ],
     "deny": [],
     "ask": []

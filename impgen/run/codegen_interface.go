@@ -19,7 +19,7 @@ func generateImplementationCode(
 	fset *token.FileSet,
 	pkgImportPath string,
 ) (string, error) {
-	identifiedInterface, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
+	ifaceWithParams, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
 	if err != nil {
 		return "", err
 	}
@@ -34,9 +34,18 @@ func generateImplementationCode(
 		callName:            impName + "Call",
 		expectCallToName:    impName + "ExpectCallTo",
 		timedName:           impName + "Timed",
-		identifiedInterface: identifiedInterface,
-		methodNames:         interfaceCollectMethodNames(identifiedInterface),
+		identifiedInterface: ifaceWithParams.iface,
+		typeParams:          ifaceWithParams.typeParams,
+		astFiles:            astFiles,
+		pkgImportPath:       pkgImportPath,
 	}
+
+	methodNames, err := interfaceCollectMethodNames(ifaceWithParams.iface, astFiles, fset, pkgImportPath)
+	if err != nil {
+		return "", err
+	}
+
+	gen.methodNames = methodNames
 
 	gen.generateHeader()
 	gen.generateMockStruct()
@@ -72,14 +81,21 @@ type codeGenerator struct {
 	expectCallToName    string
 	timedName           string
 	identifiedInterface *ast.InterfaceType
+	typeParams          *ast.FieldList // Type parameters for generic interfaces
 	methodNames         []string
+	astFiles            []*ast.File
+	pkgImportPath       string
 }
 
 // codeGenerator Methods
 
 // forEachMethod iterates over interface methods and calls the callback for each.
+// This is safe to call without error checking because we already validated the interface
+// structure during method name collection in generateImplementationCode. If an error occurs
+// here, it indicates a programming error and will cause a panic in the underlying function.
 func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
-	forEachInterfaceMethod(gen.identifiedInterface, callback)
+	// Ignore error - interface was already validated during method name collection
+	_ = forEachInterfaceMethod(gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, callback)
 }
 
 // templateData returns common template data for this generator.
@@ -92,7 +108,74 @@ func (gen *codeGenerator) templateData() templateData {
 		TimedName:        gen.timedName,
 		PkgName:          gen.pkgName,
 		MethodNames:      gen.methodNames,
+		TypeParamsDecl:   gen.formatTypeParamsDecl(),
+		TypeParamsUse:    gen.formatTypeParamsUse(),
 	}
+}
+
+// formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
+// Returns empty string if there are no type parameters.
+func (gen *codeGenerator) formatTypeParamsDecl() string {
+	if gen.typeParams == nil || len(gen.typeParams.List) == 0 {
+		return ""
+	}
+
+	var buf strings.Builder
+	buf.WriteString("[")
+
+	for i, field := range gen.typeParams.List {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+
+		// Write parameter names
+		for j, name := range field.Names {
+			if j > 0 {
+				buf.WriteString(", ")
+			}
+
+			buf.WriteString(name.Name)
+		}
+
+		// Write constraint
+		if field.Type != nil {
+			buf.WriteString(" ")
+			buf.WriteString(exprToString(gen.fset, field.Type))
+		}
+	}
+
+	buf.WriteString("]")
+
+	return buf.String()
+}
+
+// formatTypeParamsUse formats type parameters for instantiation (e.g., "[T, U]").
+// Returns empty string if there are no type parameters.
+func (gen *codeGenerator) formatTypeParamsUse() string {
+	if gen.typeParams == nil || len(gen.typeParams.List) == 0 {
+		return ""
+	}
+
+	var buf strings.Builder
+	buf.WriteString("[")
+
+	first := true
+
+	for _, field := range gen.typeParams.List {
+		for _, name := range field.Names {
+			if !first {
+				buf.WriteString(", ")
+			}
+
+			buf.WriteString(name.Name)
+
+			first = false
+		}
+	}
+
+	buf.WriteString("]")
+
+	return buf.String()
 }
 
 // methodTemplateData returns template data for a specific method.
@@ -349,7 +432,7 @@ func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncT
 
 // writeMockMethodSignature writes the mock method signature and opening brace.
 func (gen *codeGenerator) writeMockMethodSignature(methodName string, ftype *ast.FuncType, paramNames []string) {
-	gen.pf("func (m *%s) ", gen.mockName)
+	gen.pf("func (m *%s%s) ", gen.mockName, gen.formatTypeParamsUse())
 	gen.writeMethodSignature(methodName, ftype, paramNames)
 	gen.pf("%s", interfaceRenderFieldList(gen.fset, ftype.Results))
 	gen.pf(" {\n")
@@ -496,7 +579,7 @@ func (gen *codeGenerator) generateExpectCallToMethod(methodName string, ftype *a
 	callName := gen.methodCallName(methodName)
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
-	gen.pf("func (e *%s) ", gen.expectCallToName)
+	gen.pf("func (e *%s%s) ", gen.expectCallToName, gen.formatTypeParamsUse())
 	gen.writeMethodSignature(methodName, ftype, paramNames)
 	gen.pf(" *%s {\n", callName)
 
@@ -586,41 +669,141 @@ func (gen *codeGenerator) generateConstructor() {
 
 // Private Functions
 
-// interfaceCollectMethodNames extracts all method names from an interface.
-func interfaceCollectMethodNames(iface *ast.InterfaceType) []string {
+// interfaceCollectMethodNames extracts all method names from an interface, including embedded interfaces.
+func interfaceCollectMethodNames(
+	iface *ast.InterfaceType,
+	astFiles []*ast.File,
+	fset *token.FileSet,
+	pkgImportPath string,
+) ([]string, error) {
 	var methodNames []string
 
-	forEachInterfaceMethod(iface, func(methodName string, _ *ast.FuncType) {
+	err := forEachInterfaceMethod(iface, astFiles, fset, pkgImportPath, func(methodName string, _ *ast.FuncType) {
 		methodNames = append(methodNames, methodName)
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	return methodNames
+	return methodNames, nil
 }
 
-// forEachInterfaceMethod iterates over interface methods and calls the callback for each.
-func forEachInterfaceMethod(iface *ast.InterfaceType, callback func(methodName string, ftype *ast.FuncType)) {
+// forEachInterfaceMethod iterates over interface methods and calls the callback for each,
+// expanding embedded interfaces.
+func forEachInterfaceMethod(
+	iface *ast.InterfaceType,
+	astFiles []*ast.File,
+	fset *token.FileSet,
+	pkgImportPath string,
+	callback func(methodName string, ftype *ast.FuncType),
+) error {
 	for _, field := range iface.Methods.List {
-		interfaceProcessFieldMethods(field, callback)
+		err := interfaceProcessFieldMethods(field, astFiles, fset, pkgImportPath, callback)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 // interfaceProcessFieldMethods processes all method names in a field and calls the callback for each valid method.
-func interfaceProcessFieldMethods(field *ast.Field, callback func(methodName string, ftype *ast.FuncType)) {
-	// Skip embedded interfaces (they have no names)
+// For embedded interfaces, recursively expands them.
+func interfaceProcessFieldMethods(
+	field *ast.Field,
+	astFiles []*ast.File,
+	fset *token.FileSet,
+	pkgImportPath string,
+	callback func(methodName string, ftype *ast.FuncType),
+) error {
+	// Handle embedded interfaces (they have no names)
 	if len(field.Names) == 0 {
-		return
+		return interfaceExpandEmbedded(field.Type, astFiles, fset, pkgImportPath, callback)
 	}
 
 	// Skip non-function types (shouldn't happen in a valid interface, but be safe)
 	ftype, ok := field.Type.(*ast.FuncType)
 	if !ok {
-		return
+		return nil
 	}
 
 	// Process each method name with the same function type
 	for _, methodName := range field.Names {
 		callback(methodName.Name, ftype)
 	}
+
+	return nil
+}
+
+// interfaceExpandEmbedded expands an embedded interface by loading its definition and recursively processing methods.
+func interfaceExpandEmbedded(
+	embeddedType ast.Expr,
+	astFiles []*ast.File,
+	fset *token.FileSet,
+	pkgImportPath string,
+	callback func(methodName string, ftype *ast.FuncType),
+) error {
+	var (
+		embeddedInterfaceName string
+		embeddedPkgPath       string
+	)
+
+	// Determine if it's a local interface or external
+
+	switch typ := embeddedType.(type) {
+	case *ast.Ident:
+		// Local interface (e.g., "Reader")
+		embeddedInterfaceName = typ.Name
+		embeddedPkgPath = pkgImportPath
+	case *ast.SelectorExpr:
+		// External interface (e.g., "io.Reader")
+		pkgIdent, ok := typ.X.(*ast.Ident)
+		if !ok {
+			return fmt.Errorf("%w: %T", errUnsupportedEmbeddedType, typ.X)
+		}
+
+		// Find the import path for this package
+		importPath, err := findImportPath(astFiles, pkgIdent.Name)
+		if err != nil {
+			return fmt.Errorf("failed to find import path for embedded interface %s.%s: %w", pkgIdent.Name, typ.Sel.Name, err)
+		}
+
+		embeddedInterfaceName = typ.Sel.Name
+		embeddedPkgPath = importPath
+	default:
+		return fmt.Errorf("%w: %T", errUnsupportedEmbeddedType, embeddedType)
+	}
+
+	// Load the embedded interface definition
+	var (
+		embeddedAstFiles []*ast.File
+		embeddedFset     *token.FileSet
+		err              error
+	)
+
+	if embeddedPkgPath == pkgImportPath {
+		// Same package - reuse existing AST files
+		embeddedAstFiles = astFiles
+		embeddedFset = fset
+	} else {
+		// Different package - need to load it
+		// We need a PackageLoader here, but we don't have one in this function signature
+		// For now, return an error indicating external embedded interfaces aren't supported yet
+		return fmt.Errorf("%w: %q", errExternalEmbeddedNotSupported, embeddedPkgPath)
+	}
+
+	// Find the embedded interface in the AST
+	embeddedInterfaceWithParams, err := getMatchingInterfaceFromAST(
+		embeddedAstFiles, embeddedInterfaceName, embeddedPkgPath,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to find embedded interface %s: %w", embeddedInterfaceName, err)
+	}
+
+	// Recursively process the embedded interface's methods
+	return forEachInterfaceMethod(
+		embeddedInterfaceWithParams.iface, embeddedAstFiles, embeddedFset, embeddedPkgPath, callback,
+	)
 }
 
 // interfaceGetParamFieldName returns the struct field name for a parameter.

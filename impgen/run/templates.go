@@ -25,17 +25,17 @@ import "time"
 
 `)
 
-	mockStructTemplate = mustParse("mockStruct", `type {{.MockName}} struct {
-	imp *{{.ImpName}}
+	mockStructTemplate = mustParse("mockStruct", `type {{.MockName}}{{.TypeParamsDecl}} struct {
+	imp *{{.ImpName}}{{.TypeParamsUse}}
 }
 
 `)
 
-	mainStructTemplate = mustParse("mainStruct", `type {{.ImpName}} struct {
+	mainStructTemplate = mustParse("mainStruct", `type {{.ImpName}}{{.TypeParamsDecl}} struct {
 	t *testing.T
-	Mock *{{.MockName}}
+	Mock *{{.MockName}}{{.TypeParamsUse}}
 	callChan chan *{{.CallName}}
-	ExpectCallTo *{{.ExpectCallToName}}
+	ExpectCallTo *{{.ExpectCallToName}}{{.TypeParamsUse}}
 	currentCall *{{.CallName}}
 	callQueue []*{{.CallName}}
 	queueLock sync.Mutex
@@ -44,39 +44,43 @@ import "time"
 `)
 
 	expectCallToStructTemplate = mustParse("expectCallToStruct",
-		`type {{.ExpectCallToName}} struct {
-	imp *{{.ImpName}}
+		`type {{.ExpectCallToName}}{{.TypeParamsDecl}} struct {
+	imp *{{.ImpName}}{{.TypeParamsUse}}
 	timeout time.Duration
 }
 
 `)
 
-	timedStructTemplate = mustParse("timedStruct", `type {{.TimedName}} struct {
-	ExpectCallTo *{{.ExpectCallToName}}
+	timedStructTemplate = mustParse("timedStruct", `type {{.TimedName}}{{.TypeParamsDecl}} struct {
+	ExpectCallTo *{{.ExpectCallToName}}{{.TypeParamsUse}}
 }
 
-func (i *{{.ImpName}}) Within(d time.Duration) *{{.TimedName}} {
-	return &{{.TimedName}}{
-		ExpectCallTo: &{{.ExpectCallToName}}{imp: i, timeout: d},
+func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}{{.TypeParamsUse}} {
+	return &{{.TimedName}}{{.TypeParamsUse}}{
+		ExpectCallTo: &{{.ExpectCallToName}}{{.TypeParamsUse}}{imp: i, timeout: d},
 	}
 }
 
 `)
 
 	getCallMethodTemplate = mustParse("getCallMethod",
-		`func (i *{{.ImpName}}) GetCall(
+		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCall(
 	d time.Duration, validator func(*{{.CallName}}) bool,
 ) *{{.CallName}} {
 	i.queueLock.Lock()
-	defer i.queueLock.Unlock()
 
+	// Check queue first while holding lock
 	for index, call := range i.callQueue {
 		if validator(call) {
 			// Remove from queue
 			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
+			i.queueLock.Unlock()
 			return call
 		}
 	}
+
+	// Release lock before blocking on channel to avoid deadlock
+	i.queueLock.Unlock()
 
 	var timeoutChan <-chan time.Time
 	if d > 0 {
@@ -89,8 +93,10 @@ func (i *{{.ImpName}}) Within(d time.Duration) *{{.TimedName}} {
 			if validator(call) {
 				return call
 			}
-			// Queue it
+			// Queue it - need lock to access shared queue
+			i.queueLock.Lock()
 			i.callQueue = append(i.callQueue, call)
+			i.queueLock.Unlock()
 		case <-timeoutChan:
 			i.t.Fatalf("timeout waiting for call matching validator")
 			return nil
@@ -101,7 +107,7 @@ func (i *{{.ImpName}}) Within(d time.Duration) *{{.TimedName}} {
 `)
 
 	getCurrentCallMethodTemplate = mustParse("getCurrentCallMethod",
-		`func (i *{{.ImpName}}) GetCurrentCall() *{{.CallName}} {
+		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}} {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
 	}
@@ -112,13 +118,13 @@ func (i *{{.ImpName}}) Within(d time.Duration) *{{.TimedName}} {
 `)
 
 	constructorTemplate = mustParse("constructor",
-		`func New{{.ImpName}}(t *testing.T) *{{.ImpName}} {
-	imp := &{{.ImpName}}{
+		`func New{{.ImpName}}{{.TypeParamsDecl}}(t *testing.T) *{{.ImpName}}{{.TypeParamsUse}} {
+	imp := &{{.ImpName}}{{.TypeParamsUse}}{
 		t: t,
 		callChan: make(chan *{{.CallName}}, 1),
 	}
-	imp.Mock = &{{.MockName}}{imp: imp}
-	imp.ExpectCallTo = &{{.ExpectCallToName}}{imp: imp}
+	imp.Mock = &{{.MockName}}{{.TypeParamsUse}}{imp: imp}
+	imp.ExpectCallTo = &{{.ExpectCallToName}}{{.TypeParamsUse}}{imp: imp}
 	return imp
 }
 
@@ -174,7 +180,7 @@ import (
 
 `)
 
-	callableMainStructTemplate = mustParse("callableMainStruct", `type {{.ImpName}} struct {
+	callableMainStructTemplate = mustParse("callableMainStruct", `type {{.ImpName}}{{.TypeParamsDecl}} struct {
 	t          testing.TB
 	callable   func({{.CallableSignature}}){{.CallableReturns}}
 
@@ -187,8 +193,8 @@ import (
 `)
 
 	callableConstructorTemplate = mustParse("callableConstructor",
-		`func New{{.ImpName}}(t testing.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}} {
-	return &{{.ImpName}}{
+		`func New{{.ImpName}}{{.TypeParamsDecl}}(t testing.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
+	return &{{.ImpName}}{{.TypeParamsUse}}{
 		t:          t,
 		callable:   callable,
 		returnChan: make(chan {{.ReturnType}}, 1),
@@ -199,14 +205,14 @@ import (
 `)
 
 	callableReturnStructTemplate = mustParse("callableReturnStruct",
-		`{{if .HasReturns}}type {{.ImpName}}Return struct {
+		`{{if .HasReturns}}type {{.ImpName}}Return{{.TypeParamsDecl}} struct {
 {{range .ReturnFields}}	Result{{.Index}} {{.Type}}
 {{end}}}
 
 {{end}}`)
 
 	callableExpectPanicWithTemplate = mustParse("callableExpectPanicWith",
-		`func (s *{{.ImpName}}) ExpectPanicWith(expected any) {
+		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectPanicWith(expected any) {
 	s.t.Helper()
 
 	// Check if we already have a return value or panic
@@ -237,23 +243,23 @@ import (
 `)
 
 	callableResponseStructTemplate = mustParse("callableResponseStruct",
-		`type {{.ImpName}}Response struct {
+		`type {{.ImpName}}Response{{.TypeParamsDecl}} struct {
 	EventType string // "return" or "panic"
-{{if .HasReturns}}	ReturnVal *{{.ImpName}}Return
+{{if .HasReturns}}	ReturnVal *{{.ImpName}}Return{{.TypeParamsUse}}
 {{end}}	PanicVal  any
 }
 
 `)
 
 	callableResponseTypeMethodTemplate = mustParse("callableResponseTypeMethod",
-		`func (r *{{.ImpName}}Response) Type() string {
+		`func (r *{{.ImpName}}Response{{.TypeParamsUse}}) Type() string {
 	return r.EventType
 }
 
 `)
 
 	callableStartMethodTemplate = mustParse("callableStartMethod",
-		`func (s *{{.ImpName}}) Start({{.CallableSignature}}) *{{.ImpName}} {
+		`func (s *{{.ImpName}}{{.TypeParamsUse}}) Start({{.CallableSignature}}) *{{.ImpName}}{{.TypeParamsUse}} {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -262,7 +268,7 @@ import (
 		}()
 
 {{if .HasReturns}}		{{.ReturnVars}} := s.callable({{.ParamNames}})
-		s.returnChan <- {{.ImpName}}Return{
+		s.returnChan <- {{.ImpName}}Return{{.TypeParamsUse}}{
 {{range .ReturnFields}}			Result{{.Index}}: {{.Name}},
 {{end}}		}
 {{else}}		s.callable({{.ParamNames}})
@@ -274,7 +280,7 @@ import (
 `)
 
 	callableExpectReturnedValuesTemplate = mustParse("callableExpectReturnedValues",
-		`func (s *{{.ImpName}}) ExpectReturnedValues({{.ResultParams}}) {
+		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValues({{.ResultParams}}) {
 	s.t.Helper()
 
 	// Check if we already have a return value or panic
@@ -299,17 +305,17 @@ import (
 `)
 
 	callableGetResponseMethodTemplate = mustParse("callableGetResponseMethod",
-		`func (s *{{.ImpName}}) GetResponse() *{{.ImpName}}Response {
+		`func (s *{{.ImpName}}{{.TypeParamsUse}}) GetResponse() *{{.ImpName}}Response{{.TypeParamsUse}} {
 	// Check if we already have a return value or panic
 	if s.returned != nil {
-		return &{{.ImpName}}Response{
+		return &{{.ImpName}}Response{{.TypeParamsUse}}{
 			EventType: "ReturnEvent",
 {{if .HasReturns}}			ReturnVal: s.returned,
 {{end}}		}
 	}
 
 	if s.panicked != nil {
-		return &{{.ImpName}}Response{
+		return &{{.ImpName}}Response{{.TypeParamsUse}}{
 			EventType: "PanicEvent",
 			PanicVal:  s.panicked,
 		}
@@ -319,13 +325,13 @@ import (
 	select {
 	case ret := <-s.returnChan:
 		s.returned = &ret
-		return &{{.ImpName}}Response{
+		return &{{.ImpName}}Response{{.TypeParamsUse}}{
 			EventType: "ReturnEvent",
 {{if .HasReturns}}			ReturnVal: &ret,
 {{end}}		}
 	case p := <-s.panicChan:
 		s.panicked = p
-		return &{{.ImpName}}Response{
+		return &{{.ImpName}}Response{{.TypeParamsUse}}{
 			EventType: "PanicEvent",
 			PanicVal:  p,
 		}
@@ -335,7 +341,7 @@ import (
 `)
 
 	callableAsReturnMethodTemplate = mustParse("callableAsReturnMethod",
-		`func (r *{{.ImpName}}Response) AsReturn() []any {
+		`func (r *{{.ImpName}}Response{{.TypeParamsUse}}) AsReturn() []any {
 {{if .HasReturns}}	if r.ReturnVal == nil {
 		return nil
 	}
@@ -357,6 +363,8 @@ type templateData struct {
 	TimedName        string
 	PkgName          string
 	MethodNames      []string
+	TypeParamsDecl   string // Type parameters with constraints, e.g., "[T any, U comparable]"
+	TypeParamsUse    string // Type parameters for instantiation, e.g., "[T, U]"
 }
 
 // methodTemplateData holds data for method-specific templates.
@@ -382,13 +390,15 @@ type callStructTemplateData struct {
 
 // callableTemplateData holds data for callable wrapper templates.
 type callableTemplateData struct {
-	PkgName    string
-	ImpName    string
-	PkgPath    string
-	Qualifier  string
-	HasReturns bool
-	ReturnType string // "{ImpName}Return" or "struct{}"
-	NumReturns int
+	PkgName        string
+	ImpName        string
+	PkgPath        string
+	Qualifier      string
+	HasReturns     bool
+	ReturnType     string // "{ImpName}Return" or "struct{}"
+	NumReturns     int
+	TypeParamsDecl string // Type parameters with constraints, e.g., "[T any, U comparable]"
+	TypeParamsUse  string // Type parameters for instantiation, e.g., "[T, U]"
 }
 
 // Functions

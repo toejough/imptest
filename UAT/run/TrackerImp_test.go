@@ -392,15 +392,19 @@ func (i *TrackerImp) GetCall(
 	d time.Duration, validator func(*TrackerImpCall) bool,
 ) *TrackerImpCall {
 	i.queueLock.Lock()
-	defer i.queueLock.Unlock()
 
+	// Check queue first while holding lock
 	for index, call := range i.callQueue {
 		if validator(call) {
 			// Remove from queue
 			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
+			i.queueLock.Unlock()
 			return call
 		}
 	}
+
+	// Release lock before blocking on channel to avoid deadlock
+	i.queueLock.Unlock()
 
 	var timeoutChan <-chan time.Time
 	if d > 0 {
@@ -413,8 +417,10 @@ func (i *TrackerImp) GetCall(
 			if validator(call) {
 				return call
 			}
-			// Queue it
+			// Queue it - need lock to access shared queue
+			i.queueLock.Lock()
 			i.callQueue = append(i.callQueue, call)
+			i.queueLock.Unlock()
 		case <-timeoutChan:
 			i.t.Fatalf("timeout waiting for call matching validator")
 			return nil

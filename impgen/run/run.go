@@ -2,6 +2,7 @@
 package run
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -11,27 +12,10 @@ import (
 	"github.com/alexflint/go-arg"
 )
 
-// Interfaces - Public
-
-// FileSystem interface for mocking.
-type FileSystem interface {
-	WriteFile(name string, data []byte, perm os.FileMode) error
-}
-
-// Structs - Private
-
-// cliArgs defines the command-line arguments for the generator.
-type cliArgs struct {
-	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
-	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
-	Call      bool   `arg:"--call"              help:"generate a type-safe callable wrapper instead of interface mock"`
-}
-
-// generatorInfo holds information gathered for generation.
-type generatorInfo struct {
-	pkgName, interfaceName, localInterfaceName, impName string
-	isCallable                                          bool
-}
+// Vars.
+var (
+	errGOPACKAGENotSet = errors.New("GOPACKAGE environment variable not set")
+)
 
 // Functions - Public
 
@@ -82,11 +66,36 @@ func generateCode(
 	return generateImplementationCode(astFiles, info, fset, pkgImportPath)
 }
 
+// Interfaces - Public
+
+// FileSystem interface for mocking.
+type FileSystem interface {
+	WriteFile(name string, data []byte, perm os.FileMode) error
+}
+
+// Structs - Private
+
+// cliArgs defines the command-line arguments for the generator.
+type cliArgs struct {
+	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
+	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
+	Call      bool   `arg:"--call"              help:"generate a type-safe callable wrapper instead of interface mock"`
+}
+
+// generatorInfo holds information gathered for generation.
+type generatorInfo struct {
+	pkgName, interfaceName, localInterfaceName, impName string
+	isCallable                                          bool
+}
+
 // Functions - Private
 
 // getGeneratorCallInfo returns basic information about the current call to the generator.
 func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorInfo, error) {
 	pkgName := getEnv("GOPACKAGE")
+	if pkgName == "" {
+		return generatorInfo{}, errGOPACKAGENotSet
+	}
 
 	parsed, err := parseArgs(args)
 	if err != nil {

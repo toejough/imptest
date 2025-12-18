@@ -511,6 +511,39 @@ func TestRun_MalformedImportPath(t *testing.T) {
 	}
 }
 
+func TestRun_MalformedAliasedImportPath(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	// Create a file with a malformed aliased import
+	fset := token.NewFileSet()
+	file := &ast.File{
+		Name: &ast.Ident{Name: "mypkg"},
+		Imports: []*ast.ImportSpec{
+			{
+				Name: &ast.Ident{Name: "pkg"},
+				Path: &ast.BasicLit{
+					Value: `malformed-alias`, // Invalid - not quoted properly
+				},
+			},
+		},
+	}
+	mockPkgLoader.packages["."] = mockPackage{
+		files: []*ast.File{file},
+		fset:  fset,
+	}
+
+	// Try to reference the aliased package - should fail with error about malformed import
+	args := []string{"generator", "pkg.SomeInterface", "--name", "TestImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error for malformed aliased import path, got nil")
+	}
+}
+
 func TestRun_PackageNotInImports(t *testing.T) {
 	t.Parallel()
 
@@ -983,5 +1016,242 @@ import "fmt"
 
 	if !strings.Contains(err.Error(), "package not found in imports") {
 		t.Errorf("Expected 'package not found in imports' error, got: %v", err)
+	}
+}
+
+func TestRun_GenericInterface(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Generic interface with type parameters
+	sourceCode := `package mypkg
+
+type GenericInterface[T any, U comparable] interface {
+	Process(item T) U
+	Compare(a, b U) bool
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"generator", "GenericInterface", "--name", "GenericImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["GenericImp.go"]
+	if !ok {
+		t.Error("Expected GenericImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify generic type parameters are rendered correctly
+	expected := []string{
+		"type GenericImp[T any, U comparable] struct",
+		"type GenericImpMock[T any, U comparable] struct",
+		"func NewGenericImp[T any, U comparable](t *testing.T) *GenericImp[T, U]",
+		"func (m *GenericImpMock[T, U]) Process(item T) U",
+		"func (m *GenericImpMock[T, U]) Compare(a U, b U) bool",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRunCallable_GenericTypeParameter(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function that uses a generic type instantiation (single type parameter)
+	sourceCode := `package run
+
+type Container[T any] struct {
+	Value T
+}
+
+func ProcessContainer(c *Container[int]) int {
+	return c.Value
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessContainerImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessContainerImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify generic type instantiation is handled correctly
+	expected := []string{
+		"type ProcessContainerImp struct",
+		"func NewProcessContainerImp",
+		"func (s *ProcessContainerImp) Start",
+		"*run.Container[int]", // Generic type with qualifier
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRunCallable_GenericMultipleTypeParameters(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function that uses a generic type with multiple type parameters
+	sourceCode := `package run
+
+type KeyValue[K comparable, V any] struct {
+	Key   K
+	Value V
+}
+
+func ProcessKeyValue(kv *KeyValue[string, int]) string {
+	return kv.Key
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessKeyValue", "--name", "ProcessKeyValueImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessKeyValueImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessKeyValueImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify generic type with multiple parameters is handled correctly
+	expected := []string{
+		"type ProcessKeyValueImp struct",
+		"func NewProcessKeyValueImp",
+		"func (s *ProcessKeyValueImp) Start",
+		"*run.KeyValue[string, int]", // Generic type with multiple params and qualifier
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRunCallable_InlineStructType(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function that uses an inline struct type
+	sourceCode := `package run
+
+func ProcessStruct(data struct{ Name string; Age int }) string {
+	return data.Name
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessStruct", "--name", "ProcessStructImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessStructImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessStructImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify inline struct type is handled
+	expected := []string{
+		"type ProcessStructImp struct",
+		"func NewProcessStructImp",
+		"func (s *ProcessStructImp) Start",
+		"struct",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRunCallable_SelectorExprType(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function that uses a selector expression type (pkg.Type)
+	sourceCode := `package run
+
+import "time"
+
+func ProcessTime(t time.Time) string {
+	return t.String()
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessTime", "--name", "ProcessTimeImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessTimeImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessTimeImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify selector expression (time.Time) is handled
+	expected := []string{
+		"type ProcessTimeImp struct",
+		"func NewProcessTimeImp",
+		"func (s *ProcessTimeImp) Start",
+		"time.Time", // Selector expression type
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
 	}
 }

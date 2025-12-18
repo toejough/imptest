@@ -1,0 +1,251 @@
+package run_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/toejough/imptest/impgen/run"
+)
+
+func TestRunCallable_GenericFunction(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Generic function with type parameters
+	sourceCode := `package run
+
+func GenericFunc[T any, U comparable](item T, key U) (T, U) {
+	return item, key
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.GenericFunc", "--name", "GenericFuncImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["GenericFuncImp.go"]
+	if !ok {
+		t.Fatal("Expected GenericFuncImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify generic function type parameters are rendered correctly in callable
+	expected := []string{
+		"type GenericFuncImp[T any, U comparable] struct",
+		"type GenericFuncImpReturn[T any, U comparable] struct",
+		"func NewGenericFuncImp[T any, U comparable]",
+		"callable func(item T, key U) (T, U)", // Function field should NOT have type params
+		"func (s *GenericFuncImp[T, U]) Start(item T, key U)",
+		"func (s *GenericFuncImp[T, U]) ExpectReturnedValues",
+		"Result0 T", // Type parameters in return struct should not be qualified
+		"Result1 U",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+
+	// Verify the callable field does NOT have type parameters on the function itself
+	if strings.Contains(contentStr, "callable   func[") {
+		t.Error("callable field should not have type parameters on the function type")
+		t.Logf("Generated code:\n%s", contentStr)
+	}
+}
+
+func TestRunCallable_UnexportedGenericWithExportedParam(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Unexported generic type with exported type parameter
+	sourceCode := `package run
+
+type MyExportedType struct {
+	Value int
+}
+
+type myContainer[T any, U any] struct {
+	first  T
+	second U
+}
+
+func ProcessContainer(c *myContainer[MyExportedType, string]) string {
+	return "processed"
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessContainerImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessContainerImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Should import run package because MyExportedType is exported even though myContainer isn't
+	if !strings.Contains(contentStr, `run "github.com/toejough/imptest/UAT/run"`) {
+		t.Error("Expected import of run package for exported type parameter")
+		t.Logf("Generated code:\n%s", contentStr)
+	}
+}
+
+func TestRunCallable_ChannelTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function with various channel types
+	sourceCode := `package run
+
+type MyType struct {
+	Value int
+}
+
+func ProcessChannels(in <-chan MyType, out chan<- string, bidir chan int) {
+	// process channels
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessChannels", "--name", "ProcessChannelsImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessChannelsImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessChannelsImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify channel types are handled correctly
+	expected := []string{
+		"<-chan run.MyType", // Receive-only channel with qualified type
+		"chan<- string",     // Send-only channel
+		"chan int",          // Bidirectional channel
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRunCallable_FunctionTypeParameter(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function with function type parameter that has exported types
+	sourceCode := `package run
+
+type CustomData struct {
+	Value string
+}
+
+func ProcessWithCallback(data CustomData, handler func(CustomData) error) error {
+	return handler(data)
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessWithCallback", "--name", "ProcessWithCallbackImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ProcessWithCallbackImp.go"]
+	if !ok {
+		t.Fatal("Expected ProcessWithCallbackImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify function type with exported parameter is handled correctly
+	expected := []string{
+		"func(run.CustomData) error", // Function type with qualified exported type
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}
+
+func TestRunCallable_FunctionTypeReturnValue(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function with function type that returns an exported type
+	sourceCode := `package run
+
+type Result struct {
+	Success bool
+}
+
+func CreateHandler(id string) func() Result {
+	return func() Result {
+		return Result{Success: true}
+	}
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.CreateHandler", "--name", "CreateHandlerImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["CreateHandlerImp.go"]
+	if !ok {
+		t.Fatal("Expected CreateHandlerImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Verify function return type with exported type is handled correctly
+	expected := []string{
+		"func() run.Result", // Function type with qualified exported return type
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+			t.Logf("Generated code:\n%s", contentStr)
+		}
+	}
+}

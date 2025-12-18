@@ -11,9 +11,11 @@ import (
 
 // Vars.
 var (
-	errFunctionNotFound  = errors.New("function not found")
-	errInterfaceNotFound = errors.New("interface not found")
-	errPackageNotFound   = errors.New("package not found in imports")
+	errFunctionNotFound             = errors.New("function not found")
+	errInterfaceNotFound            = errors.New("interface not found")
+	errPackageNotFound              = errors.New("package not found in imports")
+	errUnsupportedEmbeddedType      = errors.New("unsupported embedded interface type")
+	errExternalEmbeddedNotSupported = errors.New("embedded interface from external package is not yet supported")
 )
 
 // Interfaces
@@ -73,12 +75,14 @@ func getLocalPackagePath() string {
 }
 
 // getMatchingInterfaceFromAST finds the interface by name in the ASTs.
+// Returns the interface along with its type parameters.
 func getMatchingInterfaceFromAST(
 	astFiles []*ast.File, localInterfaceName, pkgImportPath string,
-) (*ast.InterfaceType, error) {
+) (*interfaceWithParams, error) {
 	for _, fileAst := range astFiles {
-		if iface := searchFileForInterface(fileAst, localInterfaceName); iface != nil {
-			return iface, nil
+		ifaceWithParams := searchFileForInterface(fileAst, localInterfaceName)
+		if ifaceWithParams != nil {
+			return ifaceWithParams, nil
 		}
 	}
 
@@ -123,10 +127,16 @@ func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *t
 	return astFiles, fset, nil
 }
 
+// interfaceWithParams holds an interface type along with its type parameters.
+type interfaceWithParams struct {
+	iface      *ast.InterfaceType
+	typeParams *ast.FieldList
+}
+
 // searchFileForInterface searches a single AST file for an interface with the given name.
-// Returns the interface if found, nil otherwise.
-func searchFileForInterface(fileAst *ast.File, interfaceName string) *ast.InterfaceType {
-	var found *ast.InterfaceType
+// Returns the interface with its type parameters if found, nil if not found.
+func searchFileForInterface(fileAst *ast.File, interfaceName string) *interfaceWithParams {
+	var found *interfaceWithParams
 
 	ast.Inspect(fileAst, func(n ast.Node) bool {
 		typeSpec, isTypeSpec := n.(*ast.TypeSpec)
@@ -143,7 +153,11 @@ func searchFileForInterface(fileAst *ast.File, interfaceName string) *ast.Interf
 			return true
 		}
 
-		found = iface
+		// Capture type parameters (Go 1.18+ generics)
+		found = &interfaceWithParams{
+			iface:      iface,
+			typeParams: typeSpec.TypeParams,
+		}
 
 		return false
 	})
@@ -153,8 +167,20 @@ func searchFileForInterface(fileAst *ast.File, interfaceName string) *ast.Interf
 
 // searchFileImports searches a single AST file's imports for a matching package name.
 // Returns the full import path if found, empty string if not found, or an error if import paths are malformed.
+// Handles both aliased imports (e.g., `import foo "github.com/bar/baz"`) and regular imports.
 func searchFileImports(fileAst *ast.File, targetPkgImport string) (string, error) {
 	for _, imp := range fileAst.Imports {
+		// Check for aliased import first
+		if imp.Name != nil && imp.Name.Name == targetPkgImport {
+			importPath, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				return "", fmt.Errorf("failed to unquote import path %q: %w", imp.Path.Value, err)
+			}
+
+			return importPath, nil
+		}
+
+		// Fall back to path-based matching for non-aliased imports
 		importPath, err := strconv.Unquote(imp.Path.Value)
 		if err != nil {
 			return "", fmt.Errorf("failed to unquote import path %q: %w", imp.Path.Value, err)
