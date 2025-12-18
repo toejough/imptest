@@ -114,3 +114,70 @@ abbreviation is widely recognized.
 Comment non-obvious code. Use comments to explain why something is done, not what is done.
 
 Comment all functions with a doc comment, even if unexported.
+
+### Linting Patterns
+
+**Reducing cognitive complexity (gocognit/cyclop):**
+Extract each case in a type switch into a separate helper function. The main function becomes a simple dispatcher:
+```go
+func handleType(expr ast.Expr) string {
+    switch t := expr.(type) {
+    case *ast.Ident:
+        return handleIdent(t)
+    case *ast.StarExpr:
+        return handleStar(t)
+    }
+}
+```
+
+**Static error variables (err113):**
+Prefer static error variables over dynamic `errors.New()` calls:
+```go
+// Good
+var errNotFound = errors.New("not found")
+return fmt.Errorf("%w: %s", errNotFound, name)
+
+// Avoid
+return errors.New("not found: " + name)
+```
+
+**Parameter naming (varnamelen):**
+Use descriptive parameter names. Expand single-letter names to indicate the type:
+```go
+// Good
+func process(funcType *ast.FuncType, arrType *ast.ArrayType)
+
+// Avoid
+func process(f *ast.FuncType, a *ast.ArrayType)
+```
+
+### Go Generics in Code Generation
+
+When generating generic wrapper code:
+- Type parameters belong on struct/function **declarations**: `type Foo[T any] struct`
+- Function **field** types use those parameters as concrete types: `callable func(T) T`
+- Type parameter names (T, U) should NOT be package-qualified—check if an identifier is a type parameter before adding a package prefix
+
+### Problem-Solving Approach
+
+**Before claiming something is impossible:**
+1. Explain your reasoning to the user
+2. Be open to correction—you may be misunderstanding the constraint
+3. Consider restructuring the problem (e.g., moving generics from a function type to the containing struct)
+
+**Before implementing fixes:**
+1. Articulate WHY the problem is difficult
+2. List multiple possible approaches
+3. Consider if difficulty indicates a design issue rather than a testing issue
+4. Present options before implementing
+
+### Quality Standards
+
+- The 80% function coverage requirement applies to ALL functions individually
+- `mage check` must pass fully before considering work complete
+- Complete work to stated standards without asking permission to stop short
+- When fixing issues, resolve all related problems comprehensively
+
+### Code Organization Clarification
+
+"Sort alphabetically" means **strictly alphabetically by name**—not "grouped by relationship then alphabetically." Helper functions are interspersed with other functions based on their names, not placed adjacent to the functions they support.
