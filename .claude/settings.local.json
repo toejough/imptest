@@ -7,7 +7,8 @@
       "mcp__gopls__go_diagnostics",
       "Bash(mage check:*)",
       "Bash(mage test:*)",
-      "mcp__gopls__go_file_context"
+      "mcp__gopls__go_file_context",
+      "Bash(go test:*)"
     ],
     "deny": [],
     "ask": []

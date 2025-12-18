@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"strings"
 	"testing"
@@ -53,8 +55,9 @@ type MockPackageLoader struct {
 }
 
 type mockPackage struct {
-	files []*ast.File
-	fset  *token.FileSet
+	files     []*ast.File
+	fset      *token.FileSet
+	typesInfo *types.Info
 }
 
 // NewMockPackageLoader creates a new MockPackageLoader.
@@ -73,19 +76,32 @@ func (m *MockPackageLoader) AddPackageFromSource(importPath, source string) {
 		panic(fmt.Sprintf("failed to parse source: %v", err))
 	}
 
+	// Type-check the package
+	typesInfo := &types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+	}
+
+	conf := types.Config{
+		Importer: importer.Default(),
+		Error:    func(_ error) {}, // Ignore type errors in tests
+	}
+
+	_, _ = conf.Check(importPath, fset, []*ast.File{file}, typesInfo)
+
 	m.packages[importPath] = mockPackage{
-		files: []*ast.File{file},
-		fset:  fset,
+		files:     []*ast.File{file},
+		fset:      fset,
+		typesInfo: typesInfo,
 	}
 }
 
-// Load returns the mocked package AST.
-func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, error) {
+// Load returns the mocked package AST, FileSet, and type info.
+func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
 	if pkg, ok := m.packages[importPath]; ok {
-		return pkg.files, pkg.fset, nil
+		return pkg.files, pkg.fset, pkg.typesInfo, nil
 	}
 
-	return nil, nil, fmt.Errorf("%w: %s", errPackageNotFound, importPath)
+	return nil, nil, nil, fmt.Errorf("%w: %s", errPackageNotFound, importPath)
 }
 
 // envWithPkgName returns the test package name, ignoring the provided cwd parameter.
@@ -1253,5 +1269,173 @@ func ProcessTime(t time.Time) string {
 			t.Errorf("Expected generated code to contain %q", exp)
 			t.Logf("Generated code:\n%s", contentStr)
 		}
+	}
+}
+
+func TestRun_InterfaceWithNonComparableTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Interface with slice and map parameters (non-comparable types)
+	sourceCode := `package mypkg
+
+type DataProcessor interface {
+	ProcessSlice(data []string) int
+	ProcessMap(m map[string]int) bool
+	ProcessInt(n int) int
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"impgen", "DataProcessor", "--name", "DataProcessorImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["DataProcessorImp.go"]
+	if !ok {
+		t.Fatal("Expected DataProcessorImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Should include reflect import for non-comparable types
+	if !strings.Contains(contentStr, `import "reflect"`) {
+		t.Error("Expected reflect import for non-comparable types")
+	}
+
+	// Should use reflect.DeepEqual for slice parameter
+	if !strings.Contains(contentStr, "reflect.DeepEqual(methodCall.data, data)") {
+		t.Error("Expected reflect.DeepEqual for slice parameter")
+	}
+
+	// Should use reflect.DeepEqual for map parameter
+	if !strings.Contains(contentStr, "reflect.DeepEqual(methodCall.m, m)") {
+		t.Error("Expected reflect.DeepEqual for map parameter")
+	}
+
+	// Should use != for comparable int parameter
+	if !strings.Contains(contentStr, "methodCall.n != n") {
+		t.Error("Expected != comparison for int parameter")
+	}
+}
+
+func TestRunCallable_SliceReturnType(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Function with slice return type (non-comparable)
+	sourceCode := `package run
+
+func GetNames() []string {
+	return []string{"alice", "bob"}
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.GetNames", "--name", "GetNamesImp", "--call"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["GetNamesImp.go"]
+	if !ok {
+		t.Fatal("Expected GetNamesImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Callable wrapper imports reflect
+	if !strings.Contains(contentStr, `"reflect"`) {
+		t.Error("Expected reflect import")
+	}
+
+	// Should use reflect.DeepEqual for slice return value
+	if !strings.Contains(contentStr, "reflect.DeepEqual(ret.Result0, v1)") {
+		t.Error("Expected reflect.DeepEqual for slice return value")
+	}
+}
+
+func TestRun_InterfaceWithOnlyComparableTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Interface with only comparable types
+	sourceCode := `package mypkg
+
+type Calculator interface {
+	Add(a int, b int) int
+	Concat(s1 string, s2 string) string
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"impgen", "Calculator", "--name", "CalculatorImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["CalculatorImp.go"]
+	if !ok {
+		t.Fatal("Expected CalculatorImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	// Should NOT include reflect import when all types are comparable
+	if strings.Contains(contentStr, `import "reflect"`) {
+		t.Error("Should not have reflect import when all types are comparable")
+	}
+
+	// Should use != for all comparisons
+	if !strings.Contains(contentStr, "methodCall.a != a") {
+		t.Error("Expected != comparison for int parameter")
+	}
+
+	if !strings.Contains(contentStr, "methodCall.s1 != s1") {
+		t.Error("Expected != comparison for string parameter")
+	}
+}
+
+func TestRun_InterfaceWithMissingTypeInfo(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Interface with undefined type (to trigger missing type info)
+	sourceCode := `package mypkg
+
+type Processor interface {
+	ProcessData(data UndefinedType) int
+}
+`
+	// Create a mock loader that will have incomplete type info
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"impgen", "Processor", "--name", "ProcessorImp"}
+
+	// This should still generate code even with type errors (we're conservative)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	// Should successfully generate code
+	if _, ok := mockFS.files["ProcessorImp.go"]; !ok {
+		t.Fatal("Expected ProcessorImp.go to be created")
 	}
 }

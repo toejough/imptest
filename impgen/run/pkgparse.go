@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strconv"
 	"strings"
 )
@@ -22,7 +23,7 @@ var (
 
 // PackageLoader interface for loading external packages.
 type PackageLoader interface {
-	Load(importPath string) ([]*ast.File, *token.FileSet, error)
+	Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error)
 }
 
 // Functions
@@ -93,7 +94,7 @@ func getMatchingInterfaceFromAST(
 func getNonLocalPackagePath(qualifiedName string, pkgLoader PackageLoader) (string, error) {
 	targetPkgImport := extractPackageName(qualifiedName)
 
-	astFiles, _, err := pkgLoader.Load(".")
+	astFiles, _, _, err := pkgLoader.Load(".")
 	if err != nil {
 		return "", fmt.Errorf("failed to load local package: %w", err)
 	}
@@ -117,14 +118,14 @@ func isLocalInterface(qualifiedName string) bool {
 	return !strings.Contains(qualifiedName, ".")
 }
 
-// loadPackage loads a package and returns its AST files and file set.
-func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, error) {
-	astFiles, fset, err := pkgLoader.Load(pkgImportPath)
+// loadPackage loads a package and returns its AST files, file set, and type info.
+func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, *types.Info, error) {
+	astFiles, fset, typesInfo, err := pkgLoader.Load(pkgImportPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
+		return nil, nil, nil, fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
 	}
 
-	return astFiles, fset, nil
+	return astFiles, fset, typesInfo, nil
 }
 
 // interfaceWithParams holds an interface type along with its type parameters.
@@ -262,4 +263,19 @@ func matchesReceiverType(expr ast.Expr, typeName string) bool {
 	}
 
 	return false
+}
+
+// isComparableExpr checks if an AST expression represents a comparable type.
+// Uses Go's type system to accurately determine comparability.
+func isComparableExpr(expr ast.Expr, typesInfo *types.Info) bool {
+	if typesInfo == nil {
+		return false // Conservative: assume non-comparable if no type info
+	}
+
+	tv, ok := typesInfo.Types[expr]
+	if !ok {
+		return false // Type not found, be conservative
+	}
+
+	return types.Comparable(tv.Type)
 }

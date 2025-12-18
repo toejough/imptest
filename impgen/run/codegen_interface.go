@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/format"
 	"go/token"
+	"go/types"
 	"strings"
 	"text/template"
 )
@@ -17,6 +18,7 @@ func generateImplementationCode(
 	astFiles []*ast.File,
 	info generatorInfo,
 	fset *token.FileSet,
+	typesInfo *types.Info,
 	pkgImportPath string,
 ) (string, error) {
 	ifaceWithParams, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
@@ -36,6 +38,7 @@ func generateImplementationCode(
 		timedName:           impName + "Timed",
 		identifiedInterface: ifaceWithParams.iface,
 		typeParams:          ifaceWithParams.typeParams,
+		typesInfo:           typesInfo,
 		astFiles:            astFiles,
 		pkgImportPath:       pkgImportPath,
 	}
@@ -46,6 +49,9 @@ func generateImplementationCode(
 	}
 
 	gen.methodNames = methodNames
+
+	// Pre-scan to determine if reflect import is needed
+	gen.checkIfReflectNeeded()
 
 	gen.generateHeader()
 	gen.generateMockStruct()
@@ -82,12 +88,30 @@ type codeGenerator struct {
 	timedName           string
 	identifiedInterface *ast.InterfaceType
 	typeParams          *ast.FieldList // Type parameters for generic interfaces
+	typesInfo           *types.Info    // Type information for comparability checks
+	needsReflect        bool           // Track if reflect import is needed
 	methodNames         []string
 	astFiles            []*ast.File
 	pkgImportPath       string
 }
 
 // codeGenerator Methods
+
+// checkIfReflectNeeded pre-scans all interface methods to determine if reflect import is needed.
+func (gen *codeGenerator) checkIfReflectNeeded() {
+	gen.forEachMethod(func(_ string, ftype *ast.FuncType) {
+		if ftype.Params == nil {
+			return
+		}
+
+		for _, param := range ftype.Params.List {
+			if !isComparableExpr(param.Type, gen.typesInfo) {
+				gen.needsReflect = true
+				return // Early exit once we know reflect is needed
+			}
+		}
+	})
+}
 
 // forEachMethod iterates over interface methods and calls the callback for each.
 // This is safe to call without error checking because we already validated the interface
@@ -110,6 +134,7 @@ func (gen *codeGenerator) templateData() templateData {
 		MethodNames:      gen.methodNames,
 		TypeParamsDecl:   gen.formatTypeParamsDecl(),
 		TypeParamsUse:    gen.formatTypeParamsUse(),
+		NeedsReflect:     gen.needsReflect,
 	}
 }
 
@@ -624,13 +649,13 @@ func (gen *codeGenerator) writeValidatorChecks(ftype *ast.FuncType, paramNames [
 func (gen *codeGenerator) writeValidatorCheck(
 	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
 ) (int, int) {
+	// Check if the parameter type is comparable
+	isComparable := isComparableExpr(param.Type, gen.typesInfo)
+
 	if len(param.Names) > 0 {
 		for i, name := range param.Names {
 			fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-			gen.pf(`		if methodCall.%s != %s {
-			return false
-		}
-`, fieldName, name.Name)
+			gen.writeComparisonCheck(fieldName, name.Name, isComparable)
 
 			paramNameIndex++
 		}
@@ -639,12 +664,25 @@ func (gen *codeGenerator) writeValidatorCheck(
 	}
 
 	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-	gen.pf(`		if methodCall.%s != %s {
-			return false
-		}
-`, fieldName, paramNames[paramNameIndex])
+	gen.writeComparisonCheck(fieldName, paramNames[paramNameIndex], isComparable)
 
 	return paramNameIndex + 1, unnamedIndex + 1
+}
+
+// writeComparisonCheck writes a comparison using != or reflect.DeepEqual based on type comparability.
+func (gen *codeGenerator) writeComparisonCheck(fieldName, expectedName string, isComparable bool) {
+	if isComparable {
+		gen.pf(`		if methodCall.%s != %s {
+			return false
+		}
+`, fieldName, expectedName)
+	} else {
+		gen.needsReflect = true // Mark that reflect import is needed
+		gen.pf(`		if !reflect.DeepEqual(methodCall.%s, %s) {
+			return false
+		}
+`, fieldName, expectedName)
+	}
 }
 
 // generateTimedStruct generates the struct and method for timed call expectations.

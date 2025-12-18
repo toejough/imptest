@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"os"
 	"strings"
 
@@ -33,12 +34,12 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 		return err
 	}
 
-	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader)
+	astFiles, fset, typesInfo, err := loadPackage(pkgImportPath, pkgLoader)
 	if err != nil {
 		return err
 	}
 
-	code, err := generateCode(info, astFiles, fset, pkgImportPath, pkgLoader)
+	code, err := generateCode(info, astFiles, fset, typesInfo, pkgImportPath, pkgLoader)
 	if err != nil {
 		return err
 	}
@@ -56,14 +57,15 @@ func generateCode(
 	info generatorInfo,
 	astFiles []*ast.File,
 	fset *token.FileSet,
+	typesInfo *types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 ) (string, error) {
 	if info.isCallable {
-		return generateCallableWrapperCode(astFiles, info, fset, pkgImportPath, pkgLoader)
+		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
-	return generateImplementationCode(astFiles, info, fset, pkgImportPath)
+	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath)
 }
 
 // Interfaces - Public

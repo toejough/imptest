@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"os"
 
 	"github.com/toejough/imptest/impgen/run"
@@ -37,8 +38,8 @@ type realFileSystem struct{}
 // realPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
 type realPackageLoader struct{}
 
-// Load loads a package by import path and returns its AST files and FileSet.
-func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, error) {
+// Load loads a package by import path and returns its AST files, FileSet, and type information.
+func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
 	cfg := &packages.Config{
 		Mode:  packages.LoadAllSyntax,
 		Tests: true,
@@ -46,17 +47,18 @@ func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 
 	pkgs, err := packages.Load(cfg, importPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load package: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to load package: %w", err)
 	}
 
 	if len(pkgs) == 0 {
-		return nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
 	}
 
 	// Collect all AST files from all packages (including test packages)
 	var (
-		allFiles []*ast.File
-		fset     *token.FileSet
+		allFiles  []*ast.File
+		fset      *token.FileSet
+		typesInfo *types.Info
 	)
 
 	for _, pkg := range pkgs {
@@ -68,18 +70,23 @@ func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 			fset = pkg.Fset
 		}
 
+		// Use type info from the first valid package
+		if typesInfo == nil && pkg.TypesInfo != nil {
+			typesInfo = pkg.TypesInfo
+		}
+
 		allFiles = append(allFiles, pkg.Syntax...)
 	}
 
 	if len(allFiles) == 0 {
 		if len(pkgs[0].Errors) > 0 {
-			return nil, nil, fmt.Errorf("%w: %v", errPackageErrors, pkgs[0].Errors)
+			return nil, nil, nil, fmt.Errorf("%w: %v", errPackageErrors, pkgs[0].Errors)
 		}
 
-		return nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
 	}
 
-	return allFiles, fset, nil
+	return allFiles, fset, typesInfo, nil
 }
 
 // WriteFile writes data to the file named by name.

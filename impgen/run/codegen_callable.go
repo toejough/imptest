@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"slices"
 	"strings"
 	"text/template"
@@ -19,6 +20,7 @@ func generateCallableWrapperCode(
 	astFiles []*ast.File,
 	info generatorInfo,
 	fset *token.FileSet,
+	typesInfo *types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 ) (string, error) {
@@ -40,6 +42,7 @@ func generateCallableWrapperCode(
 		pkgPath:    pkgPath,
 		qualifier:  qualifier,
 		typeParams: funcDecl.Type.TypeParams,
+		typesInfo:  typesInfo,
 	}
 
 	gen.generateHeader()
@@ -73,6 +76,7 @@ type callableGenerator struct {
 	pkgPath    string
 	qualifier  string
 	typeParams *ast.FieldList // Type parameters for generic functions
+	typesInfo  *types.Info    // Type information for comparability checks
 }
 
 // callableExtendedTemplateData extends callableTemplateData with dynamic signature info.
@@ -378,11 +382,18 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 
 	results := extractResults(g.fset, g.funcDecl.Type)
 
-	for _, r := range results {
-		resultName := fmt.Sprintf("v%d", r.Index+1)
-		fmt.Fprintf(&buf, "\t\tif %s.Result%d != %s {\n", varName, r.Index, resultName)
+	for _, result := range results {
+		resultName := fmt.Sprintf("v%d", result.Index+1)
+		isComparable := isComparableExpr(result.Field.Type, g.typesInfo)
+
+		if isComparable {
+			fmt.Fprintf(&buf, "\t\tif %s.Result%d != %s {\n", varName, result.Index, resultName)
+		} else {
+			fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(%s.Result%d, %s) {\n", varName, result.Index, resultName)
+		}
+
 		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Result%d)\n",
-			r.Index, resultName, varName, r.Index)
+			result.Index, resultName, varName, result.Index)
 		buf.WriteString("\t\t}\n")
 	}
 
@@ -649,7 +660,7 @@ func callableGetPackageInfo(
 
 	pkgName = extractPackageName(interfaceName)
 
-	astFiles, _, err := pkgLoader.Load(".")
+	astFiles, _, _, err := pkgLoader.Load(".")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to load local package: %w", err)
 	}
