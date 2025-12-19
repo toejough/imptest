@@ -2,6 +2,7 @@ package run
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"text/template"
 )
+
+var errUnsupportedEmbeddedType = errors.New("unsupported embedded type")
 
 // Entry Point - Public
 
@@ -911,9 +914,12 @@ func interfaceCollectMethodNames(
 ) ([]string, error) {
 	var methodNames []string
 
-	err := forEachInterfaceMethod(iface, astFiles, fset, pkgImportPath, pkgLoader, func(methodName string, _ *ast.FuncType) {
-		methodNames = append(methodNames, methodName)
-	})
+	err := forEachInterfaceMethod(
+		iface, astFiles, fset, pkgImportPath, pkgLoader,
+		func(methodName string, _ *ast.FuncType) {
+			methodNames = append(methodNames, methodName)
+		},
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,9 @@
       "Bash(go test:*)",
       "Bash(mage generate:*)",
       "Bash(go build:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(/usr/bin/time -p go test:*)",
+      "Bash(/usr/bin/time -p mage check:*)"
     ],
     "deny": [],
     "ask": []

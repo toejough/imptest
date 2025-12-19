@@ -16,11 +16,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+type uatTestCase struct {
+	name    string
+	args    []string
+	pkgName string
+}
+
 // TestUATConsistency ensures that the generated files in the UAT directory
 // are exactly what the current generator code produces.
-// This serves two purposes:
-// 1. It provides high code coverage for the generator logic (since we call Run directly).
-// 2. It ensures the UAT examples are always up-to-date.
 func TestUATConsistency(t *testing.T) {
 	t.Parallel()
 
@@ -41,18 +44,12 @@ func TestUATConsistency(t *testing.T) {
 	loader := &testPackageLoader{Dir: uatDir}
 
 	for _, testCase := range testCases {
-		testCaseScoped := testCase
-		t.Run(testCaseScoped.name, func(t *testing.T) {
+		tc := testCase
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			verifyUATFile(t, uatDir, loader, testCaseScoped)
+			verifyUATFile(t, uatDir, loader, tc)
 		})
 	}
-}
-
-type uatTestCase struct {
-	name    string
-	args    []string
-	pkgName string
 }
 
 func verifyUATFile(
@@ -206,6 +203,12 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
 	}
 
+	return pl.processPackages(pkgs, importPath)
+}
+
+func (pl *testPackageLoader) processPackages(
+	pkgs []*packages.Package, importPath string,
+) ([]*ast.File, *token.FileSet, *types.Info, error) {
 	var (
 		allFiles  []*ast.File
 		fset      *token.FileSet
@@ -213,10 +216,6 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	)
 
 	for _, pkg := range pkgs {
-		if len(pkg.Errors) > 0 {
-			continue
-		}
-
 		if fset == nil {
 			fset = pkg.Fset
 		}
@@ -229,11 +228,14 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	}
 
 	if len(allFiles) == 0 {
+		var err error
 		if len(pkgs[0].Errors) > 0 {
-			return nil, nil, nil, fmt.Errorf("%w: %v", errPackageErrors, pkgs[0].Errors)
+			err = fmt.Errorf("%w: %v", errPackageErrors, pkgs[0].Errors)
+		} else {
+			err = fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
 		}
 
-		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+		return nil, nil, nil, err
 	}
 
 	return allFiles, fset, typesInfo, nil

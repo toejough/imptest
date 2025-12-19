@@ -2,12 +2,15 @@
 package run
 
 import (
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
 	"testing"
 )
+
+var errUnexpectedLoad = errors.New("unexpected load")
 
 // mockPackageLoader implements PackageLoader for testing.
 type mockPackageLoader struct {
@@ -33,6 +36,7 @@ func TestGetInterfacePackagePath_MismatchedDirectoryName(t *testing.T) {
 	mockLoader := &mockPackageLoader{
 		loadFunc: func(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
 			fset := token.NewFileSet()
+
 			if importPath == "." {
 				// Return a file that imports the mismatched package WITHOUT an alias.
 				file := &ast.File{
@@ -46,25 +50,28 @@ func TestGetInterfacePackagePath_MismatchedDirectoryName(t *testing.T) {
 						},
 					},
 				}
+
 				return []*ast.File{file}, fset, nil, nil
 			}
+
 			if importPath == targetImportPath {
 				// Return a file that defines the package with its internal name.
 				file := &ast.File{
 					Name: &ast.Ident{Name: targetPackageName},
 				}
+
 				return []*ast.File{file}, fset, nil, nil
 			}
-			return nil, nil, nil, fmt.Errorf("unexpected load: %s", importPath)
+
+			return nil, nil, nil, fmt.Errorf("%w: %s", errUnexpectedLoad, importPath)
 		},
 	}
 
-	qualifiedName := fmt.Sprintf("%s.Returner", targetPackageName)
-	
+	qualifiedName := targetPackageName + ".Returner"
+
 	// ACTION: Attempt to resolve "basic.Returner"
 	path, err := getInterfacePackagePath(qualifiedName, mockLoader)
-	
-	// ASSERTION: This is expected to fail or return the wrong path 
+	// ASSERTION: This is expected to fail or return the wrong path
 	// until we improve the package loader logic.
 	if err != nil {
 		t.Fatalf("Failed to resolve %q: %v", qualifiedName, err)

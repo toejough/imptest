@@ -12,11 +12,9 @@ import (
 
 // Vars.
 var (
-	errFunctionNotFound             = errors.New("function not found")
-	errInterfaceNotFound            = errors.New("interface not found")
-	errPackageNotFound              = errors.New("package not found in imports")
-	errUnsupportedEmbeddedType      = errors.New("unsupported embedded interface type")
-	errExternalEmbeddedNotSupported = errors.New("embedded interface from external package is not yet supported")
+	errPackageNotFound   = errors.New("package not found")
+	errInterfaceNotFound = errors.New("interface not found")
+	errFunctionNotFound  = errors.New("function not found")
 )
 
 // Interfaces
@@ -105,12 +103,6 @@ func getNonLocalPackagePath(qualifiedName string, pkgLoader PackageLoader) (stri
 	}
 
 	return importPath, nil
-}
-
-// importPathMatchesPackageName checks if the last segment of an import path matches the target package name.
-func importPathMatchesPackageName(importPath, targetPkgImport string) bool {
-	parts := strings.Split(importPath, "/")
-	return len(parts) > 0 && parts[len(parts)-1] == targetPkgImport
 }
 
 // isLocalInterface checks if the interface name is local (no package qualifier).

@@ -1030,8 +1030,8 @@ import "fmt"
 		return
 	}
 
-	if !strings.Contains(err.Error(), "package not found in imports") {
-		t.Errorf("Expected 'package not found in imports' error, got: %v", err)
+	if !strings.Contains(err.Error(), "package not found") {
+		t.Errorf("Expected 'package not found' error, got: %v", err)
 	}
 }
 

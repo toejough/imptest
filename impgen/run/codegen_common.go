@@ -91,11 +91,17 @@ func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []
 	for _, field := range fields.List {
 		typeStr := exprToString(fset, field.Type)
 
+		// Normalize variadic type for struct fields
+		structType := typeStr
+		if strings.HasPrefix(structType, "...") {
+			structType = "[]" + structType[3:]
+		}
+
 		if len(field.Names) > 0 {
 			for _, name := range field.Names {
 				result = append(result, fieldInfo{
 					Name:  name.Name,
-					Type:  typeStr,
+					Type:  structType,
 					Index: index,
 					Field: field,
 				})
@@ -105,7 +111,7 @@ func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []
 		} else {
 			result = append(result, fieldInfo{
 				Name:  fmt.Sprintf("%s%d", prefix, index),
-				Type:  typeStr,
+				Type:  structType,
 				Index: index,
 				Field: field,
 			})
