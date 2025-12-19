@@ -24,6 +24,11 @@ var (
 	globalLoadCache = make(map[string]loadResult)
 	//nolint:gochecknoglobals // Global mutex to protect the global cache.
 	globalLoadMu sync.RWMutex
+
+	// loadSemaphore limits concurrent packages.Load calls to prevent GC thrashing.
+	// We limit to 2 concurrent loads as they are extremely memory intensive.
+	//nolint:gochecknoglobals
+	loadSemaphore = make(chan struct{}, 2)
 )
 
 type loadResult struct {
@@ -232,6 +237,23 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 		return res.files, res.fset, res.info, res.err
 	}
 
+	resFiles, resFset, resInfo, resErr := pl.loadWithThrottle(loadPath)
+
+	globalLoadMu.Lock()
+
+	globalLoadCache[cacheKey] = loadResult{
+		files: resFiles,
+		fset:  resFset,
+		info:  resInfo,
+		err:   resErr,
+	}
+
+	globalLoadMu.Unlock()
+
+	return resFiles, resFset, resInfo, resErr
+}
+
+func (pl *testPackageLoader) loadWithThrottle(loadPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
 	cfg := &packages.Config{
 		Mode: packages.NeedName |
 			packages.NeedFiles |
@@ -244,7 +266,12 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 		Dir:   pl.ProjectRoot,
 	}
 
+	// Acquire semaphore
+	loadSemaphore <- struct{}{}
+
 	pkgs, err := packages.Load(cfg, loadPath)
+	// Release semaphore
+	<-loadSemaphore
 
 	var (
 		resFiles []*ast.File
@@ -261,17 +288,6 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	default:
 		resFiles, resFset, resInfo, resErr = pl.processPackages(pkgs, loadPath)
 	}
-
-	globalLoadMu.Lock()
-
-	globalLoadCache[cacheKey] = loadResult{
-		files: resFiles,
-		fset:  resFset,
-		info:  resInfo,
-		err:   resErr,
-	}
-
-	globalLoadMu.Unlock()
 
 	return resFiles, resFset, resInfo, resErr
 }
