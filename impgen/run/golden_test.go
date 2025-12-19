@@ -10,11 +10,28 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/toejough/imptest/impgen/run"
 	"golang.org/x/tools/go/packages"
 )
+
+var (
+	// globalLoadCache persists across all test runs in this process to minimize expensive go/packages.Load calls.
+	//
+	//nolint:gochecknoglobals // This global cache is intentional to speed up tests across the entire package.
+	globalLoadCache = make(map[string]loadResult)
+	//nolint:gochecknoglobals // Global mutex to protect the global cache.
+	globalLoadMu sync.RWMutex
+)
+
+type loadResult struct {
+	files []*ast.File
+	fset  *token.FileSet
+	info  *types.Info
+	err   error
+}
 
 type uatTestCase struct {
 	name    string
@@ -187,7 +204,20 @@ var (
 )
 
 // Load loads a package by import path and returns its AST files, FileSet, and type information.
+// It uses a global cache to avoid redundant work across different test cases.
 func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
+	cacheKey := fmt.Sprintf("%s|%s", pl.Dir, importPath)
+
+	globalLoadMu.RLock()
+
+	res, ok := globalLoadCache[cacheKey]
+
+	globalLoadMu.RUnlock()
+
+	if ok {
+		return res.files, res.fset, res.info, res.err
+	}
+
 	cfg := &packages.Config{
 		Mode:  packages.LoadAllSyntax,
 		Tests: true,
@@ -195,15 +225,35 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	}
 
 	pkgs, err := packages.Load(cfg, importPath)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to load package: %w", err)
+
+	var (
+		resFiles []*ast.File
+		resFset  *token.FileSet
+		resInfo  *types.Info
+		resErr   error
+	)
+
+	switch {
+	case err != nil:
+		resErr = fmt.Errorf("failed to load package: %w", err)
+	case len(pkgs) == 0:
+		resErr = fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+	default:
+		resFiles, resFset, resInfo, resErr = pl.processPackages(pkgs, importPath)
 	}
 
-	if len(pkgs) == 0 {
-		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+	globalLoadMu.Lock()
+
+	globalLoadCache[cacheKey] = loadResult{
+		files: resFiles,
+		fset:  resFset,
+		info:  resInfo,
+		err:   resErr,
 	}
 
-	return pl.processPackages(pkgs, importPath)
+	globalLoadMu.Unlock()
+
+	return resFiles, resFset, resInfo, resErr
 }
 
 func (pl *testPackageLoader) processPackages(
