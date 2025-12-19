@@ -737,7 +737,7 @@ func callableGetPackageInfo(
 		return "", "", fmt.Errorf("failed to load local package: %w", err)
 	}
 
-	pkgPath, err = findImportPath(astFiles, pkgName)
+	pkgPath, err = findImportPath(astFiles, pkgName, pkgLoader)
 	if err != nil {
 		return "", "", err
 	}

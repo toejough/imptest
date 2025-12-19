@@ -20,6 +20,7 @@ func generateImplementationCode(
 	fset *token.FileSet,
 	typesInfo *types.Info,
 	pkgImportPath string,
+	pkgLoader PackageLoader,
 ) (string, error) {
 	ifaceWithParams, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
 	if err != nil {
@@ -41,9 +42,10 @@ func generateImplementationCode(
 		typesInfo:           typesInfo,
 		astFiles:            astFiles,
 		pkgImportPath:       pkgImportPath,
+		pkgLoader:           pkgLoader,
 	}
 
-	methodNames, err := interfaceCollectMethodNames(ifaceWithParams.iface, astFiles, fset, pkgImportPath)
+	methodNames, err := interfaceCollectMethodNames(ifaceWithParams.iface, astFiles, fset, pkgImportPath, pkgLoader)
 	if err != nil {
 		return "", err
 	}
@@ -96,6 +98,7 @@ type codeGenerator struct {
 	methodNames         []string
 	astFiles            []*ast.File
 	pkgImportPath       string
+	pkgLoader           PackageLoader
 }
 
 // codeGenerator Methods
@@ -133,7 +136,7 @@ func (gen *codeGenerator) checkIfImptestNeeded() {
 // here, it indicates a programming error and will cause a panic in the underlying function.
 func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
 	// Ignore error - interface was already validated during method name collection
-	_ = forEachInterfaceMethod(gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, callback)
+	_ = forEachInterfaceMethod(gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader, callback)
 }
 
 // templateData returns common template data for this generator.
@@ -902,16 +905,13 @@ func (gen *codeGenerator) generateConstructor() {
 
 // Private Functions
 
-// interfaceCollectMethodNames extracts all method names from an interface, including embedded interfaces.
+// interfaceCollectMethodNames collects all method names from an interface, including embedded ones.
 func interfaceCollectMethodNames(
-	iface *ast.InterfaceType,
-	astFiles []*ast.File,
-	fset *token.FileSet,
-	pkgImportPath string,
+	iface *ast.InterfaceType, astFiles []*ast.File, fset *token.FileSet, pkgImportPath string, pkgLoader PackageLoader,
 ) ([]string, error) {
 	var methodNames []string
 
-	err := forEachInterfaceMethod(iface, astFiles, fset, pkgImportPath, func(methodName string, _ *ast.FuncType) {
+	err := forEachInterfaceMethod(iface, astFiles, fset, pkgImportPath, pkgLoader, func(methodName string, _ *ast.FuncType) {
 		methodNames = append(methodNames, methodName)
 	})
 	if err != nil {
@@ -928,10 +928,11 @@ func forEachInterfaceMethod(
 	astFiles []*ast.File,
 	fset *token.FileSet,
 	pkgImportPath string,
+	pkgLoader PackageLoader,
 	callback func(methodName string, ftype *ast.FuncType),
 ) error {
 	for _, field := range iface.Methods.List {
-		err := interfaceProcessFieldMethods(field, astFiles, fset, pkgImportPath, callback)
+		err := interfaceProcessFieldMethods(field, astFiles, fset, pkgImportPath, pkgLoader, callback)
 		if err != nil {
 			return err
 		}
@@ -940,18 +941,18 @@ func forEachInterfaceMethod(
 	return nil
 }
 
-// interfaceProcessFieldMethods processes all method names in a field and calls the callback for each valid method.
-// For embedded interfaces, recursively expands them.
+// interfaceProcessFieldMethods handles a single field in an interface's method list.
 func interfaceProcessFieldMethods(
 	field *ast.Field,
 	astFiles []*ast.File,
 	fset *token.FileSet,
 	pkgImportPath string,
+	pkgLoader PackageLoader,
 	callback func(methodName string, ftype *ast.FuncType),
 ) error {
 	// Handle embedded interfaces (they have no names)
 	if len(field.Names) == 0 {
-		return interfaceExpandEmbedded(field.Type, astFiles, fset, pkgImportPath, callback)
+		return interfaceExpandEmbedded(field.Type, astFiles, fset, pkgImportPath, pkgLoader, callback)
 	}
 
 	// Skip non-function types (shouldn't happen in a valid interface, but be safe)
@@ -974,6 +975,7 @@ func interfaceExpandEmbedded(
 	astFiles []*ast.File,
 	fset *token.FileSet,
 	pkgImportPath string,
+	pkgLoader PackageLoader,
 	callback func(methodName string, ftype *ast.FuncType),
 ) error {
 	var (
@@ -996,7 +998,7 @@ func interfaceExpandEmbedded(
 		}
 
 		// Find the import path for this package
-		importPath, err := findImportPath(astFiles, pkgIdent.Name)
+		importPath, err := findImportPath(astFiles, pkgIdent.Name, pkgLoader)
 		if err != nil {
 			return fmt.Errorf("failed to find import path for embedded interface %s.%s: %w", pkgIdent.Name, typ.Sel.Name, err)
 		}
@@ -1020,9 +1022,11 @@ func interfaceExpandEmbedded(
 		embeddedFset = fset
 	} else {
 		// Different package - need to load it
-		// We need a PackageLoader here, but we don't have one in this function signature
-		// For now, return an error indicating external embedded interfaces aren't supported yet
-		return fmt.Errorf("%w: %q", errExternalEmbeddedNotSupported, embeddedPkgPath)
+		// We now HAVE a PackageLoader, so we can support external embedded interfaces!
+		embeddedAstFiles, embeddedFset, _, err = pkgLoader.Load(embeddedPkgPath)
+		if err != nil {
+			return fmt.Errorf("failed to load external embedded interface package %s: %w", embeddedPkgPath, err)
+		}
 	}
 
 	// Find the embedded interface in the AST
@@ -1035,7 +1039,7 @@ func interfaceExpandEmbedded(
 
 	// Recursively process the embedded interface's methods
 	return forEachInterfaceMethod(
-		embeddedInterfaceWithParams.iface, embeddedAstFiles, embeddedFset, embeddedPkgPath, callback,
+		embeddedInterfaceWithParams.iface, embeddedAstFiles, embeddedFset, embeddedPkgPath, pkgLoader, callback,
 	)
 }
 

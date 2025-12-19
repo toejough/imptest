@@ -35,9 +35,9 @@ func extractPackageName(qualifiedName string) string {
 }
 
 // findImportPath searches through AST files to find the full import path for a package name.
-func findImportPath(astFiles []*ast.File, targetPkgImport string) (string, error) {
+func findImportPath(astFiles []*ast.File, targetPkgImport string, pkgLoader PackageLoader) (string, error) {
 	for _, fileAst := range astFiles {
-		importPath, err := searchFileImports(fileAst, targetPkgImport)
+		importPath, err := searchFileImports(fileAst, targetPkgImport, pkgLoader)
 		if err != nil {
 			return "", err
 		}
@@ -99,7 +99,7 @@ func getNonLocalPackagePath(qualifiedName string, pkgLoader PackageLoader) (stri
 		return "", fmt.Errorf("failed to load local package: %w", err)
 	}
 
-	importPath, err := findImportPath(astFiles, targetPkgImport)
+	importPath, err := findImportPath(astFiles, targetPkgImport, pkgLoader)
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +169,7 @@ func searchFileForInterface(fileAst *ast.File, interfaceName string) *interfaceW
 // searchFileImports searches a single AST file's imports for a matching package name.
 // Returns the full import path if found, empty string if not found, or an error if import paths are malformed.
 // Handles both aliased imports (e.g., `import foo "github.com/bar/baz"`) and regular imports.
-func searchFileImports(fileAst *ast.File, targetPkgImport string) (string, error) {
+func searchFileImports(fileAst *ast.File, targetPkgImport string, pkgLoader PackageLoader) (string, error) {
 	for _, imp := range fileAst.Imports {
 		// Check for aliased import first
 		if imp.Name != nil && imp.Name.Name == targetPkgImport {
@@ -181,14 +181,18 @@ func searchFileImports(fileAst *ast.File, targetPkgImport string) (string, error
 			return importPath, nil
 		}
 
-		// Fall back to path-based matching for non-aliased imports
+		// Fall back to loading the package to check its actual name
 		importPath, err := strconv.Unquote(imp.Path.Value)
 		if err != nil {
 			return "", fmt.Errorf("failed to unquote import path %q: %w", imp.Path.Value, err)
 		}
 
-		if importPathMatchesPackageName(importPath, targetPkgImport) {
-			return importPath, nil
+		// Try to see if the internal package name matches the target
+		astFiles, _, _, err := pkgLoader.Load(importPath)
+		if err == nil && len(astFiles) > 0 {
+			if astFiles[0].Name.Name == targetPkgImport {
+				return importPath, nil
+			}
 		}
 	}
 

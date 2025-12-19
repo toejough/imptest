@@ -2,10 +2,78 @@
 package run
 
 import (
+	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"testing"
 )
+
+// mockPackageLoader implements PackageLoader for testing.
+type mockPackageLoader struct {
+	loadFunc func(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error)
+}
+
+func (m *mockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
+	return m.loadFunc(importPath)
+}
+
+func TestGetInterfacePackagePath_MismatchedDirectoryName(t *testing.T) {
+	t.Parallel()
+
+	// This test simulates the case where:
+	// Directory on disk: "UAT/01-basic-interface-mocking"
+	// Package name in code: "package basic"
+	// The user provides: "basic.Returner"
+	// The current file imports: "github.com/toejough/imptest/UAT/01-basic-interface-mocking" (no alias)
+
+	targetImportPath := "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
+	targetPackageName := "basic"
+
+	mockLoader := &mockPackageLoader{
+		loadFunc: func(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
+			fset := token.NewFileSet()
+			if importPath == "." {
+				// Return a file that imports the mismatched package WITHOUT an alias.
+				file := &ast.File{
+					Name: &ast.Ident{Name: "main"},
+					Imports: []*ast.ImportSpec{
+						{
+							Path: &ast.BasicLit{
+								Kind:  token.STRING,
+								Value: fmt.Sprintf("%q", targetImportPath),
+							},
+						},
+					},
+				}
+				return []*ast.File{file}, fset, nil, nil
+			}
+			if importPath == targetImportPath {
+				// Return a file that defines the package with its internal name.
+				file := &ast.File{
+					Name: &ast.Ident{Name: targetPackageName},
+				}
+				return []*ast.File{file}, fset, nil, nil
+			}
+			return nil, nil, nil, fmt.Errorf("unexpected load: %s", importPath)
+		},
+	}
+
+	qualifiedName := fmt.Sprintf("%s.Returner", targetPackageName)
+	
+	// ACTION: Attempt to resolve "basic.Returner"
+	path, err := getInterfacePackagePath(qualifiedName, mockLoader)
+	
+	// ASSERTION: This is expected to fail or return the wrong path 
+	// until we improve the package loader logic.
+	if err != nil {
+		t.Fatalf("Failed to resolve %q: %v", qualifiedName, err)
+	}
+
+	if path != targetImportPath {
+		t.Errorf("Expected path %q, but got %q", targetImportPath, path)
+	}
+}
 
 func TestIsComparableExpr_NilTypesInfo(t *testing.T) {
 	t.Parallel()

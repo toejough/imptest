@@ -65,7 +65,7 @@ func generateCode(
 		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
-	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath)
+	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 }
 
 // Interfaces - Public
