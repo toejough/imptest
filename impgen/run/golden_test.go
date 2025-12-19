@@ -44,10 +44,13 @@ type uatTestCase struct {
 func TestUATConsistency(t *testing.T) {
 	t.Parallel()
 
-	uatDir, err := filepath.Abs("../../UAT/run")
+	// Project root relative to this test file.
+	projectRoot, err := filepath.Abs("../../")
 	if err != nil {
-		t.Fatalf("failed to get absolute path for UAT directory: %v", err)
+		t.Fatalf("failed to get project root: %v", err)
 	}
+
+	uatDir := filepath.Join(projectRoot, "UAT/run")
 
 	testCases, err := scanUATDirectives(uatDir)
 	if err != nil {
@@ -58,7 +61,10 @@ func TestUATConsistency(t *testing.T) {
 		t.Fatal("no //go:generate imptest directives found in UAT directory")
 	}
 
-	loader := &testPackageLoader{Dir: uatDir}
+	loader := &testPackageLoader{
+		ProjectRoot: projectRoot,
+		ScenarioDir: uatDir,
+	}
 
 	for _, testCase := range testCases {
 		tc := testCase
@@ -72,7 +78,7 @@ func TestUATConsistency(t *testing.T) {
 func verifyUATFile(
 	t *testing.T,
 	uatDir string,
-	loader run.PackageLoader,
+	loader *testPackageLoader,
 	testCase uatTestCase,
 ) {
 	t.Helper()
@@ -195,7 +201,8 @@ func (v *verifyingFileSystem) WriteFile(name string, data []byte, _ os.FileMode)
 
 // testPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
 type testPackageLoader struct {
-	Dir string
+	ProjectRoot string
+	ScenarioDir string
 }
 
 var (
@@ -204,9 +211,16 @@ var (
 )
 
 // Load loads a package by import path and returns its AST files, FileSet, and type information.
-// It uses a global cache to avoid redundant work across different test cases.
+// It uses a shared cache to avoid redundant work across different test cases.
 func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
-	cacheKey := fmt.Sprintf("%s|%s", pl.Dir, importPath)
+	// Consolidate Dir to project root for better go/packages internal caching.
+	// If the path is ".", use the ScenarioDir.
+	loadPath := importPath
+	if importPath == "." {
+		loadPath = pl.ScenarioDir
+	}
+
+	cacheKey := fmt.Sprintf("%s|%s", pl.ProjectRoot, loadPath)
 
 	globalLoadMu.RLock()
 
@@ -219,12 +233,18 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	}
 
 	cfg := &packages.Config{
-		Mode:  packages.LoadAllSyntax,
+		Mode: packages.NeedName |
+			packages.NeedFiles |
+			packages.NeedCompiledGoFiles |
+			packages.NeedImports |
+			packages.NeedTypes |
+			packages.NeedTypesInfo |
+			packages.NeedSyntax,
 		Tests: true,
-		Dir:   pl.Dir,
+		Dir:   pl.ProjectRoot,
 	}
 
-	pkgs, err := packages.Load(cfg, importPath)
+	pkgs, err := packages.Load(cfg, loadPath)
 
 	var (
 		resFiles []*ast.File
@@ -237,9 +257,9 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	case err != nil:
 		resErr = fmt.Errorf("failed to load package: %w", err)
 	case len(pkgs) == 0:
-		resErr = fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+		resErr = fmt.Errorf("%w: %q", errNoPackagesFound, loadPath)
 	default:
-		resFiles, resFset, resInfo, resErr = pl.processPackages(pkgs, importPath)
+		resFiles, resFset, resInfo, resErr = pl.processPackages(pkgs, loadPath)
 	}
 
 	globalLoadMu.Lock()
