@@ -13,6 +13,8 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/toejough/imptest/impgen/run"
 	"golang.org/x/tools/go/packages"
@@ -25,11 +27,87 @@ var (
 
 // main is the entry point of the impgen tool.
 func main() {
+	if os.Args == nil {
+		return
+	}
+
+	// 1. Calculate current signature
+	sig, err := run.CalculatePackageSignature(os.Args)
+	if err != nil {
+		runWithNoCache()
+		return
+	}
+
+	// 2. Find project root and cache file
+	root, err := run.FindProjectRoot()
+	if err != nil {
+		runWithNoCache()
+		return
+	}
+
+	cachePath := filepath.Join(root, run.CacheDirName, "cache.json")
+	cache := run.LoadDiskCache(cachePath)
+
+	// 3. Check cache
+	key := strings.Join(os.Args[1:], " ")
+	if entry, ok := cache.Entries[key]; ok && entry.Signature == sig {
+		// Cache hit! Just write the file if it doesn't exist or differs
+		err = os.WriteFile(entry.Filename, []byte(entry.Content), run.FilePerm)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing from cache: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("%s restored from cache\n", entry.Filename)
+
+		return
+	}
+
+	// 4. Cache miss - run and record
+	filesystem := &cachingFileSystem{}
+
+	err = run.Run(os.Args, os.Getenv, filesystem, &realPackageLoader{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 5. Update cache
+	if filesystem.writtenName != "" {
+		if cache.Entries == nil {
+			cache.Entries = make(map[string]run.CacheEntry)
+		}
+
+		cache.Entries[key] = run.CacheEntry{
+			Signature: sig,
+			Content:   filesystem.writtenContent,
+			Filename:  filesystem.writtenName,
+		}
+		run.SaveDiskCache(cachePath, cache)
+	}
+}
+
+func runWithNoCache() {
 	err := run.Run(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+// cachingFileSystem wraps realFileSystem and records the written content.
+type cachingFileSystem struct {
+	realFileSystem
+
+	writtenContent string
+	writtenName    string
+}
+
+func (c *cachingFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
+	c.writtenContent = string(data)
+	c.writtenName = name
+
+	return c.realFileSystem.WriteFile(name, data, perm)
 }
 
 // realFileSystem implements FileSystem using os package.
@@ -41,7 +119,13 @@ type realPackageLoader struct{}
 // Load loads a package by import path and returns its AST files, FileSet, and type information.
 func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
 	cfg := &packages.Config{
-		Mode:  packages.LoadAllSyntax,
+		Mode: packages.NeedName |
+			packages.NeedFiles |
+			packages.NeedCompiledGoFiles |
+			packages.NeedImports |
+			packages.NeedTypes |
+			packages.NeedTypesInfo |
+			packages.NeedSyntax,
 		Tests: true,
 	}
 

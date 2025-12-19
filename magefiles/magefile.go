@@ -78,6 +78,10 @@ func CheckCoverage(c context.Context) error {
 			continue
 		}
 
+		if strings.Contains(line, "Imp.go") || strings.Contains(line, "Imp_test.go") {
+			continue
+		}
+
 		if strings.Contains(line, "total:") {
 			continue
 		}

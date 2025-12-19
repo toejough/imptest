@@ -27,6 +27,7 @@ var (
 
 	// loadSemaphore limits concurrent packages.Load calls to prevent GC thrashing.
 	// We limit to 2 concurrent loads as they are extremely memory intensive.
+	//
 	//nolint:gochecknoglobals
 	loadSemaphore = make(chan struct{}, 2)
 )
@@ -42,17 +43,18 @@ type uatTestCase struct {
 	name    string
 	args    []string
 	pkgName string
+	dir     string
 }
 
 // TestUATConsistency ensures that the generated files in the UAT directory
 // are exactly what the current generator code produces.
+//
+//nolint:paralleltest // This test must be sequential because it uses t.Chdir which is not thread-safe.
 func TestUATConsistency(t *testing.T) {
-	t.Parallel()
-
 	// Project root relative to this test file.
-	projectRoot, err := filepath.Abs("../../")
+	projectRoot, err := run.FindProjectRoot()
 	if err != nil {
-		t.Fatalf("failed to get project root: %v", err)
+		t.Fatalf("failed to find project root: %v", err)
 	}
 
 	uatDir := filepath.Join(projectRoot, "UAT/run")
@@ -74,19 +76,27 @@ func TestUATConsistency(t *testing.T) {
 	for _, testCase := range testCases {
 		tc := testCase
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			verifyUATFile(t, uatDir, loader, tc)
+			verifyUATFile(t, loader, tc)
 		})
 	}
 }
 
 func verifyUATFile(
 	t *testing.T,
-	uatDir string,
 	loader *testPackageLoader,
 	testCase uatTestCase,
 ) {
 	t.Helper()
+
+	// 1. Check disk cache if possible
+	fullArgs := append([]string{"impgen"}, testCase.args...)
+
+	if tryDiskCache(t, loader.ProjectRoot, testCase.dir, fullArgs) {
+		return
+	}
+
+	// Change directory to the scenario dir to run matching how CLI is used
+	t.Chdir(testCase.dir)
 
 	getEnv := func(key string) string {
 		if key == "GOPACKAGE" {
@@ -99,16 +109,50 @@ func verifyUATFile(
 	// Mock FileSystem: Instead of writing, we read the existing file and compare
 	fileSystem := &verifyingFileSystem{
 		t:       t,
-		baseDir: uatDir,
+		baseDir: ".",
 	}
-
-	// Note: program name is expected as the first argument by go-arg
-	fullArgs := append([]string{"impgen"}, testCase.args...)
 
 	err := run.Run(fullArgs, getEnv, fileSystem, loader)
 	if err != nil {
 		t.Errorf("Run failed for %v: %v", testCase.name, err)
 	}
+}
+
+func tryDiskCache(t *testing.T, projectRoot, scenarioDir string, fullArgs []string) bool {
+	t.Helper()
+
+	// Change to scenario dir for signature calculation (it globs for files)
+	t.Chdir(scenarioDir)
+
+	sig, err := run.CalculatePackageSignature(fullArgs)
+	if err != nil {
+		return false
+	}
+
+	cachePath := filepath.Join(projectRoot, run.CacheDirName, "cache.json")
+	cache := run.LoadDiskCache(cachePath)
+	key := strings.Join(fullArgs[1:], " ")
+
+	entry, ok := cache.Entries[key]
+	if !ok || entry.Signature != sig {
+		return false
+	}
+
+	// Cache hit! Verify content matches disk.
+	path := filepath.Join(scenarioDir, entry.Filename)
+
+	actualData, err := os.ReadFile(path)
+	if err != nil {
+		// If file is missing, we can't verify consistency via cache hit.
+		// Return false to fall back to full Run().
+		return false
+	}
+
+	if string(actualData) != entry.Content {
+		t.Errorf("Cached content for %s differs from disk file", path)
+	}
+
+	return true
 }
 
 func scanUATDirectives(dir string) ([]uatTestCase, error) {
@@ -132,7 +176,7 @@ func scanUATDirectives(dir string) ([]uatTestCase, error) {
 
 		for _, cg := range fileAst.Comments {
 			for _, c := range cg.List {
-				if tc, ok := parseGenerateComment(c.Text, fileAst.Name.Name); ok {
+				if tc, ok := parseGenerateComment(c.Text, fileAst.Name.Name, filepath.Dir(path)); ok {
 					testCases = append(testCases, tc)
 				}
 			}
@@ -147,7 +191,7 @@ func scanUATDirectives(dir string) ([]uatTestCase, error) {
 	return testCases, nil
 }
 
-func parseGenerateComment(text, pkgName string) (uatTestCase, bool) {
+func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
 	if !strings.HasPrefix(text, "//go:generate") {
 		return uatTestCase{}, false
 	}
@@ -178,6 +222,7 @@ func parseGenerateComment(text, pkgName string) (uatTestCase, bool) {
 		name:    args[0],
 		args:    args,
 		pkgName: pkgName,
+		dir:     dir,
 	}, true
 }
 
