@@ -4,20 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/toejough/imptest/impgen/run"
 	"golang.org/x/tools/go/packages"
 )
-
-type uatTestCase struct {
-	generatedFile string
-	args          []string
-}
 
 // TestUATConsistency ensures that the generated files in the UAT directory
 // are exactly what the current generator code produces.
@@ -32,11 +29,30 @@ func TestUATConsistency(t *testing.T) {
 		t.Fatalf("failed to get absolute path for UAT directory: %v", err)
 	}
 
+	testCases, err := scanUATDirectives(uatDir)
+	if err != nil {
+		t.Fatalf("failed to scan UAT directives: %v", err)
+	}
+
+	if len(testCases) == 0 {
+		t.Fatal("no //go:generate imptest directives found in UAT directory")
+	}
+
 	loader := &testPackageLoader{Dir: uatDir}
 
-	for _, testCase := range getUATTestCases() {
-		verifyUATFile(t, uatDir, loader, testCase)
+	for _, testCase := range testCases {
+		testCaseScoped := testCase
+		t.Run(testCaseScoped.name, func(t *testing.T) {
+			t.Parallel()
+			verifyUATFile(t, uatDir, loader, testCaseScoped)
+		})
 	}
+}
+
+type uatTestCase struct {
+	name    string
+	args    []string
+	pkgName string
 }
 
 func verifyUATFile(
@@ -46,80 +62,124 @@ func verifyUATFile(
 	testCase uatTestCase,
 ) {
 	t.Helper()
-	t.Run(testCase.generatedFile, func(t *testing.T) {
-		t.Parallel()
 
-		getEnv := func(key string) string {
-			if key == "GOPACKAGE" {
-				return "run_test"
-			}
-
-			return ""
+	getEnv := func(key string) string {
+		if key == "GOPACKAGE" {
+			return testCase.pkgName
 		}
 
-		fileSystem := &verifyingFileSystem{
-			t:            t,
-			expectedPath: filepath.Join(uatDir, testCase.generatedFile),
-		}
+		return ""
+	}
 
-		err := run.Run(testCase.args, getEnv, fileSystem, loader)
-		if err != nil {
-			t.Errorf("Run failed: %v", err)
-		}
-	})
+	// Mock FileSystem: Instead of writing, we read the existing file and compare
+	fileSystem := &verifyingFileSystem{
+		t:       t,
+		baseDir: uatDir,
+	}
+
+	// Note: program name is expected as the first argument by go-arg
+	fullArgs := append([]string{"impgen"}, testCase.args...)
+
+	err := run.Run(fullArgs, getEnv, fileSystem, loader)
+	if err != nil {
+		t.Errorf("Run failed for %v: %v", testCase.name, err)
+	}
 }
 
-func getUATTestCases() []uatTestCase {
-	return []uatTestCase{
-		{
-			generatedFile: "TrackerImp_test.go",
-			args:          []string{"program_name", "run.Tracker", "--name", "TrackerImp"},
-		},
-		{
-			generatedFile: "CoinFlipperImp_test.go",
-			args:          []string{"program_name", "run.CoinFlipper", "--name", "CoinFlipperImp"},
-		},
-		{
-			generatedFile: "PingPongPlayerImp_test.go",
-			args:          []string{"program_name", "run.PingPongPlayer.Play", "--name", "PingPongPlayerImp", "--call"},
-		},
-		{
-			generatedFile: "IntOpsImp_test.go",
-			args:          []string{"program_name", "run.IntOps", "--name", "IntOpsImp"},
-		},
-		{
-			generatedFile: "PrintSumImp_test.go",
-			args:          []string{"program_name", "run.PrintSum", "--name", "PrintSumImp", "--call"},
-		},
+func scanUATDirectives(dir string) ([]uatTestCase, error) {
+	var testCases []uatTestCase
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if info.IsDir() || !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+
+		fset := token.NewFileSet()
+
+		fileAst, parseErr := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if parseErr != nil {
+			return nil //nolint:nilerr // skip files that don't parse
+		}
+
+		for _, cg := range fileAst.Comments {
+			for _, c := range cg.List {
+				if tc, ok := parseGenerateComment(c.Text, fileAst.Name.Name); ok {
+					testCases = append(testCases, tc)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk UAT directory: %w", err)
 	}
+
+	return testCases, nil
+}
+
+func parseGenerateComment(text, pkgName string) (uatTestCase, bool) {
+	if !strings.HasPrefix(text, "//go:generate") {
+		return uatTestCase{}, false
+	}
+
+	if !strings.Contains(text, "impgen/main.go") {
+		return uatTestCase{}, false
+	}
+
+	fields := strings.Fields(text)
+
+	var args []string
+
+	foundMain := false
+	for _, field := range fields {
+		if foundMain {
+			args = append(args, field)
+		} else if strings.HasSuffix(field, "impgen/main.go") {
+			foundMain = true
+		}
+	}
+
+	if len(args) == 0 {
+		return uatTestCase{}, false
+	}
+
+	// Use the interface/function name as the test case name
+	return uatTestCase{
+		name:    args[0],
+		args:    args,
+		pkgName: pkgName,
+	}, true
 }
 
 // verifyingFileSystem implements FileSystem.
 // It reads the file from disk that *would* be overwritten and compares content.
 type verifyingFileSystem struct {
-	t            *testing.T
-	expectedPath string
+	t       *testing.T
+	baseDir string
 }
 
-func (v *verifyingFileSystem) WriteFile(_ string, data []byte, _ os.FileMode) error {
+func (v *verifyingFileSystem) WriteFile(name string, data []byte, _ os.FileMode) error {
+	path := filepath.Join(v.baseDir, name)
 	// Read the actual committed file from the UAT directory
-	expectedData, err := os.ReadFile(v.expectedPath)
+	expectedData, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read expected file %s: %w", v.expectedPath, err)
+		return fmt.Errorf("failed to read expected file %s: %w", path, err)
 	}
 
 	// Compare generated content with committed content
 	if string(expectedData) != string(data) {
-		v.t.Errorf("Generated code differs from UAT golden file: %s", v.expectedPath)
-		// Note: We could print a diff here, but strict equality check is sufficient for CI.
-		// If this fails, the user should inspect the file manually or use a diff tool.
+		v.t.Errorf("Generated code differs from UAT golden file: %s", path)
 	}
 
 	return nil
 }
 
 // testPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
-// Duplicated here for testing purposes to avoid importing main.
 type testPackageLoader struct {
 	Dir string
 }
@@ -134,7 +194,7 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	cfg := &packages.Config{
 		Mode:  packages.LoadAllSyntax,
 		Tests: true,
-		Dir:   pl.Dir, // Use the configured directory
+		Dir:   pl.Dir,
 	}
 
 	pkgs, err := packages.Load(cfg, importPath)
@@ -146,7 +206,6 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
 	}
 
-	// Collect all AST files from all packages (including test packages)
 	var (
 		allFiles  []*ast.File
 		fset      *token.FileSet
@@ -162,7 +221,6 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 			fset = pkg.Fset
 		}
 
-		// Use type info from the first valid package
 		if typesInfo == nil && pkg.TypesInfo != nil {
 			typesInfo = pkg.TypesInfo
 		}
