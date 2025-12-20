@@ -38,6 +38,8 @@ func TestBusinessLogic(t *testing.T) {
 var errNotFound = errors.New("not found")
 
 // TODO: add comments explaining what all the generated code is doing, too.
+// TODO: remove the existing unit tests besides UAT, and see what coverage remains. Only add back tests that provided
+// necessary coverage that the UAT tests did not.
 
 func TestBusinessLogicError(t *testing.T) {
 	t.Parallel()
