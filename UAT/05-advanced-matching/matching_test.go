@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	. "github.com/onsi/gomega" //nolint:revive
 	matching "github.com/toejough/imptest/UAT/05-advanced-matching"
 	"github.com/toejough/imptest/imptest"
 )
@@ -34,8 +35,25 @@ func TestAdvancedMatching(t *testing.T) {
 	})).InjectResult(true)
 }
 
-// TODO: not sure this actually adds anything beyond the above test? One of these could use Any() to show that.
-// TODO: add an actual test that uses gomega matchers?
+// TODO: not sure this actually adds anything beyond the above test?
+
+func TestGomegaIntegration(t *testing.T) {
+	t.Parallel()
+
+	imp := NewComplexServiceImp(t)
+
+	go matching.UseService(imp.Mock, "gomega rules")
+
+	// imptest is compatible with third-party matchers like Gomega via duck typing.
+	// Any object implementing Match(any) (bool, error) and FailureMessage(any) string works.
+	imp.ExpectCallIs.Process().ExpectArgsShould(
+		And(
+			HaveField("Payload", Equal("gomega rules")),
+			HaveField("ID", BeNumerically(">", 100)),
+		),
+	).InjectResult(true)
+}
+
 func TestSimplifiedMatching(t *testing.T) {
 	t.Parallel()
 

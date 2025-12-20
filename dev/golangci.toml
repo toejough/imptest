@@ -30,6 +30,7 @@ allow = [
 files = ['$test']
 allow = [
 	'$gostd',
+	'github.com/onsi/gomega',
 	'pgregory.net/rapid',
 	'github.com/toejough/imptest',
 	'github.com/toejough/imptest/imptest',
