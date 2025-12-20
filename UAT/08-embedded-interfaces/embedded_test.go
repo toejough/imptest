@@ -27,6 +27,8 @@ func TestEmbeddedInterfaces(t *testing.T) {
 	mock.ExpectCallIs.Close().ExpectArgsAre().InjectResult(nil)
 }
 
+// TODO: not sure this test adds much value beyond the above?
+
 func TestEmbeddedInterfaceError(t *testing.T) {
 	t.Parallel()
 

@@ -9,6 +9,8 @@ import (
 
 //go:generate go run ../../impgen/main.go concurrency.SlowService --name SlowServiceImp
 
+// TODO: document all the tests
+
 func TestConcurrentOutOfOrder(t *testing.T) {
 	t.Parallel()
 

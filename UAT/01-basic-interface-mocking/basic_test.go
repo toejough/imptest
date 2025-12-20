@@ -6,10 +6,16 @@ import (
 	basic "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
 )
 
+// TODO: demonstrate without the --name option. and then below a copy of the test, but this time, with the custom
+// naming, to demonstrate the difference.
+
 //go:generate go run ../../impgen/main.go basic.Ops --name OpsImp
 
 func TestBasicMocking(t *testing.T) {
 	t.Parallel()
+	// TODO: rename mock to imp, everywhere. The returns from New...Imp should always be imp or xxxImp, to really
+	// differentiate this from a normal mock, especially because the mock itself is actually in imp.Mock. Calling the
+	// return value 'imp' makes it clearer that this is the generated implementation, rather than just a mock object.
 
 	// Initialize the generated mock.
 	mock := NewOpsImp(t)

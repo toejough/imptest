@@ -25,6 +25,9 @@ func TestAdvancedMatching(t *testing.T) {
 	})).InjectResult(true)
 }
 
+// TODO: not sure this actually adds anything beyond the above test? One of these could use Any() to show that.
+// TODO: add an actual test that uses gomega matchers?
+// TODO: make satisfies take a predicate that returns error, so we can give better failure messages?
 func TestSimplifiedMatching(t *testing.T) {
 	t.Parallel()
 

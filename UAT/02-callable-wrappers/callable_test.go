@@ -48,6 +48,7 @@ func TestBusinessLogicError(t *testing.T) {
 	// Simulate an error from the service.
 	mockSvc.ExpectCallIs.FetchData().ExpectArgsAre(99).InjectResults("", errNotFound)
 
+	// TODO: remove this test? I'm not sure what else it's demonstrating, and it uses advanced matching too early.
 	// Verify that the business logic returns the error.
 	logic.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) bool {
 		return errors.Is(err, errNotFound)

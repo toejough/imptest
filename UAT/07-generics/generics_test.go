@@ -15,6 +15,8 @@ import (
 // Generate a wrapper for the generic function.
 //go:generate go run ../../impgen/main.go generics.ProcessItem --name ProcessItemImp --call
 
+// TODO: automatically identify whether the generate arg is an interface or a function, and skip --call for interfaces?
+
 var errTest = errors.New("test error")
 
 func TestGenericMocking(t *testing.T) {
@@ -55,6 +57,7 @@ func TestGenericCallable(t *testing.T) {
 	logic.ExpectReturnedValuesAre(nil)
 }
 
+// TODO: I'm not sure what these are demonstrating that is unique.
 func TestProcessItem_Error(t *testing.T) {
 	t.Parallel()
 

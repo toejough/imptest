@@ -1,12 +1,19 @@
 # imptest
 
-**Zero mock code. Full control.**
+**Zero manual mocking. Full control.**
 
 ## What is imptest?
 
 **Test impure functions without writing mock implementations.**
 
 imptest generates type-safe mocks from your interfaces. Each test interactively controls the mock—expect calls, inject responses, and validate behavior—all with compile-time safety or flexible matchers. No manual mock code. No complex setup. Just point at an interface and test.
+
+## Why though?
+
+Sometimes you want to test those pesky impure functions that call out to other services, databases, or systems.
+Traditional mocking libraries often require you to write mock implementations by hand or configure complex expectations
+upfront. imptest changes the game by generating mocks automatically and letting you control them interactively during
+tests.
 
 ## Quick Start
 
@@ -155,7 +162,7 @@ go generate ./...
 ## Learn More
 
 - **API Reference**: [pkg.go.dev/github.com/toejough/imptest](https://pkg.go.dev/github.com/toejough/imptest)
-- **More Examples**: See [`UAT/run/run_test.go`](UAT/run/run_test.go) for comprehensive examples
+- **More Examples**: See the UAT directory for comprehensive examples
 - **How It Works**: imptest generates mocks that communicate via channels, enabling synchronous test control of asynchronous function behavior
 
 ## Why imptest?
@@ -167,7 +174,7 @@ go generate ./...
 **imptest** lets you:
 - Generate mocks automatically from interfaces
 - Control mocks interactively—inject responses as calls happen
-- Choose type-safe exact matching OR flexible gomega matchers
+- Choose type-safe exact matching OR flexible gomega-style matchers
 - Test concurrent behavior with timeout-based call matching
 
-**Zero mock code. Full control.**
+**Zero manual mocking. Full control.**
