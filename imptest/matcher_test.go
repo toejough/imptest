@@ -161,54 +161,75 @@ func TestAny(t *testing.T) {
 }
 
 // Test the Satisfies() matcher.
-func TestSatisfies(t *testing.T) {
+
+func TestSatisfies_MatchFailure(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Match success", func(t *testing.T) {
-		t.Parallel()
-
-		matcher := imptest.Satisfies(func(val int) bool {
-			return val > 10
-		})
-
-		ok, err := matcher.Match(42)
-		if !ok || err != nil {
-			t.Errorf("Satisfies().Match(42) = (%v, %v), want (true, nil)", ok, err)
+	matcher := imptest.Satisfies(func(val int) error {
+		if val <= 10 {
+			return errors.New("must be greater than 10")
 		}
+
+		return nil
 	})
 
-	t.Run("Match failure", func(t *testing.T) {
-		t.Parallel()
+	ok, err := matcher.Match(5)
 
-		matcher := imptest.Satisfies(func(val int) bool {
-			return val > 10
-		})
+	if ok || err != nil {
+		t.Errorf("Satisfies().Match(5) = (%v, %v), want (false, nil)", ok, err)
+	}
 
-		ok, err := matcher.Match(5)
-		if ok || err != nil {
-			t.Errorf("Satisfies().Match(5) = (%v, %v), want (false, nil)", ok, err)
+	msg := matcher.FailureMessage(5)
+
+	expected := "value 5 does not satisfy predicate: must be greater than 10"
+
+	if msg != expected {
+		t.Errorf("Satisfies().FailureMessage(5) = %q, want %q", msg, expected)
+	}
+}
+
+func TestSatisfies_MatchSuccess(t *testing.T) {
+	t.Parallel()
+
+	matcher := imptest.Satisfies(func(val int) error {
+		if val <= 10 {
+			return errors.New("must be greater than 10")
 		}
 
-		msg := matcher.FailureMessage(5)
-		if msg == "" {
-			t.Errorf("Satisfies().FailureMessage(5) should not be empty")
-		}
+		return nil
 	})
 
-	t.Run("Type mismatch", func(t *testing.T) {
-		t.Parallel()
+	ok, err := matcher.Match(42)
 
-		matcher := imptest.Satisfies(func(val int) bool {
-			return val > 10
-		})
+	if !ok || err != nil {
+		t.Errorf("Satisfies().Match(42) = (%v, %v), want (true, nil)", ok, err)
+	}
 
-		ok, err := matcher.Match("not an int")
-		if ok {
-			t.Errorf("Satisfies().Match(string) should return ok=false")
-		}
+	// Test FailureMessage even on success (for coverage)
 
-		if err == nil {
-			t.Errorf("Satisfies().Match(string) should return error for type mismatch")
-		}
+	msg := matcher.FailureMessage(42)
+
+	expected := "value 42 does not satisfy predicate"
+
+	if msg != expected {
+		t.Errorf("Satisfies().FailureMessage(42) = %q, want %q", msg, expected)
+	}
+}
+
+func TestSatisfies_TypeMismatch(t *testing.T) {
+	t.Parallel()
+
+	matcher := imptest.Satisfies(func(_ int) error {
+		return nil
 	})
+
+	ok, err := matcher.Match("not an int")
+
+	if ok {
+		t.Errorf("Satisfies().Match(string) should return ok=false")
+	}
+
+	if err == nil {
+		t.Errorf("Satisfies().Match(string) should return error for type mismatch")
+	}
 }

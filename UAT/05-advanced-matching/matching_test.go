@@ -1,6 +1,7 @@
 package matching_test
 
 import (
+	"fmt"
 	"testing"
 
 	matching "github.com/toejough/imptest/UAT/05-advanced-matching"
@@ -20,14 +21,21 @@ func TestAdvancedMatching(t *testing.T) {
 	// We want to match the Payload exactly, but use a predicate for ID
 	// and Any() for the Timestamp because we don't care about the exact value.
 	// Use a predicate for more complex logic.
-	imp.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(data matching.Data) bool {
-		return data.Payload == "hello world" && data.ID > 0
+	imp.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(data matching.Data) error {
+		if data.Payload != "hello world" {
+			return fmt.Errorf("expected payload 'hello world', got %q", data.Payload)
+		}
+
+		if data.ID <= 0 {
+			return fmt.Errorf("expected ID > 0, got %d", data.ID)
+		}
+
+		return nil
 	})).InjectResult(true)
 }
 
 // TODO: not sure this actually adds anything beyond the above test? One of these could use Any() to show that.
 // TODO: add an actual test that uses gomega matchers?
-// TODO: make satisfies take a predicate that returns error, so we can give better failure messages?
 func TestSimplifiedMatching(t *testing.T) {
 	t.Parallel()
 
@@ -36,7 +44,11 @@ func TestSimplifiedMatching(t *testing.T) {
 	go imp.Mock.Process(matching.Data{ID: 1, Payload: "a", Timestamp: 2})
 
 	// Match only part of the struct using Satisfies
-	imp.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(d matching.Data) bool {
-		return d.Payload == "a"
+	imp.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(d matching.Data) error {
+		if d.Payload != "a" {
+			return fmt.Errorf("expected payload 'a', got %q", d.Payload)
+		}
+
+		return nil
 	})).InjectResult(true)
 }

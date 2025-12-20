@@ -54,6 +54,11 @@ paths = ['third_party$', 'builtin$', 'examples$']
 [issues]
 fix = true
 
+[[linters.exclusions.rules]]
+# Dynamic errors are acceptable and often clearer in test code/predicates.
+path = "_test.go"
+linters = ['err113']
+
 [formatters]
 enable = ['gofmt', 'gofumpt', 'goimports']
 

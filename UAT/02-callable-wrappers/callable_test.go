@@ -2,6 +2,7 @@ package callable_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
@@ -54,7 +55,11 @@ func TestBusinessLogicError(t *testing.T) {
 
 	// TODO: remove this test? I'm not sure what else it's demonstrating, and it uses advanced matching too early.
 	// Verify that the business logic returns the error.
-	logicImp.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) bool {
-		return errors.Is(err, errNotFound)
+	logicImp.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) error {
+		if !errors.Is(err, errNotFound) {
+			return fmt.Errorf("expected error %w, got %w", errNotFound, err)
+		}
+
+		return nil
 	}))
 }

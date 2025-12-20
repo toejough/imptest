@@ -2,6 +2,7 @@ package generics_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	generics "github.com/toejough/imptest/UAT/07-generics"
@@ -70,8 +71,12 @@ func TestProcessItem_Error(t *testing.T) {
 
 		repoImp.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("", errTest)
 
-		logicImp.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) bool {
-			return errors.Is(err, errTest)
+		logicImp.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) error {
+			if !errors.Is(err, errTest) {
+				return fmt.Errorf("expected error %w, got %w", errTest, err)
+			}
+
+			return nil
 		}))
 	})
 
@@ -85,8 +90,12 @@ func TestProcessItem_Error(t *testing.T) {
 		repoImp.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("data", nil)
 		repoImp.ExpectCallIs.Save().ExpectArgsAre("data").InjectResult(errTest)
 
-		logicImp.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) bool {
-			return errors.Is(err, errTest)
+		logicImp.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) error {
+			if !errors.Is(err, errTest) {
+				return fmt.Errorf("expected error %w, got %w", errTest, err)
+			}
+
+			return nil
 		}))
 	})
 }

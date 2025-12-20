@@ -60,24 +60,33 @@ func (anyMatcher) FailureMessage(any) string {
 }
 
 // Satisfies returns a matcher that uses a predicate function to check for a match.
-func Satisfies[T any](predicate func(T) bool) Matcher {
-	return satisfiesMatcher[T]{predicate: predicate}
+// The predicate should return nil if the value matches, or an error describing
+// the mismatch if it does not.
+func Satisfies[T any](predicate func(T) error) Matcher {
+	return &satisfiesMatcher[T]{predicate: predicate}
 }
 
 type satisfiesMatcher[T any] struct {
-	predicate func(T) bool
+	predicate func(T) error
+	lastErr   error
 }
 
-func (m satisfiesMatcher[T]) Match(actual any) (bool, error) {
+func (m *satisfiesMatcher[T]) Match(actual any) (bool, error) {
 	val, ok := actual.(T)
 
 	if !ok {
 		return false, fmt.Errorf("%w: expected %T, got %T", errTypeMismatch, *new(T), actual)
 	}
 
-	return m.predicate(val), nil
+	m.lastErr = m.predicate(val)
+
+	return m.lastErr == nil, nil
 }
 
-func (m satisfiesMatcher[T]) FailureMessage(actual any) string {
+func (m *satisfiesMatcher[T]) FailureMessage(actual any) string {
+	if m.lastErr != nil {
+		return fmt.Sprintf("value %v does not satisfy predicate: %v", actual, m.lastErr)
+	}
+
 	return fmt.Sprintf("value %v does not satisfy predicate", actual)
 }
