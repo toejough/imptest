@@ -4,7 +4,6 @@ package generics_test
 
 import "github.com/toejough/imptest/imptest"
 import "reflect"
-import "sync"
 import "testing"
 import "time"
 
@@ -13,13 +12,10 @@ type RepositoryImpMock[T any] struct {
 }
 
 type RepositoryImp[T any] struct {
-	t            *testing.T
+	*imptest.Controller[*RepositoryImpCall[T]]
 	Mock         *RepositoryImpMock[T]
-	callChan     chan *RepositoryImpCall[T]
 	ExpectCallIs *RepositoryImpExpectCallIs[T]
 	currentCall  *RepositoryImpCall[T]
-	callQueue    []*RepositoryImpCall[T]
-	queueLock    sync.Mutex
 }
 
 type RepositoryImpSaveCall[T any] struct {
@@ -78,7 +74,7 @@ func (m *RepositoryImpMock[T]) Save(item T) error {
 		Save: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -101,7 +97,7 @@ func (m *RepositoryImpMock[T]) Get(id string) (T, error) {
 		Get: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -290,46 +286,6 @@ func (i *RepositoryImp[T]) Within(d time.Duration) *RepositoryImpTimed[T] {
 	}
 }
 
-func (i *RepositoryImp[T]) GetCall(
-	d time.Duration, validator func(*RepositoryImpCall[T]) bool,
-) *RepositoryImpCall[T] {
-	i.queueLock.Lock()
-
-	// Check queue first while holding lock
-	for index, call := range i.callQueue {
-		if validator(call) {
-			// Remove from queue
-			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
-			i.queueLock.Unlock()
-			return call
-		}
-	}
-
-	// Release lock before blocking on channel to avoid deadlock
-	i.queueLock.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if d > 0 {
-		timeoutChan = time.After(d)
-	}
-
-	for {
-		select {
-		case call := <-i.callChan:
-			if validator(call) {
-				return call
-			}
-			// Queue it - need lock to access shared queue
-			i.queueLock.Lock()
-			i.callQueue = append(i.callQueue, call)
-			i.queueLock.Unlock()
-		case <-timeoutChan:
-			i.t.Fatalf("timeout waiting for call matching validator")
-			return nil
-		}
-	}
-}
-
 func (i *RepositoryImp[T]) GetCurrentCall() *RepositoryImpCall[T] {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -340,8 +296,7 @@ func (i *RepositoryImp[T]) GetCurrentCall() *RepositoryImpCall[T] {
 
 func NewRepositoryImp[T any](t *testing.T) *RepositoryImp[T] {
 	imp := &RepositoryImp[T]{
-		t:        t,
-		callChan: make(chan *RepositoryImpCall[T], 1),
+		Controller: imptest.NewController[*RepositoryImpCall[T]](t),
 	}
 	imp.Mock = &RepositoryImpMock[T]{imp: imp}
 	imp.ExpectCallIs = &RepositoryImpExpectCallIs[T]{imp: imp}

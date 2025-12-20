@@ -270,15 +270,11 @@ func Test(c context.Context) error {
 		"go",
 		"test",
 		"-timeout=60s",
-		// "-shuffle=1725149006359140000",
 		"-race",
-		// "-p=1",
 		"-coverprofile=coverage.out",
-		// "-coverpkg=./UAT/run,.,./impgen/run",
+		"-coverpkg=./...",
 		"-cover",
-		// "-covermode=atomic",
 		"./...",
-		// -test.shuffle 1725149006359140000
 	)
 	if err != nil {
 		return err

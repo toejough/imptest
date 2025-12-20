@@ -4,7 +4,6 @@ package embedded_test
 
 import "github.com/toejough/imptest/imptest"
 import "reflect"
-import "sync"
 import "testing"
 import "time"
 
@@ -13,13 +12,10 @@ type ReadCloserImpMock struct {
 }
 
 type ReadCloserImp struct {
-	t            *testing.T
+	*imptest.Controller[*ReadCloserImpCall]
 	Mock         *ReadCloserImpMock
-	callChan     chan *ReadCloserImpCall
 	ExpectCallIs *ReadCloserImpExpectCallIs
 	currentCall  *ReadCloserImpCall
-	callQueue    []*ReadCloserImpCall
-	queueLock    sync.Mutex
 }
 
 type ReadCloserImpReadCall struct {
@@ -77,7 +73,7 @@ func (m *ReadCloserImpMock) Read(p []byte) (n int, err error) {
 		Read: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -99,7 +95,7 @@ func (m *ReadCloserImpMock) Close() error {
 		Close: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -278,46 +274,6 @@ func (i *ReadCloserImp) Within(d time.Duration) *ReadCloserImpTimed {
 	}
 }
 
-func (i *ReadCloserImp) GetCall(
-	d time.Duration, validator func(*ReadCloserImpCall) bool,
-) *ReadCloserImpCall {
-	i.queueLock.Lock()
-
-	// Check queue first while holding lock
-	for index, call := range i.callQueue {
-		if validator(call) {
-			// Remove from queue
-			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
-			i.queueLock.Unlock()
-			return call
-		}
-	}
-
-	// Release lock before blocking on channel to avoid deadlock
-	i.queueLock.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if d > 0 {
-		timeoutChan = time.After(d)
-	}
-
-	for {
-		select {
-		case call := <-i.callChan:
-			if validator(call) {
-				return call
-			}
-			// Queue it - need lock to access shared queue
-			i.queueLock.Lock()
-			i.callQueue = append(i.callQueue, call)
-			i.queueLock.Unlock()
-		case <-timeoutChan:
-			i.t.Fatalf("timeout waiting for call matching validator")
-			return nil
-		}
-	}
-}
-
 func (i *ReadCloserImp) GetCurrentCall() *ReadCloserImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -328,8 +284,7 @@ func (i *ReadCloserImp) GetCurrentCall() *ReadCloserImpCall {
 
 func NewReadCloserImp(t *testing.T) *ReadCloserImp {
 	imp := &ReadCloserImp{
-		t:        t,
-		callChan: make(chan *ReadCloserImpCall, 1),
+		Controller: imptest.NewController[*ReadCloserImpCall](t),
 	}
 	imp.Mock = &ReadCloserImpMock{imp: imp}
 	imp.ExpectCallIs = &ReadCloserImpExpectCallIs{imp: imp}

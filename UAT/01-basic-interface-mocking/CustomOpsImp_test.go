@@ -4,7 +4,6 @@ package basic_test
 
 import "github.com/toejough/imptest/imptest"
 import "reflect"
-import "sync"
 import "testing"
 import "time"
 
@@ -13,13 +12,10 @@ type CustomOpsImpMock struct {
 }
 
 type CustomOpsImp struct {
-	t            *testing.T
+	*imptest.Controller[*CustomOpsImpCall]
 	Mock         *CustomOpsImpMock
-	callChan     chan *CustomOpsImpCall
 	ExpectCallIs *CustomOpsImpExpectCallIs
 	currentCall  *CustomOpsImpCall
-	callQueue    []*CustomOpsImpCall
-	queueLock    sync.Mutex
 }
 
 type CustomOpsImpAddCall struct {
@@ -123,7 +119,7 @@ func (m *CustomOpsImpMock) Add(a int, b int) int {
 		Add: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -147,7 +143,7 @@ func (m *CustomOpsImpMock) Store(key string, value any) (int, error) {
 		Store: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -170,7 +166,7 @@ func (m *CustomOpsImpMock) Log(message string) {
 		Log: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -194,7 +190,7 @@ func (m *CustomOpsImpMock) Notify(message string, ids ...int) bool {
 		Notify: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -556,46 +552,6 @@ func (i *CustomOpsImp) Within(d time.Duration) *CustomOpsImpTimed {
 	}
 }
 
-func (i *CustomOpsImp) GetCall(
-	d time.Duration, validator func(*CustomOpsImpCall) bool,
-) *CustomOpsImpCall {
-	i.queueLock.Lock()
-
-	// Check queue first while holding lock
-	for index, call := range i.callQueue {
-		if validator(call) {
-			// Remove from queue
-			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
-			i.queueLock.Unlock()
-			return call
-		}
-	}
-
-	// Release lock before blocking on channel to avoid deadlock
-	i.queueLock.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if d > 0 {
-		timeoutChan = time.After(d)
-	}
-
-	for {
-		select {
-		case call := <-i.callChan:
-			if validator(call) {
-				return call
-			}
-			// Queue it - need lock to access shared queue
-			i.queueLock.Lock()
-			i.callQueue = append(i.callQueue, call)
-			i.queueLock.Unlock()
-		case <-timeoutChan:
-			i.t.Fatalf("timeout waiting for call matching validator")
-			return nil
-		}
-	}
-}
-
 func (i *CustomOpsImp) GetCurrentCall() *CustomOpsImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -606,8 +562,7 @@ func (i *CustomOpsImp) GetCurrentCall() *CustomOpsImpCall {
 
 func NewCustomOpsImp(t *testing.T) *CustomOpsImp {
 	imp := &CustomOpsImp{
-		t:        t,
-		callChan: make(chan *CustomOpsImpCall, 1),
+		Controller: imptest.NewController[*CustomOpsImpCall](t),
 	}
 	imp.Mock = &CustomOpsImpMock{imp: imp}
 	imp.ExpectCallIs = &CustomOpsImpExpectCallIs{imp: imp}

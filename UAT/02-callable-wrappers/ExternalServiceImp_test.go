@@ -3,7 +3,6 @@
 package callable_test
 
 import "github.com/toejough/imptest/imptest"
-import "sync"
 import "testing"
 import "time"
 
@@ -12,13 +11,10 @@ type ExternalServiceImpMock struct {
 }
 
 type ExternalServiceImp struct {
-	t            *testing.T
+	*imptest.Controller[*ExternalServiceImpCall]
 	Mock         *ExternalServiceImpMock
-	callChan     chan *ExternalServiceImpCall
 	ExpectCallIs *ExternalServiceImpExpectCallIs
 	currentCall  *ExternalServiceImpCall
-	callQueue    []*ExternalServiceImpCall
-	queueLock    sync.Mutex
 }
 
 type ExternalServiceImpFetchDataCall struct {
@@ -77,7 +73,7 @@ func (m *ExternalServiceImpMock) FetchData(id int) (string, error) {
 		FetchData: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -100,7 +96,7 @@ func (m *ExternalServiceImpMock) Process(data string) string {
 		Process: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -289,46 +285,6 @@ func (i *ExternalServiceImp) Within(d time.Duration) *ExternalServiceImpTimed {
 	}
 }
 
-func (i *ExternalServiceImp) GetCall(
-	d time.Duration, validator func(*ExternalServiceImpCall) bool,
-) *ExternalServiceImpCall {
-	i.queueLock.Lock()
-
-	// Check queue first while holding lock
-	for index, call := range i.callQueue {
-		if validator(call) {
-			// Remove from queue
-			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
-			i.queueLock.Unlock()
-			return call
-		}
-	}
-
-	// Release lock before blocking on channel to avoid deadlock
-	i.queueLock.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if d > 0 {
-		timeoutChan = time.After(d)
-	}
-
-	for {
-		select {
-		case call := <-i.callChan:
-			if validator(call) {
-				return call
-			}
-			// Queue it - need lock to access shared queue
-			i.queueLock.Lock()
-			i.callQueue = append(i.callQueue, call)
-			i.queueLock.Unlock()
-		case <-timeoutChan:
-			i.t.Fatalf("timeout waiting for call matching validator")
-			return nil
-		}
-	}
-}
-
 func (i *ExternalServiceImp) GetCurrentCall() *ExternalServiceImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -339,8 +295,7 @@ func (i *ExternalServiceImp) GetCurrentCall() *ExternalServiceImpCall {
 
 func NewExternalServiceImp(t *testing.T) *ExternalServiceImp {
 	imp := &ExternalServiceImp{
-		t:        t,
-		callChan: make(chan *ExternalServiceImpCall, 1),
+		Controller: imptest.NewController[*ExternalServiceImpCall](t),
 	}
 	imp.Mock = &ExternalServiceImpMock{imp: imp}
 	imp.ExpectCallIs = &ExternalServiceImpExpectCallIs{imp: imp}

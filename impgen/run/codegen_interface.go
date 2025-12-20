@@ -108,7 +108,6 @@ func (gen *codeGenerator) generate() (string, error) {
 	gen.generateExpectCallIsStruct()
 	gen.generateMethodBuilders()
 	gen.generateTimedStruct()
-	gen.generateGetCallMethod()
 	gen.generateGetCurrentCallMethod()
 	gen.generateConstructor()
 
@@ -571,7 +570,7 @@ func (gen *codeGenerator) writeMockMethodEventDispatch(methodName string) {
 	gen.pf("\tcallEvent := &%s%s{\n", gen.callName, gen.formatTypeParamsUse())
 	gen.pf("\t\t%s: call,\n", methodName)
 	gen.pf("\t}\n\n")
-	gen.pf("\tm.imp.callChan <- callEvent\n\n")
+	gen.pf("\tm.imp.CallChan <- callEvent\n\n")
 }
 
 // writeMockMethodResponseHandling writes the response reception and panic handling.
@@ -958,11 +957,6 @@ func (gen *codeGenerator) writeInjectResultsArgs(ftype *ast.FuncType) {
 // generateTimedStruct generates the struct and method for timed call expectations.
 func (gen *codeGenerator) generateTimedStruct() {
 	gen.execTemplate(timedStructTemplate, gen.templateData())
-}
-
-// generateGetCallMethod generates the GetCall method that retrieves matching calls from queue or channel.
-func (gen *codeGenerator) generateGetCallMethod() {
-	gen.execTemplate(getCallMethodTemplate, gen.templateData())
 }
 
 // generateGetCurrentCallMethod generates the GetCurrentCall method that returns the current or next call.

@@ -2,7 +2,7 @@
 
 package safety_test
 
-import "sync"
+import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
 
@@ -11,13 +11,10 @@ type CriticalDependencyImpMock struct {
 }
 
 type CriticalDependencyImp struct {
-	t            *testing.T
+	*imptest.Controller[*CriticalDependencyImpCall]
 	Mock         *CriticalDependencyImpMock
-	callChan     chan *CriticalDependencyImpCall
 	ExpectCallIs *CriticalDependencyImpExpectCallIs
 	currentCall  *CriticalDependencyImpCall
-	callQueue    []*CriticalDependencyImpCall
-	queueLock    sync.Mutex
 }
 
 type CriticalDependencyImpDoWorkCall struct {
@@ -50,7 +47,7 @@ func (m *CriticalDependencyImpMock) DoWork() {
 		DoWork: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -153,46 +150,6 @@ func (i *CriticalDependencyImp) Within(d time.Duration) *CriticalDependencyImpTi
 	}
 }
 
-func (i *CriticalDependencyImp) GetCall(
-	d time.Duration, validator func(*CriticalDependencyImpCall) bool,
-) *CriticalDependencyImpCall {
-	i.queueLock.Lock()
-
-	// Check queue first while holding lock
-	for index, call := range i.callQueue {
-		if validator(call) {
-			// Remove from queue
-			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
-			i.queueLock.Unlock()
-			return call
-		}
-	}
-
-	// Release lock before blocking on channel to avoid deadlock
-	i.queueLock.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if d > 0 {
-		timeoutChan = time.After(d)
-	}
-
-	for {
-		select {
-		case call := <-i.callChan:
-			if validator(call) {
-				return call
-			}
-			// Queue it - need lock to access shared queue
-			i.queueLock.Lock()
-			i.callQueue = append(i.callQueue, call)
-			i.queueLock.Unlock()
-		case <-timeoutChan:
-			i.t.Fatalf("timeout waiting for call matching validator")
-			return nil
-		}
-	}
-}
-
 func (i *CriticalDependencyImp) GetCurrentCall() *CriticalDependencyImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -203,8 +160,7 @@ func (i *CriticalDependencyImp) GetCurrentCall() *CriticalDependencyImpCall {
 
 func NewCriticalDependencyImp(t *testing.T) *CriticalDependencyImp {
 	imp := &CriticalDependencyImp{
-		t:        t,
-		callChan: make(chan *CriticalDependencyImpCall, 1),
+		Controller: imptest.NewController[*CriticalDependencyImpCall](t),
 	}
 	imp.Mock = &CriticalDependencyImpMock{imp: imp}
 	imp.ExpectCallIs = &CriticalDependencyImpExpectCallIs{imp: imp}

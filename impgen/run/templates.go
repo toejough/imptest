@@ -19,10 +19,9 @@ var (
 
 package {{.PkgName}}
 
-{{if .NeedsImptest}}import "github.com/toejough/imptest/imptest"
-{{end}}{{if .NeedsReflect}}import "reflect"
-{{end}}import "sync"
-import "testing"
+import "github.com/toejough/imptest/imptest"
+{{if .NeedsReflect}}import "reflect"
+{{end}}import "testing"
 import "time"
 {{if .NeedsQualifier}}import {{.Qualifier}} "{{.PkgPath}}"
 {{end}}
@@ -35,13 +34,10 @@ import "time"
 `)
 
 	mainStructTemplate = mustParse("mainStruct", `type {{.ImpName}}{{.TypeParamsDecl}} struct {
-	t *testing.T
+	*imptest.Controller[*{{.CallName}}{{.TypeParamsUse}}]
 	Mock *{{.MockName}}{{.TypeParamsUse}}
-	callChan chan *{{.CallName}}{{.TypeParamsUse}}
 	ExpectCallIs *{{.ExpectCallIsName}}{{.TypeParamsUse}}
 	currentCall *{{.CallName}}{{.TypeParamsUse}}
-	callQueue []*{{.CallName}}{{.TypeParamsUse}}
-	queueLock sync.Mutex
 }
 
 `)
@@ -66,49 +62,6 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 
 `)
 
-	getCallMethodTemplate = mustParse("getCallMethod",
-		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCall(
-	d time.Duration, validator func(*{{.CallName}}{{.TypeParamsUse}}) bool,
-) *{{.CallName}}{{.TypeParamsUse}} {
-	i.queueLock.Lock()
-
-	// Check queue first while holding lock
-	for index, call := range i.callQueue {
-		if validator(call) {
-			// Remove from queue
-			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
-			i.queueLock.Unlock()
-			return call
-		}
-	}
-
-	// Release lock before blocking on channel to avoid deadlock
-	i.queueLock.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if d > 0 {
-		timeoutChan = time.After(d)
-	}
-
-	for {
-		select {
-		case call := <-i.callChan:
-			if validator(call) {
-				return call
-			}
-			// Queue it - need lock to access shared queue
-			i.queueLock.Lock()
-			i.callQueue = append(i.callQueue, call)
-			i.queueLock.Unlock()
-		case <-timeoutChan:
-			i.t.Fatalf("timeout waiting for call matching validator")
-			return nil
-		}
-	}
-}
-
-`)
-
 	getCurrentCallMethodTemplate = mustParse("getCurrentCallMethod",
 		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}}{{.TypeParamsUse}} {
 	if i.currentCall != nil && !i.currentCall.Done() {
@@ -123,8 +76,7 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 	constructorTemplate = mustParse("constructor",
 		`func New{{.ImpName}}{{.TypeParamsDecl}}(t *testing.T) *{{.ImpName}}{{.TypeParamsUse}} {
 	imp := &{{.ImpName}}{{.TypeParamsUse}}{
-		t: t,
-		callChan: make(chan *{{.CallName}}{{.TypeParamsUse}}, 1),
+		Controller: imptest.NewController[*{{.CallName}}{{.TypeParamsUse}}](t),
 	}
 	imp.Mock = &{{.MockName}}{{.TypeParamsUse}}{imp: imp}
 	imp.ExpectCallIs = &{{.ExpectCallIsName}}{{.TypeParamsUse}}{imp: imp}

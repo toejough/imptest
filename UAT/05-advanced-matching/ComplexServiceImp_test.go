@@ -3,7 +3,6 @@
 package matching_test
 
 import "github.com/toejough/imptest/imptest"
-import "sync"
 import "testing"
 import "time"
 import matching "github.com/toejough/imptest/UAT/05-advanced-matching"
@@ -13,13 +12,10 @@ type ComplexServiceImpMock struct {
 }
 
 type ComplexServiceImp struct {
-	t            *testing.T
+	*imptest.Controller[*ComplexServiceImpCall]
 	Mock         *ComplexServiceImpMock
-	callChan     chan *ComplexServiceImpCall
 	ExpectCallIs *ComplexServiceImpExpectCallIs
 	currentCall  *ComplexServiceImpCall
-	callQueue    []*ComplexServiceImpCall
-	queueLock    sync.Mutex
 }
 
 type ComplexServiceImpProcessCall struct {
@@ -55,7 +51,7 @@ func (m *ComplexServiceImpMock) Process(d matching.Data) bool {
 		Process: call,
 	}
 
-	m.imp.callChan <- callEvent
+	m.imp.CallChan <- callEvent
 
 	resp := <-responseChan
 
@@ -168,46 +164,6 @@ func (i *ComplexServiceImp) Within(d time.Duration) *ComplexServiceImpTimed {
 	}
 }
 
-func (i *ComplexServiceImp) GetCall(
-	d time.Duration, validator func(*ComplexServiceImpCall) bool,
-) *ComplexServiceImpCall {
-	i.queueLock.Lock()
-
-	// Check queue first while holding lock
-	for index, call := range i.callQueue {
-		if validator(call) {
-			// Remove from queue
-			i.callQueue = append(i.callQueue[:index], i.callQueue[index+1:]...)
-			i.queueLock.Unlock()
-			return call
-		}
-	}
-
-	// Release lock before blocking on channel to avoid deadlock
-	i.queueLock.Unlock()
-
-	var timeoutChan <-chan time.Time
-	if d > 0 {
-		timeoutChan = time.After(d)
-	}
-
-	for {
-		select {
-		case call := <-i.callChan:
-			if validator(call) {
-				return call
-			}
-			// Queue it - need lock to access shared queue
-			i.queueLock.Lock()
-			i.callQueue = append(i.callQueue, call)
-			i.queueLock.Unlock()
-		case <-timeoutChan:
-			i.t.Fatalf("timeout waiting for call matching validator")
-			return nil
-		}
-	}
-}
-
 func (i *ComplexServiceImp) GetCurrentCall() *ComplexServiceImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -218,8 +174,7 @@ func (i *ComplexServiceImp) GetCurrentCall() *ComplexServiceImpCall {
 
 func NewComplexServiceImp(t *testing.T) *ComplexServiceImp {
 	imp := &ComplexServiceImp{
-		t:        t,
-		callChan: make(chan *ComplexServiceImpCall, 1),
+		Controller: imptest.NewController[*ComplexServiceImpCall](t),
 	}
 	imp.Mock = &ComplexServiceImpMock{imp: imp}
 	imp.ExpectCallIs = &ComplexServiceImpExpectCallIs{imp: imp}
