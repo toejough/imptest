@@ -17,22 +17,22 @@ import (
 func TestBusinessLogic(t *testing.T) {
 	t.Parallel()
 
-	// Initialize the mock dependency and the callable wrapper.
-	mockSvc := NewExternalServiceImp(t)
-	logic := NewBusinessLogicImp(t, callable.BusinessLogic)
+	// Initialize the mock implementation dependency and the callable wrapper.
+	impSvc := NewExternalServiceImp(t)
+	logicImp := NewBusinessLogicImp(t, callable.BusinessLogic)
 
 	// Start the business logic in a goroutine.
-	// We pass the mock and the input arguments.
-	logic.Start(mockSvc.Mock, 42)
+	// We pass the mock implementation and the input arguments.
+	logicImp.Start(impSvc.Mock, 42)
 
 	// 1. Expect call to FetchData and provide response.
-	mockSvc.ExpectCallIs.FetchData().ExpectArgsAre(42).InjectResults("raw data", nil)
+	impSvc.ExpectCallIs.FetchData().ExpectArgsAre(42).InjectResults("raw data", nil)
 
 	// 2. Expect call to Process and provide response.
-	mockSvc.ExpectCallIs.Process().ExpectArgsAre("raw data").InjectResult("processed data")
+	impSvc.ExpectCallIs.Process().ExpectArgsAre("raw data").InjectResult("processed data")
 
 	// 3. Verify the final output of the business logic.
-	logic.ExpectReturnedValuesAre("Result: processed data", nil)
+	logicImp.ExpectReturnedValuesAre("Result: processed data", nil)
 }
 
 var errNotFound = errors.New("not found")
@@ -44,17 +44,17 @@ var errNotFound = errors.New("not found")
 func TestBusinessLogicError(t *testing.T) {
 	t.Parallel()
 
-	mockSvc := NewExternalServiceImp(t)
-	logic := NewBusinessLogicImp(t, callable.BusinessLogic)
+	impSvc := NewExternalServiceImp(t)
+	logicImp := NewBusinessLogicImp(t, callable.BusinessLogic)
 
-	logic.Start(mockSvc.Mock, 99)
+	logicImp.Start(impSvc.Mock, 99)
 
 	// Simulate an error from the service.
-	mockSvc.ExpectCallIs.FetchData().ExpectArgsAre(99).InjectResults("", errNotFound)
+	impSvc.ExpectCallIs.FetchData().ExpectArgsAre(99).InjectResults("", errNotFound)
 
 	// TODO: remove this test? I'm not sure what else it's demonstrating, and it uses advanced matching too early.
 	// Verify that the business logic returns the error.
-	logic.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) bool {
+	logicImp.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) bool {
 		return errors.Is(err, errNotFound)
 	}))
 }

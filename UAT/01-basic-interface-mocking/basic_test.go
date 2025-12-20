@@ -13,26 +13,23 @@ import (
 
 func TestBasicMocking(t *testing.T) {
 	t.Parallel()
-	// TODO: rename mock to imp, everywhere. The returns from New...Imp should always be imp or xxxImp, to really
-	// differentiate this from a normal mock, especially because the mock itself is actually in imp.Mock. Calling the
-	// return value 'imp' makes it clearer that this is the generated implementation, rather than just a mock object.
 
-	// Initialize the generated mock.
-	mock := NewOpsImp(t)
+	// Initialize the generated mock implementation.
+	imp := NewOpsImp(t)
 
 	// Run the code under test in a goroutine so the test can interact with it synchronously.
-	go basic.PerformOps(mock.Mock)
+	go basic.PerformOps(imp.Mock)
 
 	// 1. Intercept 'Add' and provide a return value via InjectResult.
-	mock.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectResult(3)
+	imp.ExpectCallIs.Add().ExpectArgsAre(1, 2).InjectResult(3)
 
 	// 2. Intercept 'Store' and provide multiple return values via InjectResults.
-	mock.ExpectCallIs.Store().ExpectArgsAre("foo", "bar").InjectResults(100, nil)
+	imp.ExpectCallIs.Store().ExpectArgsAre("foo", "bar").InjectResults(100, nil)
 
 	// 3. Intercept 'Log' (void method) and signal completion via Resolve.
-	mock.ExpectCallIs.Log().ExpectArgsAre("action performed").Resolve()
+	imp.ExpectCallIs.Log().ExpectArgsAre("action performed").Resolve()
 
 	// 4. Intercept 'Notify' (variadic) and provide a return value.
 	// Note: Variadic arguments are passed normally to ExpectArgsAre.
-	mock.ExpectCallIs.Notify().ExpectArgsAre("alert", 1, 2, 3).InjectResult(true)
+	imp.ExpectCallIs.Notify().ExpectArgsAre("alert", 1, 2, 3).InjectResult(true)
 }

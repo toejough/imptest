@@ -13,31 +13,31 @@ import (
 func TestRecoverFromPanic(t *testing.T) {
 	t.Parallel()
 
-	mockDep := NewCriticalDependencyImp(t)
-	runner := NewSafeRunnerImp(t, safety.SafeRunner)
+	depImp := NewCriticalDependencyImp(t)
+	runnerImp := NewSafeRunnerImp(t, safety.SafeRunner)
 
 	// Start SafeRunner.
-	runner.Start(mockDep.Mock)
+	runnerImp.Start(depImp.Mock)
 
 	// Inject a panic into the dependency call.
-	mockDep.ExpectCallIs.DoWork().InjectPanic("boom")
+	depImp.ExpectCallIs.DoWork().InjectPanic("boom")
 
 	// Verify that SafeRunner recovered and returned false.
-	runner.ExpectReturnedValuesAre(false)
+	runnerImp.ExpectReturnedValuesAre(false)
 }
 
 func TestPropagatePanic(t *testing.T) {
 	t.Parallel()
 
-	mockDep := NewCriticalDependencyImp(t)
-	runner := NewUnsafeRunnerImp(t, safety.UnsafeRunner)
+	depImp := NewCriticalDependencyImp(t)
+	runnerImp := NewUnsafeRunnerImp(t, safety.UnsafeRunner)
 
 	// Start UnsafeRunner.
-	runner.Start(mockDep.Mock)
+	runnerImp.Start(depImp.Mock)
 
 	// Inject a panic into the dependency call.
-	mockDep.ExpectCallIs.DoWork().InjectPanic("fatal error")
+	depImp.ExpectCallIs.DoWork().InjectPanic("fatal error")
 
 	// Verify that the panic was propagated through the runner.
-	runner.ExpectPanicWith("fatal error")
+	runnerImp.ExpectPanicWith("fatal error")
 }

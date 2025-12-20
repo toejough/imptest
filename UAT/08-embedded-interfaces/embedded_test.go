@@ -9,25 +9,25 @@ import (
 )
 
 // TODO: there's a _lot_ of generated code. Is there any way to reduce how much is generated, vs calling out to an imp
-// library for common things? 
+// library for common things?
 
 //go:generate go run ../../impgen/main.go embedded.ReadCloser --name ReadCloserImp
 
 func TestEmbeddedInterfaces(t *testing.T) {
 	t.Parallel()
 
-	mock := NewReadCloserImp(t)
+	imp := NewReadCloserImp(t)
 
 	go func() {
-		_, _ = embedded.ProcessStream(mock.Mock)
+		_, _ = embedded.ProcessStream(imp.Mock)
 	}()
 
 	// Read is embedded from io.Reader
 	// Note: []byte is not comparable, so it uses reflect.DeepEqual automatically.
-	mock.ExpectCallIs.Read().ExpectArgsShould(imptest.Any()).InjectResults(5, nil)
+	imp.ExpectCallIs.Read().ExpectArgsShould(imptest.Any()).InjectResults(5, nil)
 
 	// Close is embedded from Closer
-	mock.ExpectCallIs.Close().ExpectArgsAre().InjectResult(nil)
+	imp.ExpectCallIs.Close().ExpectArgsAre().InjectResult(nil)
 }
 
 // TODO: not sure this test adds much value beyond the above?
@@ -35,15 +35,15 @@ func TestEmbeddedInterfaces(t *testing.T) {
 func TestEmbeddedInterfaceError(t *testing.T) {
 	t.Parallel()
 
-	mock := NewReadCloserImp(t)
+	imp := NewReadCloserImp(t)
 
 	go func() {
-		_, _ = embedded.ProcessStream(mock.Mock)
+		_, _ = embedded.ProcessStream(imp.Mock)
 	}()
 
 	// Simulate a read error
-	mock.ExpectCallIs.Read().ExpectArgsShould(imptest.Any()).InjectResults(0, io.EOF)
+	imp.ExpectCallIs.Read().ExpectArgsShould(imptest.Any()).InjectResults(0, io.EOF)
 
 	// Verify Close is still called
-	mock.ExpectCallIs.Close().InjectResult(nil)
+	imp.ExpectCallIs.Close().InjectResult(nil)
 }

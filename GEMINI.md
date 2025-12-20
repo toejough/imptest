@@ -127,3 +127,20 @@ imp.Within(time.Second).ExpectCallIs.Add().ExpectArgsAre(5, 6).InjectResult(11)
 1.  **Analyze constraints:** If something seems impossible, explain the reasoning first.
 2.  **Propose options:** List multiple approaches before implementing.
 3.  **Fix comprehensively:** Resolve all related issues, not just the symptom.
+
+## Common Pitfalls
+
+*   **Template Context Awareness:** Before removing "unused" fields from generator structs (e.g., `codeGenerator`), always verify if they are accessed within `text/template` strings. Linters cannot see these dependencies.
+*   **String Formatting in Generators:** Double-check `fmt.Printf` / `pf` patterns. Use `%d` or `%s` directly unless the generated code itself is intended to be a format string template (avoid `%%d` unless escaping is explicitly required).
+*   **Error Wrapping in Tests:** When resolving `wrapcheck` by wrapping errors, update corresponding tests to use `imptest.Satisfies(func(err error) bool { return errors.Is(err, target) })` instead of exact value matching (`ExpectReturnedValuesAre`).
+*   **Mock Data Mismatches:** If a test involving mocks hangs or times out, it is likely a data mismatch. Ensure the arguments passed to the system-under-test (`logic.Start(...)`) perfectly match the values in the expectation (`mock.ExpectCallIs...`).
+*   **Proactive Linting:** Address `varnamelen` (short names like `id`, `ok`, `n`) and `mnd` (magic numbers) during the initial implementation of UATs or functions to avoid large-scale refactoring later.
+*   **Renaming & Stuttering:** Avoid `BasicOps` style naming in packages; use `Ops` if the package name already implies the context (e.g., `basic.Ops`).
+
+## User Interaction Preferences
+
+*   **Atomic & Incremental Progress:** Resolve issues one-by-one. After resolving an individual issue or a small logical group (e.g., all `lll` errors in one file), stop and check in.
+*   **Depth-First Remediation:** If a fix introduces a new side-effect (e.g., a new linting error), resolve that secondary issue immediately before proceeding with the original task list.
+*   **Categorized Execution:** When presented with multiple categories of errors, complete one category entirely (e.g., all magic numbers) before moving to the next.
+*   **Propose Before Action:** For non-obvious refactors, structural changes, or updates to this context file, always present the proposed plan or code changes first for approval.
+*   **Zero-Tolerance for Failures:** Ensure `mage check` returns a clean status (0 lint issues, 100% build success, required coverage) before considering a task complete.

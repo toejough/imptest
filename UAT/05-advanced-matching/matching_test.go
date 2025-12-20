@@ -12,15 +12,15 @@ import (
 func TestAdvancedMatching(t *testing.T) {
 	t.Parallel()
 
-	mock := NewComplexServiceImp(t)
+	imp := NewComplexServiceImp(t)
 
-	go matching.UseService(mock.Mock, "hello world")
+	go matching.UseService(imp.Mock, "hello world")
 
 	// Use ExpectArgsShould with matchers.
 	// We want to match the Payload exactly, but use a predicate for ID
 	// and Any() for the Timestamp because we don't care about the exact value.
 	// Use a predicate for more complex logic.
-	mock.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(data matching.Data) bool {
+	imp.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(data matching.Data) bool {
 		return data.Payload == "hello world" && data.ID > 0
 	})).InjectResult(true)
 }
@@ -31,12 +31,12 @@ func TestAdvancedMatching(t *testing.T) {
 func TestSimplifiedMatching(t *testing.T) {
 	t.Parallel()
 
-	mock := NewComplexServiceImp(t)
+	imp := NewComplexServiceImp(t)
 
-	go mock.Mock.Process(matching.Data{ID: 1, Payload: "a", Timestamp: 2})
+	go imp.Mock.Process(matching.Data{ID: 1, Payload: "a", Timestamp: 2})
 
 	// Match only part of the struct using Satisfies
-	mock.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(d matching.Data) bool {
+	imp.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(d matching.Data) bool {
 		return d.Payload == "a"
 	})).InjectResult(true)
 }

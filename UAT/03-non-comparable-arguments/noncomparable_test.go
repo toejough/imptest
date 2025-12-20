@@ -11,15 +11,15 @@ import (
 func TestNonComparableArguments(t *testing.T) {
 	t.Parallel()
 
-	mock := NewDataProcessorImp(t)
+	imp := NewDataProcessorImp(t)
 
-	go noncomparable.RunProcessor(mock.Mock)
+	go noncomparable.RunProcessor(imp.Mock)
 
 	// Intercept ProcessSlice with a slice argument.
 	// imptest automatically uses reflect.DeepEqual for slices.
-	mock.ExpectCallIs.ProcessSlice().ExpectArgsAre([]string{"a", "b", "c"}).InjectResult(3)
+	imp.ExpectCallIs.ProcessSlice().ExpectArgsAre([]string{"a", "b", "c"}).InjectResult(3)
 
 	// Intercept ProcessMap with a map argument.
 	// imptest automatically uses reflect.DeepEqual for maps.
-	mock.ExpectCallIs.ProcessMap().ExpectArgsAre(map[string]int{"threshold": 10}).InjectResult(true)
+	imp.ExpectCallIs.ProcessMap().ExpectArgsAre(map[string]int{"threshold": 10}).InjectResult(true)
 }
