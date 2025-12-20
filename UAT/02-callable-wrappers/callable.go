@@ -1,5 +1,7 @@
 package callable
 
+import "fmt"
+
 // ExternalService is a dependency for our business logic.
 type ExternalService interface {
 	FetchData(id int) (string, error)
@@ -11,7 +13,7 @@ type ExternalService interface {
 func BusinessLogic(svc ExternalService, id int) (string, error) {
 	data, err := svc.FetchData(id)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to fetch data: %w", err)
 	}
 
 	result := svc.Process(data)

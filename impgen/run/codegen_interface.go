@@ -52,7 +52,12 @@ func newCodeGenerator(
 ) (*codeGenerator, error) {
 	impName := info.impName
 
-	_, qualifier, err := interfaceGetPackageInfo(ifaceWithDetails.iface, ifaceWithDetails.typeParams, info.interfaceName, pkgLoader)
+	_, qualifier, err := interfaceGetPackageInfo(
+		ifaceWithDetails.iface,
+		ifaceWithDetails.typeParams,
+		info.interfaceName,
+		pkgLoader,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get interface package info: %w", err)
 	}
@@ -436,7 +441,8 @@ func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftyp
 	resultType := gen.typeWithQualifier(ftype.Results.List[0].Type)
 	gen.pf(`func (c *%s%s) InjectResult(result %s) {
 	c.done = true
-	c.responseChan <- %sResponse%s{Type: "return"`, methodCallName, gen.formatTypeParamsUse(), resultType, methodCallName, gen.formatTypeParamsUse())
+	c.responseChan <- %sResponse%s{Type: "return"`,
+		methodCallName, gen.formatTypeParamsUse(), resultType, methodCallName, gen.formatTypeParamsUse())
 
 	if len(ftype.Results.List[0].Names) > 0 {
 		gen.pf(", %s: result", ftype.Results.List[0].Names[0].Name)
@@ -678,7 +684,8 @@ func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *ast.Fu
 	gen.pf("}\n\n")
 
 	// Generate ExpectCallIs.MethodName() -> returns builder
-	gen.pf("func (e *%s%s) %s() *%s%s {\n", gen.expectCallIsName, gen.formatTypeParamsUse(), methodName, builderName, gen.formatTypeParamsUse())
+	gen.pf("func (e *%s%s) %s() *%s%s {\n",
+		gen.expectCallIsName, gen.formatTypeParamsUse(), methodName, builderName, gen.formatTypeParamsUse())
 	gen.pf("\treturn &%s%s{imp: e.imp, timeout: e.timeout}\n", builderName, gen.formatTypeParamsUse())
 	gen.pf("}\n\n")
 
@@ -839,7 +846,8 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 		// Generate InjectResult shortcut
 		if len(ftype.Results.List) == 1 {
 			resultType := exprToString(gen.fset, ftype.Results.List[0].Type)
-			gen.pf("func (bldr *%s%s) InjectResult(result %s) *%s%s {\n", builderName, gen.formatTypeParamsUse(), resultType, callName, gen.formatTypeParamsUse())
+			gen.pf("func (bldr *%s%s) InjectResult(result %s) *%s%s {\n",
+				builderName, gen.formatTypeParamsUse(), resultType, callName, gen.formatTypeParamsUse())
 			gen.pf("\t%s", validatorCode)
 			gen.pf("\tmethodCall.InjectResult(result)\n")
 			gen.pf("\treturn methodCall\n")
@@ -858,7 +866,8 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 		}
 	} else {
 		// No results - generate Resolve shortcut
-		gen.pf("func (bldr *%s%s) Resolve() *%s%s {\n", builderName, gen.formatTypeParamsUse(), callName, gen.formatTypeParamsUse())
+		gen.pf("func (bldr *%s%s) Resolve() *%s%s {\n",
+			builderName, gen.formatTypeParamsUse(), callName, gen.formatTypeParamsUse())
 		gen.pf("\t%s", validatorCode)
 		gen.pf("\tmethodCall.Resolve()\n")
 		gen.pf("\treturn methodCall\n")
@@ -866,7 +875,8 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 	}
 
 	// Generate InjectPanic shortcut (always available)
-	gen.pf("func (bldr *%s%s) InjectPanic(msg any) *%s%s {\n", builderName, gen.formatTypeParamsUse(), callName, gen.formatTypeParamsUse())
+	gen.pf("func (bldr *%s%s) InjectPanic(msg any) *%s%s {\n",
+		builderName, gen.formatTypeParamsUse(), callName, gen.formatTypeParamsUse())
 	gen.pf("\t%s", validatorCode)
 	gen.pf("\tmethodCall.InjectPanic(msg)\n")
 	gen.pf("\treturn methodCall\n")
@@ -1246,7 +1256,8 @@ func (gen *codeGenerator) typeWithQualifierIdent(ident *ast.Ident) string {
 	var buf strings.Builder
 
 	// Don't qualify type parameters
-	if !gen.isTypeParameter(ident.Name) && gen.qualifier != "" && len(ident.Name) > 0 && unicode.IsUpper(rune(ident.Name[0])) {
+	if !gen.isTypeParameter(ident.Name) && gen.qualifier != "" &&
+		len(ident.Name) > 0 && unicode.IsUpper(rune(ident.Name[0])) {
 		buf.WriteString(gen.qualifier)
 		buf.WriteString(".")
 	}

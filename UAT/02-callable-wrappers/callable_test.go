@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
+	"github.com/toejough/imptest/imptest"
 )
 
 // Generate a mock for the dependency.
@@ -48,5 +49,7 @@ func TestBusinessLogicError(t *testing.T) {
 	mockSvc.ExpectCallIs.FetchData().ExpectArgsAre(99).InjectResults("", errNotFound)
 
 	// Verify that the business logic returns the error.
-	logic.ExpectReturnedValuesAre("", errNotFound)
+	logic.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) bool {
+		return errors.Is(err, errNotFound)
+	}))
 }

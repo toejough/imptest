@@ -1,5 +1,7 @@
 package generics
 
+import "fmt"
+
 // Repository is a generic interface for storage operations.
 type Repository[T any] interface {
 	Save(item T) error
@@ -10,10 +12,15 @@ type Repository[T any] interface {
 func ProcessItem[T any](repo Repository[T], id string, transformer func(T) T) error {
 	item, err := repo.Get(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get item: %w", err)
 	}
 
 	transformed := transformer(item)
 
-	return repo.Save(transformed)
+	err = repo.Save(transformed)
+	if err != nil {
+		return fmt.Errorf("failed to save item: %w", err)
+	}
+
+	return nil
 }

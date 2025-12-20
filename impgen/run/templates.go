@@ -164,7 +164,9 @@ func (c *{{.CallName}}{{.TypeParamsUse}}) Done() bool {
 {{end}}	return false
 }
 
-{{range .Methods}}func (c *{{$.CallName}}{{.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeParamsUse}} { return c.{{.Name}} }
+{{range .Methods}}func (c *{{$.CallName}}{{.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeParamsUse}} {
+	return c.{{.Name}}
+}
 
 {{end}}`)
 

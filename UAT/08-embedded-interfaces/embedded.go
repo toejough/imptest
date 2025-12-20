@@ -1,6 +1,9 @@
 package embedded
 
-import "io"
+import (
+	"fmt"
+	"io"
+)
 
 // Closer is a local interface.
 type Closer interface {
@@ -20,10 +23,13 @@ func ProcessStream(rc ReadCloser) (int, error) {
 	n, err := rc.Read(buf)
 	if err != nil {
 		_ = rc.Close()
-		return 0, err
+		return 0, fmt.Errorf("read failed: %w", err)
 	}
 
 	err = rc.Close()
+	if err != nil {
+		return n, fmt.Errorf("close failed: %w", err)
+	}
 
-	return n, err
+	return n, nil
 }
