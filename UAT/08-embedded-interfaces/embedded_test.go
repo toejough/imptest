@@ -8,6 +8,9 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
+// TODO: there's a _lot_ of generated code. Is there any way to reduce how much is generated, vs calling out to an imp
+// library for common things? 
+
 //go:generate go run ../../impgen/main.go embedded.ReadCloser --name ReadCloserImp
 
 func TestEmbeddedInterfaces(t *testing.T) {

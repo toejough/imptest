@@ -37,6 +37,8 @@ func TestBusinessLogic(t *testing.T) {
 
 var errNotFound = errors.New("not found")
 
+// TODO: add comments explaining what all the generated code is doing, too.
+
 func TestBusinessLogicError(t *testing.T) {
 	t.Parallel()
 
