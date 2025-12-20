@@ -5,11 +5,10 @@ import (
 	"time"
 )
 
-// Tester is a subset of *testing.T.
+// Tester is a subset of testing.TB.
 type Tester interface {
 	Fatalf(format string, args ...any)
 	Helper()
-	Parallel()
 }
 
 // Call represents a single call to a mock or callable.
@@ -79,4 +78,53 @@ func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T
 			return zero
 		}
 	}
+}
+
+// CallableController manages the state of a single function execution.
+type CallableController[T any] struct {
+	T          Tester
+	ReturnChan chan T
+	PanicChan  chan any
+	Returned   *T
+	Panicked   any
+}
+
+// NewCallableController creates a new callable controller.
+func NewCallableController[T any](t Tester) *CallableController[T] {
+	return &CallableController[T]{
+		T:          t,
+		ReturnChan: make(chan T, 1),
+		PanicChan:  make(chan any, 1),
+	}
+}
+
+// WaitForResponse waits for either a return value or a panic.
+func (c *CallableController[T]) WaitForResponse() {
+	if c.Returned != nil || c.Panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-c.ReturnChan:
+		c.Returned = &ret
+	case p := <-c.PanicChan:
+		c.Panicked = p
+	}
+}
+
+// Response defines the interface for a function's result (return or panic).
+type Response interface {
+	Type() string
+	AsReturn() []any
+}
+
+// Deadcode dummy to keep linter happy since these are used in generated code.
+//
+
+var _ = func() {
+	c := NewController[Call](nil)
+	_ = c.GetCall(0, nil)
+
+	cc := NewCallableController[any](nil)
+	cc.WaitForResponse()
 }

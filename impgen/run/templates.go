@@ -138,13 +138,8 @@ import (
 `)
 
 	callableMainStructTemplate = mustParse("callableMainStruct", `type {{.ImpName}}{{.TypeParamsDecl}} struct {
-	t          testing.TB
-	callable   func({{.CallableSignature}}){{.CallableReturns}}
-
-	returnChan chan {{.ReturnType}}
-	panicChan  chan any
-	returned   *{{.ReturnType}}
-	panicked   any
+	*imptest.CallableController[{{.ReturnType}}]
+	callable func({{.CallableSignature}}){{.CallableReturns}}
 }
 
 `)
@@ -152,10 +147,8 @@ import (
 	callableConstructorTemplate = mustParse("callableConstructor",
 		`func New{{.ImpName}}{{.TypeParamsDecl}}(t testing.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
 	return &{{.ImpName}}{{.TypeParamsUse}}{
-		t:          t,
-		callable:   callable,
-		returnChan: make(chan {{.ReturnType}}, 1),
-		panicChan:  make(chan any, 1),
+		CallableController: imptest.NewCallableController[{{.ReturnType}}](t),
+		callable:           callable,
 	}
 }
 
@@ -170,33 +163,18 @@ import (
 
 	callableExpectPanicWithTemplate = mustParse("callableExpectPanicWith",
 		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectPanicWith(expected any) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.panicked != nil {
-		ok, msg := imptest.MatchValue(s.panicked, expected)
+	if s.Panicked != nil {
+		ok, msg := imptest.MatchValue(s.Panicked, expected)
 		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
+			s.T.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
 
-	if s.returned != nil {
-		s.t.Fatalf("expected function to panic, but it returned")
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		s.t.Fatalf("expected function to panic, but it returned")
-	case p := <-s.panicChan:
-		s.panicked = p
-		ok, msg := imptest.MatchValue(p, expected)
-		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
-		}
-	}
+	s.T.Fatalf("expected function to panic, but it returned")
 }
 
 `)
@@ -222,16 +200,16 @@ import (
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				s.panicChan <- r
+				s.PanicChan <- r
 			}
 		}()
 
 {{if .HasReturns}}		{{.ReturnVars}} := s.callable({{.ParamNames}})
-		s.returnChan <- {{.ImpName}}Return{{.TypeParamsUse}}{
+		s.ReturnChan <- {{.ImpName}}Return{{.TypeParamsUse}}{
 {{range .ReturnFields}}			Result{{.Index}}: {{.Name}},
 {{end}}		}
 {{else}}		s.callable({{.ParamNames}})
-		s.returnChan <- struct{}{}
+		s.ReturnChan <- struct{}{}
 {{end}}	}()
 	return s
 }
@@ -240,85 +218,46 @@ import (
 
 	callableExpectReturnedValuesAreTemplate = mustParse("callableExpectReturnedValuesAre",
 		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesAre({{.ResultParams}}) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	if s.Returned != nil {
 {{.ResultComparisons}}		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-{{.ResultComparisons2}}	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 `)
 
 	callableExpectReturnedValuesShouldTemplate = mustParse("callableExpectReturnedValuesShould",
 		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesShould({{.ResultParams}}) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	if s.Returned != nil {
 {{.ResultComparisons}}		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-{{.ResultComparisons2}}	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 `)
 
 	callableGetResponseMethodTemplate = mustParse("callableGetResponseMethod",
 		`func (s *{{.ImpName}}{{.TypeParamsUse}}) GetResponse() *{{.ImpName}}Response{{.TypeParamsUse}} {
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	s.WaitForResponse()
+
+	if s.Returned != nil {
 		return &{{.ImpName}}Response{{.TypeParamsUse}}{
 			EventType: "ReturnEvent",
-{{if .HasReturns}}			ReturnVal: s.returned,
+{{if .HasReturns}}			ReturnVal: s.Returned,
 {{end}}		}
 	}
 
-	if s.panicked != nil {
-		return &{{.ImpName}}Response{{.TypeParamsUse}}{
-			EventType: "PanicEvent",
-			PanicVal:  s.panicked,
-		}
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		return &{{.ImpName}}Response{{.TypeParamsUse}}{
-			EventType: "ReturnEvent",
-{{if .HasReturns}}			ReturnVal: &ret,
-{{end}}		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		return &{{.ImpName}}Response{{.TypeParamsUse}}{
-			EventType: "PanicEvent",
-			PanicVal:  p,
-		}
+	return &{{.ImpName}}Response{{.TypeParamsUse}}{
+		EventType: "PanicEvent",
+		PanicVal:  s.Panicked,
 	}
 }
 

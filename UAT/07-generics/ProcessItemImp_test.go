@@ -13,21 +13,14 @@ type ProcessItemImpReturn[T any] struct {
 }
 
 type ProcessItemImp[T any] struct {
-	t        testing.TB
+	*imptest.CallableController[ProcessItemImpReturn[T]]
 	callable func(repo generics.Repository[T], id string, transformer func(T) T) error
-
-	returnChan chan ProcessItemImpReturn[T]
-	panicChan  chan any
-	returned   *ProcessItemImpReturn[T]
-	panicked   any
 }
 
 func NewProcessItemImp[T any](t testing.TB, callable func(repo generics.Repository[T], id string, transformer func(T) T) error) *ProcessItemImp[T] {
 	return &ProcessItemImp[T]{
-		t:          t,
-		callable:   callable,
-		returnChan: make(chan ProcessItemImpReturn[T], 1),
-		panicChan:  make(chan any, 1),
+		CallableController: imptest.NewCallableController[ProcessItemImpReturn[T]](t),
+		callable:           callable,
 	}
 }
 
@@ -35,12 +28,12 @@ func (s *ProcessItemImp[T]) Start(repo generics.Repository[T], id string, transf
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				s.panicChan <- r
+				s.PanicChan <- r
 			}
 		}()
 
 		ret0 := s.callable(repo, id, transformer)
-		s.returnChan <- ProcessItemImpReturn[T]{
+		s.ReturnChan <- ProcessItemImpReturn[T]{
 			Result0: ret0,
 		}
 	}()
@@ -48,95 +41,49 @@ func (s *ProcessItemImp[T]) Start(repo generics.Repository[T], id string, transf
 }
 
 func (s *ProcessItemImp[T]) ExpectReturnedValuesAre(v1 error) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
-		if s.returned.Result0 != v1 {
-			s.t.Fatalf("expected return value 0 to be %v, got %v", v1, s.returned.Result0)
+	if s.Returned != nil {
+		if s.Returned.Result0 != v1 {
+			s.T.Fatalf("expected return value 0 to be %v, got %v", v1, s.Returned.Result0)
 		}
 		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		if ret.Result0 != v1 {
-			s.t.Fatalf("expected return value 0 to be %v, got %v", v1, ret.Result0)
-		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 func (s *ProcessItemImp[T]) ExpectReturnedValuesShould(v1 any) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	if s.Returned != nil {
 		var ok bool
 		var msg string
-		ok, msg = imptest.MatchValue(s.returned.Result0, v1)
+		ok, msg = imptest.MatchValue(s.Returned.Result0, v1)
 		if !ok {
-			s.t.Fatalf("return value 0: %s", msg)
+			s.T.Fatalf("return value 0: %s", msg)
 		}
 		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		var ok bool
-		var msg string
-		ok, msg = imptest.MatchValue(ret.Result0, v1)
-		if !ok {
-			s.t.Fatalf("return value 0: %s", msg)
-		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 func (s *ProcessItemImp[T]) ExpectPanicWith(expected any) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.panicked != nil {
-		ok, msg := imptest.MatchValue(s.panicked, expected)
+	if s.Panicked != nil {
+		ok, msg := imptest.MatchValue(s.Panicked, expected)
 		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
+			s.T.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
 
-	if s.returned != nil {
-		s.t.Fatalf("expected function to panic, but it returned")
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		s.t.Fatalf("expected function to panic, but it returned")
-	case p := <-s.panicChan:
-		s.panicked = p
-		ok, msg := imptest.MatchValue(p, expected)
-		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
-		}
-	}
+	s.T.Fatalf("expected function to panic, but it returned")
 }
 
 type ProcessItemImpResponse[T any] struct {
@@ -157,34 +104,17 @@ func (r *ProcessItemImpResponse[T]) AsReturn() []any {
 }
 
 func (s *ProcessItemImp[T]) GetResponse() *ProcessItemImpResponse[T] {
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	s.WaitForResponse()
+
+	if s.Returned != nil {
 		return &ProcessItemImpResponse[T]{
 			EventType: "ReturnEvent",
-			ReturnVal: s.returned,
+			ReturnVal: s.Returned,
 		}
 	}
 
-	if s.panicked != nil {
-		return &ProcessItemImpResponse[T]{
-			EventType: "PanicEvent",
-			PanicVal:  s.panicked,
-		}
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		return &ProcessItemImpResponse[T]{
-			EventType: "ReturnEvent",
-			ReturnVal: &ret,
-		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		return &ProcessItemImpResponse[T]{
-			EventType: "PanicEvent",
-			PanicVal:  p,
-		}
+	return &ProcessItemImpResponse[T]{
+		EventType: "PanicEvent",
+		PanicVal:  s.Panicked,
 	}
 }

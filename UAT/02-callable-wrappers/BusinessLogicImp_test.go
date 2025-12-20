@@ -14,21 +14,14 @@ type BusinessLogicImpReturn struct {
 }
 
 type BusinessLogicImp struct {
-	t        testing.TB
+	*imptest.CallableController[BusinessLogicImpReturn]
 	callable func(svc callable.ExternalService, id int) (string, error)
-
-	returnChan chan BusinessLogicImpReturn
-	panicChan  chan any
-	returned   *BusinessLogicImpReturn
-	panicked   any
 }
 
 func NewBusinessLogicImp(t testing.TB, callable func(svc callable.ExternalService, id int) (string, error)) *BusinessLogicImp {
 	return &BusinessLogicImp{
-		t:          t,
-		callable:   callable,
-		returnChan: make(chan BusinessLogicImpReturn, 1),
-		panicChan:  make(chan any, 1),
+		CallableController: imptest.NewCallableController[BusinessLogicImpReturn](t),
+		callable:           callable,
 	}
 }
 
@@ -36,12 +29,12 @@ func (s *BusinessLogicImp) Start(svc callable.ExternalService, id int) *Business
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				s.panicChan <- r
+				s.PanicChan <- r
 			}
 		}()
 
 		ret0, ret1 := s.callable(svc, id)
-		s.returnChan <- BusinessLogicImpReturn{
+		s.ReturnChan <- BusinessLogicImpReturn{
 			Result0: ret0,
 			Result1: ret1,
 		}
@@ -50,109 +43,56 @@ func (s *BusinessLogicImp) Start(svc callable.ExternalService, id int) *Business
 }
 
 func (s *BusinessLogicImp) ExpectReturnedValuesAre(v1 string, v2 error) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
-		if s.returned.Result0 != v1 {
-			s.t.Fatalf("expected return value 0 to be %v, got %v", v1, s.returned.Result0)
+	if s.Returned != nil {
+		if s.Returned.Result0 != v1 {
+			s.T.Fatalf("expected return value 0 to be %v, got %v", v1, s.Returned.Result0)
 		}
-		if s.returned.Result1 != v2 {
-			s.t.Fatalf("expected return value 1 to be %v, got %v", v2, s.returned.Result1)
+		if s.Returned.Result1 != v2 {
+			s.T.Fatalf("expected return value 1 to be %v, got %v", v2, s.Returned.Result1)
 		}
 		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		if ret.Result0 != v1 {
-			s.t.Fatalf("expected return value 0 to be %v, got %v", v1, ret.Result0)
-		}
-		if ret.Result1 != v2 {
-			s.t.Fatalf("expected return value 1 to be %v, got %v", v2, ret.Result1)
-		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 func (s *BusinessLogicImp) ExpectReturnedValuesShould(v1 any, v2 any) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	if s.Returned != nil {
 		var ok bool
 		var msg string
-		ok, msg = imptest.MatchValue(s.returned.Result0, v1)
+		ok, msg = imptest.MatchValue(s.Returned.Result0, v1)
 		if !ok {
-			s.t.Fatalf("return value 0: %s", msg)
+			s.T.Fatalf("return value 0: %s", msg)
 		}
-		ok, msg = imptest.MatchValue(s.returned.Result1, v2)
+		ok, msg = imptest.MatchValue(s.Returned.Result1, v2)
 		if !ok {
-			s.t.Fatalf("return value 1: %s", msg)
+			s.T.Fatalf("return value 1: %s", msg)
 		}
 		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		var ok bool
-		var msg string
-		ok, msg = imptest.MatchValue(ret.Result0, v1)
-		if !ok {
-			s.t.Fatalf("return value 0: %s", msg)
-		}
-		ok, msg = imptest.MatchValue(ret.Result1, v2)
-		if !ok {
-			s.t.Fatalf("return value 1: %s", msg)
-		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 func (s *BusinessLogicImp) ExpectPanicWith(expected any) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.panicked != nil {
-		ok, msg := imptest.MatchValue(s.panicked, expected)
+	if s.Panicked != nil {
+		ok, msg := imptest.MatchValue(s.Panicked, expected)
 		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
+			s.T.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
 
-	if s.returned != nil {
-		s.t.Fatalf("expected function to panic, but it returned")
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		s.t.Fatalf("expected function to panic, but it returned")
-	case p := <-s.panicChan:
-		s.panicked = p
-		ok, msg := imptest.MatchValue(p, expected)
-		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
-		}
-	}
+	s.T.Fatalf("expected function to panic, but it returned")
 }
 
 type BusinessLogicImpResponse struct {
@@ -173,34 +113,17 @@ func (r *BusinessLogicImpResponse) AsReturn() []any {
 }
 
 func (s *BusinessLogicImp) GetResponse() *BusinessLogicImpResponse {
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	s.WaitForResponse()
+
+	if s.Returned != nil {
 		return &BusinessLogicImpResponse{
 			EventType: "ReturnEvent",
-			ReturnVal: s.returned,
+			ReturnVal: s.Returned,
 		}
 	}
 
-	if s.panicked != nil {
-		return &BusinessLogicImpResponse{
-			EventType: "PanicEvent",
-			PanicVal:  s.panicked,
-		}
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		return &BusinessLogicImpResponse{
-			EventType: "ReturnEvent",
-			ReturnVal: &ret,
-		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		return &BusinessLogicImpResponse{
-			EventType: "PanicEvent",
-			PanicVal:  p,
-		}
+	return &BusinessLogicImpResponse{
+		EventType: "PanicEvent",
+		PanicVal:  s.Panicked,
 	}
 }

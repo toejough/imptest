@@ -620,8 +620,8 @@ func PrintSum(a, b int) int {
 		"func NewPrintSumImp",
 		"func (s *PrintSumImp) Start(a, b int)",
 		"func (s *PrintSumImp) ExpectReturnedValuesAre(v1 int)",
-		"returnChan",
-		"panicChan",
+		"ReturnChan",
+		"PanicChan",
 	}
 	for _, exp := range expected {
 		if !strings.Contains(contentStr, exp) {

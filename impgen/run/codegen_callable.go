@@ -230,7 +230,7 @@ func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData 
 		ReturnVarsList:       returnVars,
 		ReturnFields:         returnFields,
 		ResultParams:         g.resultParamsString(),
-		ResultComparisons:    g.resultComparisonsString("s.returned"),
+		ResultComparisons:    g.resultComparisonsString("s.Returned"),
 		ResultComparisons2:   g.resultComparisonsString("ret"),
 	}
 }
@@ -249,7 +249,7 @@ func (g *callableGenerator) extendedTemplateDataForMatchers() callableExtendedTe
 		ReturnVarsList:       returnVars,
 		ReturnFields:         returnFields,
 		ResultParams:         g.resultParamsAsAnyString(),
-		ResultComparisons:    g.resultComparisonsMatcherString("s.returned"),
+		ResultComparisons:    g.resultComparisonsMatcherString("s.Returned"),
 		ResultComparisons2:   g.resultComparisonsMatcherString("ret"),
 	}
 }
@@ -429,7 +429,7 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 			fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(%s.Result%d, %s) {\n", varName, result.Index, resultName)
 		}
 
-		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %d to be %%v, got %%v\", %s, %s.Result%d)\n",
+		fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"expected return value %d to be %%v, got %%v\", %s, %s.Result%d)\n",
 			result.Index, resultName, varName, result.Index)
 		buf.WriteString("\t\t}\n")
 	}
@@ -479,7 +479,7 @@ func (g *callableGenerator) resultComparisonsMatcherString(varName string) strin
 
 		fmt.Fprintf(&buf, "\t\tok, msg = imptest.MatchValue(%s.Result%d, %s)\n", varName, result.Index, resultName)
 		buf.WriteString("\t\tif !ok {\n")
-		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"return value %d: %%s\", msg)\n", result.Index)
+		fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"return value %d: %%s\", msg)\n", result.Index)
 		buf.WriteString("\t\t}\n")
 	}
 

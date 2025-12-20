@@ -9,21 +9,14 @@ import (
 )
 
 type UnsafeRunnerImp struct {
-	t        testing.TB
+	*imptest.CallableController[struct{}]
 	callable func(dep safety.CriticalDependency)
-
-	returnChan chan struct{}
-	panicChan  chan any
-	returned   *struct{}
-	panicked   any
 }
 
 func NewUnsafeRunnerImp(t testing.TB, callable func(dep safety.CriticalDependency)) *UnsafeRunnerImp {
 	return &UnsafeRunnerImp{
-		t:          t,
-		callable:   callable,
-		returnChan: make(chan struct{}, 1),
-		panicChan:  make(chan any, 1),
+		CallableController: imptest.NewCallableController[struct{}](t),
+		callable:           callable,
 	}
 }
 
@@ -31,88 +24,51 @@ func (s *UnsafeRunnerImp) Start(dep safety.CriticalDependency) *UnsafeRunnerImp 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				s.panicChan <- r
+				s.PanicChan <- r
 			}
 		}()
 
 		s.callable(dep)
-		s.returnChan <- struct{}{}
+		s.ReturnChan <- struct{}{}
 	}()
 	return s
 }
 
 func (s *UnsafeRunnerImp) ExpectReturnedValuesAre() {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	if s.Returned != nil {
 		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 func (s *UnsafeRunnerImp) ExpectReturnedValuesShould() {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	if s.Returned != nil {
 		return
 	}
 
-	if s.panicked != nil {
-		s.t.Fatalf("expected function to return, but it panicked with: %v", s.panicked)
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-	case p := <-s.panicChan:
-		s.panicked = p
-		s.t.Fatalf("expected function to return, but it panicked with: %v", p)
-	}
+	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
 func (s *UnsafeRunnerImp) ExpectPanicWith(expected any) {
-	s.t.Helper()
+	s.T.Helper()
+	s.WaitForResponse()
 
-	// Check if we already have a return value or panic
-	if s.panicked != nil {
-		ok, msg := imptest.MatchValue(s.panicked, expected)
+	if s.Panicked != nil {
+		ok, msg := imptest.MatchValue(s.Panicked, expected)
 		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
+			s.T.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
 
-	if s.returned != nil {
-		s.t.Fatalf("expected function to panic, but it returned")
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		s.t.Fatalf("expected function to panic, but it returned")
-	case p := <-s.panicChan:
-		s.panicked = p
-		ok, msg := imptest.MatchValue(p, expected)
-		if !ok {
-			s.t.Fatalf("panic value: %s", msg)
-		}
-	}
+	s.T.Fatalf("expected function to panic, but it returned")
 }
 
 type UnsafeRunnerImpResponse struct {
@@ -129,32 +85,16 @@ func (r *UnsafeRunnerImpResponse) AsReturn() []any {
 }
 
 func (s *UnsafeRunnerImp) GetResponse() *UnsafeRunnerImpResponse {
-	// Check if we already have a return value or panic
-	if s.returned != nil {
+	s.WaitForResponse()
+
+	if s.Returned != nil {
 		return &UnsafeRunnerImpResponse{
 			EventType: "ReturnEvent",
 		}
 	}
 
-	if s.panicked != nil {
-		return &UnsafeRunnerImpResponse{
-			EventType: "PanicEvent",
-			PanicVal:  s.panicked,
-		}
-	}
-
-	// Wait for either return or panic
-	select {
-	case ret := <-s.returnChan:
-		s.returned = &ret
-		return &UnsafeRunnerImpResponse{
-			EventType: "ReturnEvent",
-		}
-	case p := <-s.panicChan:
-		s.panicked = p
-		return &UnsafeRunnerImpResponse{
-			EventType: "PanicEvent",
-			PanicVal:  p,
-		}
+	return &UnsafeRunnerImpResponse{
+		EventType: "PanicEvent",
+		PanicVal:  s.Panicked,
 	}
 }
