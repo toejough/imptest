@@ -219,7 +219,8 @@ func LintForFail(c context.Context) error {
 // Modernize the codebase.
 func Modernize(c context.Context) error {
 	fmt.Println("Modernizing codebase...")
-	return run(c, "go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...")
+	return run(c, "go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
+	"-fix", "./...")
 }
 
 // Run the mutation tests.
