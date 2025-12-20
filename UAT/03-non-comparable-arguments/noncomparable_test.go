@@ -8,6 +8,14 @@ import (
 
 //go:generate go run ../../impgen/main.go noncomparable.DataProcessor --name DataProcessorImp
 
+// TestNonComparableArguments demonstrates how imptest handles Go types that
+// cannot be compared with the == operator (like slices and maps).
+//
+// Key Requirements Met:
+//  1. Automatic Deep Equality: The generator detects non-comparable types
+//     and automatically uses reflect.DeepEqual for validation.
+//  2. Developer Ease: ExpectArgsAre works seamlessly regardless of the
+//     argument types involved.
 func TestNonComparableArguments(t *testing.T) {
 	t.Parallel()
 
@@ -16,10 +24,10 @@ func TestNonComparableArguments(t *testing.T) {
 	go noncomparable.RunProcessor(imp.Mock)
 
 	// Intercept ProcessSlice with a slice argument.
-	// imptest automatically uses reflect.DeepEqual for slices.
+	// Requirement: reflect.DeepEqual is used automatically for slices.
 	imp.ExpectCallIs.ProcessSlice().ExpectArgsAre([]string{"a", "b", "c"}).InjectResult(3)
 
 	// Intercept ProcessMap with a map argument.
-	// imptest automatically uses reflect.DeepEqual for maps.
+	// Requirement: reflect.DeepEqual is used automatically for maps.
 	imp.ExpectCallIs.ProcessMap().ExpectArgsAre(map[string]int{"threshold": 10}).InjectResult(true)
 }

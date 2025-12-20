@@ -8,11 +8,16 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
-// TODO: there's a _lot_ of generated code. Is there any way to reduce how much is generated, vs calling out to an imp
-// library for common things?
-
 //go:generate go run ../../impgen/main.go embedded.ReadCloser --name ReadCloserImp
 
+// TestEmbeddedInterfaces demonstrates how imptest automatically expands
+// embedded interfaces.
+//
+// Key Requirements Met:
+//  1. Automatic Expansion: Methods from embedded interfaces (like io.Reader
+//     and io.Closer) are automatically discovered and included in the mock.
+//  2. Transitive Mocking: Verify interactions with deep interface hierarchies
+//     without manual boilerplate.
 func TestEmbeddedInterfaces(t *testing.T) {
 	t.Parallel()
 
@@ -30,8 +35,7 @@ func TestEmbeddedInterfaces(t *testing.T) {
 	imp.ExpectCallIs.Close().ExpectArgsAre().InjectResult(nil)
 }
 
-// TODO: not sure this test adds much value beyond the above?
-
+// TestEmbeddedInterfaceError demonstrates error handling with embedded interfaces.
 func TestEmbeddedInterfaceError(t *testing.T) {
 	t.Parallel()
 
@@ -44,6 +48,6 @@ func TestEmbeddedInterfaceError(t *testing.T) {
 	// Simulate a read error
 	imp.ExpectCallIs.Read().ExpectArgsShould(imptest.Any()).InjectResults(0, io.EOF)
 
-	// Verify Close is still called
+	// Verify Close is still called (standard Go cleanup pattern)
 	imp.ExpectCallIs.Close().InjectResult(nil)
 }

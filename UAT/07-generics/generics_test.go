@@ -18,6 +18,13 @@ import (
 
 var errTest = errors.New("test error")
 
+// TestGenericMocking demonstrates how imptest supports generic interfaces.
+//
+// Key Requirements Met:
+//  1. Generic Interface Support: Generate type-safe mocks for interfaces with
+//     type parameters.
+//  2. Type Safety: IDE and compiler assistance when defining expectations for
+//     generic methods.
 func TestGenericMocking(t *testing.T) {
 	t.Parallel()
 
@@ -36,6 +43,11 @@ func TestGenericMocking(t *testing.T) {
 	repoImp.ExpectCallIs.Save().ExpectArgsAre("hello!").InjectResult(nil)
 }
 
+// TestGenericCallable demonstrates how imptest supports generic functions.
+//
+// Key Requirements Met:
+//  1. Generic Function Support: Generate type-safe wrappers for generic
+//     functions by specifying the type instantiation.
 func TestGenericCallable(t *testing.T) {
 	t.Parallel()
 
@@ -56,7 +68,7 @@ func TestGenericCallable(t *testing.T) {
 	logicImp.ExpectReturnedValuesAre(nil)
 }
 
-// TODO: I'm not sure what these are demonstrating that is unique.
+// TestProcessItem_Error demonstrates error handling in generic contexts.
 func TestProcessItem_Error(t *testing.T) {
 	t.Parallel()
 

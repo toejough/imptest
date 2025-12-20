@@ -15,6 +15,13 @@ import (
 // Generate a wrapper for the function under test.
 //go:generate go run ../../impgen/main.go callable.BusinessLogic --name BusinessLogicImp
 
+// TestBusinessLogic demonstrates how to use type-safe wrappers for functions.
+//
+// Key Requirements Met:
+//  1. Function Verification: Verify return values from standalone functions or
+//     methods that are not part of an interface.
+//  2. Coordinated Control: Synchronously control dependencies while verifying
+//     the behavior of the "impure" logic that coordinates them.
 func TestBusinessLogic(t *testing.T) {
 	t.Parallel()
 
@@ -38,10 +45,11 @@ func TestBusinessLogic(t *testing.T) {
 
 var errNotFound = errors.New("not found")
 
-// TODO: add comments explaining what all the generated code is doing, too.
-// TODO: remove the existing unit tests besides UAT, and see what coverage remains. Only add back tests that provided
-// necessary coverage that the UAT tests did not.
-
+// TestBusinessLogicError demonstrates error path validation using matchers.
+//
+// Key Requirements Met:
+//  1. Error Chain Validation: Use Satisfies with errors.Is to verify that the
+//     correct error is propagated, without requiring strict pointer equality.
 func TestBusinessLogicError(t *testing.T) {
 	t.Parallel()
 
@@ -53,8 +61,8 @@ func TestBusinessLogicError(t *testing.T) {
 	// Simulate an error from the service.
 	impSvc.ExpectCallIs.FetchData().ExpectArgsAre(99).InjectResults("", errNotFound)
 
-	// TODO: remove this test? I'm not sure what else it's demonstrating, and it uses advanced matching too early.
-	// Verify that the business logic returns the error.
+	// Requirement: Verify that the business logic returns the error.
+	// We use Satisfies to check if the error is (or wraps) errNotFound.
 	logicImp.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) error {
 		if !errors.Is(err, errNotFound) {
 			return fmt.Errorf("expected error %w, got %w", errNotFound, err)

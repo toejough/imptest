@@ -9,8 +9,14 @@ import (
 
 //go:generate go run ../../impgen/main.go concurrency.SlowService --name SlowServiceImp
 
-// TODO: document all the tests
-
+// TestConcurrentOutOfOrder demonstrates how imptest handles code that executes
+// dependencies in parallel or in non-deterministic order.
+//
+// Key Requirements Met:
+//  1. Thread-Safe Expectations: The internal call queue allows expectations to be
+//     defined in one order while the code under test calls them in another.
+//  2. Timing Control: Use .Within(duration) to tell imptest to wait for a call,
+//     preventing flaky tests in concurrent environments.
 func TestConcurrentOutOfOrder(t *testing.T) {
 	t.Parallel()
 
@@ -25,8 +31,7 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 		resultChan <- concurrency.RunConcurrent(imp.Mock, 123)
 	}()
 
-	// imptest handles out-of-order calls via an internal queue.
-	// We can expect DoA then DoB, even if the code calls them in reverse order.
+	// Requirement: We can expect DoA then DoB, even if the code calls them in reverse order.
 	// The .Within() modifier tells imptest to wait up to the given duration for the call.
 
 	// 1. Expect DoA(123) to be called within 1 second.
@@ -42,6 +47,12 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 	}
 }
 
+// TestExplicitReversedExpectation intentionally defines expectations in the
+// opposite order of their execution to prove the power of the queueing mechanism.
+//
+// Key Requirements Met:
+//  1. Order Independence: Tests remain robust even when dependency call order
+//     is not guaranteed or changes due to implementation details.
 func TestExplicitReversedExpectation(t *testing.T) {
 	t.Parallel()
 
@@ -52,10 +63,8 @@ func TestExplicitReversedExpectation(t *testing.T) {
 		resultChan <- concurrency.RunConcurrent(imp.Mock, 456)
 	}()
 
-	// To demonstrate the power of the queueing mechanism, we can intentionally
-	// expect the calls in the OPPOSITE order of how we think they might happen.
-	// Here we wait for DoB first, then DoA.
-
+	// Requirement: Demonstrate that we can wait for DoB first, then DoA,
+	// regardless of which one the system-under-test triggers first.
 	imp.Within(time.Second).ExpectCallIs.DoB().ExpectArgsAre(456).InjectResult("Result B")
 	imp.Within(time.Second).ExpectCallIs.DoA().ExpectArgsAre(456).InjectResult("Result A")
 
