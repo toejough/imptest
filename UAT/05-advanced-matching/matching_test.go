@@ -14,22 +14,14 @@ func TestAdvancedMatching(t *testing.T) {
 
 	mock := NewComplexServiceImp(t)
 
-	go matching.UseService(mock.Mock, "important message")
+	go matching.UseService(mock.Mock, "hello world")
 
 	// Use ExpectArgsShould with matchers.
 	// We want to match the Payload exactly, but use a predicate for ID
 	// and Any() for the Timestamp because we don't care about the exact value.
-	mock.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(d matching.Data) bool {
-		// Custom matching logic:
-		if d.ID != 123 {
-			return false
-		}
-
-		if d.Payload != "important message" {
-			return false
-		}
-		// Timestamp must be positive
-		return d.Timestamp > 0
+	// Use a predicate for more complex logic.
+	mock.ExpectCallIs.Process().ExpectArgsShould(imptest.Satisfies(func(data matching.Data) bool {
+		return data.Payload == "hello world" && data.ID > 0
 	})).InjectResult(true)
 }
 

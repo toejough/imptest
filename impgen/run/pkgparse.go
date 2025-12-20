@@ -99,15 +99,15 @@ func getMatchingInterfaceFromAST(
 			}
 
 			for _, spec := range genDecl.Specs {
-				typeSpec, ok := spec.(*ast.TypeSpec)
+				typeSpec, isTypeSpec := spec.(*ast.TypeSpec)
 
-				if !ok || typeSpec.Name.Name != interfaceName {
+				if !isTypeSpec || typeSpec.Name.Name != interfaceName {
 					continue // Not the interface we're looking for
 				}
 
-				iface, ok := typeSpec.Type.(*ast.InterfaceType)
+				iface, isInterfaceType := typeSpec.Type.(*ast.InterfaceType)
 
-				if !ok {
+				if !isInterfaceType {
 					continue // Not an interface type
 				}
 

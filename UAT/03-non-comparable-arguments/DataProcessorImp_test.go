@@ -139,7 +139,9 @@ func (c *DataProcessorImpCall) AsProcessSlice() *DataProcessorImpProcessSliceCal
 	return c.ProcessSlice
 }
 
-func (c *DataProcessorImpCall) AsProcessMap() *DataProcessorImpProcessMapCall { return c.ProcessMap }
+func (c *DataProcessorImpCall) AsProcessMap() *DataProcessorImpProcessMapCall {
+	return c.ProcessMap
+}
 
 type DataProcessorImpExpectCallIs struct {
 	imp     *DataProcessorImp

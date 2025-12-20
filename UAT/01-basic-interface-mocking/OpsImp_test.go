@@ -8,118 +8,118 @@ import "sync"
 import "testing"
 import "time"
 
-type BasicOpsImpMock struct {
-	imp *BasicOpsImp
+type OpsImpMock struct {
+	imp *OpsImp
 }
 
-type BasicOpsImp struct {
+type OpsImp struct {
 	t            *testing.T
-	Mock         *BasicOpsImpMock
-	callChan     chan *BasicOpsImpCall
-	ExpectCallIs *BasicOpsImpExpectCallIs
-	currentCall  *BasicOpsImpCall
-	callQueue    []*BasicOpsImpCall
+	Mock         *OpsImpMock
+	callChan     chan *OpsImpCall
+	ExpectCallIs *OpsImpExpectCallIs
+	currentCall  *OpsImpCall
+	callQueue    []*OpsImpCall
 	queueLock    sync.Mutex
 }
 
-type BasicOpsImpAddCall struct {
-	responseChan chan BasicOpsImpAddCallResponse
+type OpsImpAddCall struct {
+	responseChan chan OpsImpAddCallResponse
 	done         bool
 	a            int
 	b            int
 }
 
-type BasicOpsImpAddCallResponse struct {
+type OpsImpAddCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    int
 	PanicValue any
 }
 
-func (c *BasicOpsImpAddCall) InjectResult(result int) {
+func (c *OpsImpAddCall) InjectResult(result int) {
 	c.done = true
-	c.responseChan <- BasicOpsImpAddCallResponse{Type: "return", Result0: result}
+	c.responseChan <- OpsImpAddCallResponse{Type: "return", Result0: result}
 }
-func (c *BasicOpsImpAddCall) InjectPanic(msg any) {
+func (c *OpsImpAddCall) InjectPanic(msg any) {
 	c.done = true
-	c.responseChan <- BasicOpsImpAddCallResponse{Type: "panic", PanicValue: msg}
+	c.responseChan <- OpsImpAddCallResponse{Type: "panic", PanicValue: msg}
 }
 
-type BasicOpsImpStoreCall struct {
-	responseChan chan BasicOpsImpStoreCallResponse
+type OpsImpStoreCall struct {
+	responseChan chan OpsImpStoreCallResponse
 	done         bool
 	key          string
 	value        any
 }
 
-type BasicOpsImpStoreCallResponse struct {
+type OpsImpStoreCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    int
 	Result1    error
 	PanicValue any
 }
 
-func (c *BasicOpsImpStoreCall) InjectResults(r0 int, r1 error) {
+func (c *OpsImpStoreCall) InjectResults(r0 int, r1 error) {
 	c.done = true
-	resp := BasicOpsImpStoreCallResponse{Type: "return", Result0: r0, Result1: r1}
+	resp := OpsImpStoreCallResponse{Type: "return", Result0: r0, Result1: r1}
 	c.responseChan <- resp
 }
-func (c *BasicOpsImpStoreCall) InjectPanic(msg any) {
+func (c *OpsImpStoreCall) InjectPanic(msg any) {
 	c.done = true
-	c.responseChan <- BasicOpsImpStoreCallResponse{Type: "panic", PanicValue: msg}
+	c.responseChan <- OpsImpStoreCallResponse{Type: "panic", PanicValue: msg}
 }
 
-type BasicOpsImpLogCall struct {
-	responseChan chan BasicOpsImpLogCallResponse
+type OpsImpLogCall struct {
+	responseChan chan OpsImpLogCallResponse
 	done         bool
 	message      string
 }
 
-type BasicOpsImpLogCallResponse struct {
+type OpsImpLogCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	PanicValue any
 }
 
-func (c *BasicOpsImpLogCall) Resolve() {
+func (c *OpsImpLogCall) Resolve() {
 	c.done = true
-	c.responseChan <- BasicOpsImpLogCallResponse{Type: "resolve"}
+	c.responseChan <- OpsImpLogCallResponse{Type: "resolve"}
 }
-func (c *BasicOpsImpLogCall) InjectPanic(msg any) {
+func (c *OpsImpLogCall) InjectPanic(msg any) {
 	c.done = true
-	c.responseChan <- BasicOpsImpLogCallResponse{Type: "panic", PanicValue: msg}
+	c.responseChan <- OpsImpLogCallResponse{Type: "panic", PanicValue: msg}
 }
 
-type BasicOpsImpNotifyCall struct {
-	responseChan chan BasicOpsImpNotifyCallResponse
+type OpsImpNotifyCall struct {
+	responseChan chan OpsImpNotifyCallResponse
 	done         bool
 	message      string
 	ids          []int
 }
 
-type BasicOpsImpNotifyCallResponse struct {
+type OpsImpNotifyCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    bool
 	PanicValue any
 }
 
-func (c *BasicOpsImpNotifyCall) InjectResult(result bool) {
+func (c *OpsImpNotifyCall) InjectResult(result bool) {
 	c.done = true
-	c.responseChan <- BasicOpsImpNotifyCallResponse{Type: "return", Result0: result}
+	c.responseChan <- OpsImpNotifyCallResponse{Type: "return", Result0: result}
 }
-func (c *BasicOpsImpNotifyCall) InjectPanic(msg any) {
+func (c *OpsImpNotifyCall) InjectPanic(msg any) {
 	c.done = true
-	c.responseChan <- BasicOpsImpNotifyCallResponse{Type: "panic", PanicValue: msg}
+	c.responseChan <- OpsImpNotifyCallResponse{Type: "panic", PanicValue: msg}
 }
 
-func (m *BasicOpsImpMock) Add(a int, b int) int {
-	responseChan := make(chan BasicOpsImpAddCallResponse, 1)
+func (m *OpsImpMock) Add(a int, b int) int {
+	responseChan := make(chan OpsImpAddCallResponse, 1)
 
-	call := &BasicOpsImpAddCall{
+	call := &OpsImpAddCall{
 		responseChan: responseChan,
 		a:            a,
 		b:            b,
 	}
 
-	callEvent := &BasicOpsImpCall{
+	callEvent := &OpsImpCall{
 		Add: call,
 	}
 
@@ -134,16 +134,16 @@ func (m *BasicOpsImpMock) Add(a int, b int) int {
 	return resp.Result0
 }
 
-func (m *BasicOpsImpMock) Store(key string, value any) (int, error) {
-	responseChan := make(chan BasicOpsImpStoreCallResponse, 1)
+func (m *OpsImpMock) Store(key string, value any) (int, error) {
+	responseChan := make(chan OpsImpStoreCallResponse, 1)
 
-	call := &BasicOpsImpStoreCall{
+	call := &OpsImpStoreCall{
 		responseChan: responseChan,
 		key:          key,
 		value:        value,
 	}
 
-	callEvent := &BasicOpsImpCall{
+	callEvent := &OpsImpCall{
 		Store: call,
 	}
 
@@ -158,15 +158,15 @@ func (m *BasicOpsImpMock) Store(key string, value any) (int, error) {
 	return resp.Result0, resp.Result1
 }
 
-func (m *BasicOpsImpMock) Log(message string) {
-	responseChan := make(chan BasicOpsImpLogCallResponse, 1)
+func (m *OpsImpMock) Log(message string) {
+	responseChan := make(chan OpsImpLogCallResponse, 1)
 
-	call := &BasicOpsImpLogCall{
+	call := &OpsImpLogCall{
 		responseChan: responseChan,
 		message:      message,
 	}
 
-	callEvent := &BasicOpsImpCall{
+	callEvent := &OpsImpCall{
 		Log: call,
 	}
 
@@ -181,16 +181,16 @@ func (m *BasicOpsImpMock) Log(message string) {
 	return
 }
 
-func (m *BasicOpsImpMock) Notify(message string, ids ...int) bool {
-	responseChan := make(chan BasicOpsImpNotifyCallResponse, 1)
+func (m *OpsImpMock) Notify(message string, ids ...int) bool {
+	responseChan := make(chan OpsImpNotifyCallResponse, 1)
 
-	call := &BasicOpsImpNotifyCall{
+	call := &OpsImpNotifyCall{
 		responseChan: responseChan,
 		message:      message,
 		ids:          ids,
 	}
 
-	callEvent := &BasicOpsImpCall{
+	callEvent := &OpsImpCall{
 		Notify: call,
 	}
 
@@ -205,14 +205,14 @@ func (m *BasicOpsImpMock) Notify(message string, ids ...int) bool {
 	return resp.Result0
 }
 
-type BasicOpsImpCall struct {
-	Add    *BasicOpsImpAddCall
-	Store  *BasicOpsImpStoreCall
-	Log    *BasicOpsImpLogCall
-	Notify *BasicOpsImpNotifyCall
+type OpsImpCall struct {
+	Add    *OpsImpAddCall
+	Store  *OpsImpStoreCall
+	Log    *OpsImpLogCall
+	Notify *OpsImpNotifyCall
 }
 
-func (c *BasicOpsImpCall) Name() string {
+func (c *OpsImpCall) Name() string {
 	if c.Add != nil {
 		return "Add"
 	}
@@ -228,7 +228,7 @@ func (c *BasicOpsImpCall) Name() string {
 	return ""
 }
 
-func (c *BasicOpsImpCall) Done() bool {
+func (c *OpsImpCall) Done() bool {
 	if c.Add != nil {
 		return c.Add.done
 	}
@@ -244,30 +244,38 @@ func (c *BasicOpsImpCall) Done() bool {
 	return false
 }
 
-func (c *BasicOpsImpCall) AsAdd() *BasicOpsImpAddCall { return c.Add }
+func (c *OpsImpCall) AsAdd() *OpsImpAddCall {
+	return c.Add
+}
 
-func (c *BasicOpsImpCall) AsStore() *BasicOpsImpStoreCall { return c.Store }
+func (c *OpsImpCall) AsStore() *OpsImpStoreCall {
+	return c.Store
+}
 
-func (c *BasicOpsImpCall) AsLog() *BasicOpsImpLogCall { return c.Log }
+func (c *OpsImpCall) AsLog() *OpsImpLogCall {
+	return c.Log
+}
 
-func (c *BasicOpsImpCall) AsNotify() *BasicOpsImpNotifyCall { return c.Notify }
+func (c *OpsImpCall) AsNotify() *OpsImpNotifyCall {
+	return c.Notify
+}
 
-type BasicOpsImpExpectCallIs struct {
-	imp     *BasicOpsImp
+type OpsImpExpectCallIs struct {
+	imp     *OpsImp
 	timeout time.Duration
 }
 
-type BasicOpsImpAddBuilder struct {
-	imp     *BasicOpsImp
+type OpsImpAddBuilder struct {
+	imp     *OpsImp
 	timeout time.Duration
 }
 
-func (e *BasicOpsImpExpectCallIs) Add() *BasicOpsImpAddBuilder {
-	return &BasicOpsImpAddBuilder{imp: e.imp, timeout: e.timeout}
+func (e *OpsImpExpectCallIs) Add() *OpsImpAddBuilder {
+	return &OpsImpAddBuilder{imp: e.imp, timeout: e.timeout}
 }
 
-func (bldr *BasicOpsImpAddBuilder) ExpectArgsAre(a int, b int) *BasicOpsImpAddCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpAddBuilder) ExpectArgsAre(a int, b int) *OpsImpAddCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Add" {
 			return false
 		}
@@ -285,8 +293,8 @@ func (bldr *BasicOpsImpAddBuilder) ExpectArgsAre(a int, b int) *BasicOpsImpAddCa
 	return call.AsAdd()
 }
 
-func (bldr *BasicOpsImpAddBuilder) ExpectArgsShould(a any, b any) *BasicOpsImpAddCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpAddBuilder) ExpectArgsShould(a any, b any) *OpsImpAddCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Add" {
 			return false
 		}
@@ -307,8 +315,8 @@ func (bldr *BasicOpsImpAddBuilder) ExpectArgsShould(a any, b any) *BasicOpsImpAd
 	return call.AsAdd()
 }
 
-func (bldr *BasicOpsImpAddBuilder) InjectResult(result int) *BasicOpsImpAddCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpAddBuilder) InjectResult(result int) *OpsImpAddCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Add"
 	}
 
@@ -318,8 +326,8 @@ func (bldr *BasicOpsImpAddBuilder) InjectResult(result int) *BasicOpsImpAddCall 
 	return methodCall
 }
 
-func (bldr *BasicOpsImpAddBuilder) InjectPanic(msg any) *BasicOpsImpAddCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpAddBuilder) InjectPanic(msg any) *OpsImpAddCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Add"
 	}
 
@@ -329,17 +337,17 @@ func (bldr *BasicOpsImpAddBuilder) InjectPanic(msg any) *BasicOpsImpAddCall {
 	return methodCall
 }
 
-type BasicOpsImpStoreBuilder struct {
-	imp     *BasicOpsImp
+type OpsImpStoreBuilder struct {
+	imp     *OpsImp
 	timeout time.Duration
 }
 
-func (e *BasicOpsImpExpectCallIs) Store() *BasicOpsImpStoreBuilder {
-	return &BasicOpsImpStoreBuilder{imp: e.imp, timeout: e.timeout}
+func (e *OpsImpExpectCallIs) Store() *OpsImpStoreBuilder {
+	return &OpsImpStoreBuilder{imp: e.imp, timeout: e.timeout}
 }
 
-func (bldr *BasicOpsImpStoreBuilder) ExpectArgsAre(key string, value any) *BasicOpsImpStoreCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpStoreBuilder) ExpectArgsAre(key string, value any) *OpsImpStoreCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Store" {
 			return false
 		}
@@ -357,8 +365,8 @@ func (bldr *BasicOpsImpStoreBuilder) ExpectArgsAre(key string, value any) *Basic
 	return call.AsStore()
 }
 
-func (bldr *BasicOpsImpStoreBuilder) ExpectArgsShould(key any, value any) *BasicOpsImpStoreCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpStoreBuilder) ExpectArgsShould(key any, value any) *OpsImpStoreCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Store" {
 			return false
 		}
@@ -379,8 +387,8 @@ func (bldr *BasicOpsImpStoreBuilder) ExpectArgsShould(key any, value any) *Basic
 	return call.AsStore()
 }
 
-func (bldr *BasicOpsImpStoreBuilder) InjectResults(r0 int, r1 error) *BasicOpsImpStoreCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpStoreBuilder) InjectResults(r0 int, r1 error) *OpsImpStoreCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Store"
 	}
 
@@ -390,8 +398,8 @@ func (bldr *BasicOpsImpStoreBuilder) InjectResults(r0 int, r1 error) *BasicOpsIm
 	return methodCall
 }
 
-func (bldr *BasicOpsImpStoreBuilder) InjectPanic(msg any) *BasicOpsImpStoreCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpStoreBuilder) InjectPanic(msg any) *OpsImpStoreCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Store"
 	}
 
@@ -401,17 +409,17 @@ func (bldr *BasicOpsImpStoreBuilder) InjectPanic(msg any) *BasicOpsImpStoreCall 
 	return methodCall
 }
 
-type BasicOpsImpLogBuilder struct {
-	imp     *BasicOpsImp
+type OpsImpLogBuilder struct {
+	imp     *OpsImp
 	timeout time.Duration
 }
 
-func (e *BasicOpsImpExpectCallIs) Log() *BasicOpsImpLogBuilder {
-	return &BasicOpsImpLogBuilder{imp: e.imp, timeout: e.timeout}
+func (e *OpsImpExpectCallIs) Log() *OpsImpLogBuilder {
+	return &OpsImpLogBuilder{imp: e.imp, timeout: e.timeout}
 }
 
-func (bldr *BasicOpsImpLogBuilder) ExpectArgsAre(message string) *BasicOpsImpLogCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpLogBuilder) ExpectArgsAre(message string) *OpsImpLogCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Log" {
 			return false
 		}
@@ -426,8 +434,8 @@ func (bldr *BasicOpsImpLogBuilder) ExpectArgsAre(message string) *BasicOpsImpLog
 	return call.AsLog()
 }
 
-func (bldr *BasicOpsImpLogBuilder) ExpectArgsShould(message any) *BasicOpsImpLogCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpLogBuilder) ExpectArgsShould(message any) *OpsImpLogCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Log" {
 			return false
 		}
@@ -444,8 +452,8 @@ func (bldr *BasicOpsImpLogBuilder) ExpectArgsShould(message any) *BasicOpsImpLog
 	return call.AsLog()
 }
 
-func (bldr *BasicOpsImpLogBuilder) Resolve() *BasicOpsImpLogCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpLogBuilder) Resolve() *OpsImpLogCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Log"
 	}
 
@@ -455,8 +463,8 @@ func (bldr *BasicOpsImpLogBuilder) Resolve() *BasicOpsImpLogCall {
 	return methodCall
 }
 
-func (bldr *BasicOpsImpLogBuilder) InjectPanic(msg any) *BasicOpsImpLogCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpLogBuilder) InjectPanic(msg any) *OpsImpLogCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Log"
 	}
 
@@ -466,17 +474,17 @@ func (bldr *BasicOpsImpLogBuilder) InjectPanic(msg any) *BasicOpsImpLogCall {
 	return methodCall
 }
 
-type BasicOpsImpNotifyBuilder struct {
-	imp     *BasicOpsImp
+type OpsImpNotifyBuilder struct {
+	imp     *OpsImp
 	timeout time.Duration
 }
 
-func (e *BasicOpsImpExpectCallIs) Notify() *BasicOpsImpNotifyBuilder {
-	return &BasicOpsImpNotifyBuilder{imp: e.imp, timeout: e.timeout}
+func (e *OpsImpExpectCallIs) Notify() *OpsImpNotifyBuilder {
+	return &OpsImpNotifyBuilder{imp: e.imp, timeout: e.timeout}
 }
 
-func (bldr *BasicOpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *BasicOpsImpNotifyCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *OpsImpNotifyCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Notify" {
 			return false
 		}
@@ -494,8 +502,8 @@ func (bldr *BasicOpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) 
 	return call.AsNotify()
 }
 
-func (bldr *BasicOpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *BasicOpsImpNotifyCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *OpsImpNotifyCall {
+	validator := func(c *OpsImpCall) bool {
 		if c.Name() != "Notify" {
 			return false
 		}
@@ -516,8 +524,8 @@ func (bldr *BasicOpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *Ba
 	return call.AsNotify()
 }
 
-func (bldr *BasicOpsImpNotifyBuilder) InjectResult(result bool) *BasicOpsImpNotifyCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpNotifyBuilder) InjectResult(result bool) *OpsImpNotifyCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Notify"
 	}
 
@@ -527,8 +535,8 @@ func (bldr *BasicOpsImpNotifyBuilder) InjectResult(result bool) *BasicOpsImpNoti
 	return methodCall
 }
 
-func (bldr *BasicOpsImpNotifyBuilder) InjectPanic(msg any) *BasicOpsImpNotifyCall {
-	validator := func(c *BasicOpsImpCall) bool {
+func (bldr *OpsImpNotifyBuilder) InjectPanic(msg any) *OpsImpNotifyCall {
+	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Notify"
 	}
 
@@ -538,19 +546,19 @@ func (bldr *BasicOpsImpNotifyBuilder) InjectPanic(msg any) *BasicOpsImpNotifyCal
 	return methodCall
 }
 
-type BasicOpsImpTimed struct {
-	ExpectCallIs *BasicOpsImpExpectCallIs
+type OpsImpTimed struct {
+	ExpectCallIs *OpsImpExpectCallIs
 }
 
-func (i *BasicOpsImp) Within(d time.Duration) *BasicOpsImpTimed {
-	return &BasicOpsImpTimed{
-		ExpectCallIs: &BasicOpsImpExpectCallIs{imp: i, timeout: d},
+func (i *OpsImp) Within(d time.Duration) *OpsImpTimed {
+	return &OpsImpTimed{
+		ExpectCallIs: &OpsImpExpectCallIs{imp: i, timeout: d},
 	}
 }
 
-func (i *BasicOpsImp) GetCall(
-	d time.Duration, validator func(*BasicOpsImpCall) bool,
-) *BasicOpsImpCall {
+func (i *OpsImp) GetCall(
+	d time.Duration, validator func(*OpsImpCall) bool,
+) *OpsImpCall {
 	i.queueLock.Lock()
 
 	// Check queue first while holding lock
@@ -588,20 +596,20 @@ func (i *BasicOpsImp) GetCall(
 	}
 }
 
-func (i *BasicOpsImp) GetCurrentCall() *BasicOpsImpCall {
+func (i *OpsImp) GetCurrentCall() *OpsImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
 	}
-	i.currentCall = i.GetCall(0, func(c *BasicOpsImpCall) bool { return true })
+	i.currentCall = i.GetCall(0, func(c *OpsImpCall) bool { return true })
 	return i.currentCall
 }
 
-func NewBasicOpsImp(t *testing.T) *BasicOpsImp {
-	imp := &BasicOpsImp{
+func NewOpsImp(t *testing.T) *OpsImp {
+	imp := &OpsImp{
 		t:        t,
-		callChan: make(chan *BasicOpsImpCall, 1),
+		callChan: make(chan *OpsImpCall, 1),
 	}
-	imp.Mock = &BasicOpsImpMock{imp: imp}
-	imp.ExpectCallIs = &BasicOpsImpExpectCallIs{imp: imp}
+	imp.Mock = &OpsImpMock{imp: imp}
+	imp.ExpectCallIs = &OpsImpExpectCallIs{imp: imp}
 	return imp
 }

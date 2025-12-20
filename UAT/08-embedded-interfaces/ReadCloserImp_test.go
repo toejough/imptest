@@ -135,9 +135,13 @@ func (c *ReadCloserImpCall) Done() bool {
 	return false
 }
 
-func (c *ReadCloserImpCall) AsRead() *ReadCloserImpReadCall { return c.Read }
+func (c *ReadCloserImpCall) AsRead() *ReadCloserImpReadCall {
+	return c.Read
+}
 
-func (c *ReadCloserImpCall) AsClose() *ReadCloserImpCloseCall { return c.Close }
+func (c *ReadCloserImpCall) AsClose() *ReadCloserImpCloseCall {
+	return c.Close
+}
 
 type ReadCloserImpExpectCallIs struct {
 	imp     *ReadCloserImp

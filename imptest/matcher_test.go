@@ -159,3 +159,56 @@ func TestAny(t *testing.T) {
 		t.Errorf("Any().FailureMessage(42) = %q, want empty string", msg)
 	}
 }
+
+// Test the Satisfies() matcher.
+func TestSatisfies(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Match success", func(t *testing.T) {
+		t.Parallel()
+
+		matcher := imptest.Satisfies(func(val int) bool {
+			return val > 10
+		})
+
+		ok, err := matcher.Match(42)
+		if !ok || err != nil {
+			t.Errorf("Satisfies().Match(42) = (%v, %v), want (true, nil)", ok, err)
+		}
+	})
+
+	t.Run("Match failure", func(t *testing.T) {
+		t.Parallel()
+
+		matcher := imptest.Satisfies(func(val int) bool {
+			return val > 10
+		})
+
+		ok, err := matcher.Match(5)
+		if ok || err != nil {
+			t.Errorf("Satisfies().Match(5) = (%v, %v), want (false, nil)", ok, err)
+		}
+
+		msg := matcher.FailureMessage(5)
+		if msg == "" {
+			t.Errorf("Satisfies().FailureMessage(5) should not be empty")
+		}
+	})
+
+	t.Run("Type mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		matcher := imptest.Satisfies(func(val int) bool {
+			return val > 10
+		})
+
+		ok, err := matcher.Match("not an int")
+		if ok {
+			t.Errorf("Satisfies().Match(string) should return ok=false")
+		}
+
+		if err == nil {
+			t.Errorf("Satisfies().Match(string) should return error for type mismatch")
+		}
+	})
+}

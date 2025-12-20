@@ -1035,6 +1035,169 @@ import "fmt"
 	}
 }
 
+func TestRun_InterfaceWithMixedExportedAndGeneric(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	sourceCode := `package mypkg
+type MyData struct { Name string }
+type MyInterface[T any] interface {
+	Process(d MyData, item T)
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	localPackageSource := `package run_test
+import "github.com/toejough/imptest/UAT/run"
+var _ = run.MyData{}
+`
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+
+	args := []string{"impgen", "run.MyInterface", "--name", "MyImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["MyImp.go"]
+	if !ok {
+		t.Fatal("Expected MyImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, "MyImp[T any]") {
+		t.Errorf("Expected generic implementation, got:\n%s", contentStr)
+	}
+}
+
+func TestRun_InterfaceWithExportedTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	sourceCode := `package mypkg
+type MyData struct { Name string }
+type MyInterface interface {
+	Process(d MyData)
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	// local source imports the package
+	localPackageSource := `package run_test
+import "github.com/toejough/imptest/UAT/run"
+var _ = run.MyData{}
+`
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+
+	args := []string{"impgen", "run.MyInterface", "--name", "MyImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["MyImp.go"]
+	if !ok {
+		t.Fatal("Expected MyImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	if !strings.Contains(contentStr, "run.MyData") {
+		t.Errorf("Expected generated code to contain %q", "run.MyData")
+	}
+}
+
+func TestRun_InterfaceWithGenericTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	sourceCode := `package mypkg
+type Container[T any] struct { Value T }
+type Pair[T, U any] struct { First T; Second U }
+type GenericInterface interface {
+	ProcessContainer(c Container[int])
+	ProcessPair(p Pair[string, bool])
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"generator", "GenericInterface", "--name", "GenericImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["GenericImp.go"]
+	if !ok {
+		t.Fatal("Expected GenericImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	expected := []string{
+		"Container[int]",
+		"Pair[string, bool]",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+		}
+	}
+}
+
+func TestRun_ComplexTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	sourceCode := `package mypkg
+import "os"
+type ComplexInterface interface {
+	ProcessChannels(in <-chan int, out chan<- string)
+	ProcessFile(f *os.File) error
+	Nested(data [5]*int)
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"generator", "ComplexInterface", "--name", "ComplexImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["ComplexImp.go"]
+	if !ok {
+		t.Fatal("Expected ComplexImp.go to be created")
+	}
+
+	contentStr := string(content)
+
+	expected := []string{
+		"<-chan int",
+		"chan<- string",
+		"*os.File",
+		"[5]*int",
+	}
+	for _, exp := range expected {
+		if !strings.Contains(contentStr, exp) {
+			t.Errorf("Expected generated code to contain %q", exp)
+		}
+	}
+}
+
 func TestRun_GenericInterface(t *testing.T) {
 	t.Parallel()
 

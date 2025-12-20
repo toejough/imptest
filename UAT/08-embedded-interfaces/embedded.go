@@ -17,20 +17,23 @@ type ReadCloser interface {
 }
 
 // ProcessStream reads from a ReadCloser and then closes it.
-func ProcessStream(rc ReadCloser) (int, error) {
+
+func ProcessStream(readCloser ReadCloser) (int, error) {
 	const bufSize = 10
+
 	buf := make([]byte, bufSize)
 
-	n, err := rc.Read(buf)
+	bytesRead, err := readCloser.Read(buf)
 	if err != nil {
-		_ = rc.Close()
+		_ = readCloser.Close()
+
 		return 0, fmt.Errorf("read failed: %w", err)
 	}
 
-	err = rc.Close()
+	err = readCloser.Close()
 	if err != nil {
-		return n, fmt.Errorf("close failed: %w", err)
+		return bytesRead, fmt.Errorf("close failed: %w", err)
 	}
 
-	return n, nil
+	return bytesRead, nil
 }

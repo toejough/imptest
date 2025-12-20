@@ -52,7 +52,7 @@ func newCodeGenerator(
 ) (*codeGenerator, error) {
 	impName := info.impName
 
-	_, qualifier, err := interfaceGetPackageInfo(
+	pkgPath, qualifier, err := interfaceGetPackageInfo(
 		ifaceWithDetails.iface,
 		ifaceWithDetails.typeParams,
 		info.interfaceName,
@@ -73,6 +73,7 @@ func newCodeGenerator(
 		identifiedInterface: ifaceWithDetails.iface,
 		typeParams:          ifaceWithDetails.typeParams,
 		typesInfo:           typesInfo,
+		pkgPath:             pkgPath,
 		qualifier:           qualifier,
 		astFiles:            astFiles,
 		pkgImportPath:       pkgImportPath,
@@ -95,6 +96,8 @@ func (gen *codeGenerator) generate() (string, error) {
 	gen.checkIfReflectNeeded()
 	// Pre-scan to determine if imptest import is needed
 	gen.checkIfImptestNeeded()
+	// Pre-scan to see if qualifier is needed
+	gen.checkIfQualifierNeeded()
 
 	gen.generateHeader()
 	gen.generateMockStruct()
@@ -132,7 +135,9 @@ type codeGenerator struct {
 	identifiedInterface *ast.InterfaceType
 	typeParams          *ast.FieldList // Type parameters for generic interfaces
 	typesInfo           *go_types.Info // Type information for comparability checks
+	pkgPath             string
 	qualifier           string
+	needsQualifier      bool
 	needsReflect        bool // Track if reflect import is needed
 	needsImptest        bool // Track if imptest import is needed
 	methodNames         []string
@@ -170,6 +175,19 @@ func (gen *codeGenerator) checkIfImptestNeeded() {
 	})
 }
 
+// checkIfQualifierNeeded pre-scans all interface methods to determine if the package qualifier is needed.
+func (gen *codeGenerator) checkIfQualifierNeeded() {
+	if gen.qualifier == "" {
+		return
+	}
+
+	gen.forEachMethod(func(_ string, ftype *ast.FuncType) {
+		if hasExportedIdent(ftype, gen.isTypeParameter) {
+			gen.needsQualifier = true
+		}
+	})
+}
+
 // forEachMethod iterates over interface methods and calls the callback for each.
 // This is safe to call without error checking because we already validated the interface
 // structure during method name collection in generateImplementationCode. If an error occurs
@@ -191,6 +209,9 @@ func (gen *codeGenerator) templateData() templateData {
 		MethodNames:      gen.methodNames,
 		TypeParamsDecl:   gen.formatTypeParamsDecl(),
 		TypeParamsUse:    gen.formatTypeParamsUse(),
+		PkgPath:          gen.pkgPath,
+		Qualifier:        gen.qualifier,
+		NeedsQualifier:   gen.needsQualifier,
 		NeedsReflect:     gen.needsReflect,
 		NeedsImptest:     gen.needsImptest,
 	}

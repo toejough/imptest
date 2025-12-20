@@ -44,6 +44,8 @@ func generateCallableWrapperCode(
 		typesInfo:  typesInfo,
 	}
 
+	gen.checkIfQualifierNeeded()
+
 	gen.generateHeader()
 	gen.generateReturnStruct()
 	gen.generateMainStruct()
@@ -63,19 +65,31 @@ func generateCallableWrapperCode(
 	return string(formatted), nil
 }
 
+// checkIfQualifierNeeded pre-scans function signature to determine if the package qualifier is needed.
+func (g *callableGenerator) checkIfQualifierNeeded() {
+	if g.qualifier == "" {
+		return
+	}
+
+	if hasExportedIdent(g.funcDecl.Type, g.isTypeParameter) {
+		g.needsQualifier = true
+	}
+}
+
 // Types
 
 // callableGenerator holds state for generating callable wrapper code.
 type callableGenerator struct {
 	codeWriter
 
-	pkgName    string
-	impName    string
-	funcDecl   *ast.FuncDecl
-	pkgPath    string
-	qualifier  string
-	typeParams *ast.FieldList // Type parameters for generic functions
-	typesInfo  *go_types.Info // Type information for comparability checks
+	pkgName        string
+	impName        string
+	funcDecl       *ast.FuncDecl
+	pkgPath        string
+	qualifier      string
+	needsQualifier bool
+	typeParams     *ast.FieldList // Type parameters for generic functions
+	typesInfo      *go_types.Info // Type information for comparability checks
 }
 
 // callableExtendedTemplateData extends callableTemplateData with dynamic signature info.
@@ -128,6 +142,7 @@ func (g *callableGenerator) templateData() callableTemplateData {
 		ImpName:        g.impName,
 		PkgPath:        g.pkgPath,
 		Qualifier:      g.qualifier,
+		NeedsQualifier: g.needsQualifier,
 		HasReturns:     hasResults(g.funcDecl.Type),
 		ReturnType:     g.returnTypeName(),
 		NumReturns:     numReturns,

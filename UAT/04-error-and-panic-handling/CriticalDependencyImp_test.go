@@ -79,7 +79,9 @@ func (c *CriticalDependencyImpCall) Done() bool {
 	return false
 }
 
-func (c *CriticalDependencyImpCall) AsDoWork() *CriticalDependencyImpDoWorkCall { return c.DoWork }
+func (c *CriticalDependencyImpCall) AsDoWork() *CriticalDependencyImpDoWorkCall {
+	return c.DoWork
+}
 
 type CriticalDependencyImpExpectCallIs struct {
 	imp     *CriticalDependencyImp

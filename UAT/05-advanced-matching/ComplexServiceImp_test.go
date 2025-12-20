@@ -6,7 +6,7 @@ import "github.com/toejough/imptest/imptest"
 import "sync"
 import "testing"
 import "time"
-import "github.com/toejough/imptest/UAT/05-advanced-matching"
+import matching "github.com/toejough/imptest/UAT/05-advanced-matching"
 
 type ComplexServiceImpMock struct {
 	imp *ComplexServiceImp
@@ -84,7 +84,9 @@ func (c *ComplexServiceImpCall) Done() bool {
 	return false
 }
 
-func (c *ComplexServiceImpCall) AsProcess() *ComplexServiceImpProcessCall { return c.Process }
+func (c *ComplexServiceImpCall) AsProcess() *ComplexServiceImpProcessCall {
+	return c.Process
+}
 
 type ComplexServiceImpExpectCallIs struct {
 	imp     *ComplexServiceImp

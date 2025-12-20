@@ -137,9 +137,13 @@ func (c *RepositoryImpCall[T]) Done() bool {
 	return false
 }
 
-func (c *RepositoryImpCall[T]) AsSave() *RepositoryImpSaveCall[T] { return c.Save }
+func (c *RepositoryImpCall[T]) AsSave() *RepositoryImpSaveCall[T] {
+	return c.Save
+}
 
-func (c *RepositoryImpCall[T]) AsGet() *RepositoryImpGetCall[T] { return c.Get }
+func (c *RepositoryImpCall[T]) AsGet() *RepositoryImpGetCall[T] {
+	return c.Get
+}
 
 type RepositoryImpExpectCallIs[T any] struct {
 	imp     *RepositoryImp[T]

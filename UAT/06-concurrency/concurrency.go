@@ -14,33 +14,33 @@ type SlowService interface {
 // RunConcurrent calls DoA and DoB in separate goroutines.
 // It purposefully introduces a small delay for DoB to increase the chance
 // that they arrive "out of order" relative to a sequential test.
-func RunConcurrent(svc SlowService, id int) []string {
+func RunConcurrent(svc SlowService, serviceID int) []string {
 	const (
 		numTasks = 2
 		delay    = 50
 	)
 
-	var wg sync.WaitGroup
+	var waitGroup sync.WaitGroup
 
 	results := make([]string, numTasks)
 
-	wg.Add(numTasks)
+	waitGroup.Add(numTasks)
 
 	go func() {
-		defer wg.Done()
+		defer waitGroup.Done()
 		// Small delay to make ordering non-deterministic or different from test expectation
 		time.Sleep(delay * time.Millisecond)
 
-		results[1] = svc.DoB(id)
+		results[1] = svc.DoB(serviceID)
 	}()
 
 	go func() {
-		defer wg.Done()
+		defer waitGroup.Done()
 
-		results[0] = svc.DoA(id)
+		results[0] = svc.DoA(serviceID)
 	}()
 
-	wg.Wait()
+	waitGroup.Wait()
 
 	return results
 }

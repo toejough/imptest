@@ -136,9 +136,13 @@ func (c *ExternalServiceImpCall) Done() bool {
 	return false
 }
 
-func (c *ExternalServiceImpCall) AsFetchData() *ExternalServiceImpFetchDataCall { return c.FetchData }
+func (c *ExternalServiceImpCall) AsFetchData() *ExternalServiceImpFetchDataCall {
+	return c.FetchData
+}
 
-func (c *ExternalServiceImpCall) AsProcess() *ExternalServiceImpProcessCall { return c.Process }
+func (c *ExternalServiceImpCall) AsProcess() *ExternalServiceImpProcessCall {
+	return c.Process
+}
 
 type ExternalServiceImpExpectCallIs struct {
 	imp     *ExternalServiceImp

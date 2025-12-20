@@ -24,7 +24,8 @@ package {{.PkgName}}
 {{end}}import "sync"
 import "testing"
 import "time"
-
+{{if .NeedsQualifier}}import {{.Qualifier}} "{{.PkgPath}}"
+{{end}}
 `)
 
 	mockStructTemplate = mustParse("mockStruct", `type {{.MockName}}{{.TypeParamsDecl}} struct {
@@ -179,7 +180,7 @@ package {{.PkgName}}
 import (
 	"github.com/toejough/imptest/imptest"
 	"testing"
-{{if .PkgPath}}	{{.Qualifier}} "{{.PkgPath}}"
+{{if .NeedsQualifier}}	{{.Qualifier}} "{{.PkgPath}}"
 {{end}})
 
 `)
@@ -396,6 +397,9 @@ type templateData struct {
 	MethodNames      []string
 	TypeParamsDecl   string // Type parameters with constraints, e.g., "[T any, U comparable]"
 	TypeParamsUse    string // Type parameters for instantiation, e.g., "[T, U]"
+	PkgPath          string // Import path for the package being mocked
+	Qualifier        string // Package qualifier (e.g., "basic")
+	NeedsQualifier   bool   // Whether the package qualifier is actually used
 	NeedsReflect     bool   // Whether reflect import is needed for DeepEqual
 	NeedsImptest     bool   // Whether imptest import is needed for matchers
 }
@@ -428,6 +432,7 @@ type callableTemplateData struct {
 	ImpName        string
 	PkgPath        string
 	Qualifier      string
+	NeedsQualifier bool
 	HasReturns     bool
 	ReturnType     string // "{ImpName}Return" or "struct{}"
 	NumReturns     int

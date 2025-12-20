@@ -1,8 +1,8 @@
 package basic
 
-// BasicOps demonstrates the core mocking features of imptest.
+// Ops demonstrates the core mocking features of imptest.
 // It covers single and multiple return values, void methods, and variadic arguments.
-type BasicOps interface {
+type Ops interface {
 	// Add demonstrates a simple method with parameters and a single return value.
 	Add(a, b int) int
 
@@ -16,8 +16,8 @@ type BasicOps interface {
 	Notify(message string, ids ...int) bool
 }
 
-// PerformOps is a helper that uses the BasicOps interface.
-func PerformOps(ops BasicOps) {
+// PerformOps is a helper that uses the Ops interface.
+func PerformOps(ops Ops) {
 	const (
 		val1 = 1
 		val2 = 2

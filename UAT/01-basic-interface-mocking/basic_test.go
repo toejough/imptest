@@ -6,13 +6,13 @@ import (
 	basic "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
 )
 
-//go:generate go run ../../impgen/main.go basic.BasicOps --name BasicOpsImp
+//go:generate go run ../../impgen/main.go basic.Ops --name OpsImp
 
 func TestBasicMocking(t *testing.T) {
 	t.Parallel()
 
 	// Initialize the generated mock.
-	mock := NewBasicOpsImp(t)
+	mock := NewOpsImp(t)
 
 	// Run the code under test in a goroutine so the test can interact with it synchronously.
 	go basic.PerformOps(mock.Mock)

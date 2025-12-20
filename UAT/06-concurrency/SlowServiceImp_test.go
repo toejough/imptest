@@ -134,9 +134,13 @@ func (c *SlowServiceImpCall) Done() bool {
 	return false
 }
 
-func (c *SlowServiceImpCall) AsDoA() *SlowServiceImpDoACall { return c.DoA }
+func (c *SlowServiceImpCall) AsDoA() *SlowServiceImpDoACall {
+	return c.DoA
+}
 
-func (c *SlowServiceImpCall) AsDoB() *SlowServiceImpDoBCall { return c.DoB }
+func (c *SlowServiceImpCall) AsDoB() *SlowServiceImpDoBCall {
+	return c.DoB
+}
 
 type SlowServiceImpExpectCallIs struct {
 	imp     *SlowServiceImp

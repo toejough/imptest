@@ -1,9 +1,11 @@
 package generics_test
 
 import (
+	"errors"
 	"testing"
 
 	generics "github.com/toejough/imptest/UAT/07-generics"
+	"github.com/toejough/imptest/imptest"
 )
 
 // Generate a mock for the generic interface.
@@ -12,6 +14,8 @@ import (
 
 // Generate a wrapper for the generic function.
 //go:generate go run ../../impgen/main.go generics.ProcessItem --name ProcessItemImp --call
+
+var errTest = errors.New("test error")
 
 func TestGenericMocking(t *testing.T) {
 	t.Parallel()
@@ -49,4 +53,37 @@ func TestGenericCallable(t *testing.T) {
 
 	// Verify it returned successfully (nil error).
 	logic.ExpectReturnedValuesAre(nil)
+}
+
+func TestProcessItem_Error(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Get error", func(t *testing.T) {
+		t.Parallel()
+		repo := NewRepositoryImp[string](t)
+		logic := NewProcessItemImp[string](t, generics.ProcessItem[string])
+
+		logic.Start(repo.Mock, "123", func(s string) string { return s })
+
+		repo.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("", errTest)
+
+		logic.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) bool {
+			return errors.Is(err, errTest)
+		}))
+	})
+
+	t.Run("Save error", func(t *testing.T) {
+		t.Parallel()
+		repo := NewRepositoryImp[string](t)
+		logic := NewProcessItemImp[string](t, generics.ProcessItem[string])
+
+		logic.Start(repo.Mock, "123", func(s string) string { return s })
+
+		repo.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("data", nil)
+		repo.ExpectCallIs.Save().ExpectArgsAre("data").InjectResult(errTest)
+
+		logic.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) bool {
+			return errors.Is(err, errTest)
+		}))
+	})
 }
