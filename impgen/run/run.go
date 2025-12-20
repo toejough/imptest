@@ -34,6 +34,12 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 		return err
 	}
 
+	// If it's a local package, we should use the full name for symbol lookup
+	// (e.g. "MyType.MyMethod" instead of just "MyMethod")
+	if pkgImportPath == "." {
+		info.localInterfaceName = info.interfaceName
+	}
+
 	astFiles, fset, typesInfo, err := loadPackage(pkgImportPath, pkgLoader)
 	if err != nil {
 		return err
@@ -52,7 +58,6 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 	return nil
 }
 
-// generateCode generates the Go code based on the generatorInfo and AST files.
 func generateCode(
 	info generatorInfo,
 	astFiles []*ast.File,
@@ -61,16 +66,17 @@ func generateCode(
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 ) (string, error) {
-	if info.isCallable {
-		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
-	}
-
-	ifaceWithDetails, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
+	// Auto-detect the symbol type
+	symbol, err := findSymbol(astFiles, fset, info.localInterfaceName, pkgImportPath)
 	if err != nil {
 		return "", err
 	}
 
-	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, ifaceWithDetails)
+	if symbol.kind == symbolFunction {
+		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
+	}
+
+	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
 }
 
 // Interfaces - Public
@@ -86,13 +92,11 @@ type FileSystem interface {
 type cliArgs struct {
 	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
 	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
-	Call      bool   `arg:"--call"              help:"generate a type-safe callable wrapper instead of interface mock"`
 }
 
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
-	isCallable                                          bool
 }
 
 // Functions - Private
@@ -123,7 +127,6 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		interfaceName:      interfaceName,
 		localInterfaceName: localInterfaceName,
 		impName:            impName,
-		isCallable:         parsed.Call,
 	}, nil
 }
 
@@ -140,7 +143,15 @@ func getInterfacePackagePath(interfaceName string, pkgLoader PackageLoader) (str
 		return "", fmt.Errorf("failed to load local package to resolve import: %w", err)
 	}
 
-	return findImportPath(astFiles, pkgName, pkgLoader)
+	// Try to find the import path for the prefix.
+	// If it's not found in imports, it might be a local type/method reference (e.g. MyType.MyMethod)
+	path, err := findImportPath(astFiles, pkgName, pkgLoader)
+	if err != nil {
+		// If it's not a package we know about, assume it's a local reference
+		return ".", nil //nolint:nilerr
+	}
+
+	return path, nil
 }
 
 // getLocalInterfaceName extracts the name of the interface without the package prefix.

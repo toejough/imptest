@@ -13,7 +13,7 @@ import (
 //go:generate go run ../../impgen/main.go callable.ExternalService --name ExternalServiceImp
 
 // Generate a wrapper for the function under test.
-//go:generate go run ../../impgen/main.go callable.BusinessLogic --name BusinessLogicImp --call
+//go:generate go run ../../impgen/main.go callable.BusinessLogic --name BusinessLogicImp
 
 func TestBusinessLogic(t *testing.T) {
 	t.Parallel()

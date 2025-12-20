@@ -600,7 +600,7 @@ func PrintSum(a, b int) int {
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
 	// Generate test helper for this function
-	args := []string{"impgen", "run.PrintSum", "--name", "PrintSumImp", "--call"}
+	args := []string{"impgen", "run.PrintSum", "--name", "PrintSumImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -653,7 +653,7 @@ func ProcessData(data []string, callback func(string) error) (*MyType, error) {
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
 	// Generate test helper
-	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp", "--call"}
+	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -704,7 +704,7 @@ func ProcessMap(data map[string]int, ch chan<- string) map[int][]string {
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
 	// Generate test helper
-	args := []string{"impgen", "run.ProcessMap", "--name", "ProcessMapImp", "--call"}
+	args := []string{"impgen", "run.ProcessMap", "--name", "ProcessMapImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -766,7 +766,7 @@ var _ = run.Player{}
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.Player.Play", "--name", "PlayerPlayImp", "--call"}
+	args := []string{"impgen", "run.Player.Play", "--name", "PlayerPlayImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -822,7 +822,7 @@ var _ = run.Calculator{}
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.Calculator.Add", "--name", "CalculatorAddImp", "--call"}
+	args := []string{"impgen", "run.Calculator.Add", "--name", "CalculatorAddImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -874,7 +874,7 @@ var _ = run.Divide
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.Divide", "--name", "DivideImp", "--call"}
+	args := []string{"impgen", "run.Divide", "--name", "DivideImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -922,7 +922,7 @@ func SimpleAdd(a, b int) int {
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
 	// Generate callable for local function without package qualifier
-	args := []string{"impgen", "SimpleAdd", "--name", "SimpleAddImp", "--call"}
+	args := []string{"impgen", "SimpleAdd", "--name", "SimpleAddImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -981,7 +981,7 @@ func ProcessData(data *MyType) int {
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 	// Don't register "." - this will cause Load(".") to fail
 
-	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp", "--call"}
+	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err == nil {
@@ -1021,7 +1021,7 @@ import "fmt"
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
 	// Try to generate callable for run.ProcessData, but "run" package not imported in local package
-	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp", "--call"}
+	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err == nil {
@@ -1030,8 +1030,8 @@ import "fmt"
 		return
 	}
 
-	if !strings.Contains(err.Error(), "package not found") {
-		t.Errorf("Expected 'package not found' error, got: %v", err)
+	if !strings.Contains(err.Error(), "symbol (interface or function) not found") {
+		t.Errorf("Expected 'symbol (interface or function) not found' error, got: %v", err)
 	}
 }
 
@@ -1264,7 +1264,7 @@ func ProcessContainer(c *Container[int]) int {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp", "--call"}
+	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -1314,7 +1314,7 @@ func ProcessKeyValue(kv *KeyValue[string, int]) string {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.ProcessKeyValue", "--name", "ProcessKeyValueImp", "--call"}
+	args := []string{"impgen", "run.ProcessKeyValue", "--name", "ProcessKeyValueImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -1359,7 +1359,7 @@ func ProcessStruct(data struct{ Name string; Age int }) string {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.ProcessStruct", "--name", "ProcessStructImp", "--call"}
+	args := []string{"impgen", "run.ProcessStruct", "--name", "ProcessStructImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -1406,7 +1406,7 @@ func ProcessTime(t time.Time) string {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.ProcessTime", "--name", "ProcessTimeImp", "--call"}
+	args := []string{"impgen", "run.ProcessTime", "--name", "ProcessTimeImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -1503,7 +1503,7 @@ func GetNames() []string {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.GetNames", "--name", "GetNamesImp", "--call"}
+	args := []string{"impgen", "run.GetNames", "--name", "GetNamesImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -1579,6 +1579,96 @@ type Calculator interface {
 
 	if !strings.Contains(contentStr, "methodCall.s1 != s1") {
 		t.Error("Expected != comparison for string parameter")
+	}
+}
+
+func TestRun_AutoDetect_Interface(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	sourceCode := `
+package mypkg
+type MyInterface interface {
+	DoSomething()
+}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	// No --call flag
+	args := []string{"generator", "MyInterface", "--name", "MyImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["MyImp.go"]
+	if !ok {
+		t.Fatal("Expected MyImp.go to be created")
+	}
+
+	if !strings.Contains(string(content), "type MyImpMock struct") {
+		t.Error("Expected interface mock to be generated")
+	}
+}
+
+func TestRun_AutoDetect_Function(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	sourceCode := `
+package mypkg
+func MyFunc(a int) string { return "" }
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	// No --call flag, but it's a function
+	args := []string{"generator", "MyFunc", "--name", "MyFuncImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["MyFuncImp.go"]
+	if !ok {
+		t.Fatal("Expected MyFuncImp.go to be created")
+	}
+
+	if !strings.Contains(string(content), "type MyFuncImpReturn struct") {
+		t.Error("Expected callable wrapper to be generated")
+	}
+}
+
+func TestRun_AutoDetect_Method(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	sourceCode := `
+package mypkg
+type MyType struct{}
+func (m *MyType) MyMethod(a int) {}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	// No --call flag, but it's a method
+	args := []string{"generator", "MyType.MyMethod", "--name", "MyMethodImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	content, ok := mockFS.files["MyMethodImp.go"]
+	if !ok {
+		t.Fatal("Expected MyMethodImp.go to be created")
+	}
+
+	if !strings.Contains(string(content), "func (s *MyMethodImp) Start(a int)") {
+		t.Error("Expected callable wrapper to be generated for method")
 	}
 }
 

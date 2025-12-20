@@ -7,8 +7,8 @@ import (
 )
 
 //go:generate go run ../../impgen/main.go safety.CriticalDependency --name CriticalDependencyImp
-//go:generate go run ../../impgen/main.go safety.SafeRunner --name SafeRunnerImp --call
-//go:generate go run ../../impgen/main.go safety.UnsafeRunner --name UnsafeRunnerImp --call
+//go:generate go run ../../impgen/main.go safety.SafeRunner --name SafeRunnerImp
+//go:generate go run ../../impgen/main.go safety.UnsafeRunner --name UnsafeRunnerImp
 
 func TestRecoverFromPanic(t *testing.T) {
 	t.Parallel()

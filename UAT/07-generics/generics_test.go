@@ -14,9 +14,7 @@ import (
 //go:generate go run ../../impgen/main.go generics.Repository --name RepositoryImp
 
 // Generate a wrapper for the generic function.
-//go:generate go run ../../impgen/main.go generics.ProcessItem --name ProcessItemImp --call
-
-// TODO: automatically identify whether the generate arg is an interface or a function, and skip --call for interfaces?
+//go:generate go run ../../impgen/main.go generics.ProcessItem --name ProcessItemImp
 
 var errTest = errors.New("test error")
 

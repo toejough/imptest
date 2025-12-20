@@ -23,7 +23,7 @@ func GenericFunc[T any, U comparable](item T, key U) (T, U) {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.GenericFunc", "--name", "GenericFuncImp", "--call"}
+	args := []string{"impgen", "run.GenericFunc", "--name", "GenericFuncImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -87,7 +87,7 @@ func ProcessContainer(c *myContainer[MyExportedType, string]) string {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp", "--call"}
+	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -128,7 +128,7 @@ func ProcessChannels(in <-chan MyType, out chan<- string, bidir chan int) {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.ProcessChannels", "--name", "ProcessChannelsImp", "--call"}
+	args := []string{"impgen", "run.ProcessChannels", "--name", "ProcessChannelsImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -176,7 +176,7 @@ func ProcessWithCallback(data CustomData, handler func(CustomData) error) error 
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.ProcessWithCallback", "--name", "ProcessWithCallbackImp", "--call"}
+	args := []string{"impgen", "run.ProcessWithCallback", "--name", "ProcessWithCallbackImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {
@@ -224,7 +224,7 @@ func CreateHandler(id string) func() Result {
 	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
 	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
 
-	args := []string{"impgen", "run.CreateHandler", "--name", "CreateHandlerImp", "--call"}
+	args := []string{"impgen", "run.CreateHandler", "--name", "CreateHandlerImp"}
 
 	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
 	if err != nil {

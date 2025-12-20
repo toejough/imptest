@@ -9,6 +9,22 @@ import (
 	"strings"
 )
 
+// symbolType identifies the kind of symbol found.
+type symbolType int
+
+const (
+	symbolInterface symbolType = iota
+	symbolFunction
+)
+
+// symbolDetails holds information about the detected symbol.
+
+type symbolDetails struct {
+	kind symbolType
+
+	iface ifaceWithDetails
+}
+
 // ifaceWithDetails is a helper struct to return both the interface and its type parameters.
 type ifaceWithDetails struct {
 	iface      *ast.InterfaceType
@@ -21,7 +37,33 @@ var (
 	errInterfaceNotFound = errors.New("interface not found")
 
 	errPackageNotFound = errors.New("package not found in imports or as a loadable package")
+
+	errSymbolNotFound = errors.New("symbol (interface or function) not found")
 )
+
+// findSymbol looks for either an interface or a function/method in the given AST files.
+func findSymbol(
+	astFiles []*ast.File, fset *token.FileSet, symbolName string, pkgImportPath string,
+) (symbolDetails, error) {
+	// 1. Try finding it as an interface first
+	iface, err := getMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
+	if err == nil {
+		return symbolDetails{
+			kind:  symbolInterface,
+			iface: iface,
+		}, nil
+	}
+
+	// 2. Try finding it as a function or method
+	_, err = findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
+	if err == nil {
+		return symbolDetails{
+			kind: symbolFunction,
+		}, nil
+	}
+
+	return symbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
+}
 
 // findFunctionInAST looks for a function declaration in the given AST files.
 
