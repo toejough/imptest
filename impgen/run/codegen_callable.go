@@ -6,8 +6,7 @@ import (
 	"go/format"
 	"go/printer"
 	"go/token"
-	"go/types"
-	"slices"
+	go_types "go/types"
 	"strings"
 	"text/template"
 	"unicode"
@@ -20,11 +19,11 @@ func generateCallableWrapperCode(
 	astFiles []*ast.File,
 	info generatorInfo,
 	fset *token.FileSet,
-	typesInfo *types.Info,
+	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 ) (string, error) {
-	funcDecl, err := findFunctionInAST(astFiles, info.localInterfaceName, pkgImportPath)
+	funcDecl, err := findFunctionInAST(astFiles, fset, info.localInterfaceName, pkgImportPath)
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +75,7 @@ type callableGenerator struct {
 	pkgPath    string
 	qualifier  string
 	typeParams *ast.FieldList // Type parameters for generic functions
-	typesInfo  *types.Info    // Type information for comparability checks
+	typesInfo  *go_types.Info // Type information for comparability checks
 }
 
 // callableExtendedTemplateData extends callableTemplateData with dynamic signature info.
@@ -415,7 +414,7 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 			fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(%s.Result%d, %s) {\n", varName, result.Index, resultName)
 		}
 
-		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %%d to be %%v, got %%v\", %d, %s, %s.Result%d)\n",
+		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"expected return value %d to be %%v, got %%v\", %s, %s.Result%d)\n",
 			result.Index, resultName, varName, result.Index)
 		buf.WriteString("\t\t}\n")
 	}
@@ -465,7 +464,7 @@ func (g *callableGenerator) resultComparisonsMatcherString(varName string) strin
 
 		fmt.Fprintf(&buf, "\t\tok, msg = imptest.MatchValue(%s.Result%d, %s)\n", varName, result.Index, resultName)
 		buf.WriteString("\t\tif !ok {\n")
-		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"return value %%d: %%s\", %d, msg)\n", result.Index)
+		fmt.Fprintf(&buf, "\t\t\ts.t.Fatalf(\"return value %d: %%s\", msg)\n", result.Index)
 		buf.WriteString("\t\t}\n")
 	}
 
@@ -583,47 +582,7 @@ func (g *callableGenerator) typeWithQualifierChan(chanType *ast.ChanType) string
 
 // typeWithQualifierFunc handles function types.
 func (g *callableGenerator) typeWithQualifierFunc(funcType *ast.FuncType) string {
-	var buf strings.Builder
-	buf.WriteString("func")
-
-	// For function types, we need to recursively qualify parameter and result types
-	// Using printer.Fprint would lose the qualification, so we format manually
-	if funcType.Params != nil {
-		buf.WriteString("(")
-
-		for i, field := range funcType.Params.List {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-
-			// Write parameter type with qualification
-			buf.WriteString(g.typeWithQualifier(field.Type))
-		}
-
-		buf.WriteString(")")
-	}
-
-	if funcType.Results != nil {
-		if len(funcType.Results.List) > 1 {
-			buf.WriteString(" (")
-		} else {
-			buf.WriteString(" ")
-		}
-
-		for i, field := range funcType.Results.List {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(g.typeWithQualifier(field.Type))
-		}
-
-		if len(funcType.Results.List) > 1 {
-			buf.WriteString(")")
-		}
-	}
-
-	return buf.String()
+	return typeWithQualifierFunc(g.fset, funcType, g.typeWithQualifier)
 }
 
 // typeWithQualifierIdent handles simple identifier types.
@@ -722,173 +681,23 @@ func callableGetPackageInfo(
 	interfaceName string,
 	pkgLoader PackageLoader,
 ) (pkgPath, pkgName string, err error) {
-	if !strings.Contains(interfaceName, ".") {
-		return "", "", nil
-	}
+	isTypeParam := func(name string) bool {
+		if funcDecl.Type.TypeParams == nil {
+			return false
+		}
 
-	if !callableFuncUsesExportedTypes(funcDecl) {
-		return "", "", nil
-	}
-
-	pkgName = extractPackageName(interfaceName)
-
-	astFiles, _, _, err := pkgLoader.Load(".")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to load local package: %w", err)
-	}
-
-	pkgPath, err = findImportPath(astFiles, pkgName, pkgLoader)
-	if err != nil {
-		return "", "", err
-	}
-
-	return pkgPath, pkgName, nil
-}
-
-// callableFuncUsesExportedTypes checks if a function uses exported types.
-func callableFuncUsesExportedTypes(funcDecl *ast.FuncDecl) bool {
-	if funcDecl.Type.Params != nil {
-		for _, field := range funcDecl.Type.Params.List {
-			if callableHasExportedIdent(field.Type) {
-				return true
+		for _, field := range funcDecl.Type.TypeParams.List {
+			for _, paramName := range field.Names {
+				if paramName.Name == name {
+					return true
+				}
 			}
 		}
+
+		return false
 	}
 
-	if funcDecl.Type.Results != nil {
-		for _, field := range funcDecl.Type.Results.List {
-			if callableHasExportedIdent(field.Type) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// callableHasExportedIdent checks if an expression contains an exported identifier.
-//
-//nolint:cyclop // Simple type-switch dispatcher with no nested logic; complexity is inherent to AST node types
-func callableHasExportedIdent(expr ast.Expr) bool {
-	switch typeExpr := expr.(type) {
-	case *ast.Ident:
-		return callableHasExportedIdentInIdent(typeExpr)
-	case *ast.StarExpr:
-		return callableHasExportedIdentInStar(typeExpr)
-	case *ast.ArrayType:
-		return callableHasExportedIdentInArray(typeExpr)
-	case *ast.MapType:
-		return callableHasExportedIdentInMap(typeExpr)
-	case *ast.ChanType:
-		return callableHasExportedIdentInChan(typeExpr)
-	case *ast.FuncType:
-		return callableHasExportedIdentInFunc(typeExpr)
-	case *ast.StructType:
-		return callableHasExportedIdentInStruct(typeExpr)
-	case *ast.SelectorExpr:
-		return callableHasExportedIdentInSelector(typeExpr)
-	case *ast.IndexExpr:
-		return callableHasExportedIdentInIndex(typeExpr)
-	case *ast.IndexListExpr:
-		return callableHasExportedIdentInIndexList(typeExpr)
-	}
-
-	return false
-}
-
-// callableHasExportedIdentInArray checks if an array type contains exported identifiers.
-func callableHasExportedIdentInArray(t *ast.ArrayType) bool {
-	return callableHasExportedIdent(t.Elt)
-}
-
-// callableHasExportedIdentInChan checks if a channel type contains exported identifiers.
-func callableHasExportedIdentInChan(t *ast.ChanType) bool {
-	return callableHasExportedIdent(t.Value)
-}
-
-// callableHasExportedIdentInFunc checks if a function type contains exported identifiers.
-func callableHasExportedIdentInFunc(funcType *ast.FuncType) bool {
-	// Check parameters for exported types
-	if funcType.Params != nil {
-		for _, field := range funcType.Params.List {
-			if callableHasExportedIdent(field.Type) {
-				return true
-			}
-		}
-	}
-
-	// Check results for exported types
-	if funcType.Results != nil {
-		for _, field := range funcType.Results.List {
-			if callableHasExportedIdent(field.Type) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// callableHasExportedIdentInIdent checks if an identifier is exported.
-func callableHasExportedIdentInIdent(t *ast.Ident) bool {
-	return len(t.Name) > 0 && unicode.IsUpper(rune(t.Name[0])) && !callableIsBuiltinType(t.Name)
-}
-
-// callableHasExportedIdentInIndex checks if a generic type instantiation contains exported identifiers.
-func callableHasExportedIdentInIndex(t *ast.IndexExpr) bool {
-	// Generic type instantiation with single type parameter, e.g., Container[int]
-	return callableHasExportedIdent(t.X) || callableHasExportedIdent(t.Index)
-}
-
-// callableHasExportedIdentInIndexList checks if a multi-parameter generic type contains exported identifiers.
-func callableHasExportedIdentInIndexList(indexList *ast.IndexListExpr) bool {
-	// Generic type instantiation with multiple type parameters, e.g., Map[string, int]
-	if callableHasExportedIdent(indexList.X) {
-		return true
-	}
-
-	return slices.ContainsFunc(indexList.Indices, callableHasExportedIdent)
-}
-
-// callableHasExportedIdentInMap checks if a map type contains exported identifiers.
-func callableHasExportedIdentInMap(t *ast.MapType) bool {
-	return callableHasExportedIdent(t.Key) || callableHasExportedIdent(t.Value)
-}
-
-// callableHasExportedIdentInSelector checks if a selector expression is exported.
-func callableHasExportedIdentInSelector(_ *ast.SelectorExpr) bool {
-	return true
-}
-
-// callableHasExportedIdentInStar checks if a pointer type contains exported identifiers.
-func callableHasExportedIdentInStar(t *ast.StarExpr) bool {
-	return callableHasExportedIdent(t.X)
-}
-
-// callableHasExportedIdentInStruct checks if a struct type contains exported identifiers.
-func callableHasExportedIdentInStruct(t *ast.StructType) bool {
-	// Check struct fields for exported types
-	if t.Fields != nil {
-		for _, field := range t.Fields.List {
-			if callableHasExportedIdent(field.Type) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// callableIsBuiltinType checks if a type name is a Go builtin.
-func callableIsBuiltinType(name string) bool {
-	builtins := map[string]bool{
-		"bool": true, "byte": true, "complex64": true, "complex128": true,
-		"error": true, "float32": true, "float64": true, "int": true,
-		"int8": true, "int16": true, "int32": true, "int64": true,
-		"rune": true, "string": true, "uint": true, "uint8": true,
-		"uint16": true, "uint32": true, "uint64": true, "uintptr": true,
-		"any": true,
-	}
-
-	return builtins[name]
+	return getPackageInfo(interfaceName, pkgLoader, func() bool {
+		return hasExportedIdent(funcDecl.Type, isTypeParam)
+	})
 }

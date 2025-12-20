@@ -6,272 +6,207 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strconv"
 	"strings"
 )
 
-// Vars.
-var (
-	errPackageNotFound   = errors.New("package not found")
-	errInterfaceNotFound = errors.New("interface not found")
-	errFunctionNotFound  = errors.New("function not found")
-)
-
-// Interfaces
-
-// PackageLoader interface for loading external packages.
-type PackageLoader interface {
-	Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error)
-}
-
-// Functions
-
-// extractPackageName extracts the package name from a qualified interface name (e.g., "pkg" from "pkg.Interface").
-func extractPackageName(qualifiedName string) string {
-	before, _, _ := strings.Cut(qualifiedName, ".")
-	return before
-}
-
-// findImportPath searches through AST files to find the full import path for a package name.
-func findImportPath(astFiles []*ast.File, targetPkgImport string, pkgLoader PackageLoader) (string, error) {
-	for _, fileAst := range astFiles {
-		importPath, err := searchFileImports(fileAst, targetPkgImport, pkgLoader)
-		if err != nil {
-			return "", err
-		}
-
-		if importPath != "" {
-			return importPath, nil
-		}
-	}
-
-	return "", fmt.Errorf("%w: %q", errPackageNotFound, targetPkgImport)
-}
-
-// getInterfacePackagePath determines the import path for the interface. Returns "." for local interfaces, or resolves
-// the full import path for qualified names like "pkg.Interface".
-func getInterfacePackagePath(qualifiedName string, pkgLoader PackageLoader) (string, error) {
-	if isLocalInterface(qualifiedName) {
-		return getLocalPackagePath(), nil
-	}
-
-	return getNonLocalPackagePath(qualifiedName, pkgLoader)
-}
-
-// getLocalInterfaceName extracts the local interface name from a possibly qualified name
-// (e.g., "MyInterface" from "pkg.MyInterface").
-func getLocalInterfaceName(name string) string {
-	if _, after, ok := strings.Cut(name, "."); ok {
-		return after
-	}
-
-	return name
-}
-
-// getLocalPackagePath returns the path for local package interfaces.
-func getLocalPackagePath() string {
-	return "."
-}
-
-// getMatchingInterfaceFromAST finds the interface by name in the ASTs.
-// Returns the interface along with its type parameters.
-func getMatchingInterfaceFromAST(
-	astFiles []*ast.File, localInterfaceName, pkgImportPath string,
-) (*interfaceWithParams, error) {
-	for _, fileAst := range astFiles {
-		ifaceWithParams := searchFileForInterface(fileAst, localInterfaceName)
-		if ifaceWithParams != nil {
-			return ifaceWithParams, nil
-		}
-	}
-
-	return nil, fmt.Errorf("%w: named %q in package %q", errInterfaceNotFound, localInterfaceName, pkgImportPath)
-}
-
-// getNonLocalPackagePath resolves the full import path for a qualified interface name.
-func getNonLocalPackagePath(qualifiedName string, pkgLoader PackageLoader) (string, error) {
-	targetPkgImport := extractPackageName(qualifiedName)
-
-	astFiles, _, _, err := pkgLoader.Load(".")
-	if err != nil {
-		return "", fmt.Errorf("failed to load local package: %w", err)
-	}
-
-	importPath, err := findImportPath(astFiles, targetPkgImport, pkgLoader)
-	if err != nil {
-		return "", err
-	}
-
-	return importPath, nil
-}
-
-// isLocalInterface checks if the interface name is local (no package qualifier).
-func isLocalInterface(qualifiedName string) bool {
-	return !strings.Contains(qualifiedName, ".")
-}
-
-// loadPackage loads a package and returns its AST files, file set, and type info.
-func loadPackage(pkgImportPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, *types.Info, error) {
-	astFiles, fset, typesInfo, err := pkgLoader.Load(pkgImportPath)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to load package %q: %w", pkgImportPath, err)
-	}
-
-	return astFiles, fset, typesInfo, nil
-}
-
-// interfaceWithParams holds an interface type along with its type parameters.
-type interfaceWithParams struct {
+// ifaceWithDetails is a helper struct to return both the interface and its type parameters.
+type ifaceWithDetails struct {
 	iface      *ast.InterfaceType
 	typeParams *ast.FieldList
 }
 
-// searchFileForInterface searches a single AST file for an interface with the given name.
-// Returns the interface with its type parameters if found, nil if not found.
-func searchFileForInterface(fileAst *ast.File, interfaceName string) *interfaceWithParams {
-	var found *interfaceWithParams
+var (
+	errFunctionNotFound = errors.New("function or method not found")
 
-	ast.Inspect(fileAst, func(n ast.Node) bool {
-		typeSpec, isTypeSpec := n.(*ast.TypeSpec)
-		if !isTypeSpec {
-			return true
-		}
+	errInterfaceNotFound = errors.New("interface not found")
 
-		if typeSpec.Name.Name != interfaceName {
-			return true
-		}
+	errPackageNotFound = errors.New("package not found in imports or as a loadable package")
+)
 
-		iface, isInterface := typeSpec.Type.(*ast.InterfaceType)
-		if !isInterface {
-			return true
-		}
+// findFunctionInAST looks for a function declaration in the given AST files.
 
-		// Capture type parameters (Go 1.18+ generics)
-		found = &interfaceWithParams{
-			iface:      iface,
-			typeParams: typeSpec.TypeParams,
-		}
+// funcName can be "MyFunc", "MyType.MyMethod", or "*MyType.MyMethod".
 
-		return false
-	})
+func findFunctionInAST(
+	astFiles []*ast.File, fset *token.FileSet, funcName string, pkgImportPath string,
+) (*ast.FuncDecl, error) {
+	parts := strings.Split(funcName, ".")
 
-	return found
-}
+	methodName := parts[len(parts)-1]
 
-// searchFileImports searches a single AST file's imports for a matching package name.
-// Returns the full import path if found, empty string if not found, or an error if import paths are malformed.
-// Handles both aliased imports (e.g., `import foo "github.com/bar/baz"`) and regular imports.
-func searchFileImports(fileAst *ast.File, targetPkgImport string, pkgLoader PackageLoader) (string, error) {
-	for _, imp := range fileAst.Imports {
-		// Check for aliased import first
-		if imp.Name != nil && imp.Name.Name == targetPkgImport {
-			importPath, err := strconv.Unquote(imp.Path.Value)
-			if err != nil {
-				return "", fmt.Errorf("failed to unquote import path %q: %w", imp.Path.Value, err)
-			}
+	receiverName := ""
 
-			return importPath, nil
-		}
-
-		// Fall back to loading the package to check its actual name
-		importPath, err := strconv.Unquote(imp.Path.Value)
-		if err != nil {
-			return "", fmt.Errorf("failed to unquote import path %q: %w", imp.Path.Value, err)
-		}
-
-		// Try to see if the internal package name matches the target
-		astFiles, _, _, err := pkgLoader.Load(importPath)
-		if err == nil && len(astFiles) > 0 {
-			if astFiles[0].Name.Name == targetPkgImport {
-				return importPath, nil
-			}
-		}
+	if len(parts) > 1 {
+		receiverName = strings.Join(parts[0:len(parts)-1], ".")
 	}
-
-	return "", nil
-}
-
-// findFunctionInAST finds a function or method declaration in the AST files.
-// funcName can be a plain function name like "PrintSum" or a method reference like "PingPongPlayer.Play".
-func findFunctionInAST(astFiles []*ast.File, funcName string, pkgImportPath string) (*ast.FuncDecl, error) {
-	typeName, methodName, isMethod := strings.Cut(funcName, ".")
 
 	for _, file := range astFiles {
-		if found := findFunctionInFile(file, typeName, methodName, isMethod); found != nil {
-			return found, nil
-		}
-	}
+		for _, decl := range file.Decls {
+			funcDecl, ok := decl.(*ast.FuncDecl)
 
-	return nil, fmt.Errorf("%w: named %q in package %q", errFunctionNotFound, funcName, pkgImportPath)
-}
-
-// findFunctionInFile searches a single file for a matching function or method declaration.
-func findFunctionInFile(file *ast.File, typeName, methodName string, isMethod bool) *ast.FuncDecl {
-	for _, decl := range file.Decls {
-		funcDecl, ok := decl.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-
-		if isMethod {
-			if matchesMethod(funcDecl, typeName, methodName) {
-				return funcDecl
+			if !ok {
+				continue
 			}
-		} else {
-			if matchesFunction(funcDecl, typeName) {
-				return funcDecl
+
+			// Check for function name
+
+			if funcDecl.Name.Name != methodName {
+				continue
+			}
+
+			// Check for receiver if it's a method
+
+			if funcDecl.Recv != nil {
+				if len(funcDecl.Recv.List) == 0 {
+					continue
+				}
+
+				recvType := exprToString(fset, funcDecl.Recv.List[0].Type)
+
+				normalizedRecvType := strings.TrimPrefix(recvType, "*")
+
+				if normalizedRecvType != strings.TrimPrefix(receiverName, "*") {
+					continue
+				}
+			} else if receiverName != "" {
+				continue // Function has no receiver but receiver name was specified
+			}
+
+			return funcDecl, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%w: %s in package %s", errFunctionNotFound, funcName, pkgImportPath)
+}
+
+// getMatchingInterfaceFromAST extracts the target interface declaration and its type parameters from AST files.
+
+func getMatchingInterfaceFromAST(
+	astFiles []*ast.File, interfaceName string, pkgImportPath string,
+) (ifaceWithDetails, error) {
+	var (
+		targetIface *ast.InterfaceType
+
+		typeParams *ast.FieldList
+	)
+
+	for _, file := range astFiles {
+		ast.Inspect(file, func(node ast.Node) bool {
+			genDecl, ok := node.(*ast.GenDecl)
+
+			if !ok || genDecl.Tok != token.TYPE {
+				return true // Not a type declaration
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+
+				if !ok || typeSpec.Name.Name != interfaceName {
+					continue // Not the interface we're looking for
+				}
+
+				iface, ok := typeSpec.Type.(*ast.InterfaceType)
+
+				if !ok {
+					continue // Not an interface type
+				}
+
+				// Found it!
+
+				targetIface = iface
+
+				typeParams = typeSpec.TypeParams // Capture type parameters
+
+				return false // Stop inspecting
+			}
+
+			return true
+		})
+
+		if targetIface != nil {
+			break // Found in this file, no need to check others
+		}
+	}
+
+	if targetIface == nil {
+		return ifaceWithDetails{}, fmt.Errorf("%w: %s in package %s", errInterfaceNotFound, interfaceName, pkgImportPath)
+	}
+
+	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
+}
+
+// PackageLoader defines an interface for loading Go packages.
+
+type PackageLoader interface {
+	Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error)
+}
+
+// findImportPath finds the import path for a given package name by parsing the provided AST files.
+
+func findImportPath(
+	astFiles []*ast.File, pkgName string, pkgLoader PackageLoader,
+) (string, error) {
+	for _, file := range astFiles {
+		for _, imp := range file.Imports {
+			path, err := checkImport(imp, pkgName, pkgLoader)
+			if err == nil {
+				return path, nil
 			}
 		}
 	}
 
-	return nil
+	// As a last resort, try loading the package by name.
+
+	// This covers cases where the package is implicitly imported (e.g., "builtin").
+
+	// This is also important for when the package under test is the one being referenced,
+
+	// and therefore will not appear in the imports (e.g., "mytypes.MyStruct").
+
+	files, _, _, err := pkgLoader.Load(pkgName)
+
+	if err == nil && len(files) > 0 {
+		return pkgName, nil
+	}
+
+	return "", fmt.Errorf("%w: %s", errPackageNotFound, pkgName)
 }
 
-// matchesMethod checks if a function declaration is a method with the given receiver type and method name.
-func matchesMethod(funcDecl *ast.FuncDecl, typeName, methodName string) bool {
-	if funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
-		return false
+// checkImport checks if an import matches the target package name.
+
+func checkImport(imp *ast.ImportSpec, pkgName string, pkgLoader PackageLoader) (string, error) {
+	path := strings.Trim(imp.Path.Value, `"`)
+
+	if imp.Name != nil && imp.Name.Name == pkgName {
+		// Aliased import: `import alias "path/to/pkg"`
+		return path, nil
 	}
 
-	if funcDecl.Name.Name != methodName {
-		return false
+	// Non-aliased import: `import "path/to/pkg"`
+
+	if strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
+		return path, nil
 	}
 
-	return matchesReceiverType(funcDecl.Recv.List[0].Type, typeName)
+	// If suffix doesn't match, the package name might still match the internal package name.
+
+	// Load the package to check.
+
+	importedFiles, _, _, err := pkgLoader.Load(path)
+
+	if err == nil && len(importedFiles) > 0 && importedFiles[0].Name.Name == pkgName {
+		return path, nil
+	}
+
+	return "", errPackageNotFound
 }
 
-// matchesFunction checks if a function declaration is a plain function (no receiver) with the given name.
-func matchesFunction(funcDecl *ast.FuncDecl, funcName string) bool {
-	return funcDecl.Recv == nil && funcDecl.Name.Name == funcName
-}
-
-// matchesReceiverType checks if the receiver type expression matches the given type name.
-// Handles both value receivers (T) and pointer receivers (*T).
-func matchesReceiverType(expr ast.Expr, typeName string) bool {
-	switch recv := expr.(type) {
-	case *ast.Ident:
-		return recv.Name == typeName
-	case *ast.StarExpr:
-		// Pointer receiver - check the underlying type
-		if ident, ok := recv.X.(*ast.Ident); ok {
-			return ident.Name == typeName
-		}
+// extractPackageName extracts the package name from a fully qualified name (e.g., "pkg.Interface" -> "pkg").
+func extractPackageName(qualifiedName string) string {
+	parts := strings.Split(qualifiedName, ".")
+	if len(parts) > 1 {
+		return parts[0]
 	}
 
-	return false
-}
-
-// isComparableExpr checks if an AST expression represents a comparable type.
-// Uses Go's type system to accurately determine comparability.
-func isComparableExpr(expr ast.Expr, typesInfo *types.Info) bool {
-	if typesInfo == nil {
-		return false // Conservative: assume non-comparable if no type info
-	}
-
-	tv, ok := typesInfo.Types[expr]
-	if !ok {
-		return false // Type not found, be conservative
-	}
-
-	return types.Comparable(tv.Type)
+	return ""
 }

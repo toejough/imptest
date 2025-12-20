@@ -36,10 +36,10 @@ import "time"
 	mainStructTemplate = mustParse("mainStruct", `type {{.ImpName}}{{.TypeParamsDecl}} struct {
 	t *testing.T
 	Mock *{{.MockName}}{{.TypeParamsUse}}
-	callChan chan *{{.CallName}}
+	callChan chan *{{.CallName}}{{.TypeParamsUse}}
 	ExpectCallIs *{{.ExpectCallIsName}}{{.TypeParamsUse}}
-	currentCall *{{.CallName}}
-	callQueue []*{{.CallName}}
+	currentCall *{{.CallName}}{{.TypeParamsUse}}
+	callQueue []*{{.CallName}}{{.TypeParamsUse}}
 	queueLock sync.Mutex
 }
 
@@ -67,8 +67,8 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 
 	getCallMethodTemplate = mustParse("getCallMethod",
 		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCall(
-	d time.Duration, validator func(*{{.CallName}}) bool,
-) *{{.CallName}} {
+	d time.Duration, validator func(*{{.CallName}}{{.TypeParamsUse}}) bool,
+) *{{.CallName}}{{.TypeParamsUse}} {
 	i.queueLock.Lock()
 
 	// Check queue first while holding lock
@@ -109,11 +109,11 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 `)
 
 	getCurrentCallMethodTemplate = mustParse("getCurrentCallMethod",
-		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}} {
+		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}}{{.TypeParamsUse}} {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
 	}
-	i.currentCall = i.GetCall(0, func(c *{{.CallName}}) bool { return true })
+	i.currentCall = i.GetCall(0, func(c *{{.CallName}}{{.TypeParamsUse}}) bool { return true })
 	return i.currentCall
 }
 
@@ -123,7 +123,7 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 		`func New{{.ImpName}}{{.TypeParamsDecl}}(t *testing.T) *{{.ImpName}}{{.TypeParamsUse}} {
 	imp := &{{.ImpName}}{{.TypeParamsUse}}{
 		t: t,
-		callChan: make(chan *{{.CallName}}, 1),
+		callChan: make(chan *{{.CallName}}{{.TypeParamsUse}}, 1),
 	}
 	imp.Mock = &{{.MockName}}{{.TypeParamsUse}}{imp: imp}
 	imp.ExpectCallIs = &{{.ExpectCallIsName}}{{.TypeParamsUse}}{imp: imp}
@@ -133,38 +133,38 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 `)
 
 	injectPanicMethodTemplate = mustParse("injectPanic",
-		`func (c *{{.MethodCallName}}) InjectPanic(msg any) {
+		`func (c *{{.MethodCallName}}{{.TypeParamsUse}}) InjectPanic(msg any) {
 	c.done = true
-	c.responseChan <- {{.MethodCallName}}Response{Type: "panic", PanicValue: msg}
+	c.responseChan <- {{.MethodCallName}}Response{{.TypeParamsUse}}{Type: "panic", PanicValue: msg}
 }
 `)
 
 	resolveMethodTemplate = mustParse("resolve",
-		`func (c *{{.MethodCallName}}) Resolve() {
+		`func (c *{{.MethodCallName}}{{.TypeParamsUse}}) Resolve() {
 	c.done = true
-	c.responseChan <- {{.MethodCallName}}Response{Type: "resolve"}
+	c.responseChan <- {{.MethodCallName}}Response{{.TypeParamsUse}}{Type: "resolve"}
 }
 `)
 
-	callStructTemplate = mustParse("callStruct", `type {{.CallName}} struct {
-{{range .Methods}}	{{.Name}} *{{.CallName}}
+	callStructTemplate = mustParse("callStruct", `type {{.CallName}}{{.TypeParamsDecl}} struct {
+{{range .Methods}}	{{.Name}} *{{.CallName}}{{.TypeParamsUse}}
 {{end}}}
 
-func (c *{{.CallName}}) Name() string {
+func (c *{{.CallName}}{{.TypeParamsUse}}) Name() string {
 {{range .Methods}}	if c.{{.Name}} != nil {
 		return "{{.Name}}"
 	}
 {{end}}	return ""
 }
 
-func (c *{{.CallName}}) Done() bool {
+func (c *{{.CallName}}{{.TypeParamsUse}}) Done() bool {
 {{range .Methods}}	if c.{{.Name}} != nil {
 		return c.{{.Name}}.done
 	}
 {{end}}	return false
 }
 
-{{range .Methods}}func (c *{{$.CallName}}) As{{.Name}}() *{{.CallName}} { return c.{{.Name}} }
+{{range .Methods}}func (c *{{$.CallName}}{{.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeParamsUse}} { return c.{{.Name}} }
 
 {{end}}`)
 
@@ -408,8 +408,9 @@ type methodTemplateData struct {
 
 // callStructMethodData holds data for generating call struct methods with method field info.
 type callStructMethodData struct {
-	Name     string // Method name (e.g., "DoSomething")
-	CallName string // Full call struct name (e.g., "MyImpDoSomethingCall")
+	Name          string // Method name (e.g., "DoSomething")
+	CallName      string // Full call struct name (e.g., "MyImpDoSomethingCall")
+	TypeParamsUse string
 }
 
 // callStructTemplateData holds data for generating the call struct and its methods.

@@ -57,7 +57,7 @@ func TestUATConsistency(t *testing.T) {
 		t.Fatalf("failed to find project root: %v", err)
 	}
 
-	uatDir := filepath.Join(projectRoot, "UAT/run")
+	uatDir := filepath.Join(projectRoot, "UAT")
 
 	testCases, err := scanUATDirectives(uatDir)
 	if err != nil {

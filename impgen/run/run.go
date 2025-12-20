@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"go/types"
+	go_types "go/types" // Aliased import
 	"os"
 	"strings"
 
@@ -57,7 +57,7 @@ func generateCode(
 	info generatorInfo,
 	astFiles []*ast.File,
 	fset *token.FileSet,
-	typesInfo *types.Info,
+	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 ) (string, error) {
@@ -65,7 +65,12 @@ func generateCode(
 		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
-	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
+	ifaceWithDetails, err := getMatchingInterfaceFromAST(astFiles, info.localInterfaceName, pkgImportPath)
+	if err != nil {
+		return "", err
+	}
+
+	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, ifaceWithDetails)
 }
 
 // Interfaces - Public
@@ -120,6 +125,42 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		impName:            impName,
 		isCallable:         parsed.Call,
 	}, nil
+}
+
+// getInterfacePackagePath resolves the import path for the package containing the target interface.
+func getInterfacePackagePath(interfaceName string, pkgLoader PackageLoader) (string, error) {
+	if !strings.Contains(interfaceName, ".") {
+		return ".", nil
+	}
+
+	pkgName := extractPackageName(interfaceName)
+
+	astFiles, _, _, err := pkgLoader.Load(".")
+	if err != nil {
+		return "", fmt.Errorf("failed to load local package to resolve import: %w", err)
+	}
+
+	return findImportPath(astFiles, pkgName, pkgLoader)
+}
+
+// getLocalInterfaceName extracts the name of the interface without the package prefix.
+func getLocalInterfaceName(interfaceName string) string {
+	parts := strings.Split(interfaceName, ".")
+	if len(parts) > 1 {
+		return strings.Join(parts[1:], ".")
+	}
+
+	return interfaceName
+}
+
+// loadPackage loads the AST and type info for the package at the given path.
+func loadPackage(pkgPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, *go_types.Info, error) {
+	astFiles, fset, typesInfo, err := pkgLoader.Load(pkgPath)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to load package %s: %w", pkgPath, err)
+	}
+
+	return astFiles, fset, typesInfo, nil
 }
 
 // parseArgs parses command-line arguments into cliArgs.
