@@ -18,8 +18,14 @@ type BasicOps interface {
 
 // PerformOps is a helper that uses the BasicOps interface.
 func PerformOps(ops BasicOps) {
-	_ = ops.Add(1, 2)
+	const (
+		val1 = 1
+		val2 = 2
+		val3 = 3
+	)
+
+	_ = ops.Add(val1, val2)
 	_, _ = ops.Store("foo", "bar")
 	ops.Log("action performed")
-	_ = ops.Notify("alert", 1, 2, 3)
+	_ = ops.Notify("alert", val1, val2, val3)
 }

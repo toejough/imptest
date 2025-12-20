@@ -18,7 +18,8 @@ type ReadCloser interface {
 
 // ProcessStream reads from a ReadCloser and then closes it.
 func ProcessStream(rc ReadCloser) (int, error) {
-	buf := make([]byte, 10)
+	const bufSize = 10
+	buf := make([]byte, bufSize)
 
 	n, err := rc.Read(buf)
 	if err != nil {

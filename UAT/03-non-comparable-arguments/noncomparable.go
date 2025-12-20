@@ -8,6 +8,8 @@ type DataProcessor interface {
 
 // RunProcessor uses the DataProcessor interface with non-comparable types.
 func RunProcessor(p DataProcessor) {
+	const threshold = 10
+
 	_ = p.ProcessSlice([]string{"a", "b", "c"})
-	_ = p.ProcessMap(map[string]int{"threshold": 10})
+	_ = p.ProcessMap(map[string]int{"threshold": threshold})
 }

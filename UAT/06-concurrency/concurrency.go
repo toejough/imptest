@@ -15,16 +15,21 @@ type SlowService interface {
 // It purposefully introduces a small delay for DoB to increase the chance
 // that they arrive "out of order" relative to a sequential test.
 func RunConcurrent(svc SlowService, id int) []string {
+	const (
+		numTasks = 2
+		delay    = 50
+	)
+
 	var wg sync.WaitGroup
 
-	results := make([]string, 2)
+	results := make([]string, numTasks)
 
-	wg.Add(2)
+	wg.Add(numTasks)
 
 	go func() {
 		defer wg.Done()
 		// Small delay to make ordering non-deterministic or different from test expectation
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(delay * time.Millisecond)
 
 		results[1] = svc.DoB(id)
 	}()

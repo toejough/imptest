@@ -14,9 +14,14 @@ type ComplexService interface {
 
 // UseService is a function that uses the ComplexService.
 func UseService(svc ComplexService, payload string) {
+	const (
+		id        = 123
+		timestamp = 1600000000
+	)
+
 	svc.Process(Data{
-		ID:        123,
+		ID:        id,
 		Payload:   payload,
-		Timestamp: 1600000000,
+		Timestamp: timestamp,
 	})
 }
