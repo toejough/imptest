@@ -98,7 +98,6 @@ func NewCallableController[T any](t Tester) *CallableController[T] {
 	}
 }
 
-// WaitForResponse waits for either a return value or a panic.
 func (c *CallableController[T]) WaitForResponse() {
 	if c.Returned != nil || c.Panicked != nil {
 		return
@@ -110,21 +109,4 @@ func (c *CallableController[T]) WaitForResponse() {
 	case p := <-c.PanicChan:
 		c.Panicked = p
 	}
-}
-
-// Response defines the interface for a function's result (return or panic).
-type Response interface {
-	Type() string
-	AsReturn() []any
-}
-
-// Deadcode dummy to keep linter happy since these are used in generated code.
-//
-
-var _ = func() {
-	c := NewController[Call](nil)
-	_ = c.GetCall(0, nil)
-
-	cc := NewCallableController[any](nil)
-	cc.WaitForResponse()
 }
