@@ -10,7 +10,6 @@ import (
 	go_types "go/types"
 	"strings"
 	"text/template"
-	"unicode"
 )
 
 var errUnsupportedEmbeddedType = errors.New("unsupported embedded type")
@@ -68,7 +67,11 @@ func newCodeGenerator(
 	}
 
 	gen := &codeGenerator{
-		codeWriter:          codeWriter{fset: fset},
+		codeWriter: codeWriter{},
+		typeFormatter: typeFormatter{
+			fset:      fset,
+			qualifier: qualifier,
+		},
 		pkgName:             info.pkgName,
 		impName:             impName,
 		mockName:            impName + "Mock",
@@ -84,6 +87,7 @@ func newCodeGenerator(
 		pkgImportPath:       pkgImportPath,
 		pkgLoader:           pkgLoader,
 	}
+	gen.isTypeParam = gen.isTypeParameter
 
 	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.iface, astFiles, fset, pkgImportPath, pkgLoader)
 	if err != nil {
@@ -134,6 +138,7 @@ func (gen *codeGenerator) generate() (string, error) {
 // codeGenerator holds state for code generation.
 type codeGenerator struct {
 	codeWriter
+	typeFormatter
 
 	pkgName             string
 	impName             string
@@ -227,7 +232,14 @@ func (gen *codeGenerator) checkIfValidForExternalUsage() error {
 // here, it indicates a programming error and will cause a panic in the underlying function.
 func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
 	// Ignore error - interface was already validated during method name collection
-	_ = forEachInterfaceMethod(gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader, callback)
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface,
+		gen.astFiles,
+		gen.fset,
+		gen.pkgImportPath,
+		gen.pkgLoader,
+		callback,
+	)
 }
 
 // templateData returns common template data for this generator.
@@ -253,66 +265,13 @@ func (gen *codeGenerator) templateData() templateData {
 // formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
 // Returns empty string if there are no type parameters.
 func (gen *codeGenerator) formatTypeParamsDecl() string {
-	if gen.typeParams == nil || len(gen.typeParams.List) == 0 {
-		return ""
-	}
-
-	var buf strings.Builder
-	buf.WriteString("[")
-
-	for i, field := range gen.typeParams.List {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		// Write parameter names
-		for j, name := range field.Names {
-			if j > 0 {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(name.Name)
-		}
-
-		// Write constraint
-		if field.Type != nil {
-			buf.WriteString(" ")
-			buf.WriteString(exprToString(gen.fset, field.Type))
-		}
-	}
-
-	buf.WriteString("]")
-
-	return buf.String()
+	return formatTypeParamsDecl(gen.fset, gen.typeParams)
 }
 
 // formatTypeParamsUse formats type parameters for instantiation (e.g., "[T, U]").
 // Returns empty string if there are no type parameters.
 func (gen *codeGenerator) formatTypeParamsUse() string {
-	if gen.typeParams == nil || len(gen.typeParams.List) == 0 {
-		return ""
-	}
-
-	var buf strings.Builder
-	buf.WriteString("[")
-
-	first := true
-
-	for _, field := range gen.typeParams.List {
-		for _, name := range field.Names {
-			if !first {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(name.Name)
-
-			first = false
-		}
-	}
-
-	buf.WriteString("]")
-
-	return buf.String()
+	return formatTypeParamsUse(gen.typeParams)
 }
 
 // methodTemplateData returns template data for a specific method.
@@ -1238,84 +1197,6 @@ func (gen *codeGenerator) renderField(field *ast.Field, buf *bytes.Buffer) {
 	buf.WriteString(gen.typeWithQualifier(field.Type))
 }
 
-// typeWithQualifier returns a type expression as a string with package qualifier if needed.
-func (gen *codeGenerator) typeWithQualifier(expr ast.Expr) string {
-	switch typeExpr := expr.(type) {
-	case *ast.Ident:
-		return gen.typeWithQualifierIdent(typeExpr)
-	case *ast.StarExpr:
-		return gen.typeWithQualifierStar(typeExpr)
-	case *ast.ArrayType:
-		return gen.typeWithQualifierArray(typeExpr)
-	case *ast.MapType:
-		return gen.typeWithQualifierMap(typeExpr)
-	case *ast.ChanType:
-		return gen.typeWithQualifierChan(typeExpr)
-	case *ast.FuncType:
-		return gen.typeWithQualifierFunc(typeExpr)
-	case *ast.IndexExpr:
-		return gen.typeWithQualifierIndex(typeExpr)
-	case *ast.IndexListExpr:
-		return gen.typeWithQualifierIndexList(typeExpr)
-	default:
-		return exprToString(gen.fset, expr)
-	}
-}
-
-// typeWithQualifierArray handles array/slice types.
-func (gen *codeGenerator) typeWithQualifierArray(arrType *ast.ArrayType) string {
-	var buf strings.Builder
-	buf.WriteString("[")
-
-	if arrType.Len != nil {
-		buf.WriteString(exprToString(gen.fset, arrType.Len))
-	}
-
-	buf.WriteString("]")
-	buf.WriteString(gen.typeWithQualifier(arrType.Elt))
-
-	return buf.String()
-}
-
-// typeWithQualifierChan handles channel types.
-func (gen *codeGenerator) typeWithQualifierChan(chanType *ast.ChanType) string {
-	var buf strings.Builder
-
-	switch chanType.Dir {
-	case ast.SEND:
-		buf.WriteString("chan<- ")
-	case ast.RECV:
-		buf.WriteString("<-chan ")
-	default:
-		buf.WriteString("chan ")
-	}
-
-	buf.WriteString(gen.typeWithQualifier(chanType.Value))
-
-	return buf.String()
-}
-
-// typeWithQualifierFunc handles function types.
-func (gen *codeGenerator) typeWithQualifierFunc(funcType *ast.FuncType) string {
-	return typeWithQualifierFunc(gen.fset, funcType, gen.typeWithQualifier)
-}
-
-// typeWithQualifierIdent handles simple identifier types.
-func (gen *codeGenerator) typeWithQualifierIdent(ident *ast.Ident) string {
-	var buf strings.Builder
-
-	// Don't qualify type parameters
-	if !gen.isTypeParameter(ident.Name) && gen.qualifier != "" &&
-		len(ident.Name) > 0 && unicode.IsUpper(rune(ident.Name[0])) {
-		buf.WriteString(gen.qualifier)
-		buf.WriteString(".")
-	}
-
-	buf.WriteString(ident.Name)
-
-	return buf.String()
-}
-
 // isTypeParameter checks if a name is one of the interface's type parameters.
 func (gen *codeGenerator) isTypeParameter(name string) bool {
 	if gen.typeParams == nil {
@@ -1331,60 +1212,6 @@ func (gen *codeGenerator) isTypeParameter(name string) bool {
 	}
 
 	return false
-}
-
-// typeWithQualifierIndex handles generic type instantiation with single type parameter.
-func (gen *codeGenerator) typeWithQualifierIndex(indexExpr *ast.IndexExpr) string {
-	var buf strings.Builder
-
-	buf.WriteString(gen.typeWithQualifier(indexExpr.X))
-	buf.WriteString("[")
-	buf.WriteString(gen.typeWithQualifier(indexExpr.Index))
-	buf.WriteString("]")
-
-	return buf.String()
-}
-
-// typeWithQualifierIndexList handles generic type instantiation with multiple type parameters.
-func (gen *codeGenerator) typeWithQualifierIndexList(indexListExpr *ast.IndexListExpr) string {
-	var buf strings.Builder
-
-	buf.WriteString(gen.typeWithQualifier(indexListExpr.X))
-	buf.WriteString("[")
-
-	for i, index := range indexListExpr.Indices {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		buf.WriteString(gen.typeWithQualifier(index))
-	}
-
-	buf.WriteString("]")
-
-	return buf.String()
-}
-
-// typeWithQualifierMap handles map types.
-func (gen *codeGenerator) typeWithQualifierMap(mapType *ast.MapType) string {
-	var buf strings.Builder
-
-	buf.WriteString("map[")
-	buf.WriteString(gen.typeWithQualifier(mapType.Key))
-	buf.WriteString("]")
-	buf.WriteString(gen.typeWithQualifier(mapType.Value))
-
-	return buf.String()
-}
-
-// typeWithQualifierStar handles pointer types.
-func (gen *codeGenerator) typeWithQualifierStar(t *ast.StarExpr) string {
-	var buf strings.Builder
-
-	buf.WriteString("*")
-	buf.WriteString(gen.typeWithQualifier(t.X))
-
-	return buf.String()
 }
 
 // interfaceGetPackageInfo extracts package info for the interface being mocked.

@@ -20,8 +20,7 @@ var (
 // codeWriter provides common buffer writing functionality for code generators.
 // ... (omitting some lines for brevity, but I must match exactly).
 type codeWriter struct {
-	buf  bytes.Buffer
-	fset *token.FileSet
+	buf bytes.Buffer
 }
 
 // pf writes a formatted string to the buffer.
@@ -533,4 +532,218 @@ func isComparableExpr(expr ast.Expr, typesInfo *go_types.Info) bool {
 	}
 
 	return go_types.Comparable(t)
+}
+
+// typeFormatter handles formatting AST types into strings with package qualifiers.
+type typeFormatter struct {
+	fset        *token.FileSet
+	qualifier   string
+	isTypeParam func(string) bool
+}
+
+// typeWithQualifier returns a type expression as a string with package qualifier if needed.
+func (tf *typeFormatter) typeWithQualifier(expr ast.Expr) string {
+	switch typeExpr := expr.(type) {
+	case *ast.Ident:
+		return tf.typeWithQualifierIdent(typeExpr)
+	case *ast.StarExpr:
+		return tf.typeWithQualifierStar(typeExpr)
+	case *ast.SelectorExpr:
+		return exprToString(tf.fset, typeExpr)
+	default:
+		return tf.typeWithQualifierComposite(expr)
+	}
+}
+
+// typeWithQualifierComposite handles composite types like arrays, maps, and funcs.
+func (tf *typeFormatter) typeWithQualifierComposite(expr ast.Expr) string {
+	switch typeExpr := expr.(type) {
+	case *ast.ArrayType:
+		return tf.typeWithQualifierArray(typeExpr)
+	case *ast.MapType:
+		return tf.typeWithQualifierMap(typeExpr)
+	case *ast.ChanType:
+		return tf.typeWithQualifierChan(typeExpr)
+	case *ast.FuncType:
+		return tf.typeWithQualifierFunc(typeExpr)
+	case *ast.IndexExpr:
+		return tf.typeWithQualifierIndex(typeExpr)
+	case *ast.IndexListExpr:
+		return tf.typeWithQualifierIndexList(typeExpr)
+	default:
+		return exprToString(tf.fset, expr)
+	}
+}
+
+// typeWithQualifierArray handles array/slice types.
+func (tf *typeFormatter) typeWithQualifierArray(arrType *ast.ArrayType) string {
+	var buf strings.Builder
+	buf.WriteString("[")
+
+	if arrType.Len != nil {
+		buf.WriteString(exprToString(tf.fset, arrType.Len))
+	}
+
+	buf.WriteString("]")
+	buf.WriteString(tf.typeWithQualifier(arrType.Elt))
+
+	return buf.String()
+}
+
+// typeWithQualifierChan handles channel types.
+func (tf *typeFormatter) typeWithQualifierChan(chanType *ast.ChanType) string {
+	var buf strings.Builder
+
+	switch chanType.Dir {
+	case ast.SEND:
+		buf.WriteString("chan<- ")
+	case ast.RECV:
+		buf.WriteString("<-chan ")
+	default:
+		buf.WriteString("chan ")
+	}
+
+	buf.WriteString(tf.typeWithQualifier(chanType.Value))
+
+	return buf.String()
+}
+
+// typeWithQualifierFunc handles function types.
+func (tf *typeFormatter) typeWithQualifierFunc(funcType *ast.FuncType) string {
+	return typeWithQualifierFunc(tf.fset, funcType, tf.typeWithQualifier)
+}
+
+// typeWithQualifierIdent handles simple identifier types.
+func (tf *typeFormatter) typeWithQualifierIdent(ident *ast.Ident) string {
+	var buf strings.Builder
+
+	// Don't qualify type parameters
+	if !tf.isTypeParam(ident.Name) && tf.qualifier != "" &&
+		len(ident.Name) > 0 && unicode.IsUpper(rune(ident.Name[0])) {
+		buf.WriteString(tf.qualifier)
+		buf.WriteString(".")
+	}
+
+	buf.WriteString(ident.Name)
+
+	return buf.String()
+}
+
+// typeWithQualifierIndex handles generic type instantiation with single type parameter.
+func (tf *typeFormatter) typeWithQualifierIndex(indexExpr *ast.IndexExpr) string {
+	var buf strings.Builder
+
+	buf.WriteString(tf.typeWithQualifier(indexExpr.X))
+	buf.WriteString("[")
+	buf.WriteString(tf.typeWithQualifier(indexExpr.Index))
+	buf.WriteString("]")
+
+	return buf.String()
+}
+
+// typeWithQualifierIndexList handles generic type instantiation with multiple type parameters.
+func (tf *typeFormatter) typeWithQualifierIndexList(indexListExpr *ast.IndexListExpr) string {
+	var buf strings.Builder
+
+	buf.WriteString(tf.typeWithQualifier(indexListExpr.X))
+	buf.WriteString("[")
+
+	for i, index := range indexListExpr.Indices {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+
+		buf.WriteString(tf.typeWithQualifier(index))
+	}
+
+	buf.WriteString("]")
+
+	return buf.String()
+}
+
+// typeWithQualifierMap handles map types.
+func (tf *typeFormatter) typeWithQualifierMap(mapType *ast.MapType) string {
+	var buf strings.Builder
+
+	buf.WriteString("map[")
+	buf.WriteString(tf.typeWithQualifier(mapType.Key))
+	buf.WriteString("]")
+	buf.WriteString(tf.typeWithQualifier(mapType.Value))
+
+	return buf.String()
+}
+
+// typeWithQualifierStar handles pointer types.
+func (tf *typeFormatter) typeWithQualifierStar(t *ast.StarExpr) string {
+	var buf strings.Builder
+
+	buf.WriteString("*")
+	buf.WriteString(tf.typeWithQualifier(t.X))
+
+	return buf.String()
+}
+
+// formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
+// Returns empty string if there are no type parameters.
+func formatTypeParamsDecl(fset *token.FileSet, typeParams *ast.FieldList) string {
+	if typeParams == nil || len(typeParams.List) == 0 {
+		return ""
+	}
+
+	var buf strings.Builder
+	buf.WriteString("[")
+
+	for i, field := range typeParams.List {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+
+		// Write parameter names
+		for j, name := range field.Names {
+			if j > 0 {
+				buf.WriteString(", ")
+			}
+
+			buf.WriteString(name.Name)
+		}
+
+		// Write constraint
+		if field.Type != nil {
+			buf.WriteString(" ")
+			buf.WriteString(exprToString(fset, field.Type))
+		}
+	}
+
+	buf.WriteString("]")
+
+	return buf.String()
+}
+
+// formatTypeParamsUse formats type parameters for instantiation (e.g., "[T, U]").
+// Returns empty string if there are no type parameters.
+func formatTypeParamsUse(typeParams *ast.FieldList) string {
+	if typeParams == nil || len(typeParams.List) == 0 {
+		return ""
+	}
+
+	var buf strings.Builder
+	buf.WriteString("[")
+
+	first := true
+
+	for _, field := range typeParams.List {
+		for _, name := range field.Names {
+			if !first {
+				buf.WriteString(", ")
+			}
+
+			buf.WriteString(name.Name)
+
+			first = false
+		}
+	}
+
+	buf.WriteString("]")
+
+	return buf.String()
 }

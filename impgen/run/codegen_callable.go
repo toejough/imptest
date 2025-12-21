@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"go/ast"
 	"go/format"
-	"go/printer"
 	"go/token"
 	go_types "go/types"
 	"strings"
 	"text/template"
-	"unicode"
 )
 
 // Entry Point
@@ -37,7 +35,11 @@ func generateCallableWrapperCode(
 	}
 
 	gen := &callableGenerator{
-		codeWriter: codeWriter{fset: fset},
+		codeWriter: codeWriter{},
+		typeFormatter: typeFormatter{
+			fset:      fset,
+			qualifier: qualifier,
+		},
 		pkgName:    info.pkgName,
 		impName:    info.impName,
 		funcDecl:   funcDecl,
@@ -46,6 +48,7 @@ func generateCallableWrapperCode(
 		typeParams: funcDecl.Type.TypeParams,
 		typesInfo:  typesInfo,
 	}
+	gen.isTypeParam = gen.isTypeParameter
 
 	gen.checkIfQualifierNeeded()
 
@@ -99,6 +102,7 @@ func (g *callableGenerator) checkIfValidForExternalUsage() error {
 // callableGenerator holds state for generating callable wrapper code.
 type callableGenerator struct {
 	codeWriter
+	typeFormatter
 
 	pkgName        string
 	impName        string
@@ -172,66 +176,13 @@ func (g *callableGenerator) templateData() callableTemplateData {
 // formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
 // Returns empty string if there are no type parameters.
 func (g *callableGenerator) formatTypeParamsDecl() string {
-	if g.typeParams == nil || len(g.typeParams.List) == 0 {
-		return ""
-	}
-
-	var buf strings.Builder
-	buf.WriteString("[")
-
-	for i, field := range g.typeParams.List {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		// Write parameter names
-		for j, name := range field.Names {
-			if j > 0 {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(name.Name)
-		}
-
-		// Write constraint
-		if field.Type != nil {
-			buf.WriteString(" ")
-			buf.WriteString(exprToString(g.fset, field.Type))
-		}
-	}
-
-	buf.WriteString("]")
-
-	return buf.String()
+	return formatTypeParamsDecl(g.fset, g.typeParams)
 }
 
 // formatTypeParamsUse formats type parameters for instantiation (e.g., "[T, U]").
 // Returns empty string if there are no type parameters.
 func (g *callableGenerator) formatTypeParamsUse() string {
-	if g.typeParams == nil || len(g.typeParams.List) == 0 {
-		return ""
-	}
-
-	var buf strings.Builder
-	buf.WriteString("[")
-
-	first := true
-
-	for _, field := range g.typeParams.List {
-		for _, name := range field.Names {
-			if !first {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(name.Name)
-
-			first = false
-		}
-	}
-
-	buf.WriteString("]")
-
-	return buf.String()
+	return formatTypeParamsUse(g.typeParams)
 }
 
 // extendedTemplateData returns template data with dynamic signature info.
@@ -553,86 +504,6 @@ func (g *callableGenerator) writeResultTypesWithQualifiersTo(buf *strings.Builde
 	}
 }
 
-// typeWithQualifier returns a type expression as a string with package qualifier if needed.
-func (g *callableGenerator) typeWithQualifier(expr ast.Expr) string {
-	switch typeExpr := expr.(type) {
-	case *ast.Ident:
-		return g.typeWithQualifierIdent(typeExpr)
-	case *ast.StarExpr:
-		return g.typeWithQualifierStar(typeExpr)
-	case *ast.ArrayType:
-		return g.typeWithQualifierArray(typeExpr)
-	case *ast.MapType:
-		return g.typeWithQualifierMap(typeExpr)
-	case *ast.ChanType:
-		return g.typeWithQualifierChan(typeExpr)
-	case *ast.FuncType:
-		return g.typeWithQualifierFunc(typeExpr)
-	case *ast.IndexExpr:
-		return g.typeWithQualifierIndex(typeExpr)
-	case *ast.IndexListExpr:
-		return g.typeWithQualifierIndexList(typeExpr)
-	default:
-		var buf strings.Builder
-		printer.Fprint(&buf, g.fset, expr)
-
-		return buf.String()
-	}
-}
-
-// typeWithQualifierArray handles array/slice types.
-func (g *callableGenerator) typeWithQualifierArray(arrType *ast.ArrayType) string {
-	var buf strings.Builder
-	buf.WriteString("[")
-
-	if arrType.Len != nil {
-		printer.Fprint(&buf, g.fset, arrType.Len)
-	}
-
-	buf.WriteString("]")
-	buf.WriteString(g.typeWithQualifier(arrType.Elt))
-
-	return buf.String()
-}
-
-// typeWithQualifierChan handles channel types.
-func (g *callableGenerator) typeWithQualifierChan(chanType *ast.ChanType) string {
-	var buf strings.Builder
-
-	switch chanType.Dir {
-	case ast.SEND:
-		buf.WriteString("chan<- ")
-	case ast.RECV:
-		buf.WriteString("<-chan ")
-	default:
-		buf.WriteString("chan ")
-	}
-
-	buf.WriteString(g.typeWithQualifier(chanType.Value))
-
-	return buf.String()
-}
-
-// typeWithQualifierFunc handles function types.
-func (g *callableGenerator) typeWithQualifierFunc(funcType *ast.FuncType) string {
-	return typeWithQualifierFunc(g.fset, funcType, g.typeWithQualifier)
-}
-
-// typeWithQualifierIdent handles simple identifier types.
-func (g *callableGenerator) typeWithQualifierIdent(ident *ast.Ident) string {
-	var buf strings.Builder
-
-	// Don't qualify type parameters
-	if !g.isTypeParameter(ident.Name) && g.qualifier != "" && len(ident.Name) > 0 && unicode.IsUpper(rune(ident.Name[0])) {
-		buf.WriteString(g.qualifier)
-		buf.WriteString(".")
-	}
-
-	buf.WriteString(ident.Name)
-
-	return buf.String()
-}
-
 // isTypeParameter checks if a name is one of the function's type parameters.
 func (g *callableGenerator) isTypeParameter(name string) bool {
 	if g.typeParams == nil {
@@ -648,62 +519,6 @@ func (g *callableGenerator) isTypeParameter(name string) bool {
 	}
 
 	return false
-}
-
-// typeWithQualifierIndex handles generic type instantiation with single type parameter.
-func (g *callableGenerator) typeWithQualifierIndex(indexExpr *ast.IndexExpr) string {
-	var buf strings.Builder
-
-	// Generic type instantiation with single type parameter, e.g., Container[int]
-	buf.WriteString(g.typeWithQualifier(indexExpr.X))
-	buf.WriteString("[")
-	buf.WriteString(g.typeWithQualifier(indexExpr.Index))
-	buf.WriteString("]")
-
-	return buf.String()
-}
-
-// typeWithQualifierIndexList handles generic type instantiation with multiple type parameters.
-func (g *callableGenerator) typeWithQualifierIndexList(indexListExpr *ast.IndexListExpr) string {
-	var buf strings.Builder
-
-	// Generic type instantiation with multiple type parameters, e.g., Map[string, int]
-	buf.WriteString(g.typeWithQualifier(indexListExpr.X))
-	buf.WriteString("[")
-
-	for i, index := range indexListExpr.Indices {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		buf.WriteString(g.typeWithQualifier(index))
-	}
-
-	buf.WriteString("]")
-
-	return buf.String()
-}
-
-// typeWithQualifierMap handles map types.
-func (g *callableGenerator) typeWithQualifierMap(mapType *ast.MapType) string {
-	var buf strings.Builder
-
-	buf.WriteString("map[")
-	buf.WriteString(g.typeWithQualifier(mapType.Key))
-	buf.WriteString("]")
-	buf.WriteString(g.typeWithQualifier(mapType.Value))
-
-	return buf.String()
-}
-
-// typeWithQualifierStar handles pointer types.
-func (g *callableGenerator) typeWithQualifierStar(t *ast.StarExpr) string {
-	var buf strings.Builder
-
-	buf.WriteString("*")
-	buf.WriteString(g.typeWithQualifier(t.X))
-
-	return buf.String()
 }
 
 // Functions
