@@ -2,7 +2,6 @@
 package run
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -14,9 +13,6 @@ import (
 )
 
 // Vars.
-var (
-	errGOPACKAGENotSet = errors.New("GOPACKAGE environment variable not set")
-)
 
 // Functions - Public
 

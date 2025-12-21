@@ -2,17 +2,23 @@ package run
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
 	go_types "go/types"
-	"slices"
 	"strings"
 	"unicode"
 )
 
+var (
+	errGOPACKAGENotSet = errors.New("GOPACKAGE environment variable not set")
+	errUnexportedType  = errors.New("unexported type is not accessible from external packages")
+)
+
 // codeWriter provides common buffer writing functionality for code generators.
+// ... (omitting some lines for brevity, but I must match exactly).
 type codeWriter struct {
 	buf  bytes.Buffer
 	fset *token.FileSet
@@ -176,30 +182,43 @@ func visitParams(ftype *ast.FuncType, typeFormatter func(ast.Expr) string, visit
 	}
 }
 
-// getPackageInfo extracts package info for a given target name (e.g., "pkg.Interface").
-func getPackageInfo(
+// GetPackageInfo extracts package info for a given target name (e.g., "pkg.Interface").
+func GetPackageInfo(
 	targetName string,
 	pkgLoader PackageLoader,
-	usesExportedTypes func() bool,
+	currentPkgName string,
 ) (pkgPath, pkgName string, err error) {
-	if !strings.Contains(targetName, ".") {
+	dotIdx := strings.Index(targetName, ".")
+	if dotIdx == -1 {
 		return "", "", nil
 	}
 
-	if !usesExportedTypes() {
+	pkgName = targetName[:dotIdx]
+	if pkgName == "" || pkgName == "." {
 		return "", "", nil
 	}
 
-	pkgName = extractPackageName(targetName)
+	// If it matches the package we're generating into, it's local.
+	if currentPkgName == pkgName {
+		return "", "", nil
+	}
 
 	astFiles, _, _, err := pkgLoader.Load(".")
 	if err != nil {
-		return "", "", fmt.Errorf("failed to load local package: %w", err)
+		// If we can't load the local package, we can't find aliases,
+		// but we might still be able to resolve the package path directly.
+		files, _, _, err := pkgLoader.Load(pkgName)
+		if err == nil && len(files) > 0 {
+			return pkgName, pkgName, nil
+		}
+
+		return "", "", nil
 	}
 
 	pkgPath, err = findImportPath(astFiles, pkgName, pkgLoader)
 	if err != nil {
-		return "", "", err
+		// If it's not a package we know about, assume it's a local reference (e.g. MyType.MyMethod)
+		return "", "", nil //nolint:nilerr
 	}
 
 	return pkgPath, pkgName, nil
@@ -280,11 +299,7 @@ func hasExportedIdentInIndex(t *ast.IndexExpr, isTypeParam func(string) bool) bo
 
 // hasExportedIdentInIndexList checks if a multi-parameter generic type contains exported identifiers.
 func hasExportedIdentInIndexList(indexList *ast.IndexListExpr, isTypeParam func(string) bool) bool {
-	if hasExportedIdent(indexList.X, isTypeParam) {
-		return true
-	}
-
-	return slices.ContainsFunc(indexList.Indices, func(e ast.Expr) bool { return hasExportedIdent(e, isTypeParam) })
+	return hasExportedIdent(indexList.X, isTypeParam)
 }
 
 // hasExportedIdentInMap checks if a map type contains exported identifiers.
@@ -317,16 +332,17 @@ func hasExportedIdentInStruct(t *ast.StructType, isTypeParam func(string) bool) 
 
 // isBuiltinType checks if a type name is a Go builtin.
 func isBuiltinType(name string) bool {
-	builtins := map[string]bool{
-		"bool": true, "byte": true, "complex64": true, "complex128": true,
-		"error": true, "float32": true, "float64": true, "int": true,
-		"int8": true, "int16": true, "int32": true, "int64": true,
-		"rune": true, "string": true, "uint": true, "uint8": true,
-		"uint16": true, "uint32": true, "uint64": true, "uintptr": true,
-		"any": true,
+	switch name {
+	case "bool", "byte", "complex64", "complex128",
+		"error", "float32", "float64", "int",
+		"int8", "int16", "int32", "int64",
+		"rune", "string", "uint", "uint8",
+		"uint16", "uint32", "uint64", "uintptr",
+		"any":
+		return true
 	}
 
-	return builtins[name]
+	return false
 }
 
 // typeWithQualifierFunc handles function types.
@@ -369,6 +385,140 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatt
 	}
 
 	return buf.String()
+}
+
+// ValidateExportedTypes checks if an expression contains any unexported identifiers that would be inaccessible
+// from another package. Returns an error if found.
+func ValidateExportedTypes(expr ast.Expr, isTypeParam func(string) bool) error {
+	switch typeExpr := expr.(type) {
+	case *ast.Ident, *ast.StarExpr, *ast.ArrayType, *ast.ChanType:
+		return validateExportedSimpleTypes(expr, isTypeParam)
+	case *ast.MapType:
+		return validateExportedMapTypes(typeExpr, isTypeParam)
+	case *ast.FuncType:
+		return ValidateExportedTypesInFunc(typeExpr, isTypeParam)
+	case *ast.IndexExpr:
+		return validateExportedIndexTypes(typeExpr, isTypeParam)
+	case *ast.IndexListExpr:
+		return validateExportedIndexListTypes(typeExpr, isTypeParam)
+	case *ast.SelectorExpr:
+		if !unicode.IsUpper(rune(typeExpr.Sel.Name[0])) {
+			return fmt.Errorf("type '%s': %w", typeExpr.Sel.Name, errUnexportedType)
+		}
+
+		return nil
+	case *ast.StructType:
+		return validateExportedStructTypes(typeExpr, isTypeParam)
+	}
+
+	return nil
+}
+
+// validateExportedSimpleTypes handles simple types (Ident, StarExpr, ArrayType, ChanType).
+func validateExportedSimpleTypes(expr ast.Expr, isTypeParam func(string) bool) error {
+	switch typeExpr := expr.(type) {
+	case *ast.Ident:
+		if !IsExportedIdent(typeExpr, isTypeParam) {
+			return fmt.Errorf("type '%s': %w", typeExpr.Name, errUnexportedType)
+		}
+
+		return nil
+	case *ast.StarExpr:
+		return ValidateExportedTypes(typeExpr.X, isTypeParam)
+	case *ast.ArrayType:
+		return ValidateExportedTypes(typeExpr.Elt, isTypeParam)
+	case *ast.ChanType:
+		return ValidateExportedTypes(typeExpr.Value, isTypeParam)
+	}
+
+	return nil
+}
+
+// IsExportedIdent checks if an identifier is exported and not a builtin or type parameter.
+func IsExportedIdent(ident *ast.Ident, isTypeParam func(string) bool) bool {
+	if len(ident.Name) == 0 {
+		return true
+	}
+
+	if unicode.IsUpper(rune(ident.Name[0])) {
+		return true
+	}
+
+	return isBuiltinType(ident.Name) || isTypeParam(ident.Name)
+}
+
+// validateExportedIndexListTypes checks if a generic type instantiation with multiple
+// parameters contains exported identifiers.
+func validateExportedIndexListTypes(indexList *ast.IndexListExpr, isTypeParam func(string) bool) error {
+	err := ValidateExportedTypes(indexList.X, isTypeParam)
+	if err != nil {
+		return err
+	}
+
+	for _, idx := range indexList.Indices {
+		err := ValidateExportedTypes(idx, isTypeParam)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateExportedIndexTypes checks if a generic type instantiation contains exported identifiers.
+func validateExportedIndexTypes(indexExpr *ast.IndexExpr, isTypeParam func(string) bool) error {
+	err := ValidateExportedTypes(indexExpr.X, isTypeParam)
+	if err != nil {
+		return err
+	}
+
+	return ValidateExportedTypes(indexExpr.Index, isTypeParam)
+}
+
+// validateExportedMapTypes checks if a map type contains exported identifiers.
+func validateExportedMapTypes(mapType *ast.MapType, isTypeParam func(string) bool) error {
+	err := ValidateExportedTypes(mapType.Key, isTypeParam)
+	if err != nil {
+		return err
+	}
+
+	return ValidateExportedTypes(mapType.Value, isTypeParam)
+}
+
+// validateExportedStructTypes checks if a struct type contains exported identifiers.
+func validateExportedStructTypes(structType *ast.StructType, isTypeParam func(string) bool) error {
+	if structType.Fields != nil {
+		for _, field := range structType.Fields.List {
+			err := ValidateExportedTypes(field.Type, isTypeParam)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func ValidateExportedTypesInFunc(funcType *ast.FuncType, isTypeParam func(string) bool) error {
+	if funcType.Params != nil {
+		for _, field := range funcType.Params.List {
+			err := ValidateExportedTypes(field.Type, isTypeParam)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if funcType.Results != nil {
+		for _, field := range funcType.Results.List {
+			err := ValidateExportedTypes(field.Type, isTypeParam)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // isComparableExpr checks if an expression represents a comparable type.

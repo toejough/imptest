@@ -52,14 +52,19 @@ func newCodeGenerator(
 ) (*codeGenerator, error) {
 	impName := info.impName
 
-	pkgPath, qualifier, err := interfaceGetPackageInfo(
-		ifaceWithDetails.iface,
-		ifaceWithDetails.typeParams,
-		info.interfaceName,
-		pkgLoader,
+	var (
+		pkgPath, qualifier string
+		err                error
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get interface package info: %w", err)
+	if pkgImportPath != "." {
+		pkgPath, qualifier, err = interfaceGetPackageInfo(
+			info.interfaceName,
+			pkgLoader,
+			info.pkgName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get interface package info: %w", err)
+		}
 	}
 
 	gen := &codeGenerator{
@@ -98,6 +103,11 @@ func (gen *codeGenerator) generate() (string, error) {
 	gen.checkIfImptestNeeded()
 	// Pre-scan to see if qualifier is needed
 	gen.checkIfQualifierNeeded()
+
+	err := gen.checkIfValidForExternalUsage()
+	if err != nil {
+		return "", err
+	}
 
 	gen.generateHeader()
 	gen.generateMockStruct()
@@ -185,6 +195,30 @@ func (gen *codeGenerator) checkIfQualifierNeeded() {
 			gen.needsQualifier = true
 		}
 	})
+}
+
+// checkIfValidForExternalUsage checks if the interface can be mocked from an external package.
+func (gen *codeGenerator) checkIfValidForExternalUsage() error {
+	// If we are not qualifying types, it means we are in the same package (or don't need to import it),
+	// so unexported types are fine.
+	if gen.qualifier == "" {
+		return nil
+	}
+
+	var validationErr error
+
+	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
+		if validationErr != nil {
+			return
+		}
+
+		err := ValidateExportedTypesInFunc(ftype, gen.isTypeParameter)
+		if err != nil {
+			validationErr = fmt.Errorf("method '%s': %w", methodName, err)
+		}
+	})
+
+	return validationErr
 }
 
 // forEachMethod iterates over interface methods and calls the callback for each.
@@ -1355,34 +1389,9 @@ func (gen *codeGenerator) typeWithQualifierStar(t *ast.StarExpr) string {
 
 // interfaceGetPackageInfo extracts package info for the interface being mocked.
 func interfaceGetPackageInfo(
-	iface *ast.InterfaceType,
-	typeParams *ast.FieldList,
 	interfaceName string,
 	pkgLoader PackageLoader,
+	currentPkgName string,
 ) (pkgPath, pkgName string, err error) {
-	isTypeParam := func(name string) bool {
-		if typeParams == nil {
-			return false
-		}
-
-		for _, field := range typeParams.List {
-			for _, paramName := range field.Names {
-				if paramName.Name == name {
-					return true
-				}
-			}
-		}
-
-		return false
-	}
-
-	return getPackageInfo(interfaceName, pkgLoader, func() bool {
-		for _, field := range iface.Methods.List {
-			if hasExportedIdent(field.Type, isTypeParam) {
-				return true
-			}
-		}
-
-		return false
-	})
+	return GetPackageInfo(interfaceName, pkgLoader, currentPkgName)
 }

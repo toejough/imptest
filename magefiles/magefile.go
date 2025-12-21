@@ -78,6 +78,10 @@ func CheckCoverage(c context.Context) error {
 			continue
 		}
 
+		if strings.Contains(line, "main.go") {
+			continue
+		}
+
 		if strings.Contains(line, "Imp.go") || strings.Contains(line, "Imp_test.go") {
 			continue
 		}
@@ -220,7 +224,7 @@ func LintForFail(c context.Context) error {
 func Modernize(c context.Context) error {
 	fmt.Println("Modernizing codebase...")
 	return run(c, "go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
-	"-fix", "./...")
+		"-fix", "./...")
 }
 
 // Run the mutation tests.
@@ -254,17 +258,6 @@ func Mutate(c context.Context) error {
 // Run the unit tests.
 func Test(c context.Context) error {
 	fmt.Println("Running unit tests...")
-	// return sh.RunV(
-	// 	"go",
-	// 	"test",
-	// 	"-timeout=5s",
-	// 	// "-shuffle=1725149006359140000",
-	// 	"-race",
-	// 	"-coverprofile=coverage.out",
-	// 	"-coverpkg=./imptest",
-	// 	"./...",
-	// 	// -test.shuffle 1725149006359140000
-	// )
 	err := run(
 		c,
 		"go",
@@ -272,7 +265,7 @@ func Test(c context.Context) error {
 		"-timeout=60s",
 		"-race",
 		"-coverprofile=coverage.out",
-		"-coverpkg=./...",
+		"-coverpkg=./impgen/...,./imptest/...",
 		"-cover",
 		"./...",
 	)

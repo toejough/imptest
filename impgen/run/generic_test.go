@@ -62,24 +62,136 @@ func GenericFunc[T any, U comparable](item T, key U) (T, U) {
 	}
 }
 
-func TestRunCallable_UnexportedGenericWithExportedParam(t *testing.T) {
+func TestRunCallable_GenericMultiParams(t *testing.T) {
 	t.Parallel()
 
 	mockFS := NewMockFileSystem()
 
-	// Unexported generic type with exported type parameter
+	// Function with multiple type parameters and complex instantiation
+	sourceCode := `package run
+
+type MyContainer[T any, U any] struct {
+	first  T
+	second U
+}
+
+func ProcessMulti[T any, U any](c *MyContainer[T, U]) {}
+func ProcessMultiList[T any, U any](c MyContainer[T, U]) {}
+func ProcessExportedParam[T any](c MyContainer[T, MyExportedType]) {}
+type MyExportedContainer[T any] struct {
+	item T
+}
+func ProcessExportedBase[T any](c MyExportedContainer[T]) {}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	args := []string{"impgen", "run.ProcessMulti", "--name", "ProcessMultiImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	argsList := []string{"impgen", "run.ProcessMultiList", "--name", "ProcessMultiListImp"}
+
+	err = run.Run(argsList, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	argsExported := []string{"impgen", "run.ProcessExportedParam", "--name", "ProcessExportedParamImp"}
+
+	err = run.Run(argsExported, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	argsExportedBase := []string{"impgen", "run.ProcessExportedBase", "--name", "ProcessExportedBaseImp"}
+
+	err = run.Run(argsExportedBase, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["ProcessMultiListImp.go"]; !ok {
+		t.Fatal("Expected ProcessMultiListImp.go to be created")
+	}
+}
+
+func TestRunCallable_GenericExported(t *testing.T) {
+	t.Parallel()
+
+	// Function with exported generic types/parameters
+	sourceCode := `package run
+import "fmt"
+
+type MyExportedType struct { Value int }
+type MyContainer[T any, U any] struct { first T; second U }
+type MyExportedContainer[T any] struct { item T }
+
+func ProcessExportedParam[T any](c MyContainer[T, MyExportedType]) {}
+func ProcessExportedBase[T any](c MyExportedContainer[T]) {}
+func ProcessExportedSelector[T any](c MyContainer[T, fmt.Stringer]) {}
+func ProcessIndexExported[T any](c map[T]MyExportedType) {}
+func ProcessMultiExported[T any](c MyContainer[MyExportedType, T]) {}
+type secret int
+func ProcessMultiUnexportedParam[T any](c MyContainer[T, secret]) {}
+func ProcessMapValue[T comparable](m map[T]MyExportedType) {}
+`
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+	mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", sourceCode)
+
+	tests := []struct {
+		name    string
+		symbol  string
+		wantErr bool
+	}{
+		{"exported param", "run.ProcessExportedParam", false},
+		{"exported base", "run.ProcessExportedBase", false},
+		{"exported selector", "run.ProcessExportedSelector", false},
+		{"exported map value", "run.ProcessIndexExported", false},
+		{"exported generic param", "run.ProcessMultiExported", false},
+		{"unexported generic param", "run.ProcessMultiUnexportedParam", true},
+		{"exported map value in func", "run.ProcessMapValue", false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockFS := NewMockFileSystem()
+
+			args := []string{"impgen", testCase.symbol, "--name", "Imp"}
+
+			err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("Run failed for %s: %v", testCase.symbol, err)
+			}
+		})
+	}
+}
+
+func TestRunCallable_ExportedGenericWithExportedParam(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+
+	// Exported generic type with exported type parameter
 	sourceCode := `package run
 
 type MyExportedType struct {
 	Value int
 }
 
-type myContainer[T any, U any] struct {
+type MyContainer[T any, U any] struct {
 	first  T
 	second U
 }
 
-func ProcessContainer(c *myContainer[MyExportedType, string]) string {
+func ProcessContainer(c *MyContainer[MyExportedType, string]) string {
 	return "processed"
 }
 `
@@ -101,7 +213,7 @@ func ProcessContainer(c *myContainer[MyExportedType, string]) string {
 
 	contentStr := string(content)
 
-	// Should import run package because MyExportedType is exported even though myContainer isn't
+	// Should import run package because MyExportedType is exported
 	if !strings.Contains(contentStr, `run "github.com/toejough/imptest/UAT/run"`) {
 		t.Error("Expected import of run package for exported type parameter")
 		t.Logf("Generated code:\n%s", contentStr)

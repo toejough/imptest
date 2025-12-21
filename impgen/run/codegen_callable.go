@@ -28,9 +28,12 @@ func generateCallableWrapperCode(
 		return "", err
 	}
 
-	pkgPath, qualifier, err := callableGetPackageInfo(funcDecl, info.interfaceName, pkgLoader)
-	if err != nil {
-		return "", fmt.Errorf("failed to get callable package info: %w", err)
+	var pkgPath, qualifier string
+	if pkgImportPath != "." {
+		pkgPath, qualifier, err = callableGetPackageInfo(info.interfaceName, pkgLoader, info.pkgName)
+		if err != nil {
+			return "", fmt.Errorf("failed to get callable package info: %w", err)
+		}
 	}
 
 	gen := &callableGenerator{
@@ -45,6 +48,11 @@ func generateCallableWrapperCode(
 	}
 
 	gen.checkIfQualifierNeeded()
+
+	err = gen.checkIfValidForExternalUsage()
+	if err != nil {
+		return "", err
+	}
 
 	gen.generateHeader()
 	gen.generateReturnStruct()
@@ -74,6 +82,16 @@ func (g *callableGenerator) checkIfQualifierNeeded() {
 	if hasExportedIdent(g.funcDecl.Type, g.isTypeParameter) {
 		g.needsQualifier = true
 	}
+}
+
+// checkIfValidForExternalUsage checks if the callable can be wrapped from an external package.
+
+func (g *callableGenerator) checkIfValidForExternalUsage() error {
+	if g.qualifier == "" {
+		return nil
+	}
+
+	return ValidateExportedTypesInFunc(g.funcDecl.Type, g.isTypeParameter)
 }
 
 // Types
@@ -692,27 +710,9 @@ func (g *callableGenerator) typeWithQualifierStar(t *ast.StarExpr) string {
 
 // callableGetPackageInfo extracts package info for a callable function.
 func callableGetPackageInfo(
-	funcDecl *ast.FuncDecl,
 	interfaceName string,
 	pkgLoader PackageLoader,
+	currentPkgName string,
 ) (pkgPath, pkgName string, err error) {
-	isTypeParam := func(name string) bool {
-		if funcDecl.Type.TypeParams == nil {
-			return false
-		}
-
-		for _, field := range funcDecl.Type.TypeParams.List {
-			for _, paramName := range field.Names {
-				if paramName.Name == name {
-					return true
-				}
-			}
-		}
-
-		return false
-	}
-
-	return getPackageInfo(interfaceName, pkgLoader, func() bool {
-		return hasExportedIdent(funcDecl.Type, isTypeParam)
-	})
+	return GetPackageInfo(interfaceName, pkgLoader, currentPkgName)
 }

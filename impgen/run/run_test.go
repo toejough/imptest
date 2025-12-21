@@ -21,6 +21,11 @@ const localPackageSource = `package mypkg
 import "github.com/toejough/imptest/UAT/run"
 `
 
+const externalImportSource = `package mypkg
+import "github.com/foo/external"
+var _ external.Service
+`
+
 var errPackageNotFound = errors.New("package not found")
 
 var errWriteFailed = errors.New("write failed")
@@ -52,6 +57,7 @@ func (m *MockFileSystem) WriteFile(name string, data []byte, _ os.FileMode) erro
 // MockPackageLoader implements PackageLoader for testing.
 type MockPackageLoader struct {
 	packages map[string]mockPackage
+	errors   map[string]error
 }
 
 type mockPackage struct {
@@ -64,7 +70,13 @@ type mockPackage struct {
 func NewMockPackageLoader() *MockPackageLoader {
 	return &MockPackageLoader{
 		packages: make(map[string]mockPackage),
+		errors:   make(map[string]error),
 	}
+}
+
+// AddError configures the mock to return an error for a specific import path.
+func (m *MockPackageLoader) AddError(importPath string, err error) {
+	m.errors[importPath] = err
 }
 
 // AddPackageFromSource parses source code and registers it under the given import path.
@@ -97,6 +109,10 @@ func (m *MockPackageLoader) AddPackageFromSource(importPath, source string) {
 
 // Load returns the mocked package AST, FileSet, and type info.
 func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
+	if err, ok := m.errors[importPath]; ok {
+		return nil, nil, nil, err
+	}
+
 	if pkg, ok := m.packages[importPath]; ok {
 		return pkg.files, pkg.fset, pkg.typesInfo, nil
 	}
@@ -1669,6 +1685,228 @@ func (m *MyType) MyMethod(a int) {}
 
 	if !strings.Contains(string(content), "func (s *MyMethodImp) Start(a int)") {
 		t.Error("Expected callable wrapper to be generated for method")
+	}
+}
+
+func TestRun_ExternalInterface(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	// External package source
+	externalSource := `package external
+type Secret int
+type Service interface {
+	Do(s Secret)
+}
+`
+	mockPkgLoader.AddPackageFromSource("github.com/foo/external", externalSource)
+
+	// Local package importing external
+	mockPkgLoader.AddPackageFromSource(".", externalImportSource)
+
+	args := []string{"impgen", "external.Service", "--name", "ExternalImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["ExternalImp.go"]; !ok {
+		t.Error("Expected ExternalImp.go to be created")
+	}
+}
+
+func TestRun_ExternalInterface_UnexportedType(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	// External package with unexported type in interface
+	externalSource := `package external
+type secret int
+type Service interface {
+	Do(s secret)
+}
+`
+	mockPkgLoader.AddPackageFromSource("github.com/foo/external", externalSource)
+
+	// Local package
+	mockPkgLoader.AddPackageFromSource(".", externalImportSource)
+
+	args := []string{"impgen", "external.Service", "--name", "ExternalImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Fatal("Expected error due to unexported type in external interface")
+	}
+
+	if !strings.Contains(err.Error(), "type 'secret': unexported type is not accessible") {
+		t.Errorf("Unexpected error message: %v", err)
+	}
+}
+
+func TestRun_ExternalCallable(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	externalSource := `package external
+func DoSomething(a int) string { return "" }
+`
+	mockPkgLoader.AddPackageFromSource("github.com/foo/external", externalSource)
+
+	mockPkgLoader.AddPackageFromSource(".", externalImportSource)
+
+	args := []string{"impgen", "external.DoSomething", "--name", "DoSomethingImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["DoSomethingImp.go"]; !ok {
+		t.Error("Expected DoSomethingImp.go to be created")
+	}
+}
+
+func TestRun_ExternalInterface_UnexportedName(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	externalSource := `package external
+type MyData struct{}
+type service interface {
+	Do(d MyData)
+}
+`
+	mockPkgLoader.AddPackageFromSource("github.com/foo/external", externalSource)
+
+	mockPkgLoader.AddPackageFromSource(".", externalImportSource)
+
+	// service is unexported, but uses exported MyData.
+	// We need to use its full name for findSymbol to find it.
+	args := []string{"impgen", "external.service", "--name", "ServiceImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["ServiceImp.go"]; !ok {
+		t.Error("Expected ServiceImp.go to be created")
+	}
+}
+
+func TestRun_ExternalCallable_UnexportedName(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	externalSource := `package external
+type MyData struct{}
+func doSomething(d MyData) {}
+`
+	mockPkgLoader.AddPackageFromSource("github.com/foo/external", externalSource)
+
+	mockPkgLoader.AddPackageFromSource(".", externalImportSource)
+
+	// doSomething is unexported, but uses exported MyData.
+	args := []string{"impgen", "external.doSomething", "--name", "DoSomethingImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["DoSomethingImp.go"]; !ok {
+		t.Error("Expected DoSomethingImp.go to be created")
+	}
+}
+
+func TestRun_ExternalInterface_NoExportedTypes(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	externalSource := `package external
+type service interface {
+	Do(a int)
+}
+`
+	mockPkgLoader.AddPackageFromSource("github.com/foo/external", externalSource)
+	mockPkgLoader.AddPackageFromSource(".", externalImportSource)
+
+	args := []string{"impgen", "external.service", "--name", "ServiceImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["ServiceImp.go"]; !ok {
+		t.Error("Expected ServiceImp.go to be created")
+	}
+}
+
+func TestRun_ExternalInterface_NoExportedTypes_WithTypeParam(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+
+	externalSource := `package external
+type service[T any] interface {
+	Do(a T)
+}
+`
+	mockPkgLoader.AddPackageFromSource("github.com/foo/external", externalSource)
+	mockPkgLoader.AddPackageFromSource(".", externalImportSource)
+
+	args := []string{"impgen", "external.service", "--name", "ServiceImp"}
+
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["ServiceImp.go"]; !ok {
+		t.Error("Expected ServiceImp.go to be created")
+	}
+}
+
+func TestGetPackageInfo_LocalLoadFailure(t *testing.T) {
+	t.Parallel()
+
+	mockPkgLoader := NewMockPackageLoader()
+	// Simulate failure to load the local package
+	mockPkgLoader.AddError(".", errors.New("simulated load error"))
+
+	// Add the external package so the fallback can find it
+	externalSource := `package external
+type Service interface { Do() }
+`
+	mockPkgLoader.AddPackageFromSource("external", externalSource)
+
+	// We expect this to succeed by using the fallback logic
+	pkgPath, pkgName, err := run.GetPackageInfo("external.Service", mockPkgLoader, "mypkg")
+	if err != nil {
+		t.Fatalf("GetPackageInfo failed: %v", err)
+	}
+
+	if pkgPath != "external" {
+		t.Errorf("Expected pkgPath to be 'external', got '%s'", pkgPath)
+	}
+
+	if pkgName != "external" {
+		t.Errorf("Expected pkgName to be 'external', got '%s'", pkgName)
 	}
 }
 
