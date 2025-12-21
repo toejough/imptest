@@ -67,27 +67,19 @@ func newCodeGenerator(
 	}
 
 	gen := &codeGenerator{
-		codeWriter: codeWriter{},
-		typeFormatter: typeFormatter{
-			fset:      fset,
-			qualifier: qualifier,
-		},
-		pkgName:             info.pkgName,
-		impName:             impName,
-		mockName:            impName + "Mock",
-		callName:            impName + "Call",
-		expectCallIsName:    impName + "ExpectCallIs",
-		timedName:           impName + "Timed",
-		identifiedInterface: ifaceWithDetails.iface,
-		typeParams:          ifaceWithDetails.typeParams,
-		typesInfo:           typesInfo,
-		pkgPath:             pkgPath,
-		qualifier:           qualifier,
-		astFiles:            astFiles,
-		pkgImportPath:       pkgImportPath,
-		pkgLoader:           pkgLoader,
+		baseGenerator: newBaseGenerator(
+
+			fset, info.pkgName, impName, pkgPath, qualifier, ifaceWithDetails.typeParams, typesInfo,
+		),
+
+		mockName: impName + "Mock", callName: impName + "Call",
+
+		expectCallIsName: impName + "ExpectCallIs", timedName: impName + "Timed",
+
+		identifiedInterface: ifaceWithDetails.iface, astFiles: astFiles,
+
+		pkgImportPath: pkgImportPath, pkgLoader: pkgLoader,
 	}
-	gen.isTypeParam = gen.isTypeParameter
 
 	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.iface, astFiles, fset, pkgImportPath, pkgLoader)
 	if err != nil {
@@ -137,27 +129,17 @@ func (gen *codeGenerator) generate() (string, error) {
 
 // codeGenerator holds state for code generation.
 type codeGenerator struct {
-	codeWriter
-	typeFormatter
+	baseGenerator
 
-	pkgName             string
-	impName             string
 	mockName            string
 	callName            string
 	expectCallIsName    string
 	timedName           string
 	identifiedInterface *ast.InterfaceType
-	typeParams          *ast.FieldList // Type parameters for generic interfaces
-	typesInfo           *go_types.Info // Type information for comparability checks
-	pkgPath             string
-	qualifier           string
-	needsQualifier      bool
-	needsReflect        bool // Track if reflect import is needed
-	needsImptest        bool // Track if imptest import is needed
-	methodNames         []string
 	astFiles            []*ast.File
 	pkgImportPath       string
 	pkgLoader           PackageLoader
+	methodNames         []string
 }
 
 // codeGenerator Methods
@@ -189,27 +171,15 @@ func (gen *codeGenerator) checkIfImptestNeeded() {
 	})
 }
 
-// checkIfQualifierNeeded pre-scans all interface methods to determine if the package qualifier is needed.
+// checkIfQualifierNeeded pre-scans to determine if the package qualifier is needed.
 func (gen *codeGenerator) checkIfQualifierNeeded() {
-	if gen.qualifier == "" {
-		return
-	}
-
 	gen.forEachMethod(func(_ string, ftype *ast.FuncType) {
-		if hasExportedIdent(ftype, gen.isTypeParameter) {
-			gen.needsQualifier = true
-		}
+		gen.baseGenerator.checkIfQualifierNeeded(ftype)
 	})
 }
 
 // checkIfValidForExternalUsage checks if the interface can be mocked from an external package.
 func (gen *codeGenerator) checkIfValidForExternalUsage() error {
-	// If we are not qualifying types, it means we are in the same package (or don't need to import it),
-	// so unexported types are fine.
-	if gen.qualifier == "" {
-		return nil
-	}
-
 	var validationErr error
 
 	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
@@ -217,7 +187,7 @@ func (gen *codeGenerator) checkIfValidForExternalUsage() error {
 			return
 		}
 
-		err := ValidateExportedTypesInFunc(ftype, gen.isTypeParameter)
+		err := gen.baseGenerator.checkIfValidForExternalUsage(ftype)
 		if err != nil {
 			validationErr = fmt.Errorf("method '%s': %w", methodName, err)
 		}
@@ -260,18 +230,6 @@ func (gen *codeGenerator) templateData() templateData {
 		NeedsReflect:     gen.needsReflect,
 		NeedsImptest:     gen.needsImptest,
 	}
-}
-
-// formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
-// Returns empty string if there are no type parameters.
-func (gen *codeGenerator) formatTypeParamsDecl() string {
-	return formatTypeParamsDecl(gen.fset, gen.typeParams)
-}
-
-// formatTypeParamsUse formats type parameters for instantiation (e.g., "[T, U]").
-// Returns empty string if there are no type parameters.
-func (gen *codeGenerator) formatTypeParamsUse() string {
-	return formatTypeParamsUse(gen.typeParams)
 }
 
 // methodTemplateData returns template data for a specific method.
@@ -1195,23 +1153,6 @@ func (gen *codeGenerator) renderField(field *ast.Field, buf *bytes.Buffer) {
 	}
 
 	buf.WriteString(gen.typeWithQualifier(field.Type))
-}
-
-// isTypeParameter checks if a name is one of the interface's type parameters.
-func (gen *codeGenerator) isTypeParameter(name string) bool {
-	if gen.typeParams == nil {
-		return false
-	}
-
-	for _, field := range gen.typeParams.List {
-		for _, paramName := range field.Names {
-			if paramName.Name == name {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // interfaceGetPackageInfo extracts package info for the interface being mocked.

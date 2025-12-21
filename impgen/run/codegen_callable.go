@@ -35,20 +35,17 @@ func generateCallableWrapperCode(
 	}
 
 	gen := &callableGenerator{
-		codeWriter: codeWriter{},
-		typeFormatter: typeFormatter{
-			fset:      fset,
-			qualifier: qualifier,
-		},
-		pkgName:    info.pkgName,
-		impName:    info.impName,
-		funcDecl:   funcDecl,
-		pkgPath:    pkgPath,
-		qualifier:  qualifier,
-		typeParams: funcDecl.Type.TypeParams,
-		typesInfo:  typesInfo,
+		baseGenerator: newBaseGenerator(
+			fset,
+			info.pkgName,
+			info.impName,
+			pkgPath,
+			qualifier,
+			funcDecl.Type.TypeParams,
+			typesInfo,
+		),
+		funcDecl: funcDecl,
 	}
-	gen.isTypeParam = gen.isTypeParameter
 
 	gen.checkIfQualifierNeeded()
 
@@ -78,40 +75,21 @@ func generateCallableWrapperCode(
 
 // checkIfQualifierNeeded pre-scans function signature to determine if the package qualifier is needed.
 func (g *callableGenerator) checkIfQualifierNeeded() {
-	if g.qualifier == "" {
-		return
-	}
-
-	if hasExportedIdent(g.funcDecl.Type, g.isTypeParameter) {
-		g.needsQualifier = true
-	}
+	g.baseGenerator.checkIfQualifierNeeded(g.funcDecl.Type)
 }
 
 // checkIfValidForExternalUsage checks if the callable can be wrapped from an external package.
-
 func (g *callableGenerator) checkIfValidForExternalUsage() error {
-	if g.qualifier == "" {
-		return nil
-	}
-
-	return ValidateExportedTypesInFunc(g.funcDecl.Type, g.isTypeParameter)
+	return g.baseGenerator.checkIfValidForExternalUsage(g.funcDecl.Type)
 }
 
 // Types
 
 // callableGenerator holds state for generating callable wrapper code.
 type callableGenerator struct {
-	codeWriter
-	typeFormatter
+	baseGenerator
 
-	pkgName        string
-	impName        string
-	funcDecl       *ast.FuncDecl
-	pkgPath        string
-	qualifier      string
-	needsQualifier bool
-	typeParams     *ast.FieldList // Type parameters for generic functions
-	typesInfo      *go_types.Info // Type information for comparability checks
+	funcDecl *ast.FuncDecl
 }
 
 // callableExtendedTemplateData extends callableTemplateData with dynamic signature info.
@@ -171,18 +149,6 @@ func (g *callableGenerator) templateData() callableTemplateData {
 		TypeParamsDecl: g.formatTypeParamsDecl(),
 		TypeParamsUse:  g.formatTypeParamsUse(),
 	}
-}
-
-// formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
-// Returns empty string if there are no type parameters.
-func (g *callableGenerator) formatTypeParamsDecl() string {
-	return formatTypeParamsDecl(g.fset, g.typeParams)
-}
-
-// formatTypeParamsUse formats type parameters for instantiation (e.g., "[T, U]").
-// Returns empty string if there are no type parameters.
-func (g *callableGenerator) formatTypeParamsUse() string {
-	return formatTypeParamsUse(g.typeParams)
 }
 
 // extendedTemplateData returns template data with dynamic signature info.
@@ -502,23 +468,6 @@ func (g *callableGenerator) writeResultTypesWithQualifiersTo(buf *strings.Builde
 
 		buf.WriteString(g.typeWithQualifier(r.Field.Type))
 	}
-}
-
-// isTypeParameter checks if a name is one of the function's type parameters.
-func (g *callableGenerator) isTypeParameter(name string) bool {
-	if g.typeParams == nil {
-		return false
-	}
-
-	for _, field := range g.typeParams.List {
-		for _, paramName := range field.Names {
-			if paramName.Name == name {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // Functions

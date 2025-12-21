@@ -251,3 +251,71 @@ func TestGetPackageInfo_FindImportPathError(t *testing.T) {
 		t.Errorf("expected empty results, got path=%q, name=%q, err=%v", path, name, err)
 	}
 }
+
+func TestBaseGenerator(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	typeParams := &ast.FieldList{
+		List: []*ast.Field{
+			{
+				Names: []*ast.Ident{{Name: "T"}},
+				Type:  &ast.Ident{Name: "any"},
+			},
+		},
+	}
+
+	baseGen := newBaseGenerator(fset, "mypkg", "MyImp", "path", "qual", typeParams, nil)
+
+	t.Run("formatTypeParams", func(t *testing.T) {
+		t.Parallel()
+
+		if got := baseGen.formatTypeParamsDecl(); got != "[T any]" {
+			t.Errorf("expected [T any], got %q", got)
+		}
+
+		if got := baseGen.formatTypeParamsUse(); got != "[T]" {
+			t.Errorf("expected [T], got %q", got)
+		}
+	})
+
+	t.Run("isTypeParameter", func(t *testing.T) {
+		t.Parallel()
+
+		if !baseGen.isTypeParameter("T") {
+			t.Error("expected T to be a type parameter")
+		}
+
+		if baseGen.isTypeParameter("U") {
+			t.Error("expected U not to be a type parameter")
+		}
+	})
+
+	t.Run("checkIfQualifierNeeded", func(t *testing.T) {
+		t.Parallel()
+
+		expr := &ast.Ident{Name: "Exported"}
+		baseGen.checkIfQualifierNeeded(expr)
+
+		if !baseGen.needsQualifier {
+			t.Error("expected needsQualifier to be true")
+		}
+	})
+
+	t.Run("checkIfValidForExternalUsage", func(t *testing.T) {
+		t.Parallel()
+
+		ftype := &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{Type: &ast.Ident{Name: "unexported"}},
+				},
+			},
+		}
+
+		err := baseGen.checkIfValidForExternalUsage(ftype)
+		if err == nil {
+			t.Error("expected error for unexported type in external usage")
+		}
+	})
+}

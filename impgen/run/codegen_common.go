@@ -683,6 +683,93 @@ func (tf *typeFormatter) typeWithQualifierStar(t *ast.StarExpr) string {
 	return buf.String()
 }
 
+// newBaseGenerator initializes a baseGenerator.
+func newBaseGenerator(
+	fset *token.FileSet,
+	pkgName, impName, pkgPath, qualifier string,
+	typeParams *ast.FieldList,
+	typesInfo *go_types.Info,
+) baseGenerator {
+	baseGen := baseGenerator{
+		typeFormatter: typeFormatter{
+			fset:      fset,
+			qualifier: qualifier,
+		},
+		pkgName:    pkgName,
+		impName:    impName,
+		pkgPath:    pkgPath,
+		qualifier:  qualifier,
+		typeParams: typeParams,
+		typesInfo:  typesInfo,
+	}
+	baseGen.isTypeParam = baseGen.isTypeParameter
+
+	return baseGen
+}
+
+// baseGenerator holds common state and methods for code generation.
+type baseGenerator struct {
+	codeWriter
+	typeFormatter
+
+	pkgName        string
+	impName        string
+	pkgPath        string
+	qualifier      string
+	typeParams     *ast.FieldList
+	typesInfo      *go_types.Info
+	needsImptest   bool
+	needsReflect   bool
+	needsQualifier bool
+}
+
+// checkIfQualifierNeeded pre-scans to determine if the package qualifier is needed.
+func (baseGen *baseGenerator) checkIfQualifierNeeded(expr ast.Expr) {
+	if baseGen.qualifier == "" {
+		return
+	}
+
+	if hasExportedIdent(expr, baseGen.isTypeParam) {
+		baseGen.needsQualifier = true
+	}
+}
+
+// checkIfValidForExternalUsage checks if the symbol can be used from an external package.
+func (baseGen *baseGenerator) checkIfValidForExternalUsage(funcType *ast.FuncType) error {
+	if baseGen.qualifier == "" {
+		return nil
+	}
+
+	return ValidateExportedTypesInFunc(funcType, baseGen.isTypeParam)
+}
+
+// formatTypeParamsDecl formats type parameters for declaration.
+func (baseGen *baseGenerator) formatTypeParamsDecl() string {
+	return formatTypeParamsDecl(baseGen.fset, baseGen.typeParams)
+}
+
+// formatTypeParamsUse formats type parameters for instantiation.
+func (baseGen *baseGenerator) formatTypeParamsUse() string {
+	return formatTypeParamsUse(baseGen.typeParams)
+}
+
+// isTypeParameter checks if a name is one of the type parameters.
+func (baseGen *baseGenerator) isTypeParameter(name string) bool {
+	if baseGen.typeParams == nil {
+		return false
+	}
+
+	for _, field := range baseGen.typeParams.List {
+		for _, paramName := range field.Names {
+			if paramName.Name == name {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
 // Returns empty string if there are no type parameters.
 func formatTypeParamsDecl(fset *token.FileSet, typeParams *ast.FieldList) string {
