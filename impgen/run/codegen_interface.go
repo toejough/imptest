@@ -437,19 +437,14 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 // writeInjectResultsParams writes the parameter list for InjectResults method and returns the result names.
 func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string {
 	results := extractResults(gen.fset, ftype)
-	names := make([]string, len(results))
 
-	for resultIdx, result := range results {
-		if resultIdx > 0 {
-			gen.pf(", ")
-		}
+	// Write parameters using shared formatter
+	gen.pf("%s", formatResultParameters(results, "r", 0, func(r fieldInfo) string {
+		return r.Type
+	}))
 
-		paramName := fmt.Sprintf("r%d", resultIdx)
-		gen.pf("%s %s", paramName, result.Type)
-		names[resultIdx] = paramName
-	}
-
-	return names
+	// Build names array for return
+	return generateResultVarNames(len(results), "r")
 }
 
 // writeInjectResultsResponseFields writes the response struct field assignments for InjectResults.

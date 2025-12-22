@@ -237,6 +237,34 @@ func paramNamesToString(params []fieldInfo) string {
 	return strings.Join(names, ", ")
 }
 
+// formatResultParameters formats result parameters as "prefix0 type, prefix1 type, ...".
+// namePrefix: variable name prefix ("v" or "r")
+// startIndex: starting index (0 for r0-based, 1 for v1-based)
+// typeFormatter: function to format each result's type.
+func formatResultParameters(
+	results []fieldInfo,
+	namePrefix string,
+	startIndex int,
+	typeFormatter func(fieldInfo) string,
+) string {
+	return joinWith(results, func(r fieldInfo) string {
+		idx := r.Index + startIndex
+		typePart := typeFormatter(r)
+
+		return fmt.Sprintf("%s%d %s", namePrefix, idx, typePart)
+	}, ", ")
+}
+
+// generateResultVarNames creates variable names for results (e.g., "r0", "r1" or "ret0", "ret1").
+func generateResultVarNames(count int, prefix string) []string {
+	names := make([]string, count)
+	for i := range names {
+		names[i] = fmt.Sprintf("%s%d", prefix, i)
+	}
+
+	return names
+}
+
 // paramVisitor is called for each parameter during iteration.
 // Returns the next (paramNameIndex, unnamedIndex).
 type paramVisitor func(

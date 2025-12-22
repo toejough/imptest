@@ -232,14 +232,7 @@ func (g *callableGenerator) returnVarNames() []string {
 		return nil
 	}
 
-	numReturns := g.numReturns()
-	vars := make([]string, numReturns)
-
-	for i := range vars {
-		vars[i] = fmt.Sprintf("ret%d", i)
-	}
-
-	return vars
+	return generateResultVarNames(g.numReturns(), "ret")
 }
 
 // paramNamesString returns comma-separated parameter names for function calls.
@@ -254,19 +247,11 @@ func (g *callableGenerator) resultParamsString() string {
 		return ""
 	}
 
-	var buf strings.Builder
-
 	results := extractResults(g.fset, g.funcDecl.Type)
 
-	for i, r := range results {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		fmt.Fprintf(&buf, "v%d %s", r.Index+1, g.typeWithQualifier(r.Field.Type))
-	}
-
-	return buf.String()
+	return formatResultParameters(results, "v", 1, func(r fieldInfo) string {
+		return g.typeWithQualifier(r.Field.Type)
+	})
 }
 
 // resultParamsAnyString returns parameters for ExpectReturnedValuesShould (v1 any, v2 any, ...).
@@ -275,19 +260,11 @@ func (g *callableGenerator) resultParamsAnyString() string {
 		return ""
 	}
 
-	var buf strings.Builder
-
 	results := extractResults(g.fset, g.funcDecl.Type)
 
-	for i, r := range results {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		fmt.Fprintf(&buf, "v%d any", r.Index+1)
-	}
-
-	return buf.String()
+	return formatResultParameters(results, "v", 1, func(fieldInfo) string {
+		return "any"
+	})
 }
 
 // resultComparisonsString returns comparison code for return values.
@@ -352,17 +329,12 @@ func (g *callableGenerator) writeParamsWithQualifiersTo(buf *strings.Builder) {
 		}
 
 		if hasFieldNames(field) {
-			writeFieldNamesTo(buf, field.Names)
+			buf.WriteString(joinWith(field.Names, func(n *ast.Ident) string { return n.Name }, ", "))
 			buf.WriteString(" ")
 		}
 
 		buf.WriteString(g.typeWithQualifier(field.Type))
 	}
-}
-
-// writeFieldNamesTo writes parameter field names to a buffer, separated by commas.
-func writeFieldNamesTo(buf *strings.Builder, names []*ast.Ident) {
-	buf.WriteString(joinWith(names, func(n *ast.Ident) string { return n.Name }, ", "))
 }
 
 // writeResultTypesWithQualifiersTo writes function return types to a buffer.
