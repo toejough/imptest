@@ -21,7 +21,10 @@
       "Bash(go clean:*)",
       "Bash(head:*)",
       "Bash(go generate:*)",
-      "Bash(go tool cover:*)"
+      "Bash(go tool cover:*)",
+      "mcp__gopls__go_symbol_references",
+      "Bash(sort:*)",
+      "Bash(mage CheckCoverage:*)"
     ],
     "deny": [],
     "ask": []

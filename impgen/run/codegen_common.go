@@ -234,38 +234,31 @@ func GetPackageInfo(
 func hasExportedIdent(expr ast.Expr, isTypeParam func(string) bool) bool {
 	switch typeExpr := expr.(type) {
 	case *ast.Ident:
-		return hasExportedIdentInIdent(typeExpr, isTypeParam)
+		return len(typeExpr.Name) > 0 &&
+			unicode.IsUpper(rune(typeExpr.Name[0])) &&
+			!isBuiltinType(typeExpr.Name) &&
+			!isTypeParam(typeExpr.Name)
 	case *ast.StarExpr:
-		return hasExportedIdentInStar(typeExpr, isTypeParam)
+		return hasExportedIdent(typeExpr.X, isTypeParam)
 	case *ast.ArrayType:
-		return hasExportedIdentInArray(typeExpr, isTypeParam)
+		return hasExportedIdent(typeExpr.Elt, isTypeParam)
 	case *ast.MapType:
-		return hasExportedIdentInMap(typeExpr, isTypeParam)
+		return hasExportedIdent(typeExpr.Key, isTypeParam) || hasExportedIdent(typeExpr.Value, isTypeParam)
 	case *ast.ChanType:
-		return hasExportedIdentInChan(typeExpr, isTypeParam)
+		return hasExportedIdent(typeExpr.Value, isTypeParam)
 	case *ast.FuncType:
 		return hasExportedIdentInFunc(typeExpr, isTypeParam)
 	case *ast.StructType:
 		return hasExportedIdentInStruct(typeExpr, isTypeParam)
 	case *ast.SelectorExpr:
-		return hasExportedIdentInSelector(typeExpr, isTypeParam)
+		return true
 	case *ast.IndexExpr:
-		return hasExportedIdentInIndex(typeExpr, isTypeParam)
+		return hasExportedIdent(typeExpr.X, isTypeParam) || hasExportedIdent(typeExpr.Index, isTypeParam)
 	case *ast.IndexListExpr:
-		return hasExportedIdentInIndexList(typeExpr, isTypeParam)
+		return hasExportedIdent(typeExpr.X, isTypeParam)
 	}
 
 	return false
-}
-
-// hasExportedIdentInArray checks if an array type contains exported identifiers.
-func hasExportedIdentInArray(t *ast.ArrayType, isTypeParam func(string) bool) bool {
-	return hasExportedIdent(t.Elt, isTypeParam)
-}
-
-// hasExportedIdentInChan checks if a channel type contains exported identifiers.
-func hasExportedIdentInChan(t *ast.ChanType, isTypeParam func(string) bool) bool {
-	return hasExportedIdent(t.Value, isTypeParam)
 }
 
 // hasExportedIdentInFunc checks if a function type contains exported identifiers.
@@ -289,36 +282,6 @@ func hasExportedIdentInFunc(funcType *ast.FuncType, isTypeParam func(string) boo
 	}
 
 	return false
-}
-
-// hasExportedIdentInIdent checks if an identifier is exported.
-func hasExportedIdentInIdent(t *ast.Ident, isTypeParam func(string) bool) bool {
-	return len(t.Name) > 0 && unicode.IsUpper(rune(t.Name[0])) && !isBuiltinType(t.Name) && !isTypeParam(t.Name)
-}
-
-// hasExportedIdentInIndex checks if a generic type instantiation contains exported identifiers.
-func hasExportedIdentInIndex(t *ast.IndexExpr, isTypeParam func(string) bool) bool {
-	return hasExportedIdent(t.X, isTypeParam) || hasExportedIdent(t.Index, isTypeParam)
-}
-
-// hasExportedIdentInIndexList checks if a multi-parameter generic type contains exported identifiers.
-func hasExportedIdentInIndexList(indexList *ast.IndexListExpr, isTypeParam func(string) bool) bool {
-	return hasExportedIdent(indexList.X, isTypeParam)
-}
-
-// hasExportedIdentInMap checks if a map type contains exported identifiers.
-func hasExportedIdentInMap(t *ast.MapType, isTypeParam func(string) bool) bool {
-	return hasExportedIdent(t.Key, isTypeParam) || hasExportedIdent(t.Value, isTypeParam)
-}
-
-// hasExportedIdentInSelector checks if a selector expression is exported.
-func hasExportedIdentInSelector(_ *ast.SelectorExpr, _ func(string) bool) bool {
-	return true
-}
-
-// hasExportedIdentInStar checks if a pointer type contains exported identifiers.
-func hasExportedIdentInStar(t *ast.StarExpr, isTypeParam func(string) bool) bool {
-	return hasExportedIdent(t.X, isTypeParam)
 }
 
 // hasExportedIdentInStruct checks if a struct type contains exported identifiers.
@@ -393,33 +356,9 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatt
 
 // ValidateExportedTypes checks if an expression contains any unexported identifiers that would be inaccessible
 // from another package. Returns an error if found.
+//
+//nolint:cyclop,funlen,gocognit // Type-switch dispatcher handling all AST node types
 func ValidateExportedTypes(expr ast.Expr, isTypeParam func(string) bool) error {
-	switch typeExpr := expr.(type) {
-	case *ast.Ident, *ast.StarExpr, *ast.ArrayType, *ast.ChanType:
-		return validateExportedSimpleTypes(expr, isTypeParam)
-	case *ast.MapType:
-		return validateExportedMapTypes(typeExpr, isTypeParam)
-	case *ast.FuncType:
-		return ValidateExportedTypesInFunc(typeExpr, isTypeParam)
-	case *ast.IndexExpr:
-		return validateExportedIndexTypes(typeExpr, isTypeParam)
-	case *ast.IndexListExpr:
-		return validateExportedIndexListTypes(typeExpr, isTypeParam)
-	case *ast.SelectorExpr:
-		if !unicode.IsUpper(rune(typeExpr.Sel.Name[0])) {
-			return fmt.Errorf("type '%s': %w", typeExpr.Sel.Name, errUnexportedType)
-		}
-
-		return nil
-	case *ast.StructType:
-		return validateExportedStructTypes(typeExpr, isTypeParam)
-	}
-
-	return nil
-}
-
-// validateExportedSimpleTypes handles simple types (Ident, StarExpr, ArrayType, ChanType).
-func validateExportedSimpleTypes(expr ast.Expr, isTypeParam func(string) bool) error {
 	switch typeExpr := expr.(type) {
 	case *ast.Ident:
 		if !IsExportedIdent(typeExpr, isTypeParam) {
@@ -433,6 +372,53 @@ func validateExportedSimpleTypes(expr ast.Expr, isTypeParam func(string) bool) e
 		return ValidateExportedTypes(typeExpr.Elt, isTypeParam)
 	case *ast.ChanType:
 		return ValidateExportedTypes(typeExpr.Value, isTypeParam)
+	case *ast.MapType:
+		err := ValidateExportedTypes(typeExpr.Key, isTypeParam)
+		if err != nil {
+			return err
+		}
+
+		return ValidateExportedTypes(typeExpr.Value, isTypeParam)
+	case *ast.FuncType:
+		return ValidateExportedTypesInFunc(typeExpr, isTypeParam)
+	case *ast.IndexExpr:
+		err := ValidateExportedTypes(typeExpr.X, isTypeParam)
+		if err != nil {
+			return err
+		}
+
+		return ValidateExportedTypes(typeExpr.Index, isTypeParam)
+	case *ast.IndexListExpr:
+		err := ValidateExportedTypes(typeExpr.X, isTypeParam)
+		if err != nil {
+			return err
+		}
+
+		for _, idx := range typeExpr.Indices {
+			err := ValidateExportedTypes(idx, isTypeParam)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	case *ast.SelectorExpr:
+		if !unicode.IsUpper(rune(typeExpr.Sel.Name[0])) {
+			return fmt.Errorf("type '%s': %w", typeExpr.Sel.Name, errUnexportedType)
+		}
+
+		return nil
+	case *ast.StructType:
+		if typeExpr.Fields != nil {
+			for _, field := range typeExpr.Fields.List {
+				err := ValidateExportedTypes(field.Type, isTypeParam)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
 	}
 
 	return nil
@@ -449,58 +435,6 @@ func IsExportedIdent(ident *ast.Ident, isTypeParam func(string) bool) bool {
 	}
 
 	return isBuiltinType(ident.Name) || isTypeParam(ident.Name)
-}
-
-// validateExportedIndexListTypes checks if a generic type instantiation with multiple
-// parameters contains exported identifiers.
-func validateExportedIndexListTypes(indexList *ast.IndexListExpr, isTypeParam func(string) bool) error {
-	err := ValidateExportedTypes(indexList.X, isTypeParam)
-	if err != nil {
-		return err
-	}
-
-	for _, idx := range indexList.Indices {
-		err := ValidateExportedTypes(idx, isTypeParam)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// validateExportedIndexTypes checks if a generic type instantiation contains exported identifiers.
-func validateExportedIndexTypes(indexExpr *ast.IndexExpr, isTypeParam func(string) bool) error {
-	err := ValidateExportedTypes(indexExpr.X, isTypeParam)
-	if err != nil {
-		return err
-	}
-
-	return ValidateExportedTypes(indexExpr.Index, isTypeParam)
-}
-
-// validateExportedMapTypes checks if a map type contains exported identifiers.
-func validateExportedMapTypes(mapType *ast.MapType, isTypeParam func(string) bool) error {
-	err := ValidateExportedTypes(mapType.Key, isTypeParam)
-	if err != nil {
-		return err
-	}
-
-	return ValidateExportedTypes(mapType.Value, isTypeParam)
-}
-
-// validateExportedStructTypes checks if a struct type contains exported identifiers.
-func validateExportedStructTypes(structType *ast.StructType, isTypeParam func(string) bool) error {
-	if structType.Fields != nil {
-		for _, field := range structType.Fields.List {
-			err := ValidateExportedTypes(field.Type, isTypeParam)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func ValidateExportedTypesInFunc(funcType *ast.FuncType, isTypeParam func(string) bool) error {

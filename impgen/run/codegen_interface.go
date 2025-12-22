@@ -568,6 +568,32 @@ func (gen *codeGenerator) writeNamedParams(param *ast.Field, paramType string, p
 	return paramNameIndex
 }
 
+// forEachParamField iterates over parameter fields, handling both named and unnamed parameters.
+// It calls the action callback for each field with the computed field name and parameter name.
+func forEachParamField(
+	param *ast.Field,
+	paramType string,
+	paramNames []string,
+	paramNameIndex, unnamedIndex, totalParams int,
+	action func(fieldName, paramName string),
+) (int, int) {
+	if len(param.Names) > 0 {
+		for i, name := range param.Names {
+			fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
+			action(fieldName, name.Name)
+
+			paramNameIndex++
+		}
+
+		return paramNameIndex, unnamedIndex
+	}
+
+	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
+	action(fieldName, paramNames[paramNameIndex])
+
+	return paramNameIndex + 1, unnamedIndex + 1
+}
+
 // writeCallStructFields writes the field assignments for initializing a call struct.
 func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames []string) {
 	visitParams(ftype, gen.typeWithQualifier, func(
@@ -581,21 +607,10 @@ func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames 
 func (gen *codeGenerator) writeCallStructField(
 	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
 ) (int, int) {
-	if len(param.Names) > 0 {
-		for i, name := range param.Names {
-			fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-			gen.pf("\t\t%s: %s,\n", fieldName, name.Name)
-
-			paramNameIndex++
-		}
-
-		return paramNameIndex, unnamedIndex
-	}
-
-	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-	gen.pf("\t\t%s: %s,\n", fieldName, paramNames[paramNameIndex])
-
-	return paramNameIndex + 1, unnamedIndex + 1
+	return forEachParamField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
+		func(fieldName, paramName string) {
+			gen.pf("\t\t%s: %s,\n", fieldName, paramName)
+		})
 }
 
 // writeReturnStatement writes the return statement for a mock method.
@@ -696,21 +711,10 @@ func (gen *codeGenerator) writeExpectArgsAreChecks(ftype *ast.FuncType, paramNam
 	) (int, int) {
 		isComparable := isComparableExpr(param.Type, gen.typesInfo)
 
-		if len(param.Names) > 0 {
-			for i, name := range param.Names {
-				fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-				gen.writeEqualityCheck(fieldName, name.Name, isComparable)
-
-				paramNameIndex++
-			}
-
-			return paramNameIndex, unnamedIndex
-		}
-
-		fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-		gen.writeEqualityCheck(fieldName, paramNames[paramNameIndex], isComparable)
-
-		return paramNameIndex + 1, unnamedIndex + 1
+		return forEachParamField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
+			func(fieldName, paramName string) {
+				gen.writeEqualityCheck(fieldName, paramName, isComparable)
+			})
 	})
 }
 
@@ -764,21 +768,10 @@ func (gen *codeGenerator) writeExpectArgsShouldChecks(ftype *ast.FuncType, param
 	visitParams(ftype, gen.typeWithQualifier, func(
 		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
 	) (int, int) {
-		if len(param.Names) > 0 {
-			for i, name := range param.Names {
-				fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
-				gen.writeMatcherCheck(fieldName, name.Name)
-
-				paramNameIndex++
-			}
-
-			return paramNameIndex, unnamedIndex
-		}
-
-		fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, paramType, totalParams)
-		gen.writeMatcherCheck(fieldName, paramNames[paramNameIndex])
-
-		return paramNameIndex + 1, unnamedIndex + 1
+		return forEachParamField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
+			func(fieldName, paramName string) {
+				gen.writeMatcherCheck(fieldName, paramName)
+			})
 	})
 }
 
