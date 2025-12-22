@@ -33,7 +33,8 @@
       "Bash(mage:*)",
       "Bash(deadcode:*)",
       "mcp__gopls__go_package_api",
-      "Bash(go doc:*)"
+      "Bash(go doc:*)",
+      "mcp__gopls__go_search"
     ],
     "deny": [],
     "ask": []

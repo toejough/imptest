@@ -56,7 +56,7 @@ func CalculatePackageSignature(args []string) (string, error) {
 
 	for _, fileName := range files {
 		// Skip generated files to avoid circular dependency in signature
-		if strings.HasSuffix(fileName, "Imp_test.go") || strings.HasSuffix(fileName, "Imp.go") {
+		if strings.HasPrefix(fileName, "generated_") {
 			continue
 		}
 

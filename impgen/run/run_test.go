@@ -146,7 +146,7 @@ type MyInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["MyImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_MyImp.go"]; !ok {
 		t.Error("Expected MyImp.go to be created")
 	}
 }
@@ -226,7 +226,7 @@ type ComplexInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ComplexImp.go"]
+	content, ok := mockFS.files["generated_ComplexImp.go"]
 	if !ok {
 		t.Error("Expected ComplexImp.go to be created")
 	}
@@ -275,7 +275,7 @@ type ValueInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ValueImp.go"]
+	content, ok := mockFS.files["generated_ValueImp.go"]
 	if !ok {
 		t.Error("Expected ValueImp.go to be created")
 	}
@@ -347,7 +347,7 @@ type Stringer interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["StringerImp.go"]
+	content, ok := mockFS.files["generated_StringerImp.go"]
 	if !ok {
 		t.Error("Expected StringerImp.go to be created")
 	}
@@ -401,7 +401,7 @@ type EmbeddedInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["EmbeddedImp.go"]
+	content, ok := mockFS.files["generated_EmbeddedImp.go"]
 	if !ok {
 		t.Error("Expected EmbeddedImp.go to be created")
 	}
@@ -443,9 +443,9 @@ type MyInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	// Should create MyImp_test.go when in a _test package
-	if _, ok := mockFS.files["MyImp_test.go"]; !ok {
-		t.Error("Expected MyImp_test.go to be created in _test package")
+	// Should create generated_MyImp_test.go when in a _test package
+	if _, ok := mockFS.files["generated_MyImp_test.go"]; !ok {
+		t.Error("Expected generated_MyImp_test.go to be created in _test package")
 		// Show what files were actually created for debugging
 		for f := range mockFS.files {
 			t.Logf("Found file: %s", f)
@@ -608,7 +608,7 @@ func PrintSum(a, b int) int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["PrintSumImp.go"]
+	content, ok := mockFS.files["generated_PrintSumImp.go"]
 	if !ok {
 		t.Fatal("Expected PrintSumImp.go to be created")
 	}
@@ -661,7 +661,7 @@ func ProcessData(data []string, callback func(string) error) (*MyType, error) {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessDataImp.go"]
+	content, ok := mockFS.files["generated_ProcessDataImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessDataImp.go to be created")
 	}
@@ -712,7 +712,7 @@ func ProcessMap(data map[string]int, ch chan<- string) map[int][]string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessMapImp.go"]
+	content, ok := mockFS.files["generated_ProcessMapImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessMapImp.go to be created")
 	}
@@ -774,7 +774,7 @@ var _ = run.Player{}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["PlayerPlayImp.go"]
+	content, ok := mockFS.files["generated_PlayerPlayImp.go"]
 	if !ok {
 		t.Fatal("Expected PlayerPlayImp.go to be created")
 	}
@@ -830,7 +830,7 @@ var _ = run.Calculator{}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["CalculatorAddImp.go"]
+	content, ok := mockFS.files["generated_CalculatorAddImp.go"]
 	if !ok {
 		t.Fatal("Expected CalculatorAddImp.go to be created")
 	}
@@ -882,7 +882,7 @@ var _ = run.Divide
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["DivideImp.go"]
+	content, ok := mockFS.files["generated_DivideImp.go"]
 	if !ok {
 		t.Fatal("Expected DivideImp.go to be created")
 	}
@@ -930,7 +930,7 @@ func SimpleAdd(a, b int) int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["SimpleAddImp.go"]
+	content, ok := mockFS.files["generated_SimpleAddImp.go"]
 	if !ok {
 		t.Fatal("Expected SimpleAddImp.go to be created")
 	}
@@ -1063,7 +1063,7 @@ var _ = run.MyData{}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["MyImp.go"]
+	content, ok := mockFS.files["generated_MyImp.go"]
 	if !ok {
 		t.Fatal("Expected MyImp.go to be created")
 	}
@@ -1103,7 +1103,7 @@ var _ = run.MyData{}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["MyImp.go"]
+	content, ok := mockFS.files["generated_MyImp.go"]
 	if !ok {
 		t.Fatal("Expected MyImp.go to be created")
 	}
@@ -1138,7 +1138,7 @@ type GenericInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["GenericImp.go"]
+	content, ok := mockFS.files["generated_GenericImp.go"]
 	if !ok {
 		t.Fatal("Expected GenericImp.go to be created")
 	}
@@ -1179,7 +1179,7 @@ type ComplexInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ComplexImp.go"]
+	content, ok := mockFS.files["generated_ComplexImp.go"]
 	if !ok {
 		t.Fatal("Expected ComplexImp.go to be created")
 	}
@@ -1222,7 +1222,7 @@ type GenericInterface[T any, U comparable] interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["GenericImp.go"]
+	content, ok := mockFS.files["generated_GenericImp.go"]
 	if !ok {
 		t.Error("Expected GenericImp.go to be created")
 	}
@@ -1272,7 +1272,7 @@ func ProcessContainer(c *Container[int]) int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessContainerImp.go"]
+	content, ok := mockFS.files["generated_ProcessContainerImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessContainerImp.go to be created")
 	}
@@ -1322,7 +1322,7 @@ func ProcessKeyValue(kv *KeyValue[string, int]) string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessKeyValueImp.go"]
+	content, ok := mockFS.files["generated_ProcessKeyValueImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessKeyValueImp.go to be created")
 	}
@@ -1367,7 +1367,7 @@ func ProcessStruct(data struct{ Name string; Age int }) string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessStructImp.go"]
+	content, ok := mockFS.files["generated_ProcessStructImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessStructImp.go to be created")
 	}
@@ -1414,7 +1414,7 @@ func ProcessTime(t time.Time) string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessTimeImp.go"]
+	content, ok := mockFS.files["generated_ProcessTimeImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessTimeImp.go to be created")
 	}
@@ -1460,7 +1460,7 @@ type DataProcessor interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["DataProcessorImp.go"]
+	content, ok := mockFS.files["generated_DataProcessorImp.go"]
 	if !ok {
 		t.Fatal("Expected DataProcessorImp.go to be created")
 	}
@@ -1511,7 +1511,7 @@ func GetNames() []string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["GetNamesImp.go"]
+	content, ok := mockFS.files["generated_GetNamesImp.go"]
 	if !ok {
 		t.Fatal("Expected GetNamesImp.go to be created")
 	}
@@ -1561,7 +1561,7 @@ type Calculator interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["CalculatorImp.go"]
+	content, ok := mockFS.files["generated_CalculatorImp.go"]
 	if !ok {
 		t.Fatal("Expected CalculatorImp.go to be created")
 	}
@@ -1604,7 +1604,7 @@ type MyInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["MyImp.go"]
+	content, ok := mockFS.files["generated_MyImp.go"]
 	if !ok {
 		t.Fatal("Expected MyImp.go to be created")
 	}
@@ -1633,7 +1633,7 @@ func MyFunc(a int) string { return "" }
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["MyFuncImp.go"]
+	content, ok := mockFS.files["generated_MyFuncImp.go"]
 	if !ok {
 		t.Fatal("Expected MyFuncImp.go to be created")
 	}
@@ -1663,7 +1663,7 @@ func (m *MyType) MyMethod(a int) {}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["MyMethodImp.go"]
+	content, ok := mockFS.files["generated_MyMethodImp.go"]
 	if !ok {
 		t.Fatal("Expected MyMethodImp.go to be created")
 	}
@@ -1698,7 +1698,7 @@ type Service interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["ExternalImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_ExternalImp.go"]; !ok {
 		t.Error("Expected ExternalImp.go to be created")
 	}
 }
@@ -1753,7 +1753,7 @@ func DoSomething(a int) string { return "" }
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["DoSomethingImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_DoSomethingImp.go"]; !ok {
 		t.Error("Expected DoSomethingImp.go to be created")
 	}
 }
@@ -1783,7 +1783,7 @@ type service interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["ServiceImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_ServiceImp.go"]; !ok {
 		t.Error("Expected ServiceImp.go to be created")
 	}
 }
@@ -1810,7 +1810,7 @@ func doSomething(d MyData) {}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["DoSomethingImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_DoSomethingImp.go"]; !ok {
 		t.Error("Expected DoSomethingImp.go to be created")
 	}
 }
@@ -1836,7 +1836,7 @@ type service interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["ServiceImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_ServiceImp.go"]; !ok {
 		t.Error("Expected ServiceImp.go to be created")
 	}
 }
@@ -1862,7 +1862,7 @@ type service[T any] interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["ServiceImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_ServiceImp.go"]; !ok {
 		t.Error("Expected ServiceImp.go to be created")
 	}
 }
@@ -1892,7 +1892,7 @@ type Processor interface {
 	}
 
 	// Should successfully generate code
-	if _, ok := mockFS.files["ProcessorImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_ProcessorImp.go"]; !ok {
 		t.Fatal("Expected ProcessorImp.go to be created")
 	}
 }
@@ -1916,7 +1916,7 @@ func LocalFunc() int { return 0 }`)
 			t.Fatalf("Run failed: %v", err)
 		}
 
-		code := string(mockFS.files["LocalFuncImp.go"])
+		code := string(mockFS.files["generated_LocalFuncImp.go"])
 		if !strings.Contains(code, "package mypkg") {
 			t.Error("Expected package declaration in header")
 		}
@@ -1945,7 +1945,7 @@ func Process(input Data) Data { return input }`)
 			t.Fatalf("Run failed: %v", err)
 		}
 
-		code := string(mockFS.files["ProcessImp.go"])
+		code := string(mockFS.files["generated_ProcessImp.go"])
 		if !strings.Contains(code, "package current") {
 			t.Error("Expected package declaration in header")
 		}

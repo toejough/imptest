@@ -192,14 +192,14 @@ func parseArgs(args []string) (cliArgs, error) {
 	return parsed, nil
 }
 
-// writeGeneratedCodeToFile writes the generated code to <impName>.go.
+// writeGeneratedCodeToFile writes the generated code to generated_<impName>.go.
 func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
 	const generatedFilePermissions = 0o600
 
-	filename := impName
+	filename := "generated_" + impName
 	// If we're in a test package, append _test to the filename
 	if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
-		filename = strings.TrimSuffix(impName, ".go") + "_test.go"
+		filename = "generated_" + strings.TrimSuffix(impName, ".go") + "_test.go"
 	} else if !strings.HasSuffix(filename, ".go") {
 		filename += ".go"
 	}

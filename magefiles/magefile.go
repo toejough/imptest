@@ -346,7 +346,7 @@ func CheckCoverage(c context.Context) error {
 			continue
 		}
 
-		if strings.Contains(line, "Imp.go") || strings.Contains(line, "Imp_test.go") {
+		if strings.Contains(line, "generated_") {
 			continue
 		}
 

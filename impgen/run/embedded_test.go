@@ -45,7 +45,7 @@ type Stringer interface {
 	}
 
 	// Verify the generated code includes both String() from fmt.Stringer and OwnMethod()
-	content := mockFS.files["MyImp.go"]
+	content := mockFS.files["generated_MyImp.go"]
 
 	contentStr := string(content)
 	if !strings.Contains(contentStr, "String()") {

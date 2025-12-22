@@ -30,7 +30,7 @@ func GenericFunc[T any, U comparable](item T, key U) (T, U) {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["GenericFuncImp.go"]
+	content, ok := mockFS.files["generated_GenericFuncImp.go"]
 	if !ok {
 		t.Fatal("Expected GenericFuncImp.go to be created")
 	}
@@ -115,7 +115,7 @@ func ProcessExportedBase[T any](c MyExportedContainer[T]) {}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	if _, ok := mockFS.files["ProcessMultiListImp.go"]; !ok {
+	if _, ok := mockFS.files["generated_ProcessMultiListImp.go"]; !ok {
 		t.Fatal("Expected ProcessMultiListImp.go to be created")
 	}
 }
@@ -206,7 +206,7 @@ func ProcessContainer(c *MyContainer[MyExportedType, string]) string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessContainerImp.go"]
+	content, ok := mockFS.files["generated_ProcessContainerImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessContainerImp.go to be created")
 	}
@@ -247,7 +247,7 @@ func ProcessChannels(in <-chan MyType, out chan<- string, bidir chan int) {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessChannelsImp.go"]
+	content, ok := mockFS.files["generated_ProcessChannelsImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessChannelsImp.go to be created")
 	}
@@ -295,7 +295,7 @@ func ProcessWithCallback(data CustomData, handler func(CustomData) error) error 
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["ProcessWithCallbackImp.go"]
+	content, ok := mockFS.files["generated_ProcessWithCallbackImp.go"]
 	if !ok {
 		t.Fatal("Expected ProcessWithCallbackImp.go to be created")
 	}
@@ -343,7 +343,7 @@ func CreateHandler(id string) func() Result {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["CreateHandlerImp.go"]
+	content, ok := mockFS.files["generated_CreateHandlerImp.go"]
 	if !ok {
 		t.Fatal("Expected CreateHandlerImp.go to be created")
 	}
