@@ -106,6 +106,26 @@ func (c *CustomOpsImpNotifyCall) InjectPanic(msg any) {
 	c.responseChan <- CustomOpsImpNotifyCallResponse{Type: "panic", PanicValue: msg}
 }
 
+type CustomOpsImpFinishCall struct {
+	responseChan chan CustomOpsImpFinishCallResponse
+	done         bool
+}
+
+type CustomOpsImpFinishCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    bool
+	PanicValue any
+}
+
+func (c *CustomOpsImpFinishCall) InjectResult(result bool) {
+	c.done = true
+	c.responseChan <- CustomOpsImpFinishCallResponse{Type: "return", Result0: result}
+}
+func (c *CustomOpsImpFinishCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- CustomOpsImpFinishCallResponse{Type: "panic", PanicValue: msg}
+}
+
 func (m *CustomOpsImpMock) Add(a int, b int) int {
 	responseChan := make(chan CustomOpsImpAddCallResponse, 1)
 
@@ -201,11 +221,34 @@ func (m *CustomOpsImpMock) Notify(message string, ids ...int) bool {
 	return resp.Result0
 }
 
+func (m *CustomOpsImpMock) Finish() bool {
+	responseChan := make(chan CustomOpsImpFinishCallResponse, 1)
+
+	call := &CustomOpsImpFinishCall{
+		responseChan: responseChan,
+	}
+
+	callEvent := &CustomOpsImpCall{
+		Finish: call,
+	}
+
+	m.imp.CallChan <- callEvent
+
+	resp := <-responseChan
+
+	if resp.Type == "panic" {
+		panic(resp.PanicValue)
+	}
+
+	return resp.Result0
+}
+
 type CustomOpsImpCall struct {
 	Add    *CustomOpsImpAddCall
 	Store  *CustomOpsImpStoreCall
 	Log    *CustomOpsImpLogCall
 	Notify *CustomOpsImpNotifyCall
+	Finish *CustomOpsImpFinishCall
 }
 
 func (c *CustomOpsImpCall) Name() string {
@@ -220,6 +263,9 @@ func (c *CustomOpsImpCall) Name() string {
 	}
 	if c.Notify != nil {
 		return "Notify"
+	}
+	if c.Finish != nil {
+		return "Finish"
 	}
 	return ""
 }
@@ -236,6 +282,9 @@ func (c *CustomOpsImpCall) Done() bool {
 	}
 	if c.Notify != nil {
 		return c.Notify.done
+	}
+	if c.Finish != nil {
+		return c.Finish.done
 	}
 	return false
 }
@@ -254,6 +303,10 @@ func (c *CustomOpsImpCall) AsLog() *CustomOpsImpLogCall {
 
 func (c *CustomOpsImpCall) AsNotify() *CustomOpsImpNotifyCall {
 	return c.Notify
+}
+
+func (c *CustomOpsImpCall) AsFinish() *CustomOpsImpFinishCall {
+	return c.Finish
 }
 
 type CustomOpsImpExpectCallIs struct {
@@ -538,6 +591,61 @@ func (bldr *CustomOpsImpNotifyBuilder) InjectPanic(msg any) *CustomOpsImpNotifyC
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
 	methodCall := call.AsNotify()
+	methodCall.InjectPanic(msg)
+	return methodCall
+}
+
+type CustomOpsImpFinishBuilder struct {
+	imp     *CustomOpsImp
+	timeout time.Duration
+}
+
+func (e *CustomOpsImpExpectCallIs) Finish() *CustomOpsImpFinishBuilder {
+	return &CustomOpsImpFinishBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+func (bldr *CustomOpsImpFinishBuilder) ExpectArgsAre() *CustomOpsImpFinishCall {
+	validator := func(c *CustomOpsImpCall) bool {
+		if c.Name() != "Finish" {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsFinish()
+}
+
+func (bldr *CustomOpsImpFinishBuilder) ExpectArgsShould() *CustomOpsImpFinishCall {
+	validator := func(c *CustomOpsImpCall) bool {
+		if c.Name() != "Finish" {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsFinish()
+}
+
+func (bldr *CustomOpsImpFinishBuilder) InjectResult(result bool) *CustomOpsImpFinishCall {
+	validator := func(c *CustomOpsImpCall) bool {
+		return c.Name() == "Finish"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsFinish()
+	methodCall.InjectResult(result)
+	return methodCall
+}
+
+func (bldr *CustomOpsImpFinishBuilder) InjectPanic(msg any) *CustomOpsImpFinishCall {
+	validator := func(c *CustomOpsImpCall) bool {
+		return c.Name() == "Finish"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsFinish()
 	methodCall.InjectPanic(msg)
 	return methodCall
 }

@@ -14,6 +14,9 @@ type Ops interface {
 
 	// Notify demonstrates variadic arguments.
 	Notify(message string, ids ...int) bool
+
+	// Finish demonstrates zero arguments.
+	Finish() bool
 }
 
 // PerformOps is a helper that uses the Ops interface.
@@ -28,4 +31,5 @@ func PerformOps(ops Ops) {
 	_, _ = ops.Store("foo", "bar")
 	ops.Log("action performed")
 	_ = ops.Notify("alert", val1, val2, val3)
+	_ = ops.Finish()
 }

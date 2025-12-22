@@ -16,18 +16,11 @@ import (
 
 // TestBasicMocking demonstrates the "Interactive Control" pattern using a
 // custom-named mock implementation.
-//
-// Key Requirements Met:
-//  1. Interactive Control: Synchronously expect calls, inject results,
-//     and verify behavior in a single linear flow.
-//  2. Multiple Returns: Easily inject multiple return values for methods
-//     that return more than one result.
-//  3. Variadic Support: Full support for variadic arguments in expectations.
 func TestBasicMocking(t *testing.T) {
 	t.Parallel()
 
-	// Initialize the generated mock implementation using its custom name.
-	imp := NewCustomOpsImp(t)
+	// Initialize the generated mock implementation using its default name.
+	imp := NewOpsImp(t)
 
 	// Run the code under test in a goroutine so the test can interact with it synchronously.
 	go basic.PerformOps(imp.Mock)
@@ -46,16 +39,14 @@ func TestBasicMocking(t *testing.T) {
 	// 4. Intercept 'Notify' (variadic) and provide a return value.
 	// Note: Variadic arguments are passed normally to ExpectArgsAre.
 	imp.ExpectCallIs.Notify().ExpectArgsAre("alert", 1, 2, 3).InjectResult(true)
+
+	// 5. Intercept 'Finish' (no args) and provide a return value.
+	imp.ExpectCallIs.Finish().InjectResult(true)
 }
 
-// TestDefaultNaming demonstrates that the --name flag is optional.
-//
-// Key Requirements Met:
-//  1. Convention Over Configuration: Default to <Interface>Imp for a
-//     streamlined developer experience.
-func TestDefaultNaming(t *testing.T) {
+// TestCustomNaming demonstrates that the --name flag can be used to generate a custom imp.
+func TestCustomNaming(t *testing.T) {
 	t.Parallel()
 
-	// Since we didn't specify --name for the first directive, it defaults to OpsImp.
-	_ = NewOpsImp(t)
+	_ = NewCustomOpsImp()(t)
 }
