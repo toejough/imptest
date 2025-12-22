@@ -27,7 +27,8 @@
       "Bash(mage CheckCoverage:*)",
       "Bash(done)",
       "Bash(mage -l:*)",
-      "Bash(mage findRedundantTests:*)"
+      "Bash(mage findRedundantTests:*)",
+      "Bash(go list:*)"
     ],
     "deny": [],
     "ask": []

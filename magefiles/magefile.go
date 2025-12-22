@@ -616,6 +616,17 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 			if err != nil {
 				return fmt.Errorf("baseline tests in %s failed: %w", spec.Package, err)
 			}
+
+			// List and record all test functions in this package
+			pkgTests, err := listTestFunctions(c, spec.Package)
+			if err != nil {
+				// Non-fatal: we'll just skip tracking these test names
+				fmt.Printf("  Warning: couldn't list tests in %s: %v\n", spec.Package, err)
+			} else {
+				for _, testName := range pkgTests {
+					baselineTestNames[testName] = true
+				}
+			}
 		}
 	}
 
@@ -645,6 +656,20 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	}
 	fmt.Printf("  Baseline covers %d functions at %.0f%%+\n", len(baselineFuncs), config.CoverageThreshold)
 
+	// Show baseline functions in verbose mode
+	if mg.Verbose() {
+		fmt.Println("\n  Baseline functions:")
+		baselineFuncList := make([]string, 0, len(baselineFuncs))
+		for fn := range baselineFuncs {
+			baselineFuncList = append(baselineFuncList, fn)
+		}
+		sort.Strings(baselineFuncList)
+		for _, fn := range baselineFuncList {
+			fmt.Printf("    - %s\n", fn)
+		}
+		fmt.Println()
+	}
+
 	// List all test functions, excluding baseline tests
 	listStep := analysisStep + 1
 	fmt.Printf("Step %d: Listing unit tests...\n", listStep)
@@ -666,8 +691,16 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	// Check each test for unique coverage
 	checkStep := listStep + 1
 	fmt.Printf("Step %d: Analyzing each test...\n", checkStep)
-	var redundantTests []string
-	var uniqueTests []string
+
+	type testResult struct {
+		name         string
+		uniqueCount  int
+		uniqueFuncs  []string
+		coveredFuncs []string
+	}
+
+	var redundantTests []testResult
+	var uniqueTests []testResult
 
 	for _, testName := range testFuncs {
 		fmt.Printf("  Checking %s... ", testName)
@@ -688,21 +721,44 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 			continue
 		}
 
-		// Check for unique coverage
-		hasUnique := false
+		// Identify unique functions
+		var uniqueFuncs []string
+		var coveredFuncs []string
 		for fn := range testCoveredFuncs {
+			coveredFuncs = append(coveredFuncs, fn)
 			if !baselineFuncs[fn] {
-				hasUnique = true
-				break
+				uniqueFuncs = append(uniqueFuncs, fn)
 			}
 		}
+		sort.Strings(uniqueFuncs)
+		sort.Strings(coveredFuncs)
 
-		if hasUnique {
-			fmt.Printf("KEEP (provides unique coverage)\n")
-			uniqueTests = append(uniqueTests, testName)
+		result := testResult{
+			name:         testName,
+			uniqueCount:  len(uniqueFuncs),
+			uniqueFuncs:  uniqueFuncs,
+			coveredFuncs: coveredFuncs,
+		}
+
+		if len(uniqueFuncs) > 0 {
+			fmt.Printf("KEEP (%d unique)\n", len(uniqueFuncs))
+			uniqueTests = append(uniqueTests, result)
 		} else {
-			fmt.Printf("REDUNDANT (no unique coverage)\n")
-			redundantTests = append(redundantTests, testName)
+			fmt.Printf("REDUNDANT (0 unique)\n")
+			redundantTests = append(redundantTests, result)
+		}
+
+		// Show function details in verbose mode
+		if mg.Verbose() {
+			fmt.Printf("    Covers %d functions:\n", len(coveredFuncs))
+			for _, fn := range coveredFuncs {
+				isUnique := !baselineFuncs[fn]
+				marker := "  "
+				if isUnique {
+					marker = "🆕"
+				}
+				fmt.Printf("      %s %s\n", marker, fn)
+			}
 		}
 
 		// Clean up test coverage file
@@ -716,11 +772,46 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	fmt.Println("=" + strings.Repeat("=", 79))
 	fmt.Printf("\nTests providing unique coverage (%d):\n", len(uniqueTests))
 	for _, test := range uniqueTests {
-		fmt.Printf("  ✓ %s\n", test)
+		fmt.Printf("  ✓ %s (%d unique function", test.name, test.uniqueCount)
+		if test.uniqueCount != 1 {
+			fmt.Printf("s")
+		}
+		fmt.Printf(")\n")
+
+		// Show unique functions in verbose mode
+		if mg.Verbose() && len(test.uniqueFuncs) > 0 {
+			for _, fn := range test.uniqueFuncs {
+				fmt.Printf("      - %s\n", fn)
+			}
+		}
 	}
 	fmt.Printf("\nRedundant tests (%d):\n", len(redundantTests))
+
+	// Group redundant tests by file
+	testsByFile := make(map[string][]string)
 	for _, test := range redundantTests {
-		fmt.Printf("  ✗ %s\n", test)
+		file, err := findTestFile(c, config.PackageToAnalyze, test.name)
+		if err != nil {
+			// If we can't find the file, use "unknown"
+			file = "unknown"
+		}
+		testsByFile[file] = append(testsByFile[file], test.name)
+	}
+
+	// Sort files for consistent output
+	var files []string
+	for file := range testsByFile {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+
+	// Display by file
+	for _, file := range files {
+		tests := testsByFile[file]
+		fmt.Printf("\n  %s:\n", file)
+		for _, testName := range tests {
+			fmt.Printf("    ✗ %s\n", testName)
+		}
 	}
 	fmt.Println()
 
@@ -1038,6 +1129,41 @@ func listTestFunctions(c context.Context, pkg string) ([]string, error) {
 	}
 
 	return tests, nil
+}
+
+// findTestFile finds which file contains the given test function in the package.
+func findTestFile(c context.Context, pkg, testName string) (string, error) {
+	var searchDir string
+
+	if pkg == "./..." {
+		// When analyzing all packages, search from current directory
+		searchDir = "."
+	} else {
+		// Get specific package directory
+		out, err := output(c, "go", "list", "-f", "{{.Dir}}", pkg)
+		if err != nil {
+			return "", fmt.Errorf("failed to get package dir: %w", err)
+		}
+		searchDir = strings.TrimSpace(out)
+	}
+
+	// Search for the test function in _test.go files
+	pattern := fmt.Sprintf("^func %s(", testName)
+	cmd := exec.CommandContext(c, "grep", "-l", "-r", "--include=*_test.go", pattern, searchDir)
+	outBytes, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("test not found")
+	}
+
+	// Get the first matching file
+	files := strings.Split(strings.TrimSpace(string(outBytes)), "\n")
+	if len(files) == 0 {
+		return "", fmt.Errorf("test not found")
+	}
+
+	// Return cleaned relative path (grep returns paths like ./path/to/file.go)
+	path := strings.TrimPrefix(files[0], "./")
+	return filepath.Clean(path), nil
 }
 
 // better glob expansion
