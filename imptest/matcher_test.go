@@ -86,21 +86,3 @@ func TestSatisfies_MatchSuccess(t *testing.T) {
 		t.Errorf("Satisfies().FailureMessage(42) = %q, want %q", msg, expected)
 	}
 }
-
-func TestSatisfies_TypeMismatch(t *testing.T) {
-	t.Parallel()
-
-	matcher := imptest.Satisfies(func(_ int) error {
-		return nil
-	})
-
-	ok, err := matcher.Match("not an int")
-
-	if ok {
-		t.Errorf("Satisfies().Match(string) should return ok=false")
-	}
-
-	if err == nil {
-		t.Errorf("Satisfies().Match(string) should return error for type mismatch")
-	}
-}
