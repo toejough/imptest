@@ -43,10 +43,10 @@ The generator is invoked via `//go:generate` directives:
 
 ```go
 // For interfaces: generates mock with ExpectCallTo methods
-//go:generate go run ../../impgen/main.go run.IntOps --name IntOpsImp
+//go:generate go run ../../impgen/main.go run.IntOps
 
 // For functions: generates callable wrapper for return/panic validation
-//go:generate go run ../../impgen/main.go run.PrintSum --name PrintSumImp
+//go:generate go run ../../impgen/main.go run.PrintSum 
 ```
 
 The generator **auto-detects** the symbol type (interface vs function) and generates appropriate code - no mode flag needed.
