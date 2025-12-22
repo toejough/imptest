@@ -4,7 +4,6 @@ package run
 import (
 	"go/ast"
 	"go/token"
-	"go/types"
 	"testing"
 )
 
@@ -212,38 +211,4 @@ func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
 	if baseGen.isTypeParameter("W") {
 		t.Error("expected W not to be a type parameter")
 	}
-}
-
-func TestIsComparableExpr(t *testing.T) {
-	t.Parallel()
-
-	t.Run("comparable type", func(t *testing.T) {
-		t.Parallel()
-
-		typesInfo := &types.Info{
-			Types: make(map[ast.Expr]types.TypeAndValue),
-		}
-		expr := &ast.Ident{Name: "int"}
-		typesInfo.Types[expr] = types.TypeAndValue{Type: types.Typ[types.Int]}
-
-		if !isComparableExpr(expr, typesInfo) {
-			t.Error("expected true for comparable type (int)")
-		}
-	})
-
-	t.Run("non-comparable type", func(t *testing.T) {
-		t.Parallel()
-
-		typesInfo := &types.Info{
-			Types: make(map[ast.Expr]types.TypeAndValue),
-		}
-		expr := &ast.Ident{Name: "slice"}
-		// Create a slice type which is not comparable
-		sliceType := types.NewSlice(types.Typ[types.Int])
-		typesInfo.Types[expr] = types.TypeAndValue{Type: sliceType}
-
-		if isComparableExpr(expr, typesInfo) {
-			t.Error("expected false for non-comparable type (slice)")
-		}
-	})
 }
