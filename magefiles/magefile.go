@@ -6,8 +6,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +22,6 @@ import (
 	"time"
 
 	"github.com/magefile/mage/mg"
-	"github.com/magefile/mage/target"
 )
 
 // Types
@@ -886,8 +888,11 @@ func Watch() error {
 		return fmt.Errorf("unable to monitor effectively due to error getting current working directory: %w", err)
 	}
 
-	// when did this last finish?
-	var lastFinishedTime time.Time // never
+	// Track file hashes to detect actual content changes
+	fileHashes, err := calculateFileHashes(dir, []string{".go", ".fish", ".toml"})
+	if err != nil {
+		return fmt.Errorf("unable to calculate initial file hashes: %w", err)
+	}
 
 	// Track the current cancel function
 	var currentCancel context.CancelFunc
@@ -910,8 +915,6 @@ func Watch() error {
 		} else {
 			fmt.Println("continuing to watch after all checks passed!")
 		}
-
-		lastFinishedTime = time.Now()
 	}
 
 	// run the check
@@ -921,20 +924,20 @@ func Watch() error {
 		// don't run more than 1x/sec
 		time.Sleep(time.Second)
 
-		// check for change
-		paths, err := globs(dir, []string{".go", ".fish", ".toml"})
+		// check for changes by comparing file hashes
+		newHashes, err := calculateFileHashes(dir, []string{".go", ".fish", ".toml"})
 		if err != nil {
-			return fmt.Errorf("unable to monitor effectively due to error resolving globs: %w", err)
+			return fmt.Errorf("unable to calculate file hashes: %w", err)
 		}
 
-		changeDetected, err := target.PathNewer(lastFinishedTime, paths...)
-		if err != nil {
-			return fmt.Errorf("unable to monitor effectively due to error checking for path updates: %w", err)
-		}
+		changeDetected := hasFileHashesChanged(fileHashes, newHashes)
 
 		// cancel & re-run if we got a change
 		if changeDetected {
 			fmt.Println("Change detected...")
+
+			// Update our baseline hashes
+			fileHashes = newHashes
 
 			// Cancel the old context
 			if currentCancel != nil {
@@ -1242,4 +1245,68 @@ func runQuiet(c context.Context, command string, arg ...string) error {
 	}
 
 	return cmd.Run()
+}
+
+// calculateFileHashes computes SHA256 hashes for all files matching the given extensions.
+// Returns a map of relative file path to hash string.
+func calculateFileHashes(dir string, extensions []string) (map[string]string, error) {
+	hashes := make(map[string]string)
+
+	files, err := globs(dir, extensions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob files: %w", err)
+	}
+
+	for _, filePath := range files {
+		hash, err := hashFile(filePath)
+		if err != nil {
+			// If we can't read a file, skip it (might be deleted or temporary)
+			continue
+		}
+		hashes[filePath] = hash
+	}
+
+	return hashes, nil
+}
+
+// hashFile computes the SHA256 hash of a file's contents.
+func hashFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// hasFileHashesChanged compares two hash maps and returns true if they differ.
+// This includes detecting new files, deleted files, or modified files.
+func hasFileHashesChanged(oldHashes, newHashes map[string]string) bool {
+	// Check if the number of files changed
+	if len(oldHashes) != len(newHashes) {
+		return true
+	}
+
+	// Check if any file's hash changed
+	for path, newHash := range newHashes {
+		oldHash, exists := oldHashes[path]
+		if !exists || oldHash != newHash {
+			return true
+		}
+	}
+
+	// Check if any files were deleted
+	for path := range oldHashes {
+		if _, exists := newHashes[path]; !exists {
+			return true
+		}
+	}
+
+	return false
 }
