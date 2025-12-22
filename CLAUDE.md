@@ -6,29 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This project uses [Mage](https://magefile.org/) for build automation. Run `mage` to list available targets.
 
-```bash
-# Run all checks (tidy, generate, test, lint, coverage, mutation, fuzz, etc.)
-mage check
-
-# Watch for changes and re-run checks
-mage watch
-
-# Individual commands:
-mage generate      # Run go generate
-mage test          # Run unit tests with race detection and coverage
-mage lint          # Run golangci-lint
-mage mutate        # Run mutation tests
-mage fuzz          # Run fuzz tests
-mage checknils     # Run nilaway
-mage deadcode      # Check for dead code
-mage tidy          # Run go mod tidy
-mage installtools  # Install development tools (golangci-lint, nilaway, deadcode, etc.)
-```
-
-Run a single test:
-```bash
-go test -v -run TestName ./path/to/package
-```
+Create mage targets for repeatable analysis tasks (e.g., `FindRedundantTests`)
 
 ## Working with Go Code
 
@@ -208,18 +186,8 @@ When generating generic wrapper code:
 
 **Measuring Coverage Correctly**:
 - Use `-coverpkg=./...` to measure coverage across all packages, not just the package being tested
-- When combining coverage from multiple test runs:
-  - Run each test suite separately with its own coverage file
-  - Merge coverage files using segment-based block splitting (see `mergeCoverageBlocks` in magefile.go)
-  - Never use simple concatenation - overlapping blocks must be split at boundaries and counts summed
 - Clear test cache when coverage results seem inconsistent: `rm -f coverage.out && go clean -testcache`
 
-**Test Redundancy Analysis**:
-- A test is redundant only if it provides NO unique coverage beyond integration tests
-- Golden tests (e.g., `TestUATConsistency`) are never redundant - they ARE the integration baseline
-- Tests covering error paths are usually NOT redundant (they test failure scenarios that integration tests don't trigger)
-- Create mage targets for repeatable analysis tasks (e.g., `FindRedundantTests`)
-- Use the 80% function coverage threshold to determine if a test provides unique value
 
 **Running Baseline Coverage**:
 ```bash
