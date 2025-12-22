@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/target"
 )
 
@@ -559,51 +560,112 @@ func Test(c context.Context) error {
 	return nil
 }
 
+// BaselineTestSpec specifies a test or set of tests to include in the baseline coverage.
+type BaselineTestSpec struct {
+	Package     string // Package path (e.g., "./impgen/run" or "./UAT/...")
+	TestPattern string // Test name pattern for -run flag (empty string runs all tests in package)
+}
+
+// RedundancyConfig configures the redundant test analysis.
+type RedundancyConfig struct {
+	BaselineTests     []BaselineTestSpec // Tests that form the baseline coverage
+	CoverageThreshold float64            // Percentage threshold (e.g., 80.0 for 80%)
+	PackageToAnalyze  string             // Package containing tests to analyze (e.g., "./impgen/run")
+}
+
 // FindRedundantTests identifies unit tests that don't provide unique coverage beyond golden+UAT tests.
+// This is a convenience wrapper for this repository's specific configuration.
 func FindRedundantTests(c context.Context) error {
+	config := RedundancyConfig{
+		BaselineTests: []BaselineTestSpec{
+			{Package: "./impgen/run", TestPattern: "TestUATConsistency"},
+			{Package: "./UAT/...", TestPattern: ""},
+		},
+		CoverageThreshold: 80.0,
+		PackageToAnalyze:  "./...",
+	}
+	return FindRedundantTestsWithConfig(c, config)
+}
+
+// FindRedundantTestsWithConfig identifies unit tests that don't provide unique coverage beyond baseline tests.
+// This generic version can be used in any repository by providing appropriate configuration.
+func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) error {
 	fmt.Println("Finding redundant tests...")
 	fmt.Println()
 
-	// Step 1: Run golden test and capture coverage
-	fmt.Println("Step 1: Running golden test...")
-	err := run(c, "go", "test", "-coverprofile=golden.out", "-coverpkg=./...",
-		"-run", "TestUATConsistency", "./impgen/run")
-	if err != nil {
-		return fmt.Errorf("golden test failed: %w", err)
+	// Step 1-N: Run baseline tests and merge coverage
+	var coverageFiles []string
+	baselineTestNames := make(map[string]bool) // Track baseline test names to exclude later
+
+	for i, spec := range config.BaselineTests {
+		stepNum := i + 1
+		coverageFile := fmt.Sprintf("baseline_%d.out", stepNum)
+		coverageFiles = append(coverageFiles, coverageFile)
+
+		if spec.TestPattern != "" {
+			fmt.Printf("Step %d: Running baseline test %s in %s...\n", stepNum, spec.TestPattern, spec.Package)
+			err := runQuiet(c, "go", "test", "-coverprofile="+coverageFile, "-coverpkg=./...",
+				"-run", spec.TestPattern, spec.Package)
+			if err != nil {
+				return fmt.Errorf("baseline test %s failed: %w", spec.TestPattern, err)
+			}
+			baselineTestNames[spec.TestPattern] = true
+		} else {
+			fmt.Printf("Step %d: Running all tests in %s...\n", stepNum, spec.Package)
+			err := runQuiet(c, "go", "test", "-coverprofile="+coverageFile, "-coverpkg=./...", spec.Package)
+			if err != nil {
+				return fmt.Errorf("baseline tests in %s failed: %w", spec.Package, err)
+			}
+		}
 	}
 
-	// Step 2: Run UAT tests and capture coverage
-	fmt.Println("Step 2: Running UAT tests...")
-	err = run(c, "go", "test", "-coverprofile=uat.out", "-coverpkg=./...", "./UAT/...")
-	if err != nil {
-		return fmt.Errorf("UAT tests failed: %w", err)
+	// Merge all baseline coverage files
+	mergeStep := len(config.BaselineTests) + 1
+	fmt.Printf("Step %d: Merging baseline coverage files...\n", mergeStep)
+	baselineFile := "baseline.out"
+	if len(coverageFiles) == 1 {
+		os.Rename(coverageFiles[0], baselineFile)
+	} else {
+		err := mergeMultipleCoverageFiles(coverageFiles, baselineFile)
+		if err != nil {
+			return fmt.Errorf("failed to merge coverage: %w", err)
+		}
+		// Clean up individual coverage files
+		for _, f := range coverageFiles {
+			os.Remove(f)
+		}
 	}
 
-	// Step 3: Merge coverage files
-	fmt.Println("Step 3: Merging coverage files...")
-	err = mergeTwoCoverageFiles("golden.out", "uat.out", "baseline.out")
-	if err != nil {
-		return fmt.Errorf("failed to merge coverage: %w", err)
-	}
-
-	// Step 4: Get baseline function coverage
-	fmt.Println("Step 4: Analyzing baseline coverage...")
-	baselineFuncs, err := getFunctionsAboveThreshold("baseline.out", 80.0)
+	// Get baseline function coverage
+	analysisStep := mergeStep + 1
+	fmt.Printf("Step %d: Analyzing baseline coverage...\n", analysisStep)
+	baselineFuncs, err := getFunctionsAboveThreshold(baselineFile, config.CoverageThreshold)
 	if err != nil {
 		return fmt.Errorf("failed to get baseline coverage: %w", err)
 	}
-	fmt.Printf("  Baseline covers %d functions at 80%%+\n", len(baselineFuncs))
+	fmt.Printf("  Baseline covers %d functions at %.0f%%+\n", len(baselineFuncs), config.CoverageThreshold)
 
-	// Step 5: List all test functions
-	fmt.Println("Step 5: Listing unit tests...")
-	testFuncs, err := listTestFunctions(c, "./impgen/run")
+	// List all test functions, excluding baseline tests
+	listStep := analysisStep + 1
+	fmt.Printf("Step %d: Listing unit tests...\n", listStep)
+	allTestFuncs, err := listTestFunctions(c, config.PackageToAnalyze)
 	if err != nil {
 		return fmt.Errorf("failed to list tests: %w", err)
 	}
-	fmt.Printf("  Found %d unit tests\n\n", len(testFuncs))
 
-	// Step 6: Check each test for unique coverage
-	fmt.Println("Step 6: Analyzing each test...")
+	// Filter out baseline tests
+	var testFuncs []string
+	for _, testName := range allTestFuncs {
+		if !baselineTestNames[testName] {
+			testFuncs = append(testFuncs, testName)
+		}
+	}
+	fmt.Printf("  Found %d unit tests (%d total, %d baseline excluded)\n\n",
+		len(testFuncs), len(allTestFuncs), len(allTestFuncs)-len(testFuncs))
+
+	// Check each test for unique coverage
+	checkStep := listStep + 1
+	fmt.Printf("Step %d: Analyzing each test...\n", checkStep)
 	var redundantTests []string
 	var uniqueTests []string
 
@@ -612,15 +674,15 @@ func FindRedundantTests(c context.Context) error {
 
 		// Run individual test
 		testOut := fmt.Sprintf("test_%s.out", testName)
-		err = run(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
-			"-run", "^"+testName+"$", "./impgen/run")
+		err = runQuiet(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
+			"-run", "^"+testName+"$", config.PackageToAnalyze)
 		if err != nil {
 			fmt.Printf("FAILED (test error)\n")
 			continue
 		}
 
-		// Get functions this test covers at 80%+
-		testFuncs, err := getFunctionsAboveThreshold(testOut, 80.0)
+		// Get functions this test covers at threshold+
+		testCoveredFuncs, err := getFunctionsAboveThreshold(testOut, config.CoverageThreshold)
 		if err != nil {
 			fmt.Printf("FAILED (coverage error)\n")
 			continue
@@ -628,7 +690,7 @@ func FindRedundantTests(c context.Context) error {
 
 		// Check for unique coverage
 		hasUnique := false
-		for fn := range testFuncs {
+		for fn := range testCoveredFuncs {
 			if !baselineFuncs[fn] {
 				hasUnique = true
 				break
@@ -647,7 +709,7 @@ func FindRedundantTests(c context.Context) error {
 		os.Remove(testOut)
 	}
 
-	// Step 7: Report results
+	// Report results
 	fmt.Println()
 	fmt.Println("=" + strings.Repeat("=", 79))
 	fmt.Println("RESULTS")
@@ -775,30 +837,41 @@ func Watch() error {
 
 // mergeTwoCoverageFiles merges two coverage files into a single output file.
 func mergeTwoCoverageFiles(file1, file2, output string) error {
-	// Read both files
-	data1, err := os.ReadFile(file1)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", file1, err)
+	return mergeMultipleCoverageFiles([]string{file1, file2}, output)
+}
+
+// mergeMultipleCoverageFiles merges multiple coverage files into a single output file.
+func mergeMultipleCoverageFiles(files []string, output string) error {
+	if len(files) == 0 {
+		return fmt.Errorf("no files to merge")
 	}
 
-	data2, err := os.ReadFile(file2)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", file2, err)
-	}
-
-	// Split into lines
-	lines1 := strings.Split(string(data1), "\n")
-	lines2 := strings.Split(string(data2), "\n")
-
-	// Keep mode from first file, append blocks from both
-	mode := lines1[0]
+	var mode string
 	var allBlocks []string
-	allBlocks = append(allBlocks, lines1[1:]...)
-	allBlocks = append(allBlocks, lines2[1:]...)
+
+	for i, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", file, err)
+		}
+
+		lines := strings.Split(string(data), "\n")
+		if len(lines) == 0 {
+			continue
+		}
+
+		// Use mode from first file
+		if i == 0 {
+			mode = lines[0]
+		}
+
+		// Append blocks from this file (skip mode line)
+		allBlocks = append(allBlocks, lines[1:]...)
+	}
 
 	// Write combined file
 	combined := mode + "\n" + strings.Join(allBlocks, "\n")
-	err = os.WriteFile(output, []byte(combined), 0o600)
+	err := os.WriteFile(output, []byte(combined), 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to write %s: %w", output, err)
 	}
@@ -1005,6 +1078,21 @@ func run(c context.Context, command string, arg ...string) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+// runQuiet runs a command, suppressing stdout unless mg.Verbose() is true.
+// Stderr is always shown to display errors.
+func runQuiet(c context.Context, command string, arg ...string) error {
+	cmd := exec.CommandContext(c, command, arg...)
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+
+	// Only show stdout if verbose mode is enabled
+	if mg.Verbose() {
+		cmd.Stdout = os.Stdout
+	}
 
 	return cmd.Run()
 }
