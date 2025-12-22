@@ -157,6 +157,12 @@ func fieldNameCount(field *ast.Field) int {
 	return 1
 }
 
+// hasFieldNames returns true if the field has explicitly named parameters/results.
+// Returns false for unnamed/anonymous fields (e.g., embedded interfaces).
+func hasFieldNames(field *ast.Field) bool {
+	return len(field.Names) > 0
+}
+
 // fieldInfo represents extracted information about a single field entry.
 type fieldInfo struct {
 	Name  string     // The name (explicit or generated)
@@ -181,7 +187,7 @@ func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []
 		typeStr := exprToString(fset, field.Type)
 		structType := normalizeVariadicType(typeStr)
 
-		if len(field.Names) > 0 {
+		if hasFieldNames(field) {
 			for _, name := range field.Names {
 				result = append(result, fieldInfo{
 					Name:  name.Name,

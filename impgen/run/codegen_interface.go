@@ -405,7 +405,7 @@ func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftyp
 	c.responseChan <- %sResponse%s{Type: "return"`,
 		methodCallName, gen.formatTypeParamsUse(), resultType, methodCallName, gen.formatTypeParamsUse())
 
-	if len(ftype.Results.List[0].Names) > 0 {
+	if hasFieldNames(ftype.Results.List[0]) {
 		gen.pf(", %s: result", ftype.Results.List[0].Names[0].Name)
 	} else {
 		gen.pf(", Result0: result")
@@ -544,7 +544,7 @@ func (gen *codeGenerator) writeMethodParams(ftype *ast.FuncType, paramNames []st
 func (gen *codeGenerator) writeParamForField(
 	param *ast.Field, paramType string, paramNames []string, paramNameIndex int,
 ) int {
-	if len(param.Names) > 0 {
+	if hasFieldNames(param) {
 		return gen.writeNamedParams(param, paramType, paramNameIndex)
 	}
 
@@ -577,7 +577,7 @@ func forEachParamField(
 	paramNameIndex, unnamedIndex, totalParams int,
 	action func(fieldName, paramName string),
 ) (int, int) {
-	if len(param.Names) > 0 {
+	if hasFieldNames(param) {
 		for i, name := range param.Names {
 			fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, paramType, totalParams)
 			action(fieldName, name.Name)
@@ -849,7 +849,7 @@ func (gen *codeGenerator) writeMethodParamsAsAny(ftype *ast.FuncType, paramNames
 	visitParams(ftype, gen.typeWithQualifier, func(
 		param *ast.Field, _ string, _, _, _ int,
 	) (int, int) {
-		if len(param.Names) > 0 {
+		if hasFieldNames(param) {
 			for _, name := range param.Names {
 				if !first {
 					gen.pf(", ")
@@ -954,7 +954,7 @@ func interfaceProcessFieldMethods(
 	callback func(methodName string, ftype *ast.FuncType),
 ) error {
 	// Handle embedded interfaces (they have no names)
-	if len(field.Names) == 0 {
+	if !hasFieldNames(field) {
 		return interfaceExpandEmbedded(field.Type, astFiles, fset, pkgImportPath, pkgLoader, callback)
 	}
 
@@ -1051,7 +1051,7 @@ func interfaceExpandEmbedded(
 func interfaceGetParamFieldName(
 	param *ast.Field, nameIdx int, unnamedIdx int, paramType string, totalParams int,
 ) string {
-	if len(param.Names) > 0 {
+	if hasFieldNames(param) {
 		return param.Names[nameIdx].Name
 	}
 
@@ -1125,7 +1125,7 @@ func (gen *codeGenerator) renderField(field *ast.Field, buf *bytes.Buffer) {
 	buf.WriteString(joinWith(field.Names, func(n *ast.Ident) string { return n.Name }, ", "))
 
 	// Type
-	if len(field.Names) > 0 {
+	if hasFieldNames(field) {
 		buf.WriteString(" ")
 	}
 

@@ -351,7 +351,7 @@ func (g *callableGenerator) writeParamsWithQualifiersTo(buf *strings.Builder) {
 			buf.WriteString(", ")
 		}
 
-		if len(field.Names) > 0 {
+		if hasFieldNames(field) {
 			writeFieldNamesTo(buf, field.Names)
 			buf.WriteString(" ")
 		}
