@@ -18,6 +18,66 @@ var (
 	errUnexportedType  = errors.New("unexported type is not accessible from external packages")
 )
 
+// typeExprWalker traverses AST type expressions with a generic return type.
+// It provides a unified way to walk type expressions, handling all AST node types
+// while allowing custom logic for leaf nodes (Ident, SelectorExpr) and result combining.
+type typeExprWalker[T any] struct {
+	visitIdent    func(*ast.Ident) T
+	visitSelector func(*ast.SelectorExpr) T
+	combine       func(T, T) T
+	zero          T
+}
+
+// walk traverses an AST expression and returns the combined result.
+//
+//nolint:cyclop // Type-switch dispatcher handling all AST node types; complexity is inherent
+func (w *typeExprWalker[T]) walk(expr ast.Expr) T {
+	switch typeExpr := expr.(type) {
+	case *ast.Ident:
+		return w.visitIdent(typeExpr)
+	case *ast.SelectorExpr:
+		return w.visitSelector(typeExpr)
+	case *ast.StarExpr:
+		return w.walk(typeExpr.X)
+	case *ast.ArrayType:
+		return w.walk(typeExpr.Elt)
+	case *ast.MapType:
+		return w.combine(w.walk(typeExpr.Key), w.walk(typeExpr.Value))
+	case *ast.ChanType:
+		return w.walk(typeExpr.Value)
+	case *ast.FuncType:
+		return w.walkFieldList(typeExpr.Params, typeExpr.Results)
+	case *ast.StructType:
+		return w.walkFieldList(typeExpr.Fields)
+	case *ast.IndexExpr:
+		return w.combine(w.walk(typeExpr.X), w.walk(typeExpr.Index))
+	case *ast.IndexListExpr:
+		result := w.walk(typeExpr.X)
+		for _, idx := range typeExpr.Indices {
+			result = w.combine(result, w.walk(idx))
+		}
+
+		return result
+	}
+
+	return w.zero
+}
+
+// walkFieldList traverses field lists (for FuncType params/results or StructType fields).
+func (w *typeExprWalker[T]) walkFieldList(lists ...*ast.FieldList) T {
+	result := w.zero
+
+	for _, list := range lists {
+		if list != nil {
+			for _, field := range list.List {
+				result = w.combine(result, w.walk(field.Type))
+			}
+		}
+	}
+
+	return result
+}
+
 // codeWriter provides common buffer writing functionality for code generators.
 // ... (omitting some lines for brevity, but I must match exactly).
 type codeWriter struct {
@@ -229,72 +289,24 @@ func GetPackageInfo(
 }
 
 // hasExportedIdent checks if an expression contains an exported identifier.
-//
-//nolint:cyclop // Simple type-switch dispatcher with no nested logic; complexity is inherent to AST node types
 func hasExportedIdent(expr ast.Expr, isTypeParam func(string) bool) bool {
-	switch typeExpr := expr.(type) {
-	case *ast.Ident:
-		return len(typeExpr.Name) > 0 &&
-			unicode.IsUpper(rune(typeExpr.Name[0])) &&
-			!isBuiltinType(typeExpr.Name) &&
-			!isTypeParam(typeExpr.Name)
-	case *ast.StarExpr:
-		return hasExportedIdent(typeExpr.X, isTypeParam)
-	case *ast.ArrayType:
-		return hasExportedIdent(typeExpr.Elt, isTypeParam)
-	case *ast.MapType:
-		return hasExportedIdent(typeExpr.Key, isTypeParam) || hasExportedIdent(typeExpr.Value, isTypeParam)
-	case *ast.ChanType:
-		return hasExportedIdent(typeExpr.Value, isTypeParam)
-	case *ast.FuncType:
-		return hasExportedIdentInFunc(typeExpr, isTypeParam)
-	case *ast.StructType:
-		return hasExportedIdentInStruct(typeExpr, isTypeParam)
-	case *ast.SelectorExpr:
-		return true
-	case *ast.IndexExpr:
-		return hasExportedIdent(typeExpr.X, isTypeParam) || hasExportedIdent(typeExpr.Index, isTypeParam)
-	case *ast.IndexListExpr:
-		return hasExportedIdent(typeExpr.X, isTypeParam)
+	walker := &typeExprWalker[bool]{
+		visitIdent: func(ident *ast.Ident) bool {
+			return len(ident.Name) > 0 &&
+				unicode.IsUpper(rune(ident.Name[0])) &&
+				!isBuiltinType(ident.Name) &&
+				!isTypeParam(ident.Name)
+		},
+		visitSelector: func(*ast.SelectorExpr) bool {
+			return true
+		},
+		combine: func(a, b bool) bool {
+			return a || b
+		},
+		zero: false,
 	}
 
-	return false
-}
-
-// hasExportedIdentInFunc checks if a function type contains exported identifiers.
-func hasExportedIdentInFunc(funcType *ast.FuncType, isTypeParam func(string) bool) bool {
-	// Check parameters for exported types
-	if funcType.Params != nil {
-		for _, field := range funcType.Params.List {
-			if hasExportedIdent(field.Type, isTypeParam) {
-				return true
-			}
-		}
-	}
-
-	// Check results for exported types
-	if funcType.Results != nil {
-		for _, field := range funcType.Results.List {
-			if hasExportedIdent(field.Type, isTypeParam) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// hasExportedIdentInStruct checks if a struct type contains exported identifiers.
-func hasExportedIdentInStruct(t *ast.StructType, isTypeParam func(string) bool) bool {
-	if t.Fields != nil {
-		for _, field := range t.Fields.List {
-			if hasExportedIdent(field.Type, isTypeParam) {
-				return true
-			}
-		}
-	}
-
-	return false
+	return walker.walk(expr)
 }
 
 // isBuiltinType checks if a type name is a Go builtin.
@@ -356,72 +368,33 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatt
 
 // ValidateExportedTypes checks if an expression contains any unexported identifiers that would be inaccessible
 // from another package. Returns an error if found.
-//
-//nolint:cyclop,funlen,gocognit // Type-switch dispatcher handling all AST node types
 func ValidateExportedTypes(expr ast.Expr, isTypeParam func(string) bool) error {
-	switch typeExpr := expr.(type) {
-	case *ast.Ident:
-		if !IsExportedIdent(typeExpr, isTypeParam) {
-			return fmt.Errorf("type '%s': %w", typeExpr.Name, errUnexportedType)
-		}
-
-		return nil
-	case *ast.StarExpr:
-		return ValidateExportedTypes(typeExpr.X, isTypeParam)
-	case *ast.ArrayType:
-		return ValidateExportedTypes(typeExpr.Elt, isTypeParam)
-	case *ast.ChanType:
-		return ValidateExportedTypes(typeExpr.Value, isTypeParam)
-	case *ast.MapType:
-		err := ValidateExportedTypes(typeExpr.Key, isTypeParam)
-		if err != nil {
-			return err
-		}
-
-		return ValidateExportedTypes(typeExpr.Value, isTypeParam)
-	case *ast.FuncType:
-		return ValidateExportedTypesInFunc(typeExpr, isTypeParam)
-	case *ast.IndexExpr:
-		err := ValidateExportedTypes(typeExpr.X, isTypeParam)
-		if err != nil {
-			return err
-		}
-
-		return ValidateExportedTypes(typeExpr.Index, isTypeParam)
-	case *ast.IndexListExpr:
-		err := ValidateExportedTypes(typeExpr.X, isTypeParam)
-		if err != nil {
-			return err
-		}
-
-		for _, idx := range typeExpr.Indices {
-			err := ValidateExportedTypes(idx, isTypeParam)
-			if err != nil {
-				return err
+	walker := &typeExprWalker[error]{
+		visitIdent: func(ident *ast.Ident) error {
+			if !IsExportedIdent(ident, isTypeParam) {
+				return fmt.Errorf("type '%s': %w", ident.Name, errUnexportedType)
 			}
-		}
 
-		return nil
-	case *ast.SelectorExpr:
-		if !unicode.IsUpper(rune(typeExpr.Sel.Name[0])) {
-			return fmt.Errorf("type '%s': %w", typeExpr.Sel.Name, errUnexportedType)
-		}
-
-		return nil
-	case *ast.StructType:
-		if typeExpr.Fields != nil {
-			for _, field := range typeExpr.Fields.List {
-				err := ValidateExportedTypes(field.Type, isTypeParam)
-				if err != nil {
-					return err
-				}
+			return nil
+		},
+		visitSelector: func(sel *ast.SelectorExpr) error {
+			if !unicode.IsUpper(rune(sel.Sel.Name[0])) {
+				return fmt.Errorf("type '%s': %w", sel.Sel.Name, errUnexportedType)
 			}
-		}
 
-		return nil
+			return nil
+		},
+		combine: func(a, b error) error {
+			if a != nil {
+				return a
+			}
+
+			return b
+		},
+		zero: nil,
 	}
 
-	return nil
+	return walker.walk(expr)
 }
 
 // IsExportedIdent checks if an identifier is exported and not a builtin or type parameter.
@@ -435,28 +408,6 @@ func IsExportedIdent(ident *ast.Ident, isTypeParam func(string) bool) bool {
 	}
 
 	return isBuiltinType(ident.Name) || isTypeParam(ident.Name)
-}
-
-func ValidateExportedTypesInFunc(funcType *ast.FuncType, isTypeParam func(string) bool) error {
-	if funcType.Params != nil {
-		for _, field := range funcType.Params.List {
-			err := ValidateExportedTypes(field.Type, isTypeParam)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if funcType.Results != nil {
-		for _, field := range funcType.Results.List {
-			err := ValidateExportedTypes(field.Type, isTypeParam)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // isComparableExpr checks if an expression represents a comparable type.
@@ -679,7 +630,27 @@ func (baseGen *baseGenerator) checkIfValidForExternalUsage(funcType *ast.FuncTyp
 		return nil
 	}
 
-	return ValidateExportedTypesInFunc(funcType, baseGen.isTypeParam)
+	// Validate params
+	if funcType.Params != nil {
+		for _, field := range funcType.Params.List {
+			err := ValidateExportedTypes(field.Type, baseGen.isTypeParam)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Validate results
+	if funcType.Results != nil {
+		for _, field := range funcType.Results.List {
+			err := ValidateExportedTypes(field.Type, baseGen.isTypeParam)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // execTemplate executes a template and writes the result to the buffer.
