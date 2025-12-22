@@ -6,7 +6,9 @@
 
 **Test impure functions without writing mock implementations.**
 
-imptest generates type-safe mocks from your interfaces. Each test interactively controls the mock—expect calls, inject responses, and validate behavior—all with compile-time safety or flexible matchers. No manual mock code. No complex setup. Just point at an interface and test.
+imptest generates type-safe mocks from your interfaces. Each test interactively controls the mock—expect calls, inject
+responses, and validate behavior—all with compile-time safety or flexible matchers. No manual mock code. No complex
+setup. Just point at your functions and dependencies and test.
 
 ## Why though?
 
@@ -25,13 +27,16 @@ import (
     "github.com/toejough/imptest/UAT/run"
 )
 
-//go:generate go run github.com/toejough/imptest/impgen run.IntOps --name IntOpsImp
-//go:generate go run github.com/toejough/imptest/impgen run.PrintSum --name PrintSumImp --call
+// create syntactic sugar instrumentation for your target function
+//go:generate go run impgen run.PrintSum 
+
+// create instrumentation for your target dependency
+//go:generate go run impgen run.IntOps 
 
 func Test_PrintSum(t *testing.T) {
     t.Parallel()
 
-    // Create the generated mock
+    // Create the dependency imp
     imp := NewIntOpsImp(t)
 
     // Start the function under test
@@ -48,14 +53,17 @@ func Test_PrintSum(t *testing.T) {
 ```
 
 **What just happened?**
-1. `//go:generate` directives created type-safe mocks from interfaces
-2. The test controls the mock interactively—each `Expect*` call waits for the actual call
-3. Results are injected on-demand, simulating any behavior you want
-4. Return values and panics are validated synchronously
+1. a `//go:generate` directive created a type-safe wrapper for the function under test (`run.PrintSum`), which provides
+   some syntactic sugar for calling and validating returns.
+1. a `//go:generate` directive created a type-safe "imp" from the interface, which provides an instrumente mock as well
+   as functions to interact with that instrumentation.
+1. The test controls the dependency interactively—each `Expect*` call waits for the actual call
+1. Results are injected on-demand, simulating any behavior you want
+1. Return values and panics are validated synchronously
 
 ## Flexible Matching with Gomega
 
-Use [gomega](https://github.com/onsi/gomega) matchers for flexible assertions:
+Use [gomega](https://github.com/onsi/gomega)-style matchers for flexible assertions:
 
 ```go
 import . "github.com/onsi/gomega"
@@ -88,12 +96,12 @@ func Test_PrintSum_Flexible(t *testing.T) {
 
 | Concept | Description |
 |---------|-------------|
-| **Interface Mocks** | Generate type-safe mocks from any interface with `//go:generate go run .../impgen <package.Interface> --name <Name>Imp` |
-| **Callable Wrappers** | Wrap functions to validate returns/panics with the `--call` flag: `//go:generate go run .../impgen <package.Function> --name <Name>Imp --call` |
+| **Interface Mocks** | Generate type-safe mocks from any interface with `//go:generate go run impgen <package.Interface>` |
+| **Callable Wrappers** | Wrap functions to validate returns/panics with : `//go:generate go run impgen <package.Function>` (the tool figures out whether this is an interface or a callable being targeted. |
 | **Two-Step Matching** | Match methods first (`ExpectCallIs.Method()`), then arguments (`ExpectArgsAre()` for exact, `ExpectArgsShould()` for matchers) |
 | **Type Safety** | `ExpectArgsAre(int, int)` is compile-time checked; `ExpectArgsShould(any, any)` accepts matchers |
 | **Concurrent Support** | Use `Within(timeout)` to handle out-of-order calls: `imp.Within(time.Second).ExpectCallIs.Add().ExpectArgsAre(1, 2)` |
-| **Matcher Compatibility** | Works with any gomega matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
+| **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
 
 ## Examples
 
@@ -162,8 +170,8 @@ go generate ./...
 ## Learn More
 
 - **API Reference**: [pkg.go.dev/github.com/toejough/imptest](https://pkg.go.dev/github.com/toejough/imptest)
-- **More Examples**: See the UAT directory for comprehensive examples
-- **How It Works**: imptest generates mocks that communicate via channels, enabling synchronous test control of asynchronous function behavior
+- **More Examples**: See the [UAT](https://github.com/toejough/imptest/tree/main/UAT) directory for comprehensive examples
+- **How It Works**: imptest generates mocks that communicate via channels, enabling interactive test control of even asynchronous function behavior
 
 ## Why imptest?
 
