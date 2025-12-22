@@ -28,7 +28,9 @@
       "Bash(done)",
       "Bash(mage -l:*)",
       "Bash(mage findRedundantTests:*)",
-      "Bash(go list:*)"
+      "Bash(go list:*)",
+      "Bash(mage -v findRedundantTests:*)",
+      "Bash(mage:*)"
     ],
     "deny": [],
     "ask": []

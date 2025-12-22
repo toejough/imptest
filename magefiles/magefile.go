@@ -688,9 +688,25 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	fmt.Printf("  Found %d unit tests (%d total, %d baseline excluded)\n\n",
 		len(testFuncs), len(allTestFuncs), len(allTestFuncs)-len(testFuncs))
 
-	// Check each test for unique coverage
-	checkStep := listStep + 1
-	fmt.Printf("Step %d: Analyzing each test...\n", checkStep)
+	// Get coverage with ALL unit tests (baseline + unit tests)
+	allWithUnitStep := listStep + 1
+	fmt.Printf("Step %d: Getting coverage with all unit tests...\n", allWithUnitStep)
+	allTestsOut := "all_with_unit_tests.out"
+	err = runQuiet(c, "go", "test", "-coverprofile="+allTestsOut, "-coverpkg=./...", config.PackageToAnalyze)
+	if err != nil {
+		return fmt.Errorf("failed to run all unit tests: %w", err)
+	}
+
+	allWithUnitFuncs, err := getFunctionsAboveThreshold(allTestsOut, config.CoverageThreshold)
+	if err != nil {
+		return fmt.Errorf("failed to get all-tests coverage: %w", err)
+	}
+	fmt.Printf("  All tests (baseline + unit) cover %d functions at %.0f%%+\n",
+		len(allWithUnitFuncs), config.CoverageThreshold)
+
+	// Check each test for unique coverage by excluding it
+	checkStep := allWithUnitStep + 1
+	fmt.Printf("Step %d: Analyzing each test by exclusion...\n", checkStep)
 
 	type testResult struct {
 		name         string
@@ -705,39 +721,54 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	for _, testName := range testFuncs {
 		fmt.Printf("  Checking %s... ", testName)
 
-		// Run individual test
-		testOut := fmt.Sprintf("test_%s.out", testName)
-		err = runQuiet(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
-			"-run", "^"+testName+"$", config.PackageToAnalyze)
-		if err != nil {
+		// Build regex that matches all tests except this one
+		var otherTests []string
+		for _, t := range testFuncs {
+			if t != testName {
+				otherTests = append(otherTests, t)
+			}
+		}
+
+		// Run all tests EXCEPT this one
+		testOut := fmt.Sprintf("test_without_%s.out", testName)
+		var testErr error
+		if len(otherTests) == 0 {
+			// If this is the only test, compare against baseline
+			testErr = runQuiet(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
+				"-run", "^$", config.PackageToAnalyze) // Match nothing
+		} else {
+			// Build pattern like "^(TestA|TestB|TestC)$"
+			pattern := "^(" + strings.Join(otherTests, "|") + ")$"
+			testErr = runQuiet(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
+				"-run", pattern, config.PackageToAnalyze)
+		}
+
+		if testErr != nil {
 			fmt.Printf("FAILED (test error)\n")
 			continue
 		}
 
-		// Get functions this test covers at threshold+
-		testCoveredFuncs, err := getFunctionsAboveThreshold(testOut, config.CoverageThreshold)
+		// Get functions covered without this test
+		withoutTestFuncs, err := getFunctionsAboveThreshold(testOut, config.CoverageThreshold)
 		if err != nil {
 			fmt.Printf("FAILED (coverage error)\n")
 			continue
 		}
 
-		// Identify unique functions
+		// Find functions that dropped below threshold when we excluded this test
 		var uniqueFuncs []string
-		var coveredFuncs []string
-		for fn := range testCoveredFuncs {
-			coveredFuncs = append(coveredFuncs, fn)
-			if !baselineFuncs[fn] {
+		for fn := range allWithUnitFuncs {
+			if !withoutTestFuncs[fn] {
+				// This function was at 80%+ with all tests, but below 80% without this test
 				uniqueFuncs = append(uniqueFuncs, fn)
 			}
 		}
 		sort.Strings(uniqueFuncs)
-		sort.Strings(coveredFuncs)
 
 		result := testResult{
-			name:         testName,
-			uniqueCount:  len(uniqueFuncs),
-			uniqueFuncs:  uniqueFuncs,
-			coveredFuncs: coveredFuncs,
+			name:        testName,
+			uniqueCount: len(uniqueFuncs),
+			uniqueFuncs: uniqueFuncs,
 		}
 
 		if len(uniqueFuncs) > 0 {
@@ -749,15 +780,10 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 		}
 
 		// Show function details in verbose mode
-		if mg.Verbose() {
-			fmt.Printf("    Covers %d functions:\n", len(coveredFuncs))
-			for _, fn := range coveredFuncs {
-				isUnique := !baselineFuncs[fn]
-				marker := "  "
-				if isUnique {
-					marker = "🆕"
-				}
-				fmt.Printf("      %s %s\n", marker, fn)
+		if mg.Verbose() && len(uniqueFuncs) > 0 {
+			fmt.Printf("    Functions that would drop below %.0f%% if removed:\n", config.CoverageThreshold)
+			for _, fn := range uniqueFuncs {
+				fmt.Printf("      - %s\n", fn)
 			}
 		}
 
@@ -770,15 +796,15 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	fmt.Println("=" + strings.Repeat("=", 79))
 	fmt.Println("RESULTS")
 	fmt.Println("=" + strings.Repeat("=", 79))
-	fmt.Printf("\nTests providing unique coverage (%d):\n", len(uniqueTests))
+	fmt.Printf("\nTests required for coverage (%d):\n", len(uniqueTests))
 	for _, test := range uniqueTests {
-		fmt.Printf("  ✓ %s (%d unique function", test.name, test.uniqueCount)
+		fmt.Printf("  ✓ %s (%d function", test.name, test.uniqueCount)
 		if test.uniqueCount != 1 {
 			fmt.Printf("s")
 		}
-		fmt.Printf(")\n")
+		fmt.Printf(" would drop below %.0f%%)\n", config.CoverageThreshold)
 
-		// Show unique functions in verbose mode
+		// Show affected functions in verbose mode
 		if mg.Verbose() && len(test.uniqueFuncs) > 0 {
 			for _, fn := range test.uniqueFuncs {
 				fmt.Printf("      - %s\n", fn)
