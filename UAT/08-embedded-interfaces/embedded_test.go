@@ -31,8 +31,8 @@ func TestEmbeddedInterfaces(t *testing.T) {
 	// Note: []byte is not comparable, so it uses reflect.DeepEqual automatically.
 	imp.ExpectCallIs.Read().ExpectArgsShould(imptest.Any()).InjectResults(5, nil)
 
-	// Close is embedded from Closer
-	imp.ExpectCallIs.Close().ExpectArgsAre().InjectResult(nil)
+	// Close is embedded from Closer (no args, so ExpectArgsAre is not needed)
+	imp.ExpectCallIs.Close().InjectResult(nil)
 }
 
 // TestEmbeddedInterfaceError demonstrates error handling with embedded interfaces.

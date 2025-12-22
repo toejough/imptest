@@ -94,30 +94,6 @@ func (e *CriticalDependencyImpExpectCallIs) DoWork() *CriticalDependencyImpDoWor
 	return &CriticalDependencyImpDoWorkBuilder{imp: e.imp, timeout: e.timeout}
 }
 
-func (bldr *CriticalDependencyImpDoWorkBuilder) ExpectArgsAre() *CriticalDependencyImpDoWorkCall {
-	validator := func(c *CriticalDependencyImpCall) bool {
-		if c.Name() != "DoWork" {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsDoWork()
-}
-
-func (bldr *CriticalDependencyImpDoWorkBuilder) ExpectArgsShould() *CriticalDependencyImpDoWorkCall {
-	validator := func(c *CriticalDependencyImpCall) bool {
-		if c.Name() != "DoWork" {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsDoWork()
-}
-
 func (bldr *CriticalDependencyImpDoWorkBuilder) Resolve() *CriticalDependencyImpDoWorkCall {
 	validator := func(c *CriticalDependencyImpCall) bool {
 		return c.Name() == "DoWork"

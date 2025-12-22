@@ -604,30 +604,6 @@ func (e *OpsImpExpectCallIs) Finish() *OpsImpFinishBuilder {
 	return &OpsImpFinishBuilder{imp: e.imp, timeout: e.timeout}
 }
 
-func (bldr *OpsImpFinishBuilder) ExpectArgsAre() *OpsImpFinishCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Finish" {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsFinish()
-}
-
-func (bldr *OpsImpFinishBuilder) ExpectArgsShould() *OpsImpFinishCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Finish" {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsFinish()
-}
-
 func (bldr *OpsImpFinishBuilder) InjectResult(result bool) *OpsImpFinishCall {
 	validator := func(c *OpsImpCall) bool {
 		return c.Name() == "Finish"

@@ -41,6 +41,7 @@ func TestBasicMocking(t *testing.T) {
 	imp.ExpectCallIs.Notify().ExpectArgsAre("alert", 1, 2, 3).InjectResult(true)
 
 	// 5. Intercept 'Finish' (no args) and provide a return value.
+	// Note: there's no ExpectArgsArgs even generated for zero-arg methods.
 	imp.ExpectCallIs.Finish().InjectResult(true)
 }
 
@@ -48,5 +49,5 @@ func TestBasicMocking(t *testing.T) {
 func TestCustomNaming(t *testing.T) {
 	t.Parallel()
 
-	_ = NewCustomOpsImp()(t)
+	_ = NewCustomOpsImp(t)
 }

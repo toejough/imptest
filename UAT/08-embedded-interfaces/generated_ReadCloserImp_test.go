@@ -218,30 +218,6 @@ func (e *ReadCloserImpExpectCallIs) Close() *ReadCloserImpCloseBuilder {
 	return &ReadCloserImpCloseBuilder{imp: e.imp, timeout: e.timeout}
 }
 
-func (bldr *ReadCloserImpCloseBuilder) ExpectArgsAre() *ReadCloserImpCloseCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		if c.Name() != "Close" {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsClose()
-}
-
-func (bldr *ReadCloserImpCloseBuilder) ExpectArgsShould() *ReadCloserImpCloseCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		if c.Name() != "Close" {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsClose()
-}
-
 func (bldr *ReadCloserImpCloseBuilder) InjectResult(result error) *ReadCloserImpCloseCall {
 	validator := func(c *ReadCloserImpCall) bool {
 		return c.Name() == "Close"

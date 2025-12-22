@@ -664,11 +664,14 @@ func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *ast.Fu
 	gen.pf("\treturn &%s%s{imp: e.imp, timeout: e.timeout}\n", builderName, gen.formatTypeParamsUse())
 	gen.pf("}\n\n")
 
-	// Generate ExpectArgsAre (type-safe)
-	gen.generateExpectArgsAre(methodName, ftype, builderName, callName)
+	// Only generate ExpectArgs methods if the method has parameters
+	if hasParams(ftype) {
+		// Generate ExpectArgsAre (type-safe)
+		gen.generateExpectArgsAre(methodName, ftype, builderName, callName)
 
-	// Generate ExpectArgsShould (matcher-based)
-	gen.generateExpectArgsShould(methodName, ftype, builderName, callName)
+		// Generate ExpectArgsShould (matcher-based)
+		gen.generateExpectArgsShould(methodName, ftype, builderName, callName)
+	}
 
 	// Generate shortcut InjectResult/InjectPanic/Resolve
 	gen.generateBuilderShortcuts(methodName, ftype, builderName, callName)
