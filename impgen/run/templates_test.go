@@ -51,33 +51,3 @@ func TestExecuteTemplate(t *testing.T) {
 		executeTemplate(tmpl, data)
 	})
 }
-
-func TestMustParse(t *testing.T) {
-	t.Parallel()
-
-	t.Run("successful parse", func(t *testing.T) {
-		t.Parallel()
-
-		tmpl := mustParse("test", "Hello {{.Name}}")
-
-		if tmpl == nil {
-			t.Error("expected non-nil template")
-		}
-
-		if tmpl.Name() != "test" {
-			t.Errorf("expected template name 'test', got %q", tmpl.Name())
-		}
-	})
-
-	t.Run("parse error panics", func(t *testing.T) {
-		t.Parallel()
-
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("expected panic for invalid template")
-			}
-		}()
-
-		mustParse("invalid", "{{.Bad")
-	})
-}

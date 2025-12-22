@@ -475,21 +475,6 @@ import "not/a/real/path"
 	}
 }
 
-func TestRun_InvalidArgs(t *testing.T) {
-	t.Parallel()
-
-	mockFS := NewMockFileSystem()
-	mockPkgLoader := NewMockPackageLoader()
-
-	// No interface argument provided - should fail argument parsing
-	args := []string{"generator"}
-
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
-	if err == nil {
-		t.Error("Expected error from invalid arguments, got nil")
-	}
-}
-
 func TestRun_LocalPackageLoadErrorForForeignInterface(t *testing.T) {
 	t.Parallel()
 
@@ -1879,34 +1864,6 @@ type service[T any] interface {
 
 	if _, ok := mockFS.files["ServiceImp.go"]; !ok {
 		t.Error("Expected ServiceImp.go to be created")
-	}
-}
-
-func TestGetPackageInfo_LocalLoadFailure(t *testing.T) {
-	t.Parallel()
-
-	mockPkgLoader := NewMockPackageLoader()
-	// Simulate failure to load the local package
-	mockPkgLoader.AddError(".", errors.New("simulated load error"))
-
-	// Add the external package so the fallback can find it
-	externalSource := `package external
-type Service interface { Do() }
-`
-	mockPkgLoader.AddPackageFromSource("external", externalSource)
-
-	// We expect this to succeed by using the fallback logic
-	pkgPath, pkgName, err := run.GetPackageInfo("external.Service", mockPkgLoader, "mypkg")
-	if err != nil {
-		t.Fatalf("GetPackageInfo failed: %v", err)
-	}
-
-	if pkgPath != "external" {
-		t.Errorf("Expected pkgPath to be 'external', got '%s'", pkgPath)
-	}
-
-	if pkgName != "external" {
-		t.Errorf("Expected pkgName to be 'external', got '%s'", pkgName)
 	}
 }
 

@@ -24,7 +24,10 @@
       "Bash(go tool cover:*)",
       "mcp__gopls__go_symbol_references",
       "Bash(sort:*)",
-      "Bash(mage CheckCoverage:*)"
+      "Bash(mage CheckCoverage:*)",
+      "Bash(done)",
+      "Bash(mage -l:*)",
+      "Bash(mage findRedundantTests:*)"
     ],
     "deny": [],
     "ask": []

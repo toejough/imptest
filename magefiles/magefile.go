@@ -559,6 +559,112 @@ func Test(c context.Context) error {
 	return nil
 }
 
+// FindRedundantTests identifies unit tests that don't provide unique coverage beyond golden+UAT tests.
+func FindRedundantTests(c context.Context) error {
+	fmt.Println("Finding redundant tests...")
+	fmt.Println()
+
+	// Step 1: Run golden test and capture coverage
+	fmt.Println("Step 1: Running golden test...")
+	err := run(c, "go", "test", "-coverprofile=golden.out", "-coverpkg=./...",
+		"-run", "TestUATConsistency", "./impgen/run")
+	if err != nil {
+		return fmt.Errorf("golden test failed: %w", err)
+	}
+
+	// Step 2: Run UAT tests and capture coverage
+	fmt.Println("Step 2: Running UAT tests...")
+	err = run(c, "go", "test", "-coverprofile=uat.out", "-coverpkg=./...", "./UAT/...")
+	if err != nil {
+		return fmt.Errorf("UAT tests failed: %w", err)
+	}
+
+	// Step 3: Merge coverage files
+	fmt.Println("Step 3: Merging coverage files...")
+	err = mergeTwoCoverageFiles("golden.out", "uat.out", "baseline.out")
+	if err != nil {
+		return fmt.Errorf("failed to merge coverage: %w", err)
+	}
+
+	// Step 4: Get baseline function coverage
+	fmt.Println("Step 4: Analyzing baseline coverage...")
+	baselineFuncs, err := getFunctionsAboveThreshold("baseline.out", 80.0)
+	if err != nil {
+		return fmt.Errorf("failed to get baseline coverage: %w", err)
+	}
+	fmt.Printf("  Baseline covers %d functions at 80%%+\n", len(baselineFuncs))
+
+	// Step 5: List all test functions
+	fmt.Println("Step 5: Listing unit tests...")
+	testFuncs, err := listTestFunctions(c, "./impgen/run")
+	if err != nil {
+		return fmt.Errorf("failed to list tests: %w", err)
+	}
+	fmt.Printf("  Found %d unit tests\n\n", len(testFuncs))
+
+	// Step 6: Check each test for unique coverage
+	fmt.Println("Step 6: Analyzing each test...")
+	var redundantTests []string
+	var uniqueTests []string
+
+	for _, testName := range testFuncs {
+		fmt.Printf("  Checking %s... ", testName)
+
+		// Run individual test
+		testOut := fmt.Sprintf("test_%s.out", testName)
+		err = run(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
+			"-run", "^"+testName+"$", "./impgen/run")
+		if err != nil {
+			fmt.Printf("FAILED (test error)\n")
+			continue
+		}
+
+		// Get functions this test covers at 80%+
+		testFuncs, err := getFunctionsAboveThreshold(testOut, 80.0)
+		if err != nil {
+			fmt.Printf("FAILED (coverage error)\n")
+			continue
+		}
+
+		// Check for unique coverage
+		hasUnique := false
+		for fn := range testFuncs {
+			if !baselineFuncs[fn] {
+				hasUnique = true
+				break
+			}
+		}
+
+		if hasUnique {
+			fmt.Printf("KEEP (provides unique coverage)\n")
+			uniqueTests = append(uniqueTests, testName)
+		} else {
+			fmt.Printf("REDUNDANT (no unique coverage)\n")
+			redundantTests = append(redundantTests, testName)
+		}
+
+		// Clean up test coverage file
+		os.Remove(testOut)
+	}
+
+	// Step 7: Report results
+	fmt.Println()
+	fmt.Println("=" + strings.Repeat("=", 79))
+	fmt.Println("RESULTS")
+	fmt.Println("=" + strings.Repeat("=", 79))
+	fmt.Printf("\nTests providing unique coverage (%d):\n", len(uniqueTests))
+	for _, test := range uniqueTests {
+		fmt.Printf("  ✓ %s\n", test)
+	}
+	fmt.Printf("\nRedundant tests (%d):\n", len(redundantTests))
+	for _, test := range redundantTests {
+		fmt.Printf("  ✗ %s\n", test)
+	}
+	fmt.Println()
+
+	return nil
+}
+
 // Run the unit tests purely to find out whether any fail.
 func TestForFail(c context.Context) error {
 	fmt.Println("Running unit tests for overall pass/fail...")
@@ -666,6 +772,200 @@ func Watch() error {
 }
 
 // Private Functions
+
+// mergeTwoCoverageFiles merges two coverage files into a single output file.
+func mergeTwoCoverageFiles(file1, file2, output string) error {
+	// Read both files
+	data1, err := os.ReadFile(file1)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", file1, err)
+	}
+
+	data2, err := os.ReadFile(file2)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", file2, err)
+	}
+
+	// Split into lines
+	lines1 := strings.Split(string(data1), "\n")
+	lines2 := strings.Split(string(data2), "\n")
+
+	// Keep mode from first file, append blocks from both
+	mode := lines1[0]
+	var allBlocks []string
+	allBlocks = append(allBlocks, lines1[1:]...)
+	allBlocks = append(allBlocks, lines2[1:]...)
+
+	// Write combined file
+	combined := mode + "\n" + strings.Join(allBlocks, "\n")
+	err = os.WriteFile(output, []byte(combined), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", output, err)
+	}
+
+	// Merge overlapping blocks using existing logic
+	return mergeCoverageBlocksFile(output)
+}
+
+// mergeCoverageBlocksFile merges coverage blocks in the specified file (in-place).
+func mergeCoverageBlocksFile(filename string) error {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filename, err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) == 0 {
+		return nil
+	}
+
+	// Keep the mode line
+	mode := lines[0]
+
+	// Parse all blocks
+	var blocks []coverageBlock
+	blockCounts := make(map[string]int)
+
+	for _, line := range lines[1:] {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) != 3 {
+			continue
+		}
+
+		blockID := parts[0]
+		numStmts, _ := strconv.Atoi(parts[1])
+		count, _ := strconv.Atoi(parts[2])
+
+		file, startLine, startCol, endLine, endCol, err := parseBlockID(blockID)
+		if err != nil {
+			continue
+		}
+
+		// Sum counts for identical blocks
+		blockCounts[blockID] += count
+
+		// Store block for deduplication
+		found := false
+		for i, b := range blocks {
+			if b.file == file && b.startLine == startLine && b.startCol == startCol &&
+				b.endLine == endLine && b.endCol == endCol {
+				blocks[i].count = blockCounts[blockID]
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			blocks = append(blocks, coverageBlock{
+				file:       file,
+				startLine:  startLine,
+				startCol:   startCol,
+				endLine:    endLine,
+				endCol:     endCol,
+				statements: numStmts,
+				count:      blockCounts[blockID],
+			})
+		}
+	}
+
+	// For each file, split overlapping blocks into non-overlapping segments
+	fileBlocks := make(map[string][]coverageBlock)
+	for _, block := range blocks {
+		fileBlocks[block.file] = append(fileBlocks[block.file], block)
+	}
+
+	var finalBlocks []coverageBlock
+	for _, blocks := range fileBlocks {
+		segments := splitBlocksIntoSegments(blocks)
+		finalBlocks = append(finalBlocks, segments...)
+	}
+
+	// Rebuild coverage file
+	var merged []string
+	merged = append(merged, mode)
+
+	// Sort for deterministic output
+	sort.Slice(finalBlocks, func(i, j int) bool {
+		if finalBlocks[i].file != finalBlocks[j].file {
+			return finalBlocks[i].file < finalBlocks[j].file
+		}
+		if finalBlocks[i].startLine != finalBlocks[j].startLine {
+			return finalBlocks[i].startLine < finalBlocks[j].startLine
+		}
+		return finalBlocks[i].startCol < finalBlocks[j].startCol
+	})
+
+	for _, block := range finalBlocks {
+		blockID := fmt.Sprintf("%s:%d.%d,%d.%d",
+			block.file, block.startLine, block.startCol, block.endLine, block.endCol)
+		merged = append(merged, fmt.Sprintf("%s %d %d", blockID, block.statements, block.count))
+	}
+
+	// Write merged coverage
+	return os.WriteFile(filename, []byte(strings.Join(merged, "\n")+"\n"), 0o600)
+}
+
+// getFunctionsAboveThreshold returns a set of functions that have coverage >= threshold.
+func getFunctionsAboveThreshold(coverageFile string, threshold float64) (map[string]bool, error) {
+	out, err := exec.Command("go", "tool", "cover", "-func="+coverageFile).Output()
+	if err != nil {
+		return nil, fmt.Errorf("go tool cover failed: %w", err)
+	}
+
+	funcs := make(map[string]bool)
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "total:") {
+			continue
+		}
+
+		// Format: file:line:  functionName  percentage%
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+
+		// Last field is percentage like "85.7%"
+		percentStr := fields[len(fields)-1]
+		percentStr = strings.TrimSuffix(percentStr, "%")
+		percent, err := strconv.ParseFloat(percentStr, 64)
+		if err != nil {
+			continue
+		}
+
+		// Function name with location (e.g., "file.go:123: funcName")
+		funcName := strings.Join(fields[0:len(fields)-1], " ")
+
+		if percent >= threshold {
+			funcs[funcName] = true
+		}
+	}
+
+	return funcs, nil
+}
+
+// listTestFunctions lists all test functions in the given package.
+func listTestFunctions(c context.Context, pkg string) ([]string, error) {
+	out, err := output(c, "go", "test", "-list", ".", pkg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tests: %w", err)
+	}
+
+	var tests []string
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Test") {
+			tests = append(tests, line)
+		}
+	}
+
+	return tests, nil
+}
 
 // better glob expansion
 // https://stackoverflow.com/a/26809999
