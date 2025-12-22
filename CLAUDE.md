@@ -37,17 +37,19 @@ This repository uses the **gopls MCP server** for Go language support. When work
    - `run/run_test.go` - Tests showing both auto and manual validation patterns
    - Generated `*Imp_test.go` files - Mock implementations
 
-### Generation Modes
+### Code Generation
 
-The generator supports two modes via `//go:generate` directives:
+The generator is invoked via `//go:generate` directives:
 
 ```go
-// Interface mock (default): generates mock with ExpectCallTo methods
+// For interfaces: generates mock with ExpectCallTo methods
 //go:generate go run ../../impgen/main.go run.IntOps --name IntOpsImp
 
-// Callable wrapper: wraps functions for return/panic validation
-//go:generate go run ../../impgen/main.go run.PrintSum --name PrintSumImp --call
+// For functions: generates callable wrapper for return/panic validation
+//go:generate go run ../../impgen/main.go run.PrintSum --name PrintSumImp
 ```
+
+The generator **auto-detects** the symbol type (interface vs function) and generates appropriate code - no mode flag needed.
 
 ### Testing Pattern
 
