@@ -32,7 +32,8 @@
       "Bash(mage -v findRedundantTests:*)",
       "Bash(mage:*)",
       "Bash(deadcode:*)",
-      "mcp__gopls__go_package_api"
+      "mcp__gopls__go_package_api",
+      "Bash(go doc:*)"
     ],
     "deny": [],
     "ask": []

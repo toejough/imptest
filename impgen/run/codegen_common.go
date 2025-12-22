@@ -78,6 +78,17 @@ func (w *typeExprWalker[T]) walkFieldList(lists ...*ast.FieldList) T {
 	return result
 }
 
+// joinWith joins a slice of items into a string using a format function and separator.
+// This eliminates repetitive comma-separator loop patterns throughout the codebase.
+func joinWith[T any](items []T, format func(T) string, sep string) string {
+	parts := make([]string, len(items))
+	for i, item := range items {
+		parts[i] = format(item)
+	}
+
+	return strings.Join(parts, sep)
+}
+
 // codeWriter provides common buffer writing functionality for code generators.
 // ... (omitting some lines for brevity, but I must match exactly).
 type codeWriter struct {
@@ -331,15 +342,9 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatt
 
 	if funcType.Params != nil {
 		buf.WriteString("(")
-
-		for i, field := range funcType.Params.List {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(typeFormatter(field.Type))
-		}
-
+		buf.WriteString(joinWith(funcType.Params.List, func(f *ast.Field) string {
+			return typeFormatter(f.Type)
+		}, ", "))
 		buf.WriteString(")")
 	}
 
@@ -350,13 +355,9 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatt
 			buf.WriteString(" ")
 		}
 
-		for i, field := range funcType.Results.List {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(typeFormatter(field.Type))
-		}
+		buf.WriteString(joinWith(funcType.Results.List, func(f *ast.Field) string {
+			return typeFormatter(f.Type)
+		}, ", "))
 
 		if len(funcType.Results.List) > 1 {
 			buf.WriteString(")")
@@ -537,15 +538,7 @@ func (tf *typeFormatter) typeWithQualifierIndexList(indexListExpr *ast.IndexList
 
 	buf.WriteString(tf.typeWithQualifier(indexListExpr.X))
 	buf.WriteString("[")
-
-	for i, index := range indexListExpr.Indices {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		buf.WriteString(tf.typeWithQualifier(index))
-	}
-
+	buf.WriteString(joinWith(indexListExpr.Indices, tf.typeWithQualifier, ", "))
 	buf.WriteString("]")
 
 	return buf.String()

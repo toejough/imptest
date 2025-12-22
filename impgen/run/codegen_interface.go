@@ -1122,13 +1122,7 @@ func (gen *codeGenerator) renderFieldList(fieldList *ast.FieldList) string {
 // renderField renders a single field with its name and type.
 func (gen *codeGenerator) renderField(field *ast.Field, buf *bytes.Buffer) {
 	// Names
-	for j, name := range field.Names {
-		if j > 0 {
-			buf.WriteString(", ")
-		}
-
-		buf.WriteString(name.Name)
-	}
+	buf.WriteString(joinWith(field.Names, func(n *ast.Ident) string { return n.Name }, ", "))
 
 	// Type
 	if len(field.Names) > 0 {

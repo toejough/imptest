@@ -362,13 +362,7 @@ func (g *callableGenerator) writeParamsWithQualifiersTo(buf *strings.Builder) {
 
 // writeFieldNamesTo writes parameter field names to a buffer, separated by commas.
 func writeFieldNamesTo(buf *strings.Builder, names []*ast.Ident) {
-	for j, name := range names {
-		if j > 0 {
-			buf.WriteString(", ")
-		}
-
-		buf.WriteString(name.Name)
-	}
+	buf.WriteString(joinWith(names, func(n *ast.Ident) string { return n.Name }, ", "))
 }
 
 // writeResultTypesWithQualifiersTo writes function return types to a buffer.
@@ -379,13 +373,9 @@ func (g *callableGenerator) writeResultTypesWithQualifiersTo(buf *strings.Builde
 
 	results := extractResults(g.fset, g.funcDecl.Type)
 
-	for i, r := range results {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		buf.WriteString(g.typeWithQualifier(r.Field.Type))
-	}
+	buf.WriteString(joinWith(results, func(r fieldInfo) string {
+		return g.typeWithQualifier(r.Field.Type)
+	}, ", "))
 }
 
 // Functions
