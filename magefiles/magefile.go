@@ -952,11 +952,6 @@ func Watch() error {
 
 // Private Functions
 
-// mergeTwoCoverageFiles merges two coverage files into a single output file.
-func mergeTwoCoverageFiles(file1, file2, output string) error {
-	return mergeMultipleCoverageFiles([]string{file1, file2}, output)
-}
-
 // mergeMultipleCoverageFiles merges multiple coverage files into a single output file.
 func mergeMultipleCoverageFiles(files []string, output string) error {
 	if len(files) == 0 {
