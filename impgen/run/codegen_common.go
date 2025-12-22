@@ -13,6 +13,8 @@ import (
 	"unicode"
 )
 
+const anyTypeString = "any"
+
 var (
 	errGOPACKAGENotSet = errors.New("GOPACKAGE environment variable not set")
 	errUnexportedType  = errors.New("unexported type is not accessible from external packages")
@@ -362,7 +364,7 @@ func isBuiltinType(name string) bool {
 		"int8", "int16", "int32", "int64",
 		"rune", "string", "uint", "uint8",
 		"uint16", "uint32", "uint64", "uintptr",
-		"any":
+		anyTypeString:
 		return true
 	}
 

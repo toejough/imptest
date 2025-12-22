@@ -263,7 +263,7 @@ func (g *callableGenerator) resultParamsAnyString() string {
 	results := extractResults(g.fset, g.funcDecl.Type)
 
 	return formatResultParameters(results, "v", 1, func(fieldInfo) string {
-		return "any"
+		return anyTypeString
 	})
 }
 

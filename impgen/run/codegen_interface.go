@@ -517,50 +517,54 @@ func (gen *codeGenerator) writeMockMethodResponseHandling() {
 	gen.pf("\t}\n\n")
 }
 
-// writeMethodParams writes the method parameters in the form "name type, name2 type2".
-func (gen *codeGenerator) writeMethodParams(ftype *ast.FuncType, paramNames []string) {
+// writeMethodParamsWithFormatter writes method parameters using a custom type formatter.
+// The typeFormatter function receives the qualified type string and returns the formatted type to use.
+// This allows writing params as "name actualType" or "name any" with the same iteration logic.
+func (gen *codeGenerator) writeMethodParamsWithFormatter(
+	ftype *ast.FuncType,
+	paramNames []string,
+	typeFormatter func(qualifiedType string) string,
+) {
 	if !hasParams(ftype) {
 		return
 	}
 
+	first := true
 	paramNameIndex := 0
 
-	for i, param := range ftype.Params.List {
-		if i > 0 {
-			gen.pf(", ")
+	visitParams(ftype, gen.typeWithQualifier, func(
+		param *ast.Field, paramType string, _, _, _ int,
+	) (int, int) {
+		if hasFieldNames(param) {
+			for _, name := range param.Names {
+				if !first {
+					gen.pf(", ")
+				}
+
+				first = false
+
+				gen.pf("%s %s", name.Name, typeFormatter(paramType))
+			}
+
+			paramNameIndex += len(param.Names)
+		} else {
+			if !first {
+				gen.pf(", ")
+			}
+
+			first = false
+
+			gen.pf("%s %s", paramNames[paramNameIndex], typeFormatter(paramType))
+			paramNameIndex++
 		}
 
-		paramType := gen.typeWithQualifier(param.Type)
-		paramNameIndex = gen.writeParamForField(param, paramType, paramNames, paramNameIndex)
-	}
+		return 0, 0 // Indices not used when using visitParams
+	})
 }
 
-// writeParamForField writes parameters for a single field (which may contain multiple names).
-func (gen *codeGenerator) writeParamForField(
-	param *ast.Field, paramType string, paramNames []string, paramNameIndex int,
-) int {
-	if hasFieldNames(param) {
-		return gen.writeNamedParams(param, paramType, paramNameIndex)
-	}
-
-	gen.pf("%s %s", paramNames[paramNameIndex], paramType)
-
-	return paramNameIndex + 1
-}
-
-// writeNamedParams writes multiple named parameters of the same type.
-func (gen *codeGenerator) writeNamedParams(param *ast.Field, paramType string, paramNameIndex int) int {
-	for j, name := range param.Names {
-		if j > 0 {
-			gen.pf(", ")
-		}
-
-		gen.pf("%s %s", name.Name, paramType)
-
-		paramNameIndex++
-	}
-
-	return paramNameIndex
+// writeMethodParams writes the method parameters in the form "name type, name2 type2".
+func (gen *codeGenerator) writeMethodParams(ftype *ast.FuncType, paramNames []string) {
+	gen.writeMethodParamsWithFormatter(ftype, paramNames, func(t string) string { return t })
 }
 
 // forEachParamField iterates over parameter fields, handling both named and unnamed parameters.
@@ -832,41 +836,7 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 
 // writeMethodParamsAsAny writes method parameters with all types as 'any'.
 func (gen *codeGenerator) writeMethodParamsAsAny(ftype *ast.FuncType, paramNames []string) {
-	if !hasParams(ftype) {
-		return
-	}
-
-	paramNameIndex := 0
-	first := true
-
-	visitParams(ftype, gen.typeWithQualifier, func(
-		param *ast.Field, _ string, _, _, _ int,
-	) (int, int) {
-		if hasFieldNames(param) {
-			for _, name := range param.Names {
-				if !first {
-					gen.pf(", ")
-				}
-
-				first = false
-
-				gen.pf("%s any", name.Name)
-
-				paramNameIndex++
-			}
-		} else {
-			if !first {
-				gen.pf(", ")
-			}
-
-			first = false
-
-			gen.pf("%s any", paramNames[paramNameIndex])
-			paramNameIndex++
-		}
-
-		return 0, 0 // Not used in this context
-	})
+	gen.writeMethodParamsWithFormatter(ftype, paramNames, func(_ string) string { return anyTypeString })
 }
 
 // writeInjectResultsArgs writes the argument list for InjectResults call.
