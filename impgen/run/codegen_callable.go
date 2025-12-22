@@ -101,15 +101,16 @@ type callableGenerator struct {
 type callableExtendedTemplateData struct {
 	callableTemplateData //nolint:unused // embedded fields accessed via templates
 
-	CallableSignature  string
-	CallableReturns    string
-	ParamNames         string   // comma-separated parameter names for calling
-	ReturnVars         string   // comma-separated return variable names (ret0, ret1, ...)
-	ReturnVarsList     []string // slice of return variable names
-	ReturnFields       []returnFieldData
-	ResultParams       string // parameters for ExpectReturnedValues (v1 Type1, v2 Type2, ...)
-	ResultComparisons  string // comparisons for ExpectReturnedValues
-	ResultComparisons2 string // comparisons using "ret" variable
+	CallableSignature string
+	CallableReturns   string
+	ParamNames        string   // comma-separated parameter names for calling
+	ReturnVars        string   // comma-separated return variable names (ret0, ret1, ...)
+	ReturnVarsList    []string // slice of return variable names
+	ReturnFields      []returnFieldData
+	ResultParams      string // parameters for ExpectReturnedValues (v1 Type1, v2 Type2, ...)
+	ResultParamsAny   string // parameters for ExpectReturnedValuesShould (v1 any, v2 any, ...)
+	ResultComparisons string // comparisons for ExpectReturnedValues
+	ResultMatchers    string // matcher-based comparisons for ExpectReturnedValuesShould
 }
 
 // returnFieldData holds data for a single return field.
@@ -143,16 +144,18 @@ func (g *callableGenerator) templateData() callableTemplateData {
 	}
 
 	return callableTemplateData{
-		PkgName:        g.pkgName,
-		ImpName:        g.impName,
-		PkgPath:        g.pkgPath,
-		Qualifier:      g.qualifier,
-		NeedsQualifier: g.needsQualifier,
-		HasReturns:     hasResults(g.funcDecl.Type),
-		ReturnType:     g.returnTypeName(),
-		NumReturns:     numReturns,
-		TypeParamsDecl: g.formatTypeParamsDecl(),
-		TypeParamsUse:  g.formatTypeParamsUse(),
+		baseTemplateData: baseTemplateData{
+			PkgName:        g.pkgName,
+			ImpName:        g.impName,
+			PkgPath:        g.pkgPath,
+			Qualifier:      g.qualifier,
+			NeedsQualifier: g.needsQualifier,
+			TypeParamsDecl: g.formatTypeParamsDecl(),
+			TypeParamsUse:  g.formatTypeParamsUse(),
+		},
+		HasReturns: hasResults(g.funcDecl.Type),
+		ReturnType: g.returnTypeName(),
+		NumReturns: numReturns,
 	}
 }
 
@@ -170,8 +173,9 @@ func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData 
 		ReturnVarsList:       returnVars,
 		ReturnFields:         returnFields,
 		ResultParams:         g.resultParamsString(),
+		ResultParamsAny:      g.resultParamsAnyString(),
 		ResultComparisons:    g.resultComparisonsString("s.Returned"),
-		ResultComparisons2:   g.resultComparisonsString("ret"),
+		ResultMatchers:       g.resultMatchersString("s.Returned"),
 	}
 }
 
@@ -265,6 +269,27 @@ func (g *callableGenerator) resultParamsString() string {
 	return buf.String()
 }
 
+// resultParamsAnyString returns parameters for ExpectReturnedValuesShould (v1 any, v2 any, ...).
+func (g *callableGenerator) resultParamsAnyString() string {
+	if !hasResults(g.funcDecl.Type) {
+		return ""
+	}
+
+	var buf strings.Builder
+
+	results := extractResults(g.fset, g.funcDecl.Type)
+
+	for i, r := range results {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+
+		fmt.Fprintf(&buf, "v%d any", r.Index+1)
+	}
+
+	return buf.String()
+}
+
 // resultComparisonsString returns comparison code for return values.
 func (g *callableGenerator) resultComparisonsString(varName string) string {
 	if !hasResults(g.funcDecl.Type) {
@@ -287,6 +312,27 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 
 		fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"expected return value %d to be %%v, got %%v\", %s, %s.Result%d)\n",
 			result.Index, resultName, varName, result.Index)
+		buf.WriteString("\t\t}\n")
+	}
+
+	return buf.String()
+}
+
+// resultMatchersString returns matcher-based comparison code for return values.
+func (g *callableGenerator) resultMatchersString(varName string) string {
+	if !hasResults(g.funcDecl.Type) {
+		return ""
+	}
+
+	var buf strings.Builder
+
+	results := extractResults(g.fset, g.funcDecl.Type)
+
+	for _, result := range results {
+		resultName := fmt.Sprintf("v%d", result.Index+1)
+		fmt.Fprintf(&buf, "\t\tok, msg = imptest.MatchValue(%s.Result%d, %s)\n", varName, result.Index, resultName)
+		fmt.Fprintf(&buf, "\t\tif !ok {\n")
+		fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"return value %d: %%s\", msg)\n", result.Index)
 		buf.WriteString("\t\t}\n")
 	}
 

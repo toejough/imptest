@@ -214,18 +214,20 @@ func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *
 // templateData returns common template data for this generator.
 func (gen *codeGenerator) templateData() templateData {
 	return templateData{
-		ImpName:          gen.impName,
+		baseTemplateData: baseTemplateData{
+			PkgName:        gen.pkgName,
+			ImpName:        gen.impName,
+			PkgPath:        gen.pkgPath,
+			Qualifier:      gen.qualifier,
+			NeedsQualifier: gen.needsQualifier,
+			TypeParamsDecl: gen.formatTypeParamsDecl(),
+			TypeParamsUse:  gen.formatTypeParamsUse(),
+		},
 		MockName:         gen.mockName,
 		CallName:         gen.callName,
 		ExpectCallIsName: gen.expectCallIsName,
 		TimedName:        gen.timedName,
-		PkgName:          gen.pkgName,
 		MethodNames:      gen.methodNames,
-		TypeParamsDecl:   gen.formatTypeParamsDecl(),
-		TypeParamsUse:    gen.formatTypeParamsUse(),
-		PkgPath:          gen.pkgPath,
-		Qualifier:        gen.qualifier,
-		NeedsQualifier:   gen.needsQualifier,
 		NeedsReflect:     gen.needsReflect,
 		NeedsImptest:     gen.needsImptest,
 	}

@@ -231,12 +231,14 @@ import (
 `)
 
 	callableExpectReturnedValuesShouldTemplate = mustParse("callableExpectReturnedValuesShould",
-		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesShould({{.ResultParams}}) {
+		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesShould({{.ResultParamsAny}}) {
 	s.T.Helper()
 	s.WaitForResponse()
 
 	if s.Returned != nil {
-{{.ResultComparisons}}		return
+{{if .HasReturns}}		var ok bool
+		var msg string
+{{.ResultMatchers}}{{end}}		return
 	}
 
 	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
@@ -279,20 +281,15 @@ import (
 
 // templateData holds common data passed to templates.
 type templateData struct {
-	ImpName          string
+	baseTemplateData //nolint:unused // Used in templates
+
 	MockName         string
 	CallName         string
 	ExpectCallIsName string
 	TimedName        string
-	PkgName          string
 	MethodNames      []string
-	TypeParamsDecl   string // Type parameters with constraints, e.g., "[T any, U comparable]"
-	TypeParamsUse    string // Type parameters for instantiation, e.g., "[T, U]"
-	PkgPath          string // Import path for the package being mocked
-	Qualifier        string // Package qualifier (e.g., "basic")
-	NeedsQualifier   bool   // Whether the package qualifier is actually used
-	NeedsReflect     bool   // Whether reflect import is needed for DeepEqual
-	NeedsImptest     bool   // Whether imptest import is needed for matchers
+	NeedsReflect     bool // Whether reflect import is needed for DeepEqual
+	NeedsImptest     bool // Whether imptest import is needed for matchers
 }
 
 // methodTemplateData holds data for method-specific templates.
@@ -317,18 +314,24 @@ type callStructTemplateData struct {
 	Methods []callStructMethodData
 }
 
-// callableTemplateData holds data for callable wrapper templates.
-type callableTemplateData struct {
+// baseTemplateData holds common fields shared by all template data structs.
+type baseTemplateData struct {
 	PkgName        string
 	ImpName        string
-	PkgPath        string
-	Qualifier      string
-	NeedsQualifier bool
-	HasReturns     bool
-	ReturnType     string // "{ImpName}Return" or "struct{}"
-	NumReturns     int
+	PkgPath        string // Import path for the package being mocked/wrapped
+	Qualifier      string // Package qualifier (e.g., "basic")
+	NeedsQualifier bool   // Whether the package qualifier is actually used
 	TypeParamsDecl string // Type parameters with constraints, e.g., "[T any, U comparable]"
 	TypeParamsUse  string // Type parameters for instantiation, e.g., "[T, U]"
+}
+
+// callableTemplateData holds data for callable wrapper templates.
+type callableTemplateData struct {
+	baseTemplateData //nolint:unused // Used in templates
+
+	HasReturns bool
+	ReturnType string // "{ImpName}Return" or "struct{}"
+	NumReturns int
 }
 
 // Functions

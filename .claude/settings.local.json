@@ -18,7 +18,10 @@
       "Bash(find:*)",
       "Skill(mgrep)",
       "Bash(mgrep:*)",
-      "Bash(go clean:*)"
+      "Bash(go clean:*)",
+      "Bash(head:*)",
+      "Bash(go generate:*)",
+      "Bash(go tool cover:*)"
     ],
     "deny": [],
     "ask": []
