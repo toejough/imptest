@@ -699,8 +699,10 @@ func (gen *codeGenerator) generateExpectArgsAre(methodName string, ftype *ast.Fu
 	gen.pf("}\n\n")
 }
 
-// writeExpectArgsAreChecks writes parameter equality checks for ExpectArgsAre.
-func (gen *codeGenerator) writeExpectArgsAreChecks(ftype *ast.FuncType, paramNames []string) {
+// writeParamChecks writes parameter comparison checks.
+// When useMatcher is true, uses imptest.MatchValue for flexible matching.
+// When useMatcher is false, uses == or reflect.DeepEqual for equality checks.
+func (gen *codeGenerator) writeParamChecks(ftype *ast.FuncType, paramNames []string, useMatcher bool) {
 	visitParams(ftype, gen.typeWithQualifier, func(
 		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
 	) (int, int) {
@@ -708,16 +710,27 @@ func (gen *codeGenerator) writeExpectArgsAreChecks(ftype *ast.FuncType, paramNam
 
 		return forEachParamField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
 			func(fieldName, paramName string) {
-				gen.writeEqualityCheck(fieldName, paramName, isComparable)
+				gen.writeComparisonCheck(fieldName, paramName, isComparable, useMatcher)
 			})
 	})
 }
 
-// writeEqualityCheck writes an equality check (== or DeepEqual).
-func (gen *codeGenerator) writeEqualityCheck(fieldName, expectedName string, isComparable bool) {
-	if isComparable {
+// writeExpectArgsAreChecks writes parameter equality checks for ExpectArgsAre.
+func (gen *codeGenerator) writeExpectArgsAreChecks(ftype *ast.FuncType, paramNames []string) {
+	gen.writeParamChecks(ftype, paramNames, false)
+}
+
+// writeComparisonCheck writes either an equality or matcher-based comparison check.
+// When useMatcher is true, uses imptest.MatchValue for flexible matching.
+// When useMatcher is false, uses == or reflect.DeepEqual for equality checks.
+func (gen *codeGenerator) writeComparisonCheck(fieldName, expectedName string, isComparable, useMatcher bool) {
+	switch {
+	case useMatcher:
+		gen.pf("\tok, _ = imptest.MatchValue(methodCall.%s, %s)\n", fieldName, expectedName)
+		gen.pf("\t\tif !ok {\n")
+	case isComparable:
 		gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, expectedName)
-	} else {
+	default:
 		gen.needsReflect = true
 		gen.pf("\t\tif !reflect.DeepEqual(methodCall.%s, %s) {\n", fieldName, expectedName)
 	}
@@ -760,22 +773,7 @@ func (gen *codeGenerator) generateExpectArgsShould(
 
 // writeExpectArgsShouldChecks writes matcher-based checks for ExpectArgsShould.
 func (gen *codeGenerator) writeExpectArgsShouldChecks(ftype *ast.FuncType, paramNames []string) {
-	visitParams(ftype, gen.typeWithQualifier, func(
-		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
-	) (int, int) {
-		return forEachParamField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
-			func(fieldName, paramName string) {
-				gen.writeMatcherCheck(fieldName, paramName)
-			})
-	})
-}
-
-// writeMatcherCheck writes a MatchValue check.
-func (gen *codeGenerator) writeMatcherCheck(fieldName, expectedName string) {
-	gen.pf("\tok, _ = imptest.MatchValue(methodCall.%s, %s)\n", fieldName, expectedName)
-	gen.pf("\t\tif !ok {\n")
-	gen.pf("\t\t\treturn false\n")
-	gen.pf("\t\t}\n")
+	gen.writeParamChecks(ftype, paramNames, true)
 }
 
 // generateBuilderShortcuts generates InjectResult/InjectPanic/Resolve shortcut methods on the builder.

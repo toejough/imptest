@@ -267,8 +267,10 @@ func (g *callableGenerator) resultParamsAnyString() string {
 	})
 }
 
-// resultComparisonsString returns comparison code for return values.
-func (g *callableGenerator) resultComparisonsString(varName string) string {
+// writeResultChecks generates comparison code for return values.
+// When useMatcher is true, uses imptest.MatchValue for flexible matching.
+// When useMatcher is false, uses == or reflect.DeepEqual for equality checks.
+func (g *callableGenerator) writeResultChecks(varName string, useMatcher bool) string {
 	if !hasResults(g.funcDecl.Type) {
 		return ""
 	}
@@ -278,42 +280,40 @@ func (g *callableGenerator) resultComparisonsString(varName string) string {
 	results := extractResults(g.fset, g.funcDecl.Type)
 
 	for _, result := range results {
-		resultName := fmt.Sprintf("v%d", result.Index+1)
-		isComparable := isComparableExpr(result.Field.Type, g.typesInfo)
+		expectedName := fmt.Sprintf("v%d", result.Index+1)
+		actualExpr := fmt.Sprintf("%s.Result%d", varName, result.Index)
 
-		if isComparable {
-			fmt.Fprintf(&buf, "\t\tif %s.Result%d != %s {\n", varName, result.Index, resultName)
+		if useMatcher {
+			fmt.Fprintf(&buf, "\t\tok, msg = imptest.MatchValue(%s, %s)\n", actualExpr, expectedName)
+			fmt.Fprintf(&buf, "\t\tif !ok {\n")
+			fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"return value %d: %%s\", msg)\n", result.Index)
 		} else {
-			fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(%s.Result%d, %s) {\n", varName, result.Index, resultName)
+			isComparable := isComparableExpr(result.Field.Type, g.typesInfo)
+
+			if isComparable {
+				fmt.Fprintf(&buf, "\t\tif %s != %s {\n", actualExpr, expectedName)
+			} else {
+				fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(%s, %s) {\n", actualExpr, expectedName)
+			}
+
+			fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"expected return value %d to be %%v, got %%v\", %s, %s)\n",
+				result.Index, expectedName, actualExpr)
 		}
 
-		fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"expected return value %d to be %%v, got %%v\", %s, %s.Result%d)\n",
-			result.Index, resultName, varName, result.Index)
 		buf.WriteString("\t\t}\n")
 	}
 
 	return buf.String()
 }
 
+// resultComparisonsString returns comparison code for return values.
+func (g *callableGenerator) resultComparisonsString(varName string) string {
+	return g.writeResultChecks(varName, false)
+}
+
 // resultMatchersString returns matcher-based comparison code for return values.
 func (g *callableGenerator) resultMatchersString(varName string) string {
-	if !hasResults(g.funcDecl.Type) {
-		return ""
-	}
-
-	var buf strings.Builder
-
-	results := extractResults(g.fset, g.funcDecl.Type)
-
-	for _, result := range results {
-		resultName := fmt.Sprintf("v%d", result.Index+1)
-		fmt.Fprintf(&buf, "\t\tok, msg = imptest.MatchValue(%s.Result%d, %s)\n", varName, result.Index, resultName)
-		fmt.Fprintf(&buf, "\t\tif !ok {\n")
-		fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"return value %d: %%s\", msg)\n", result.Index)
-		buf.WriteString("\t\t}\n")
-	}
-
-	return buf.String()
+	return g.writeResultChecks(varName, true)
 }
 
 // writeParamsWithQualifiersTo writes function parameters with package qualifiers to a buffer.
