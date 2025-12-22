@@ -9,6 +9,7 @@ import (
 	"go/token"
 	go_types "go/types"
 	"strings"
+	"text/template"
 	"unicode"
 )
 
@@ -36,6 +37,15 @@ func (w *codeWriter) ps(s string) {
 // bytes returns the buffer contents.
 func (w *codeWriter) bytes() []byte {
 	return w.buf.Bytes()
+}
+
+// normalizeVariadicType converts a variadic type string ("...T") to slice syntax ("[]T").
+func normalizeVariadicType(typeStr string) string {
+	if strings.HasPrefix(typeStr, "...") {
+		return "[]" + typeStr[3:]
+	}
+
+	return typeStr
 }
 
 // exprToString renders an ast.Expr to Go code.
@@ -98,12 +108,7 @@ func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []
 
 	for _, field := range fields.List {
 		typeStr := exprToString(fset, field.Type)
-
-		// Normalize variadic type for struct fields
-		structType := typeStr
-		if strings.HasPrefix(structType, "...") {
-			structType = "[]" + structType[3:]
-		}
+		structType := normalizeVariadicType(typeStr)
 
 		if len(field.Names) > 0 {
 			for _, name := range field.Names {
@@ -741,6 +746,11 @@ func (baseGen *baseGenerator) checkIfValidForExternalUsage(funcType *ast.FuncTyp
 	}
 
 	return ValidateExportedTypesInFunc(funcType, baseGen.isTypeParam)
+}
+
+// execTemplate executes a template and writes the result to the buffer.
+func (baseGen *baseGenerator) execTemplate(tmpl *template.Template, data any) {
+	baseGen.ps(executeTemplate(tmpl, data))
 }
 
 // formatTypeParamsDecl formats type parameters for declaration.

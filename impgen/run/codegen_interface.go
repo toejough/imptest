@@ -9,7 +9,6 @@ import (
 	"go/token"
 	go_types "go/types"
 	"strings"
-	"text/template"
 )
 
 var errUnsupportedEmbeddedType = errors.New("unsupported embedded type")
@@ -56,7 +55,7 @@ func newCodeGenerator(
 		err                error
 	)
 	if pkgImportPath != "." {
-		pkgPath, qualifier, err = interfaceGetPackageInfo(
+		pkgPath, qualifier, err = GetPackageInfo(
 			info.interfaceName,
 			pkgLoader,
 			info.pkgName,
@@ -257,11 +256,6 @@ func (gen *codeGenerator) callStructData() callStructTemplateData {
 	}
 }
 
-// execTemplate executes a template and writes the result to the buffer.
-func (gen *codeGenerator) execTemplate(tmpl *template.Template, data any) {
-	gen.ps(executeTemplate(tmpl, data))
-}
-
 // generateCallStruct generates the union call struct that can hold any method call.
 func (gen *codeGenerator) generateCallStruct() {
 	gen.execTemplate(callStructTemplate, gen.callStructData())
@@ -341,10 +335,7 @@ func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
 
 // writeNamedParamFields writes fields for named parameters.
 func (gen *codeGenerator) writeNamedParamFields(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
-	structType := paramType
-	if strings.HasPrefix(structType, "...") {
-		structType = "[]" + structType[3:]
-	}
+	structType := normalizeVariadicType(paramType)
 
 	for i := range param.Names {
 		fieldName := interfaceGetParamFieldName(param, i, unnamedIndex, structType, totalParams)
@@ -354,10 +345,7 @@ func (gen *codeGenerator) writeNamedParamFields(param *ast.Field, paramType stri
 
 // writeUnnamedParamField writes a field for an unnamed parameter.
 func (gen *codeGenerator) writeUnnamedParamField(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
-	structType := paramType
-	if strings.HasPrefix(structType, "...") {
-		structType = "[]" + structType[3:]
-	}
+	structType := normalizeVariadicType(paramType)
 
 	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, structType, totalParams)
 	gen.pf("\t%s %s\n", fieldName, structType)
@@ -1153,13 +1141,4 @@ func (gen *codeGenerator) renderField(field *ast.Field, buf *bytes.Buffer) {
 	}
 
 	buf.WriteString(gen.typeWithQualifier(field.Type))
-}
-
-// interfaceGetPackageInfo extracts package info for the interface being mocked.
-func interfaceGetPackageInfo(
-	interfaceName string,
-	pkgLoader PackageLoader,
-	currentPkgName string,
-) (pkgPath, pkgName string, err error) {
-	return GetPackageInfo(interfaceName, pkgLoader, currentPkgName)
 }

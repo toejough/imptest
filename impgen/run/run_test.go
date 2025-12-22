@@ -1939,3 +1939,63 @@ type Processor interface {
 		t.Fatal("Expected ProcessorImp.go to be created")
 	}
 }
+
+func TestCallableHeaderGeneration(t *testing.T) {
+	t.Parallel()
+
+	t.Run("without qualifier", func(t *testing.T) {
+		t.Parallel()
+
+		mockFS := NewMockFileSystem()
+		mockPkgLoader := NewMockPackageLoader()
+		mockPkgLoader.AddPackageFromSource(".", localPackageSource)
+		mockPkgLoader.AddPackageFromSource("github.com/toejough/imptest/UAT/run", `package run
+func LocalFunc() int { return 0 }`)
+
+		args := []string{"generator", "run.LocalFunc", "--name", "LocalFuncImp"}
+
+		err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+		if err != nil {
+			t.Fatalf("Run failed: %v", err)
+		}
+
+		code := string(mockFS.files["LocalFuncImp.go"])
+		if !strings.Contains(code, "package mypkg") {
+			t.Error("Expected package declaration in header")
+		}
+
+		if !strings.Contains(code, `"github.com/toejough/imptest/imptest"`) {
+			t.Error("Expected imptest import in header")
+		}
+	})
+
+	t.Run("with qualifier", func(t *testing.T) {
+		t.Parallel()
+
+		mockFS := NewMockFileSystem()
+		mockPkgLoader := NewMockPackageLoader()
+		mockPkgLoader.AddPackageFromSource(".", `package current
+import "github.com/foo/external"
+var _ = external.Process`)
+		mockPkgLoader.AddPackageFromSource("github.com/foo/external", `package external
+type Data struct { Value string }
+func Process(input Data) Data { return input }`)
+
+		args := []string{"generator", "external.Process", "--name", "ProcessImp"}
+
+		err := run.Run(args, func(_ string) string { return "current" }, mockFS, mockPkgLoader)
+		if err != nil {
+			t.Fatalf("Run failed: %v", err)
+		}
+
+		code := string(mockFS.files["ProcessImp.go"])
+		if !strings.Contains(code, "package current") {
+			t.Error("Expected package declaration in header")
+		}
+
+		if !strings.Contains(code, `external "github.com/foo/external"`) {
+			t.Logf("Generated code:\n%s", code)
+			t.Error("Expected qualified import in header")
+		}
+	})
+}

@@ -13,7 +13,12 @@
       "Bash(go build:*)",
       "Bash(ls:*)",
       "Bash(/usr/bin/time -p go test:*)",
-      "Bash(/usr/bin/time -p mage check:*)"
+      "Bash(/usr/bin/time -p mage check:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Skill(mgrep)",
+      "Bash(mgrep:*)",
+      "Bash(go clean:*)"
     ],
     "deny": [],
     "ask": []
