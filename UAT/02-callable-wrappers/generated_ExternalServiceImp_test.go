@@ -155,11 +155,11 @@ func (e *ExternalServiceImpExpectCallIs) FetchData() *ExternalServiceImpFetchDat
 }
 
 func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsAre(id int) *ExternalServiceImpFetchDataCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		if c.Name() != "FetchData" {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		if callToCheck.Name() != "FetchData" {
 			return false
 		}
-		methodCall := c.AsFetchData()
+		methodCall := callToCheck.AsFetchData()
 		if methodCall.id != id {
 			return false
 		}
@@ -171,11 +171,11 @@ func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsAre(id int) *ExternalS
 }
 
 func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsShould(id any) *ExternalServiceImpFetchDataCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		if c.Name() != "FetchData" {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		if callToCheck.Name() != "FetchData" {
 			return false
 		}
-		methodCall := c.AsFetchData()
+		methodCall := callToCheck.AsFetchData()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.id, id)
 		if !ok {
@@ -189,8 +189,8 @@ func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsShould(id any) *Extern
 }
 
 func (bldr *ExternalServiceImpFetchDataBuilder) InjectResults(r0 string, r1 error) *ExternalServiceImpFetchDataCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		return c.Name() == "FetchData"
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		return callToCheck.Name() == "FetchData"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -200,8 +200,8 @@ func (bldr *ExternalServiceImpFetchDataBuilder) InjectResults(r0 string, r1 erro
 }
 
 func (bldr *ExternalServiceImpFetchDataBuilder) InjectPanic(msg any) *ExternalServiceImpFetchDataCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		return c.Name() == "FetchData"
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		return callToCheck.Name() == "FetchData"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -220,11 +220,11 @@ func (e *ExternalServiceImpExpectCallIs) Process() *ExternalServiceImpProcessBui
 }
 
 func (bldr *ExternalServiceImpProcessBuilder) ExpectArgsAre(data string) *ExternalServiceImpProcessCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		if c.Name() != "Process" {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		if callToCheck.Name() != "Process" {
 			return false
 		}
-		methodCall := c.AsProcess()
+		methodCall := callToCheck.AsProcess()
 		if methodCall.data != data {
 			return false
 		}
@@ -236,11 +236,11 @@ func (bldr *ExternalServiceImpProcessBuilder) ExpectArgsAre(data string) *Extern
 }
 
 func (bldr *ExternalServiceImpProcessBuilder) ExpectArgsShould(data any) *ExternalServiceImpProcessCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		if c.Name() != "Process" {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		if callToCheck.Name() != "Process" {
 			return false
 		}
-		methodCall := c.AsProcess()
+		methodCall := callToCheck.AsProcess()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.data, data)
 		if !ok {
@@ -254,8 +254,8 @@ func (bldr *ExternalServiceImpProcessBuilder) ExpectArgsShould(data any) *Extern
 }
 
 func (bldr *ExternalServiceImpProcessBuilder) InjectResult(result string) *ExternalServiceImpProcessCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		return c.Name() == "Process"
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		return callToCheck.Name() == "Process"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -265,8 +265,8 @@ func (bldr *ExternalServiceImpProcessBuilder) InjectResult(result string) *Exter
 }
 
 func (bldr *ExternalServiceImpProcessBuilder) InjectPanic(msg any) *ExternalServiceImpProcessCall {
-	validator := func(c *ExternalServiceImpCall) bool {
-		return c.Name() == "Process"
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		return callToCheck.Name() == "Process"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

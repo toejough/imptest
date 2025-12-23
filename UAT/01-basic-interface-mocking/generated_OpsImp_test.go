@@ -324,11 +324,11 @@ func (e *OpsImpExpectCallIs) Add() *OpsImpAddBuilder {
 }
 
 func (bldr *OpsImpAddBuilder) ExpectArgsAre(a int, b int) *OpsImpAddCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Add" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Add" {
 			return false
 		}
-		methodCall := c.AsAdd()
+		methodCall := callToCheck.AsAdd()
 		if methodCall.a != a {
 			return false
 		}
@@ -343,11 +343,11 @@ func (bldr *OpsImpAddBuilder) ExpectArgsAre(a int, b int) *OpsImpAddCall {
 }
 
 func (bldr *OpsImpAddBuilder) ExpectArgsShould(a any, b any) *OpsImpAddCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Add" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Add" {
 			return false
 		}
-		methodCall := c.AsAdd()
+		methodCall := callToCheck.AsAdd()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.a, a)
 		if !ok {
@@ -365,8 +365,8 @@ func (bldr *OpsImpAddBuilder) ExpectArgsShould(a any, b any) *OpsImpAddCall {
 }
 
 func (bldr *OpsImpAddBuilder) InjectResult(result int) *OpsImpAddCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Add"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Add"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -376,8 +376,8 @@ func (bldr *OpsImpAddBuilder) InjectResult(result int) *OpsImpAddCall {
 }
 
 func (bldr *OpsImpAddBuilder) InjectPanic(msg any) *OpsImpAddCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Add"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Add"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -396,11 +396,11 @@ func (e *OpsImpExpectCallIs) Store() *OpsImpStoreBuilder {
 }
 
 func (bldr *OpsImpStoreBuilder) ExpectArgsAre(key string, value any) *OpsImpStoreCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Store" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Store" {
 			return false
 		}
-		methodCall := c.AsStore()
+		methodCall := callToCheck.AsStore()
 		if methodCall.key != key {
 			return false
 		}
@@ -415,11 +415,11 @@ func (bldr *OpsImpStoreBuilder) ExpectArgsAre(key string, value any) *OpsImpStor
 }
 
 func (bldr *OpsImpStoreBuilder) ExpectArgsShould(key any, value any) *OpsImpStoreCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Store" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Store" {
 			return false
 		}
-		methodCall := c.AsStore()
+		methodCall := callToCheck.AsStore()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.key, key)
 		if !ok {
@@ -437,8 +437,8 @@ func (bldr *OpsImpStoreBuilder) ExpectArgsShould(key any, value any) *OpsImpStor
 }
 
 func (bldr *OpsImpStoreBuilder) InjectResults(r0 int, r1 error) *OpsImpStoreCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Store"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Store"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -448,8 +448,8 @@ func (bldr *OpsImpStoreBuilder) InjectResults(r0 int, r1 error) *OpsImpStoreCall
 }
 
 func (bldr *OpsImpStoreBuilder) InjectPanic(msg any) *OpsImpStoreCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Store"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Store"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -468,11 +468,11 @@ func (e *OpsImpExpectCallIs) Log() *OpsImpLogBuilder {
 }
 
 func (bldr *OpsImpLogBuilder) ExpectArgsAre(message string) *OpsImpLogCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Log" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Log" {
 			return false
 		}
-		methodCall := c.AsLog()
+		methodCall := callToCheck.AsLog()
 		if methodCall.message != message {
 			return false
 		}
@@ -484,11 +484,11 @@ func (bldr *OpsImpLogBuilder) ExpectArgsAre(message string) *OpsImpLogCall {
 }
 
 func (bldr *OpsImpLogBuilder) ExpectArgsShould(message any) *OpsImpLogCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Log" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Log" {
 			return false
 		}
-		methodCall := c.AsLog()
+		methodCall := callToCheck.AsLog()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.message, message)
 		if !ok {
@@ -502,8 +502,8 @@ func (bldr *OpsImpLogBuilder) ExpectArgsShould(message any) *OpsImpLogCall {
 }
 
 func (bldr *OpsImpLogBuilder) Resolve() *OpsImpLogCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Log"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Log"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -513,8 +513,8 @@ func (bldr *OpsImpLogBuilder) Resolve() *OpsImpLogCall {
 }
 
 func (bldr *OpsImpLogBuilder) InjectPanic(msg any) *OpsImpLogCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Log"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Log"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -533,11 +533,11 @@ func (e *OpsImpExpectCallIs) Notify() *OpsImpNotifyBuilder {
 }
 
 func (bldr *OpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *OpsImpNotifyCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Notify" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Notify" {
 			return false
 		}
-		methodCall := c.AsNotify()
+		methodCall := callToCheck.AsNotify()
 		if methodCall.message != message {
 			return false
 		}
@@ -552,11 +552,11 @@ func (bldr *OpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *OpsI
 }
 
 func (bldr *OpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *OpsImpNotifyCall {
-	validator := func(c *OpsImpCall) bool {
-		if c.Name() != "Notify" {
+	validator := func(callToCheck *OpsImpCall) bool {
+		if callToCheck.Name() != "Notify" {
 			return false
 		}
-		methodCall := c.AsNotify()
+		methodCall := callToCheck.AsNotify()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.message, message)
 		if !ok {
@@ -574,8 +574,8 @@ func (bldr *OpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *OpsImpN
 }
 
 func (bldr *OpsImpNotifyBuilder) InjectResult(result bool) *OpsImpNotifyCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Notify"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Notify"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -585,8 +585,8 @@ func (bldr *OpsImpNotifyBuilder) InjectResult(result bool) *OpsImpNotifyCall {
 }
 
 func (bldr *OpsImpNotifyBuilder) InjectPanic(msg any) *OpsImpNotifyCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Notify"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Notify"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -605,8 +605,8 @@ func (e *OpsImpExpectCallIs) Finish() *OpsImpFinishBuilder {
 }
 
 func (bldr *OpsImpFinishBuilder) InjectResult(result bool) *OpsImpFinishCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Finish"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Finish"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -616,8 +616,8 @@ func (bldr *OpsImpFinishBuilder) InjectResult(result bool) *OpsImpFinishCall {
 }
 
 func (bldr *OpsImpFinishBuilder) InjectPanic(msg any) *OpsImpFinishCall {
-	validator := func(c *OpsImpCall) bool {
-		return c.Name() == "Finish"
+	validator := func(callToCheck *OpsImpCall) bool {
+		return callToCheck.Name() == "Finish"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

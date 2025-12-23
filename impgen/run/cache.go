@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -38,7 +37,7 @@ var errProjectRootNotFound = errors.New("could not find project root (go.mod)")
 
 // CalculatePackageSignature generates a unique hash based on CLI arguments
 // and the Go source files in the current directory.
-func CalculatePackageSignature(args []string) (string, error) {
+func CalculatePackageSignature(args []string, fileReader FileReader) (string, error) {
 	pkgHash := sha256.New()
 
 	// 1. Hash the arguments (skip program name)
@@ -47,7 +46,7 @@ func CalculatePackageSignature(args []string) (string, error) {
 	}
 
 	// 2. Hash all .go files in the current directory (where go:generate runs)
-	files, err := filepath.Glob("*.go")
+	files, err := fileReader.Glob("*.go")
 	if err != nil {
 		return "", fmt.Errorf("failed to glob go files: %w", err)
 	}
@@ -60,18 +59,12 @@ func CalculatePackageSignature(args []string) (string, error) {
 			continue
 		}
 
-		file, err := os.Open(fileName)
+		data, err := fileReader.ReadFile(fileName)
 		if err != nil {
-			return "", fmt.Errorf("failed to open file %s: %w", fileName, err)
+			return "", fmt.Errorf("failed to read file %s: %w", fileName, err)
 		}
 
-		_, err = io.Copy(pkgHash, file)
-		if err != nil {
-			file.Close()
-			return "", fmt.Errorf("failed to hash file %s: %w", fileName, err)
-		}
-
-		file.Close()
+		_, _ = pkgHash.Write(data)
 	}
 
 	return hex.EncodeToString(pkgHash.Sum(nil)), nil

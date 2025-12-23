@@ -99,11 +99,11 @@ func (e *ComplexServiceImpExpectCallIs) Process() *ComplexServiceImpProcessBuild
 }
 
 func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsAre(d matching.Data) *ComplexServiceImpProcessCall {
-	validator := func(c *ComplexServiceImpCall) bool {
-		if c.Name() != "Process" {
+	validator := func(callToCheck *ComplexServiceImpCall) bool {
+		if callToCheck.Name() != "Process" {
 			return false
 		}
-		methodCall := c.AsProcess()
+		methodCall := callToCheck.AsProcess()
 		if methodCall.d != d {
 			return false
 		}
@@ -115,11 +115,11 @@ func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsAre(d matching.Data) *Com
 }
 
 func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsShould(d any) *ComplexServiceImpProcessCall {
-	validator := func(c *ComplexServiceImpCall) bool {
-		if c.Name() != "Process" {
+	validator := func(callToCheck *ComplexServiceImpCall) bool {
+		if callToCheck.Name() != "Process" {
 			return false
 		}
-		methodCall := c.AsProcess()
+		methodCall := callToCheck.AsProcess()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.d, d)
 		if !ok {
@@ -133,8 +133,8 @@ func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsShould(d any) *ComplexSer
 }
 
 func (bldr *ComplexServiceImpProcessBuilder) InjectResult(result bool) *ComplexServiceImpProcessCall {
-	validator := func(c *ComplexServiceImpCall) bool {
-		return c.Name() == "Process"
+	validator := func(callToCheck *ComplexServiceImpCall) bool {
+		return callToCheck.Name() == "Process"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -144,8 +144,8 @@ func (bldr *ComplexServiceImpProcessBuilder) InjectResult(result bool) *ComplexS
 }
 
 func (bldr *ComplexServiceImpProcessBuilder) InjectPanic(msg any) *ComplexServiceImpProcessCall {
-	validator := func(c *ComplexServiceImpCall) bool {
-		return c.Name() == "Process"
+	validator := func(callToCheck *ComplexServiceImpCall) bool {
+		return callToCheck.Name() == "Process"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

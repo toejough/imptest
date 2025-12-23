@@ -26,6 +26,11 @@ import "github.com/foo/external"
 var _ external.Service
 `
 
+const simpleInterfaceSource = `package mypkg
+type MyInterface interface {
+	DoSomething()
+}`
+
 var errPackageNotFound = errors.New("package not found")
 
 var errWriteFailed = errors.New("write failed")
@@ -34,6 +39,7 @@ var errWriteFailed = errors.New("write failed")
 type MockFileSystem struct {
 	files     map[string][]byte
 	writeHook func(name string, data []byte) error
+	globHook  func(pattern string) ([]string, error)
 }
 
 // NewMockFileSystem creates a new MockFileSystem for testing file operations.
@@ -52,6 +58,38 @@ func (m *MockFileSystem) WriteFile(name string, data []byte, _ os.FileMode) erro
 	m.files[name] = data
 
 	return nil
+}
+
+// Glob implements FileSystem.Glob for testing.
+func (m *MockFileSystem) Glob(pattern string) ([]string, error) {
+	if m.globHook != nil {
+		return m.globHook(pattern)
+	}
+
+	// Simple mock implementation - return files that match *.go pattern
+	if pattern == "*.go" {
+		var matches []string
+
+		for name := range m.files {
+			if strings.HasSuffix(name, ".go") {
+				matches = append(matches, name)
+			}
+		}
+
+		return matches, nil
+	}
+
+	return nil, nil
+}
+
+// ReadFile implements FileSystem.ReadFile for testing.
+func (m *MockFileSystem) ReadFile(name string) ([]byte, error) {
+	data, ok := m.files[name]
+	if !ok {
+		return nil, fmt.Errorf("file not found: %s", name)
+	}
+
+	return data, nil
 }
 
 // MockPackageLoader implements PackageLoader for testing.
@@ -1955,4 +1993,166 @@ func Process(input Data) Data { return input }`)
 			t.Error("Expected qualified import in header")
 		}
 	})
+}
+
+// Tests for WithCache
+
+func TestWithCache_CacheHit(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	sourceCode := simpleInterfaceSource
+	// Add source file to mock filesystem for signature calculation
+	mockFS.files["source.go"] = []byte(sourceCode)
+
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"generator", "MyInterface", "--name", "MyImp"}
+
+	// First run - populate cache
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("First run failed: %v", err)
+	}
+
+	// Keep source file but clear generated file to verify we're reading from cache
+	generatedFile := mockFS.files["generated_MyImp.go"]
+	mockFS.files = make(map[string][]byte)
+	mockFS.files["source.go"] = []byte(sourceCode)
+
+	// Second run - should hit cache and restore file
+	err = run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Second run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["generated_MyImp.go"]; !ok {
+		t.Error("Expected file to be restored from cache")
+	}
+
+	// Verify the content matches what was generated originally
+	if string(mockFS.files["generated_MyImp.go"]) != string(generatedFile) {
+		t.Error("Cached content doesn't match original")
+	}
+}
+
+func TestWithCache_SignatureCalculationFails(t *testing.T) {
+	t.Parallel()
+
+	// Test fallback when filesystem Glob fails
+	mockFS := NewMockFileSystem()
+	// Override Glob to return an error
+	mockFS.globHook = func(_ string) ([]string, error) {
+		return nil, errors.New("glob failed")
+	}
+
+	sourceCode := simpleInterfaceSource
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"generator", "MyInterface", "--name", "MyImp"}
+
+	// Should still work even if signature calculation fails
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	if _, ok := mockFS.files["generated_MyImp.go"]; !ok {
+		t.Error("Expected file to be created even if caching fails")
+	}
+}
+
+func TestWithCache_WriteErrorFromCache(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	sourceCode := simpleInterfaceSource
+	// Add source file to mock filesystem for signature calculation
+	mockFS.files["source.go"] = []byte(sourceCode)
+
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	args := []string{"generator", "MyInterface", "--name", "MyImp"}
+
+	// First run - populate cache
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("First run failed: %v", err)
+	}
+
+	// Configure write to fail
+	mockFS.writeHook = func(_ string, _ []byte) error {
+		return errWriteFailed
+	}
+
+	// Second run - write fails (will take cache miss path since FindProjectRoot fails with mockFS)
+	err = run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Fatal("Expected error when writing fails")
+	}
+
+	if !strings.Contains(err.Error(), "error writing") && !strings.Contains(err.Error(), "write failed") {
+		t.Errorf("Expected write error, got: %v", err)
+	}
+}
+
+func TestWithCache_DifferentArgs(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	sourceCode := `package mypkg
+type MyInterface interface {
+	DoSomething()
+}
+type OtherInterface interface {
+	DoOther()
+}`
+	// Add source file to mock filesystem for signature calculation
+	mockFS.files["source.go"] = []byte(sourceCode)
+
+	mockPkgLoader := NewMockPackageLoader()
+	mockPkgLoader.AddPackageFromSource(".", sourceCode)
+
+	// First run with MyInterface
+	args1 := []string{"generator", "MyInterface", "--name", "MyImp"}
+
+	err := run.WithCache(args1, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("First run failed: %v", err)
+	}
+
+	// Second run with OtherInterface - should be cache miss (different args)
+	args2 := []string{"generator", "OtherInterface", "--name", "OtherImp"}
+
+	err = run.WithCache(args2, envWithPkgName, mockFS, mockPkgLoader)
+	if err != nil {
+		t.Fatalf("Second run failed: %v", err)
+	}
+
+	// Both files should exist
+	if _, ok := mockFS.files["generated_MyImp.go"]; !ok {
+		t.Error("Expected MyImp.go to exist")
+	}
+
+	if _, ok := mockFS.files["generated_OtherImp.go"]; !ok {
+		t.Error("Expected OtherImp.go to exist")
+	}
+}
+
+func TestWithCache_RunError(t *testing.T) {
+	t.Parallel()
+
+	mockFS := NewMockFileSystem()
+	mockPkgLoader := NewMockPackageLoader()
+	// Don't register any packages - will cause Run() to fail
+
+	args := []string{"generator", "MyInterface", "--name", "MyImp"}
+
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	if err == nil {
+		t.Error("Expected error when Run() fails")
+	}
 }

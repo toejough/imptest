@@ -156,11 +156,11 @@ func (e *RepositoryImpExpectCallIs[T]) Save() *RepositoryImpSaveBuilder[T] {
 }
 
 func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsAre(item T) *RepositoryImpSaveCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		if c.Name() != "Save" {
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		if callToCheck.Name() != "Save" {
 			return false
 		}
-		methodCall := c.AsSave()
+		methodCall := callToCheck.AsSave()
 		if !reflect.DeepEqual(methodCall.item, item) {
 			return false
 		}
@@ -172,11 +172,11 @@ func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsAre(item T) *RepositoryImpSav
 }
 
 func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsShould(item any) *RepositoryImpSaveCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		if c.Name() != "Save" {
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		if callToCheck.Name() != "Save" {
 			return false
 		}
-		methodCall := c.AsSave()
+		methodCall := callToCheck.AsSave()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.item, item)
 		if !ok {
@@ -190,8 +190,8 @@ func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsShould(item any) *RepositoryI
 }
 
 func (bldr *RepositoryImpSaveBuilder[T]) InjectResult(result error) *RepositoryImpSaveCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		return c.Name() == "Save"
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		return callToCheck.Name() == "Save"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -201,8 +201,8 @@ func (bldr *RepositoryImpSaveBuilder[T]) InjectResult(result error) *RepositoryI
 }
 
 func (bldr *RepositoryImpSaveBuilder[T]) InjectPanic(msg any) *RepositoryImpSaveCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		return c.Name() == "Save"
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		return callToCheck.Name() == "Save"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -221,11 +221,11 @@ func (e *RepositoryImpExpectCallIs[T]) Get() *RepositoryImpGetBuilder[T] {
 }
 
 func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsAre(id string) *RepositoryImpGetCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		if c.Name() != "Get" {
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		if callToCheck.Name() != "Get" {
 			return false
 		}
-		methodCall := c.AsGet()
+		methodCall := callToCheck.AsGet()
 		if methodCall.id != id {
 			return false
 		}
@@ -237,11 +237,11 @@ func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsAre(id string) *RepositoryImpG
 }
 
 func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsShould(id any) *RepositoryImpGetCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		if c.Name() != "Get" {
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		if callToCheck.Name() != "Get" {
 			return false
 		}
-		methodCall := c.AsGet()
+		methodCall := callToCheck.AsGet()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.id, id)
 		if !ok {
@@ -255,8 +255,8 @@ func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsShould(id any) *RepositoryImpG
 }
 
 func (bldr *RepositoryImpGetBuilder[T]) InjectResults(r0 T, r1 error) *RepositoryImpGetCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		return c.Name() == "Get"
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		return callToCheck.Name() == "Get"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -266,8 +266,8 @@ func (bldr *RepositoryImpGetBuilder[T]) InjectResults(r0 T, r1 error) *Repositor
 }
 
 func (bldr *RepositoryImpGetBuilder[T]) InjectPanic(msg any) *RepositoryImpGetCall[T] {
-	validator := func(c *RepositoryImpCall[T]) bool {
-		return c.Name() == "Get"
+	validator := func(callToCheck *RepositoryImpCall[T]) bool {
+		return callToCheck.Name() == "Get"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

@@ -438,16 +438,43 @@ func Fuzz(c context.Context) error {
 	return run(c, "./dev/fuzz.fish")
 }
 
-// Generate runs go generate on all packages.
+// Build builds the local impgen binary.
+func Build(c context.Context) error {
+	fmt.Println("Building impgen...")
+
+	// Create bin directory if it doesn't exist
+	err := os.MkdirAll("bin", 0o755)
+	if err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
+	// Build impgen to ./bin/impgen
+	return run(c, "go", "build", "-o", "bin/impgen", "./impgen")
+}
+
+// Generate runs go generate on all packages using the locally-built impgen binary.
 func Generate(c context.Context) error {
 	fmt.Println("Generating...")
 
-	return run(
-		c,
-		"go",
-		"generate",
-		"./...",
-	)
+	// Build local impgen first
+	mg.Deps(Build)
+
+	// Get current PATH and prepend our bin directory
+	currentPath := os.Getenv("PATH")
+	binDir, err := filepath.Abs("bin")
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for bin: %w", err)
+	}
+	newPath := binDir + string(filepath.ListSeparator) + currentPath
+
+	// Run go generate with modified PATH
+	cmd := exec.CommandContext(c, "go", "generate", "./...")
+	cmd.Env = append(os.Environ(), "PATH="+newPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }
 
 // Install development tooling.

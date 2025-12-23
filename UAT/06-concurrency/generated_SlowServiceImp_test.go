@@ -153,11 +153,11 @@ func (e *SlowServiceImpExpectCallIs) DoA() *SlowServiceImpDoABuilder {
 }
 
 func (bldr *SlowServiceImpDoABuilder) ExpectArgsAre(id int) *SlowServiceImpDoACall {
-	validator := func(c *SlowServiceImpCall) bool {
-		if c.Name() != "DoA" {
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		if callToCheck.Name() != "DoA" {
 			return false
 		}
-		methodCall := c.AsDoA()
+		methodCall := callToCheck.AsDoA()
 		if methodCall.id != id {
 			return false
 		}
@@ -169,11 +169,11 @@ func (bldr *SlowServiceImpDoABuilder) ExpectArgsAre(id int) *SlowServiceImpDoACa
 }
 
 func (bldr *SlowServiceImpDoABuilder) ExpectArgsShould(id any) *SlowServiceImpDoACall {
-	validator := func(c *SlowServiceImpCall) bool {
-		if c.Name() != "DoA" {
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		if callToCheck.Name() != "DoA" {
 			return false
 		}
-		methodCall := c.AsDoA()
+		methodCall := callToCheck.AsDoA()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.id, id)
 		if !ok {
@@ -187,8 +187,8 @@ func (bldr *SlowServiceImpDoABuilder) ExpectArgsShould(id any) *SlowServiceImpDo
 }
 
 func (bldr *SlowServiceImpDoABuilder) InjectResult(result string) *SlowServiceImpDoACall {
-	validator := func(c *SlowServiceImpCall) bool {
-		return c.Name() == "DoA"
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		return callToCheck.Name() == "DoA"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -198,8 +198,8 @@ func (bldr *SlowServiceImpDoABuilder) InjectResult(result string) *SlowServiceIm
 }
 
 func (bldr *SlowServiceImpDoABuilder) InjectPanic(msg any) *SlowServiceImpDoACall {
-	validator := func(c *SlowServiceImpCall) bool {
-		return c.Name() == "DoA"
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		return callToCheck.Name() == "DoA"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -218,11 +218,11 @@ func (e *SlowServiceImpExpectCallIs) DoB() *SlowServiceImpDoBBuilder {
 }
 
 func (bldr *SlowServiceImpDoBBuilder) ExpectArgsAre(id int) *SlowServiceImpDoBCall {
-	validator := func(c *SlowServiceImpCall) bool {
-		if c.Name() != "DoB" {
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		if callToCheck.Name() != "DoB" {
 			return false
 		}
-		methodCall := c.AsDoB()
+		methodCall := callToCheck.AsDoB()
 		if methodCall.id != id {
 			return false
 		}
@@ -234,11 +234,11 @@ func (bldr *SlowServiceImpDoBBuilder) ExpectArgsAre(id int) *SlowServiceImpDoBCa
 }
 
 func (bldr *SlowServiceImpDoBBuilder) ExpectArgsShould(id any) *SlowServiceImpDoBCall {
-	validator := func(c *SlowServiceImpCall) bool {
-		if c.Name() != "DoB" {
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		if callToCheck.Name() != "DoB" {
 			return false
 		}
-		methodCall := c.AsDoB()
+		methodCall := callToCheck.AsDoB()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.id, id)
 		if !ok {
@@ -252,8 +252,8 @@ func (bldr *SlowServiceImpDoBBuilder) ExpectArgsShould(id any) *SlowServiceImpDo
 }
 
 func (bldr *SlowServiceImpDoBBuilder) InjectResult(result string) *SlowServiceImpDoBCall {
-	validator := func(c *SlowServiceImpCall) bool {
-		return c.Name() == "DoB"
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		return callToCheck.Name() == "DoB"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -263,8 +263,8 @@ func (bldr *SlowServiceImpDoBBuilder) InjectResult(result string) *SlowServiceIm
 }
 
 func (bldr *SlowServiceImpDoBBuilder) InjectPanic(msg any) *SlowServiceImpDoBCall {
-	validator := func(c *SlowServiceImpCall) bool {
-		return c.Name() == "DoB"
+	validator := func(callToCheck *SlowServiceImpCall) bool {
+		return callToCheck.Name() == "DoB"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

@@ -212,3 +212,291 @@ func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
 		t.Error("expected W not to be a type parameter")
 	}
 }
+
+func TestHasParams_mutant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		ftype    *ast.FuncType
+		expected bool
+	}{
+		{
+			name:     "nil params",
+			ftype:    &ast.FuncType{Params: nil},
+			expected: false,
+		},
+		{
+			name:     "empty params list",
+			ftype:    &ast.FuncType{Params: &ast.FieldList{List: []*ast.Field{}}},
+			expected: false,
+		},
+		{
+			name: "single param",
+			ftype: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "multiple params",
+			ftype: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+						{Names: []*ast.Ident{{Name: "y"}}, Type: &ast.Ident{Name: "string"}},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := hasParams(testCase.ftype)
+			if got != testCase.expected {
+				t.Errorf("hasParams() = %v, want %v", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestHasResults_mutant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		ftype    *ast.FuncType
+		expected bool
+	}{
+		{
+			name:     "nil results",
+			ftype:    &ast.FuncType{Results: nil},
+			expected: false,
+		},
+		{
+			name:     "empty results list",
+			ftype:    &ast.FuncType{Results: &ast.FieldList{List: []*ast.Field{}}},
+			expected: false,
+		},
+		{
+			name: "single result",
+			ftype: &ast.FuncType{
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{Type: &ast.Ident{Name: "int"}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "multiple results",
+			ftype: &ast.FuncType{
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{Type: &ast.Ident{Name: "int"}},
+						{Type: &ast.Ident{Name: "error"}},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := hasResults(testCase.ftype)
+			if got != testCase.expected {
+				t.Errorf("hasResults() = %v, want %v", got, testCase.expected)
+			}
+		})
+	}
+}
+
+//nolint:funlen // Table-driven test with comprehensive edge cases
+func TestCountFields_mutant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		fields   *ast.FieldList
+		expected int
+	}{
+		{
+			name:     "nil field list",
+			fields:   nil,
+			expected: 0,
+		},
+		{
+			name:     "empty field list",
+			fields:   &ast.FieldList{List: []*ast.Field{}},
+			expected: 0,
+		},
+		{
+			name: "single named field",
+			fields: &ast.FieldList{
+				List: []*ast.Field{
+					{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+				},
+			},
+			expected: 1,
+		},
+		{
+			name: "multiple names in one field",
+			fields: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{{Name: "x"}, {Name: "y"}, {Name: "z"}},
+						Type:  &ast.Ident{Name: "int"},
+					},
+				},
+			},
+			expected: 3,
+		},
+		{
+			name: "unnamed field",
+			fields: &ast.FieldList{
+				List: []*ast.Field{
+					{Names: nil, Type: &ast.Ident{Name: "int"}},
+				},
+			},
+			expected: 1,
+		},
+		{
+			name: "mixed named and unnamed fields",
+			fields: &ast.FieldList{
+				List: []*ast.Field{
+					{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+					{Names: nil, Type: &ast.Ident{Name: "string"}},
+					{Names: []*ast.Ident{{Name: "a"}, {Name: "b"}}, Type: &ast.Ident{Name: "bool"}},
+				},
+			},
+			expected: 4,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := countFields(testCase.fields)
+			if got != testCase.expected {
+				t.Errorf("countFields() = %v, want %v", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestFieldNameCount_mutant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		field    *ast.Field
+		expected int
+	}{
+		{
+			name:     "unnamed field",
+			field:    &ast.Field{Names: nil, Type: &ast.Ident{Name: "int"}},
+			expected: 1,
+		},
+		{
+			name:     "empty names",
+			field:    &ast.Field{Names: []*ast.Ident{}, Type: &ast.Ident{Name: "int"}},
+			expected: 1,
+		},
+		{
+			name: "single named field",
+			field: &ast.Field{
+				Names: []*ast.Ident{{Name: "x"}},
+				Type:  &ast.Ident{Name: "int"},
+			},
+			expected: 1,
+		},
+		{
+			name: "multiple names",
+			field: &ast.Field{
+				Names: []*ast.Ident{{Name: "x"}, {Name: "y"}, {Name: "z"}},
+				Type:  &ast.Ident{Name: "int"},
+			},
+			expected: 3,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := fieldNameCount(testCase.field)
+			if got != testCase.expected {
+				t.Errorf("fieldNameCount() = %v, want %v", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestParamNamesToString_mutant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		params   []fieldInfo
+		expected string
+	}{
+		{
+			name:     "empty params",
+			params:   []fieldInfo{},
+			expected: "",
+		},
+		{
+			name:     "nil params",
+			params:   nil,
+			expected: "",
+		},
+		{
+			name: "single param",
+			params: []fieldInfo{
+				{Name: "x", Type: "int", Index: 0},
+			},
+			expected: "x",
+		},
+		{
+			name: "multiple params",
+			params: []fieldInfo{
+				{Name: "x", Type: "int", Index: 0},
+				{Name: "y", Type: "string", Index: 1},
+				{Name: "z", Type: "bool", Index: 2},
+			},
+			expected: "x, y, z",
+		},
+		{
+			name: "generated param names",
+			params: []fieldInfo{
+				{Name: "param0", Type: "int", Index: 0},
+				{Name: "param1", Type: "string", Index: 1},
+			},
+			expected: "param0, param1",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := paramNamesToString(testCase.params)
+			if got != testCase.expected {
+				t.Errorf("paramNamesToString() = %q, want %q", got, testCase.expected)
+			}
+		})
+	}
+}

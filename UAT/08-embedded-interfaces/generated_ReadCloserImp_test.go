@@ -154,11 +154,11 @@ func (e *ReadCloserImpExpectCallIs) Read() *ReadCloserImpReadBuilder {
 }
 
 func (bldr *ReadCloserImpReadBuilder) ExpectArgsAre(p []byte) *ReadCloserImpReadCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		if c.Name() != "Read" {
+	validator := func(callToCheck *ReadCloserImpCall) bool {
+		if callToCheck.Name() != "Read" {
 			return false
 		}
-		methodCall := c.AsRead()
+		methodCall := callToCheck.AsRead()
 		if !reflect.DeepEqual(methodCall.p, p) {
 			return false
 		}
@@ -170,11 +170,11 @@ func (bldr *ReadCloserImpReadBuilder) ExpectArgsAre(p []byte) *ReadCloserImpRead
 }
 
 func (bldr *ReadCloserImpReadBuilder) ExpectArgsShould(p any) *ReadCloserImpReadCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		if c.Name() != "Read" {
+	validator := func(callToCheck *ReadCloserImpCall) bool {
+		if callToCheck.Name() != "Read" {
 			return false
 		}
-		methodCall := c.AsRead()
+		methodCall := callToCheck.AsRead()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.p, p)
 		if !ok {
@@ -188,8 +188,8 @@ func (bldr *ReadCloserImpReadBuilder) ExpectArgsShould(p any) *ReadCloserImpRead
 }
 
 func (bldr *ReadCloserImpReadBuilder) InjectResults(r0 int, r1 error) *ReadCloserImpReadCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		return c.Name() == "Read"
+	validator := func(callToCheck *ReadCloserImpCall) bool {
+		return callToCheck.Name() == "Read"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -199,8 +199,8 @@ func (bldr *ReadCloserImpReadBuilder) InjectResults(r0 int, r1 error) *ReadClose
 }
 
 func (bldr *ReadCloserImpReadBuilder) InjectPanic(msg any) *ReadCloserImpReadCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		return c.Name() == "Read"
+	validator := func(callToCheck *ReadCloserImpCall) bool {
+		return callToCheck.Name() == "Read"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -219,8 +219,8 @@ func (e *ReadCloserImpExpectCallIs) Close() *ReadCloserImpCloseBuilder {
 }
 
 func (bldr *ReadCloserImpCloseBuilder) InjectResult(result error) *ReadCloserImpCloseCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		return c.Name() == "Close"
+	validator := func(callToCheck *ReadCloserImpCall) bool {
+		return callToCheck.Name() == "Close"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -230,8 +230,8 @@ func (bldr *ReadCloserImpCloseBuilder) InjectResult(result error) *ReadCloserImp
 }
 
 func (bldr *ReadCloserImpCloseBuilder) InjectPanic(msg any) *ReadCloserImpCloseCall {
-	validator := func(c *ReadCloserImpCall) bool {
-		return c.Name() == "Close"
+	validator := func(callToCheck *ReadCloserImpCall) bool {
+		return callToCheck.Name() == "Close"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

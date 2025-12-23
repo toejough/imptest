@@ -154,11 +154,11 @@ func (e *DataProcessorImpExpectCallIs) ProcessSlice() *DataProcessorImpProcessSl
 }
 
 func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsAre(data []string) *DataProcessorImpProcessSliceCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		if c.Name() != "ProcessSlice" {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		if callToCheck.Name() != "ProcessSlice" {
 			return false
 		}
-		methodCall := c.AsProcessSlice()
+		methodCall := callToCheck.AsProcessSlice()
 		if !reflect.DeepEqual(methodCall.data, data) {
 			return false
 		}
@@ -170,11 +170,11 @@ func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsAre(data []string) *D
 }
 
 func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsShould(data any) *DataProcessorImpProcessSliceCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		if c.Name() != "ProcessSlice" {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		if callToCheck.Name() != "ProcessSlice" {
 			return false
 		}
-		methodCall := c.AsProcessSlice()
+		methodCall := callToCheck.AsProcessSlice()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.data, data)
 		if !ok {
@@ -188,8 +188,8 @@ func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsShould(data any) *Dat
 }
 
 func (bldr *DataProcessorImpProcessSliceBuilder) InjectResult(result int) *DataProcessorImpProcessSliceCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		return c.Name() == "ProcessSlice"
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		return callToCheck.Name() == "ProcessSlice"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -199,8 +199,8 @@ func (bldr *DataProcessorImpProcessSliceBuilder) InjectResult(result int) *DataP
 }
 
 func (bldr *DataProcessorImpProcessSliceBuilder) InjectPanic(msg any) *DataProcessorImpProcessSliceCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		return c.Name() == "ProcessSlice"
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		return callToCheck.Name() == "ProcessSlice"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -219,11 +219,11 @@ func (e *DataProcessorImpExpectCallIs) ProcessMap() *DataProcessorImpProcessMapB
 }
 
 func (bldr *DataProcessorImpProcessMapBuilder) ExpectArgsAre(config map[string]int) *DataProcessorImpProcessMapCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		if c.Name() != "ProcessMap" {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		if callToCheck.Name() != "ProcessMap" {
 			return false
 		}
-		methodCall := c.AsProcessMap()
+		methodCall := callToCheck.AsProcessMap()
 		if !reflect.DeepEqual(methodCall.config, config) {
 			return false
 		}
@@ -235,11 +235,11 @@ func (bldr *DataProcessorImpProcessMapBuilder) ExpectArgsAre(config map[string]i
 }
 
 func (bldr *DataProcessorImpProcessMapBuilder) ExpectArgsShould(config any) *DataProcessorImpProcessMapCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		if c.Name() != "ProcessMap" {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		if callToCheck.Name() != "ProcessMap" {
 			return false
 		}
-		methodCall := c.AsProcessMap()
+		methodCall := callToCheck.AsProcessMap()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.config, config)
 		if !ok {
@@ -253,8 +253,8 @@ func (bldr *DataProcessorImpProcessMapBuilder) ExpectArgsShould(config any) *Dat
 }
 
 func (bldr *DataProcessorImpProcessMapBuilder) InjectResult(result bool) *DataProcessorImpProcessMapCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		return c.Name() == "ProcessMap"
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		return callToCheck.Name() == "ProcessMap"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -264,8 +264,8 @@ func (bldr *DataProcessorImpProcessMapBuilder) InjectResult(result bool) *DataPr
 }
 
 func (bldr *DataProcessorImpProcessMapBuilder) InjectPanic(msg any) *DataProcessorImpProcessMapCall {
-	validator := func(c *DataProcessorImpCall) bool {
-		return c.Name() == "ProcessMap"
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		return callToCheck.Name() == "ProcessMap"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

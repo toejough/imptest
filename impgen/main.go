@@ -14,7 +14,6 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/toejough/imptest/impgen/run"
 	"golang.org/x/tools/go/packages"
@@ -31,83 +30,11 @@ func main() {
 		return
 	}
 
-	// 1. Calculate current signature
-	sig, err := run.CalculatePackageSignature(os.Args)
-	if err != nil {
-		runWithNoCache()
-		return
-	}
-
-	// 2. Find project root and cache file
-	root, err := run.FindProjectRoot()
-	if err != nil {
-		runWithNoCache()
-		return
-	}
-
-	cachePath := filepath.Join(root, run.CacheDirName, "cache.json")
-	cache := run.LoadDiskCache(cachePath)
-
-	// 3. Check cache
-	key := strings.Join(os.Args[1:], " ")
-	if entry, ok := cache.Entries[key]; ok && entry.Signature == sig {
-		// Cache hit! Just write the file if it doesn't exist or differs
-		err = os.WriteFile(entry.Filename, []byte(entry.Content), run.FilePerm)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing from cache: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("%s restored from cache\n", entry.Filename)
-
-		return
-	}
-
-	// 4. Cache miss - run and record
-	filesystem := &cachingFileSystem{}
-
-	err = run.Run(os.Args, os.Getenv, filesystem, &realPackageLoader{})
+	err := run.WithCache(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	// 5. Update cache
-	if filesystem.writtenName != "" {
-		if cache.Entries == nil {
-			cache.Entries = make(map[string]run.CacheEntry)
-		}
-
-		cache.Entries[key] = run.CacheEntry{
-			Signature: sig,
-			Content:   filesystem.writtenContent,
-			Filename:  filesystem.writtenName,
-		}
-		run.SaveDiskCache(cachePath, cache)
-	}
-}
-
-func runWithNoCache() {
-	err := run.Run(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-// cachingFileSystem wraps realFileSystem and records the written content.
-type cachingFileSystem struct {
-	realFileSystem
-
-	writtenContent string
-	writtenName    string
-}
-
-func (c *cachingFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	c.writtenContent = string(data)
-	c.writtenName = name
-
-	return c.realFileSystem.WriteFile(name, data, perm)
 }
 
 // realFileSystem implements FileSystem using os package.
@@ -181,4 +108,24 @@ func (fs *realFileSystem) WriteFile(name string, data []byte, perm os.FileMode) 
 	}
 
 	return nil
+}
+
+// Glob returns the names of all files matching pattern.
+func (fs *realFileSystem) Glob(pattern string) ([]string, error) {
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("glob failed for pattern %s: %w", pattern, err)
+	}
+
+	return matches, nil
+}
+
+// ReadFile reads the file named by name and returns the contents.
+func (fs *realFileSystem) ReadFile(name string) ([]byte, error) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", name, err)
+	}
+
+	return data, nil
 }

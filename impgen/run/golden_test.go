@@ -124,7 +124,10 @@ func tryDiskCache(t *testing.T, projectRoot, scenarioDir string, fullArgs []stri
 	// Change to scenario dir for signature calculation (it globs for files)
 	t.Chdir(scenarioDir)
 
-	sig, err := run.CalculatePackageSignature(fullArgs)
+	// Use real filesystem for signature calculation in tests
+	fs := &realTestFileSystem{}
+
+	sig, err := run.CalculatePackageSignature(fullArgs, fs)
 	if err != nil {
 		return false
 	}
@@ -229,6 +232,36 @@ func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
 
 // verifyingFileSystem implements FileSystem.
 // It reads the file from disk that *would* be overwritten and compares content.
+// realTestFileSystem implements FileSystem using os package for golden tests.
+type realTestFileSystem struct{}
+
+func (fs *realTestFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
+	err := os.WriteFile(name, data, perm)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s: %w", name, err)
+	}
+
+	return nil
+}
+
+func (fs *realTestFileSystem) Glob(pattern string) ([]string, error) {
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("glob failed: %w", err)
+	}
+
+	return matches, nil
+}
+
+func (fs *realTestFileSystem) ReadFile(name string) ([]byte, error) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", name, err)
+	}
+
+	return data, nil
+}
+
 type verifyingFileSystem struct {
 	t       *testing.T
 	baseDir string
@@ -250,6 +283,37 @@ func (v *verifyingFileSystem) WriteFile(name string, data []byte, _ os.FileMode)
 	return nil
 }
 
+func (v *verifyingFileSystem) Glob(pattern string) ([]string, error) {
+	// Delegate to real filesystem in the base directory
+	matches, err := filepath.Glob(filepath.Join(v.baseDir, pattern))
+	if err != nil {
+		return nil, fmt.Errorf("glob failed for pattern %s: %w", pattern, err)
+	}
+
+	// Strip the base directory prefix from results
+	for idx, match := range matches {
+		rel, err := filepath.Rel(v.baseDir, match)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get relative path for %s: %w", match, err)
+		}
+
+		matches[idx] = rel
+	}
+
+	return matches, nil
+}
+
+func (v *verifyingFileSystem) ReadFile(name string) ([]byte, error) {
+	path := filepath.Join(v.baseDir, name)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
+	}
+
+	return data, nil
+}
+
 // testPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
 type testPackageLoader struct {
 	ProjectRoot string
@@ -264,11 +328,15 @@ var (
 // Load loads a package by import path and returns its AST files, FileSet, and type information.
 // It uses a shared cache to avoid redundant work across different test cases.
 func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
-	// Consolidate Dir to project root for better go/packages internal caching.
-	// If the path is ".", use the ScenarioDir.
+	// For ".", use the current working directory to support per-test-case scenarios
 	loadPath := importPath
 	if importPath == "." {
-		loadPath = pl.ScenarioDir
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to get working directory: %w", err)
+		}
+
+		loadPath = cwd
 	}
 
 	cacheKey := fmt.Sprintf("%s|%s", pl.ProjectRoot, loadPath)

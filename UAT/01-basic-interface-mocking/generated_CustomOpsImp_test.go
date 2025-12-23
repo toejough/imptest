@@ -324,11 +324,11 @@ func (e *CustomOpsImpExpectCallIs) Add() *CustomOpsImpAddBuilder {
 }
 
 func (bldr *CustomOpsImpAddBuilder) ExpectArgsAre(a int, b int) *CustomOpsImpAddCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Add" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Add" {
 			return false
 		}
-		methodCall := c.AsAdd()
+		methodCall := callToCheck.AsAdd()
 		if methodCall.a != a {
 			return false
 		}
@@ -343,11 +343,11 @@ func (bldr *CustomOpsImpAddBuilder) ExpectArgsAre(a int, b int) *CustomOpsImpAdd
 }
 
 func (bldr *CustomOpsImpAddBuilder) ExpectArgsShould(a any, b any) *CustomOpsImpAddCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Add" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Add" {
 			return false
 		}
-		methodCall := c.AsAdd()
+		methodCall := callToCheck.AsAdd()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.a, a)
 		if !ok {
@@ -365,8 +365,8 @@ func (bldr *CustomOpsImpAddBuilder) ExpectArgsShould(a any, b any) *CustomOpsImp
 }
 
 func (bldr *CustomOpsImpAddBuilder) InjectResult(result int) *CustomOpsImpAddCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Add"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Add"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -376,8 +376,8 @@ func (bldr *CustomOpsImpAddBuilder) InjectResult(result int) *CustomOpsImpAddCal
 }
 
 func (bldr *CustomOpsImpAddBuilder) InjectPanic(msg any) *CustomOpsImpAddCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Add"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Add"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -396,11 +396,11 @@ func (e *CustomOpsImpExpectCallIs) Store() *CustomOpsImpStoreBuilder {
 }
 
 func (bldr *CustomOpsImpStoreBuilder) ExpectArgsAre(key string, value any) *CustomOpsImpStoreCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Store" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Store" {
 			return false
 		}
-		methodCall := c.AsStore()
+		methodCall := callToCheck.AsStore()
 		if methodCall.key != key {
 			return false
 		}
@@ -415,11 +415,11 @@ func (bldr *CustomOpsImpStoreBuilder) ExpectArgsAre(key string, value any) *Cust
 }
 
 func (bldr *CustomOpsImpStoreBuilder) ExpectArgsShould(key any, value any) *CustomOpsImpStoreCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Store" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Store" {
 			return false
 		}
-		methodCall := c.AsStore()
+		methodCall := callToCheck.AsStore()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.key, key)
 		if !ok {
@@ -437,8 +437,8 @@ func (bldr *CustomOpsImpStoreBuilder) ExpectArgsShould(key any, value any) *Cust
 }
 
 func (bldr *CustomOpsImpStoreBuilder) InjectResults(r0 int, r1 error) *CustomOpsImpStoreCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Store"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Store"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -448,8 +448,8 @@ func (bldr *CustomOpsImpStoreBuilder) InjectResults(r0 int, r1 error) *CustomOps
 }
 
 func (bldr *CustomOpsImpStoreBuilder) InjectPanic(msg any) *CustomOpsImpStoreCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Store"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Store"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -468,11 +468,11 @@ func (e *CustomOpsImpExpectCallIs) Log() *CustomOpsImpLogBuilder {
 }
 
 func (bldr *CustomOpsImpLogBuilder) ExpectArgsAre(message string) *CustomOpsImpLogCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Log" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Log" {
 			return false
 		}
-		methodCall := c.AsLog()
+		methodCall := callToCheck.AsLog()
 		if methodCall.message != message {
 			return false
 		}
@@ -484,11 +484,11 @@ func (bldr *CustomOpsImpLogBuilder) ExpectArgsAre(message string) *CustomOpsImpL
 }
 
 func (bldr *CustomOpsImpLogBuilder) ExpectArgsShould(message any) *CustomOpsImpLogCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Log" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Log" {
 			return false
 		}
-		methodCall := c.AsLog()
+		methodCall := callToCheck.AsLog()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.message, message)
 		if !ok {
@@ -502,8 +502,8 @@ func (bldr *CustomOpsImpLogBuilder) ExpectArgsShould(message any) *CustomOpsImpL
 }
 
 func (bldr *CustomOpsImpLogBuilder) Resolve() *CustomOpsImpLogCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Log"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Log"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -513,8 +513,8 @@ func (bldr *CustomOpsImpLogBuilder) Resolve() *CustomOpsImpLogCall {
 }
 
 func (bldr *CustomOpsImpLogBuilder) InjectPanic(msg any) *CustomOpsImpLogCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Log"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Log"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -533,11 +533,11 @@ func (e *CustomOpsImpExpectCallIs) Notify() *CustomOpsImpNotifyBuilder {
 }
 
 func (bldr *CustomOpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *CustomOpsImpNotifyCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Notify" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Notify" {
 			return false
 		}
-		methodCall := c.AsNotify()
+		methodCall := callToCheck.AsNotify()
 		if methodCall.message != message {
 			return false
 		}
@@ -552,11 +552,11 @@ func (bldr *CustomOpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int)
 }
 
 func (bldr *CustomOpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *CustomOpsImpNotifyCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		if c.Name() != "Notify" {
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		if callToCheck.Name() != "Notify" {
 			return false
 		}
-		methodCall := c.AsNotify()
+		methodCall := callToCheck.AsNotify()
 		var ok bool
 		ok, _ = imptest.MatchValue(methodCall.message, message)
 		if !ok {
@@ -574,8 +574,8 @@ func (bldr *CustomOpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *C
 }
 
 func (bldr *CustomOpsImpNotifyBuilder) InjectResult(result bool) *CustomOpsImpNotifyCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Notify"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Notify"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -585,8 +585,8 @@ func (bldr *CustomOpsImpNotifyBuilder) InjectResult(result bool) *CustomOpsImpNo
 }
 
 func (bldr *CustomOpsImpNotifyBuilder) InjectPanic(msg any) *CustomOpsImpNotifyCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Notify"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Notify"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -605,8 +605,8 @@ func (e *CustomOpsImpExpectCallIs) Finish() *CustomOpsImpFinishBuilder {
 }
 
 func (bldr *CustomOpsImpFinishBuilder) InjectResult(result bool) *CustomOpsImpFinishCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Finish"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Finish"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -616,8 +616,8 @@ func (bldr *CustomOpsImpFinishBuilder) InjectResult(result bool) *CustomOpsImpFi
 }
 
 func (bldr *CustomOpsImpFinishBuilder) InjectPanic(msg any) *CustomOpsImpFinishCall {
-	validator := func(c *CustomOpsImpCall) bool {
-		return c.Name() == "Finish"
+	validator := func(callToCheck *CustomOpsImpCall) bool {
+		return callToCheck.Name() == "Finish"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

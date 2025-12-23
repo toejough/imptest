@@ -7,6 +7,7 @@ import (
 	"go/token"
 	go_types "go/types" // Aliased import
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/alexflint/go-arg"
@@ -16,10 +17,67 @@ import (
 
 // Functions - Public
 
-// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, a FileSystem
+// WithCache executes the impgen tool with caching support. It checks if a cached version exists based on the
+// package signature and uses it if available. Otherwise, it generates new code and caches the result.
+func WithCache(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
+	// 1. Calculate current signature
+	sig, err := CalculatePackageSignature(args, fileSys)
+	if err != nil {
+		// If signature calculation fails, run without cache
+		return Run(args, getEnv, fileSys, pkgLoader)
+	}
+
+	// 2. Find project root and cache file
+	root, err := FindProjectRoot()
+	if err != nil {
+		// If project root not found, run without cache
+		return Run(args, getEnv, fileSys, pkgLoader)
+	}
+
+	cachePath := filepath.Join(root, CacheDirName, "cache.json")
+	cache := LoadDiskCache(cachePath)
+
+	// 3. Check cache
+	key := strings.Join(args[1:], " ")
+	if entry, ok := cache.Entries[key]; ok && entry.Signature == sig {
+		// Cache hit! Just write the file if it doesn't exist or differs
+		err = fileSys.WriteFile(entry.Filename, []byte(entry.Content), FilePerm)
+		if err != nil {
+			return fmt.Errorf("error writing from cache: %w", err)
+		}
+
+		return nil
+	}
+
+	// 4. Cache miss - run and record
+	capturingSys := &capturingFileSystem{underlying: fileSys}
+
+	err = Run(args, getEnv, capturingSys, pkgLoader)
+	if err != nil {
+		return err
+	}
+
+	// 5. Update cache
+	if capturingSys.writtenName != "" {
+		if cache.Entries == nil {
+			cache.Entries = make(map[string]CacheEntry)
+		}
+
+		cache.Entries[key] = CacheEntry{
+			Signature: sig,
+			Content:   capturingSys.writtenContent,
+			Filename:  capturingSys.writtenName,
+		}
+		SaveDiskCache(cachePath, cache)
+	}
+
+	return nil
+}
+
+// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, a FileWriter
 // interface for file operations, and a PackageLoader for package operations. It returns an error if any step fails. On
 // success, it generates a Go source file implementing the specified interface, in the calling test package.
-func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
+func Run(args []string, getEnv func(string) string, fileWriter FileWriter, pkgLoader PackageLoader) error {
 	info, err := getGeneratorCallInfo(args, getEnv)
 	if err != nil {
 		return err
@@ -46,7 +104,7 @@ func Run(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoade
 		return err
 	}
 
-	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileSys)
+	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileWriter)
 	if err != nil {
 		return err
 	}
@@ -77,9 +135,21 @@ func generateCode(
 
 // Interfaces - Public
 
-// FileSystem interface for mocking.
-type FileSystem interface {
+// FileReader interface for reading files during signature calculation.
+type FileReader interface {
+	Glob(pattern string) ([]string, error)
+	ReadFile(name string) ([]byte, error)
+}
+
+// FileWriter interface for writing generated code.
+type FileWriter interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
+}
+
+// FileSystem interface combines reading and writing for convenience.
+type FileSystem interface {
+	FileReader
+	FileWriter
 }
 
 // Structs - Private
@@ -93,6 +163,26 @@ type cliArgs struct {
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
+}
+
+// capturingFileSystem wraps a FileWriter and captures what was written for caching.
+type capturingFileSystem struct {
+	underlying     FileWriter
+	writtenContent string
+	writtenName    string
+}
+
+// WriteFile implements FileWriter by capturing the written data and delegating to underlying.
+func (c *capturingFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
+	c.writtenContent = string(data)
+	c.writtenName = name
+
+	err := c.underlying.WriteFile(name, data, perm)
+	if err != nil {
+		return fmt.Errorf("underlying write failed: %w", err)
+	}
+
+	return nil
 }
 
 // Functions - Private
@@ -193,7 +283,7 @@ func parseArgs(args []string) (cliArgs, error) {
 }
 
 // writeGeneratedCodeToFile writes the generated code to generated_<impName>.go.
-func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileSys FileSystem) error {
+func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileWriter FileWriter) error {
 	const generatedFilePermissions = 0o600
 
 	filename := "generated_" + impName
@@ -204,7 +294,7 @@ func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileS
 		filename += ".go"
 	}
 
-	err := fileSys.WriteFile(filename, []byte(code), generatedFilePermissions)
+	err := fileWriter.WriteFile(filename, []byte(code), generatedFilePermissions)
 	if err != nil {
 		return fmt.Errorf("error writing %s: %w", filename, err)
 	}

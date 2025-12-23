@@ -687,13 +687,13 @@ func (gen *codeGenerator) generateExpectArgsAre(methodName string, ftype *ast.Fu
 	gen.pf(") *%s%s {\n", callName, gen.formatTypeParamsUse())
 
 	// Validator function
-	gen.pf("\tvalidator := func(c *%s%s) bool {\n", gen.callName, gen.formatTypeParamsUse())
-	gen.pf("\t\tif c.Name() != %q {\n", methodName)
+	gen.pf("\tvalidator := func(callToCheck *%s%s) bool {\n", gen.callName, gen.formatTypeParamsUse())
+	gen.pf("\t\tif callToCheck.Name() != %q {\n", methodName)
 	gen.pf("\t\t\treturn false\n")
 	gen.pf("\t	}\n")
 
 	if hasParams(ftype) {
-		gen.pf("\t\tmethodCall := c.As%s()\n", methodName)
+		gen.pf("\t\tmethodCall := callToCheck.As%s()\n", methodName)
 		gen.writeExpectArgsAreChecks(ftype, paramNames)
 	}
 
@@ -758,13 +758,13 @@ func (gen *codeGenerator) generateExpectArgsShould(
 	gen.pf(") *%s%s {\n", callName, gen.formatTypeParamsUse())
 
 	// Validator function
-	gen.pf("\tvalidator := func(c *%s%s) bool {\n", gen.callName, gen.formatTypeParamsUse())
-	gen.pf("\t\tif c.Name() != %q {\n", methodName)
+	gen.pf("\tvalidator := func(callToCheck *%s%s) bool {\n", gen.callName, gen.formatTypeParamsUse())
+	gen.pf("\t\tif callToCheck.Name() != %q {\n", methodName)
 	gen.pf("\t\t\treturn false\n")
 	gen.pf("\t	}\n")
 
 	if hasParams(ftype) {
-		gen.pf("\t\tmethodCall := c.As%s()\n", methodName)
+		gen.pf("\t\tmethodCall := callToCheck.As%s()\n", methodName)
 		gen.pf("\t\tvar ok bool\n")
 		gen.writeExpectArgsShouldChecks(ftype, paramNames)
 	}
@@ -788,8 +788,8 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 	methodName string, ftype *ast.FuncType, builderName, callName string,
 ) {
 	// Validator that only checks method name
-	validatorCode := fmt.Sprintf(`validator := func(c *%s%s) bool {
-		return c.Name() == %q
+	validatorCode := fmt.Sprintf(`validator := func(callToCheck *%s%s) bool {
+		return callToCheck.Name() == %q
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

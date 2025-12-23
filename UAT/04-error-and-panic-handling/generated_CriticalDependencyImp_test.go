@@ -95,8 +95,8 @@ func (e *CriticalDependencyImpExpectCallIs) DoWork() *CriticalDependencyImpDoWor
 }
 
 func (bldr *CriticalDependencyImpDoWorkBuilder) Resolve() *CriticalDependencyImpDoWorkCall {
-	validator := func(c *CriticalDependencyImpCall) bool {
-		return c.Name() == "DoWork"
+	validator := func(callToCheck *CriticalDependencyImpCall) bool {
+		return callToCheck.Name() == "DoWork"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -106,8 +106,8 @@ func (bldr *CriticalDependencyImpDoWorkBuilder) Resolve() *CriticalDependencyImp
 }
 
 func (bldr *CriticalDependencyImpDoWorkBuilder) InjectPanic(msg any) *CriticalDependencyImpDoWorkCall {
-	validator := func(c *CriticalDependencyImpCall) bool {
-		return c.Name() == "DoWork"
+	validator := func(callToCheck *CriticalDependencyImpCall) bool {
+		return callToCheck.Name() == "DoWork"
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

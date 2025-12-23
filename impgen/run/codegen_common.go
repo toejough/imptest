@@ -141,6 +141,10 @@ func hasResults(ftype *ast.FuncType) bool {
 
 // countFields counts the total number of individual fields in a field list.
 func countFields(fields *ast.FieldList) int {
+	if fields == nil {
+		return 0
+	}
+
 	total := 0
 
 	for _, field := range fields.List {
