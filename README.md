@@ -157,8 +157,16 @@ func Test_Manual(t *testing.T) {
 
 ## Installation
 
+Install the library with:
+
 ```bash
 go get github.com/toejough/imptest
+```
+
+Install the code generator tool:
+
+```bash
+go install github.com/toejough/imptest/cmd/impgen@latest
 ```
 
 Then add `//go:generate` directives to your test files and run `go generate`:
