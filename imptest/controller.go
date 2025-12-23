@@ -17,101 +17,114 @@ type Call interface {
 	Done() bool
 }
 
+// waiter represents a goroutine waiting for a matching call.
+type waiter[T any] struct {
+	validator func(T) bool
+	result    chan T
+}
+
 // Controller manages the call queue and synchronization for a mock or callable.
 type Controller[T Call] struct {
-	T               Tester
-	CallChan        chan T
-	callQueue       []T
-	queueLock       sync.Mutex
-	queueUpdated    chan struct{} // Closed when queue is updated to notify waiters
-	queueUpdateLock sync.Mutex    // Protects queueUpdated channel
+	T        Tester
+	CallChan chan T
+
+	mu        sync.Mutex   // Protects callQueue and waiters
+	callQueue []T          // Unclaimed calls waiting for future waiters
+	waiters   []*waiter[T] // Goroutines waiting for matching calls
 }
 
 // NewController creates a new controller.
 func NewController[T Call](t Tester) *Controller[T] {
-	return &Controller[T]{
-		T:            t,
-		CallChan:     make(chan T, 1),
-		queueUpdated: make(chan struct{}),
+	ctrl := &Controller[T]{
+		T:        t,
+		CallChan: make(chan T, 1),
 	}
-}
+	go ctrl.dispatchLoop()
 
-// checkQueue looks for a matching call in the queue and removes it if found.
-// Returns the call and true if found, zero value and false otherwise.
-func (c *Controller[T]) checkQueue(validator func(T) bool) (T, bool) {
-	c.queueLock.Lock()
-	defer c.queueLock.Unlock()
-
-	for index, call := range c.callQueue {
-		if validator(call) {
-			c.callQueue = append(c.callQueue[:index], c.callQueue[index+1:]...)
-
-			return call, true
-		}
-	}
-
-	var zero T
-
-	return zero, false
+	return ctrl
 }
 
 // GetCall waits for a call that matches the given validator.
-
 func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T {
 	c.T.Helper()
 
-	// Check queue first
-	if call, found := c.checkQueue(validator); found {
-		return call
+	c.mu.Lock()
+
+	// Check queue first (while holding lock)
+	for i, call := range c.callQueue {
+		if validator(call) {
+			c.callQueue = append(c.callQueue[:i], c.callQueue[i+1:]...)
+			c.mu.Unlock()
+
+			return call
+		}
 	}
 
+	// Register as waiter BEFORE unlocking (this prevents race conditions)
+	myWaiter := &waiter[T]{
+		validator: validator,
+		result:    make(chan T, 1),
+	}
+	c.waiters = append(c.waiters, myWaiter)
+	c.mu.Unlock()
+
+	// Wait for result with timeout
 	var timeoutChan <-chan time.Time
 
 	if timeout > 0 {
 		timeoutChan = time.After(timeout)
 	}
 
-	for {
-		// Get current queue-update notification channel
-		c.queueUpdateLock.Lock()
-		updateChan := c.queueUpdated
-		c.queueUpdateLock.Unlock()
+	select {
+	case call := <-myWaiter.result:
+		return call
+	case <-timeoutChan:
+		// Remove self from waiters list
+		c.mu.Lock()
 
-		select {
-		case call := <-c.CallChan:
-			if validator(call) {
-				return call
+		for i, waiter := range c.waiters {
+			if waiter == myWaiter {
+				c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
+
+				break
 			}
-
-			c.queueLock.Lock()
-			c.callQueue = append(c.callQueue, call)
-			c.queueLock.Unlock()
-
-			// Notify all waiting goroutines that queue was updated
-			c.queueUpdateLock.Lock()
-			close(c.queueUpdated)
-			c.queueUpdated = make(chan struct{}) // New channel for next update
-			c.queueUpdateLock.Unlock()
-
-			// Re-check queue ourselves (another goroutine might have queued what we want)
-			if queuedCall, found := c.checkQueue(validator); found {
-				return queuedCall
-			}
-
-		case <-updateChan:
-			// Queue was updated by another goroutine, re-check it
-			if call, found := c.checkQueue(validator); found {
-				return call
-			}
-			// Didn't find a match, loop back to wait again
-
-		case <-timeoutChan:
-			c.T.Fatalf("timeout waiting for call matching validator")
-
-			var zero T
-
-			return zero
 		}
+
+		c.mu.Unlock()
+
+		c.T.Fatalf("timeout waiting for call matching validator")
+
+		var zero T
+
+		return zero
+	}
+}
+
+// dispatchLoop receives calls and either matches them to waiters or queues them.
+func (c *Controller[T]) dispatchLoop() {
+	for call := range c.CallChan {
+		c.mu.Lock()
+
+		// Try to match with waiting goroutines
+		matched := false
+
+		for i, w := range c.waiters {
+			if w.validator(call) {
+				w.result <- call
+
+				c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
+				matched = true
+
+				break
+			}
+		}
+
+		// No matching waiter - queue for future
+		if !matched {
+			c.callQueue = append(c.callQueue, call)
+		}
+
+		c.mu.Unlock()
 	}
 }
 

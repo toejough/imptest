@@ -44,237 +44,114 @@ func (m *mockTester) DidFatal() bool {
 	return m.fataled.Load()
 }
 
-// raceCoordinator ensures both goroutines enter select, then each wants what the other queued.
-type raceCoordinator struct {
-	mu        sync.Mutex
-	alphaID   int // 0=none, 1=A is Alpha, 2=B is Alpha
-	betaReady chan struct{}
-	callForA  *testCall
-	callForB  *testCall
-	aCalled   bool // Has A's validator been called once?
-	bCalled   bool // Has B's validator been called once?
-}
-
-func (rc *raceCoordinator) ValidatorA(call *testCall) bool {
-	rc.mu.Lock()
-
-	// Determine role (happens once)
-	switch rc.alphaID {
-	case 0:
-		// A is Alpha (first validator called)
-		rc.alphaID = 1
-		rc.mu.Unlock()
-
-		// Block until Beta is also in select
-		<-rc.betaReady
-
-		rc.mu.Lock()
-	case 2:
-		// B is Alpha, A is Beta
-		rc.mu.Unlock()
-
-		// Signal Beta is ready
-		select {
-		case rc.betaReady <- struct{}{}:
-		default:
-		}
-
-		rc.mu.Lock()
-	}
-
-	// First call: reject it (queue it for the other goroutine)
-	if !rc.aCalled {
-		rc.aCalled = true
-		rc.mu.Unlock()
-
-		return false // Reject to queue
-	}
-
-	// Subsequent calls (queue re-check): accept if it's what we want
-	var wantCall *testCall
-
-	if rc.alphaID == 1 {
-		// A is Alpha: Alpha always wants callB
-		wantCall = rc.callForB
-	} else {
-		// A is Beta: Beta always wants callA
-		wantCall = rc.callForA
-	}
-
-	shouldAccept := call == wantCall
-
-	rc.mu.Unlock()
-
-	return shouldAccept
-}
-
-func (rc *raceCoordinator) ValidatorB(call *testCall) bool {
-	rc.mu.Lock()
-
-	// Determine role (happens once)
-	switch rc.alphaID {
-	case 0:
-		// B is Alpha (first validator called)
-		rc.alphaID = 2
-		rc.mu.Unlock()
-
-		// Block until Beta is also in select
-		<-rc.betaReady
-
-		rc.mu.Lock()
-	case 1:
-		// A is Alpha, B is Beta
-		rc.mu.Unlock()
-
-		// Signal Beta is ready
-		select {
-		case rc.betaReady <- struct{}{}:
-		default:
-		}
-
-		rc.mu.Lock()
-	}
-
-	// First call: reject it (queue it for the other goroutine)
-	if !rc.bCalled {
-		rc.bCalled = true
-		rc.mu.Unlock()
-
-		return false // Reject to queue
-	}
-
-	// Subsequent calls (queue re-check): accept if it's what we want
-	var wantCall *testCall
-
-	if rc.alphaID == 2 {
-		// B is Alpha: Alpha always wants callB
-		wantCall = rc.callForB
-	} else {
-		// B is Beta: Beta always wants callA
-		wantCall = rc.callForA
-	}
-
-	shouldAccept := call == wantCall
-
-	rc.mu.Unlock()
-
-	return shouldAccept
-}
-
-// launchGetCallGoroutines starts two goroutines that call GetCall concurrently.
-func launchGetCallGoroutines(
-	t *testing.T,
-	ctrl *imptest.Controller[*testCall],
-	coordinator *raceCoordinator,
-	gotA, gotB *atomic.Bool,
-	waitGroup *sync.WaitGroup,
-) {
-	t.Helper()
-
-	// Goroutine A
-	waitGroup.Add(1)
-
-	go func() {
-		defer waitGroup.Done()
-
-		t.Log("A: Starting GetCall")
-
-		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorA)
-		t.Logf("A: GetCall returned %v", result)
-
-		if result != nil {
-			gotA.Store(true)
-		}
-	}()
-
-	// Goroutine B
-	waitGroup.Add(1)
-
-	go func() {
-		defer waitGroup.Done()
-
-		t.Log("B: Starting GetCall")
-
-		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorB)
-		t.Logf("B: GetCall returned %v", result)
-
-		if result != nil {
-			gotB.Store(true)
-		}
-	}()
-}
-
-// verifyRaceTestResults checks that both goroutines succeeded and didn't timeout.
-func verifyRaceTestResults(
-	t *testing.T,
-	tester *mockTester,
-	gotA, gotB *atomic.Bool,
-	coordinator *raceCoordinator,
-) {
-	t.Helper()
-
-	t.Logf("Test results: didFatal=%v, gotA=%v, gotB=%v", tester.DidFatal(), gotA.Load(), gotB.Load())
-	t.Logf("Coordinator state: alphaID=%d, aCalled=%v, bCalled=%v",
-		coordinator.alphaID, coordinator.aCalled, coordinator.bCalled)
-
-	if tester.DidFatal() {
-		// Goroutines timed out - bug exists
-		t.Fatal("Race condition detected: goroutines timed out while their matching calls sat in queue. " +
-			"This indicates GetCall does not re-check the queue after receiving a non-matching call.")
-	}
-
-	if !gotA.Load() || !gotB.Load() {
-		t.Errorf("Expected both goroutines to succeed, but gotA=%v, gotB=%v", gotA.Load(), gotB.Load())
-	}
-}
-
-// TestGetCall_RaceCondition demonstrates the race condition in GetCall where
-// a goroutine can be stuck waiting on CallChan while its matching call sits
-// in the queue.
+// TestGetCall_ConcurrentWaiters verifies that the waiter registration pattern
+// correctly handles concurrent goroutines waiting for different calls.
 //
-// The bug: After unlocking queueLock (controller.go:55) and before entering
-// select (controller.go:65), another goroutine can receive from CallChan,
-// reject the call, and add it to the queue. The first goroutine never
-// rechecks the queue.
-//
-// This test FAILS when the bug exists (goroutines timeout) and PASSES when
-// the bug is fixed (goroutines successfully find queued calls).
-func TestGetCall_RaceCondition(t *testing.T) {
+// This test verifies that:
+// 1. Multiple goroutines can wait concurrently
+// 2. Each goroutine receives the correct call matching its validator
+// 3. No calls are lost or delivered to the wrong waiter.
+func TestGetCall_ConcurrentWaiters(t *testing.T) {
 	t.Parallel()
 
 	tester := &mockTester{t: t}
 	ctrl := imptest.NewController[*testCall](tester)
 
-	// Create the coordinator and the two calls
-	callForA := &testCall{name: "callA"}
-	callForB := &testCall{name: "callB"}
-
-	coordinator := &raceCoordinator{
-		betaReady: make(chan struct{}),
-		callForA:  callForA,
-		callForB:  callForB,
-	}
+	callA := &testCall{name: "callA"}
+	callB := &testCall{name: "callB"}
 
 	var (
-		waitGroup  sync.WaitGroup
-		gotA, gotB atomic.Bool
+		waitGroup            sync.WaitGroup
+		receivedA, receivedB atomic.Bool
 	)
 
-	launchGetCallGoroutines(t, ctrl, coordinator, &gotA, &gotB, &waitGroup)
+	// Goroutine waiting for callA
+	waitGroup.Add(1)
+
+	go func() {
+		defer waitGroup.Done()
+
+		result := ctrl.GetCall(1*time.Second, func(call *testCall) bool {
+			return call.name == "callA"
+		})
+
+		if result == callA {
+			receivedA.Store(true)
+		}
+	}()
+
+	// Goroutine waiting for callB
+	waitGroup.Add(1)
+
+	go func() {
+		defer waitGroup.Done()
+
+		result := ctrl.GetCall(1*time.Second, func(call *testCall) bool {
+			return call.name == "callB"
+		})
+
+		if result == callB {
+			receivedB.Store(true)
+		}
+	}()
+
+	// Give waiters time to register
+	time.Sleep(10 * time.Millisecond)
 
 	// Send both calls
-	go func() {
-		// Send callA - Alpha will receive it (whichever goroutine goes first)
-		ctrl.CallChan <- callForA
+	ctrl.CallChan <- callA
 
-		// Send callB - Beta will receive it
-		ctrl.CallChan <- callForB
-	}()
+	ctrl.CallChan <- callB
 
 	waitGroup.Wait()
 
-	// Test expectations:
-	// - With bug: both goroutines timeout (didFatal=true, gotA=false, gotB=false)
-	// - With fix: both goroutines succeed (didFatal=false, gotA=true, gotB=true)
-	verifyRaceTestResults(t, tester, &gotA, &gotB, coordinator)
+	if tester.DidFatal() {
+		t.Fatal("Unexpected timeout - goroutines should have received their calls")
+	}
+
+	if !receivedA.Load() {
+		t.Error("Goroutine A did not receive callA")
+	}
+
+	if !receivedB.Load() {
+		t.Error("Goroutine B did not receive callB")
+	}
+}
+
+// TestGetCall_QueuedCallsMatchLaterWaiters verifies that calls queued before
+// a waiter arrives are correctly matched when the waiter calls GetCall.
+func TestGetCall_QueuedCallsMatchLaterWaiters(t *testing.T) {
+	t.Parallel()
+
+	tester := &mockTester{t: t}
+	ctrl := imptest.NewController[*testCall](tester)
+
+	call1 := &testCall{name: "call1"}
+	call2 := &testCall{name: "call2"}
+
+	// Send calls BEFORE any waiters exist - they should be queued
+	ctrl.CallChan <- call1
+
+	ctrl.CallChan <- call2
+
+	// Give dispatcher time to queue them
+	time.Sleep(10 * time.Millisecond)
+
+	// Now wait for call2 (skipping call1)
+	result := ctrl.GetCall(1*time.Second, func(call *testCall) bool {
+		return call.name == "call2"
+	})
+
+	if result != call2 {
+		t.Errorf("Expected to receive call2, got %v", result)
+	}
+
+	// call1 should still be in the queue
+	result = ctrl.GetCall(1*time.Second, func(call *testCall) bool {
+		return call.name == "call1"
+	})
+
+	if result != call1 {
+		t.Errorf("Expected to receive call1, got %v", result)
+	}
 }
