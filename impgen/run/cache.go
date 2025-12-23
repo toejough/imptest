@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -20,6 +21,15 @@ const (
 	// FilePerm is the default file permission.
 	FilePerm = 0o600
 )
+
+// CacheFileSystem abstracts file operations for the cache system.
+type CacheFileSystem interface {
+	Open(path string) (io.ReadCloser, error)
+	Create(path string) (io.WriteCloser, error)
+	MkdirAll(path string, perm os.FileMode) error
+	Stat(path string) (os.FileInfo, error)
+	Getwd() (string, error)
+}
 
 // CacheData represents the structure of the persistent disk cache.
 type CacheData struct {
@@ -71,10 +81,10 @@ func CalculatePackageSignature(args []string, fileReader FileReader) (string, er
 }
 
 // LoadDiskCache reads the cache from the specified path.
-func LoadDiskCache(path string) CacheData {
+func LoadDiskCache(path string, cfs CacheFileSystem) CacheData {
 	var data CacheData
 
-	file, err := os.Open(path)
+	file, err := cfs.Open(path)
 	if err != nil {
 		return data
 	}
@@ -86,10 +96,10 @@ func LoadDiskCache(path string) CacheData {
 }
 
 // SaveDiskCache writes the cache to the specified path.
-func SaveDiskCache(path string, data CacheData) {
-	_ = os.MkdirAll(filepath.Dir(path), DirPerm)
+func SaveDiskCache(path string, data CacheData, cfs CacheFileSystem) {
+	_ = cfs.MkdirAll(filepath.Dir(path), DirPerm)
 
-	file, err := os.Create(path)
+	file, err := cfs.Create(path)
 	if err != nil {
 		return
 	}
@@ -101,14 +111,14 @@ func SaveDiskCache(path string, data CacheData) {
 }
 
 // FindProjectRoot locates the nearest directory containing a go.mod file.
-func FindProjectRoot() (string, error) {
-	curr, err := os.Getwd()
+func FindProjectRoot(cfs CacheFileSystem) (string, error) {
+	curr, err := cfs.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get working directory: %w", err)
 	}
 
 	for {
-		_, err = os.Stat(filepath.Join(curr, "go.mod"))
+		_, err = cfs.Stat(filepath.Join(curr, "go.mod"))
 		if err == nil {
 			return curr, nil
 		}

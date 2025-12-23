@@ -11,6 +11,18 @@ type Tester interface {
 	Helper()
 }
 
+// Timer abstracts time-based operations for testability.
+type Timer interface {
+	After(d time.Duration) <-chan time.Time
+}
+
+// realTimer is the default timer implementation that uses the standard time package.
+type realTimer struct{}
+
+func (realTimer) After(d time.Duration) <-chan time.Time {
+	return time.After(d)
+}
+
 // Call represents a single call to a mock or callable.
 type Call interface {
 	Name() string
@@ -26,6 +38,7 @@ type waiter[T any] struct {
 // Controller manages the call queue and synchronization for a mock or callable.
 type Controller[T Call] struct {
 	T        Tester
+	Timer    Timer
 	CallChan chan T
 
 	mu        sync.Mutex   // Protects callQueue and waiters
@@ -33,10 +46,16 @@ type Controller[T Call] struct {
 	waiters   []*waiter[T] // Goroutines waiting for matching calls
 }
 
-// NewController creates a new controller.
+// NewController creates a new controller with the default real timer.
 func NewController[T Call](t Tester) *Controller[T] {
+	return NewControllerWithTimer[T](t, realTimer{})
+}
+
+// NewControllerWithTimer creates a new controller with a custom timer for testing.
+func NewControllerWithTimer[T Call](t Tester, timer Timer) *Controller[T] {
 	ctrl := &Controller[T]{
 		T:        t,
+		Timer:    timer,
 		CallChan: make(chan T, 1),
 	}
 	go ctrl.dispatchLoop()
@@ -72,7 +91,7 @@ func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T
 	var timeoutChan <-chan time.Time
 
 	if timeout > 0 {
-		timeoutChan = time.After(timeout)
+		timeoutChan = c.Timer.After(timeout)
 	}
 
 	select {

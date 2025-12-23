@@ -1,6 +1,7 @@
 package run_test
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -8,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -158,6 +160,92 @@ func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet
 	return nil, nil, nil, fmt.Errorf("%w: %s", errPackageNotFound, importPath)
 }
 
+// MockCacheFileSystem implements CacheFileSystem for testing.
+type MockCacheFileSystem struct {
+	files  map[string][]byte
+	cwd    string
+	stats  map[string]os.FileInfo
+	mkdirs []string
+}
+
+// NewMockCacheFileSystem creates a new MockCacheFileSystem.
+func NewMockCacheFileSystem() *MockCacheFileSystem {
+	return &MockCacheFileSystem{
+		files:  make(map[string][]byte),
+		cwd:    "/test/project",
+		stats:  make(map[string]os.FileInfo),
+		mkdirs: []string{},
+	}
+}
+
+// Open implements CacheFileSystem.Open.
+func (m *MockCacheFileSystem) Open(path string) (io.ReadCloser, error) {
+	data, ok := m.files[path]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+
+	return io.NopCloser(bytes.NewReader(data)), nil
+}
+
+// Create implements CacheFileSystem.Create.
+func (m *MockCacheFileSystem) Create(path string) (io.WriteCloser, error) {
+	return &mockWriteCloser{fs: m, path: path}, nil
+}
+
+// MkdirAll implements CacheFileSystem.MkdirAll.
+func (m *MockCacheFileSystem) MkdirAll(path string, _ os.FileMode) error {
+	m.mkdirs = append(m.mkdirs, path)
+
+	return nil
+}
+
+// Stat implements CacheFileSystem.Stat.
+func (m *MockCacheFileSystem) Stat(path string) (os.FileInfo, error) {
+	if info, ok := m.stats[path]; ok {
+		return info, nil
+	}
+
+	return nil, os.ErrNotExist
+}
+
+// Getwd implements CacheFileSystem.Getwd.
+func (m *MockCacheFileSystem) Getwd() (string, error) {
+	return m.cwd, nil
+}
+
+// SetFile sets file content for testing.
+func (m *MockCacheFileSystem) SetFile(path string, data []byte) {
+	m.files[path] = data
+}
+
+// SetCwd sets the current working directory for testing.
+func (m *MockCacheFileSystem) SetCwd(cwd string) {
+	m.cwd = cwd
+}
+
+// SetStat sets file info for a path.
+func (m *MockCacheFileSystem) SetStat(path string, info os.FileInfo) {
+	m.stats[path] = info
+}
+
+type mockWriteCloser struct {
+	fs   *MockCacheFileSystem
+	path string
+	buf  bytes.Buffer
+}
+
+//nolint:wrapcheck // test helper
+func (m *mockWriteCloser) Write(p []byte) (n int, err error) {
+	return m.buf.Write(p)
+}
+
+func (m *mockWriteCloser) Close() error {
+	m.fs.files[m.path] = m.buf.Bytes()
+
+	return nil
+}
+
 // envWithPkgName returns the test package name, ignoring the provided cwd parameter.
 func envWithPkgName(_ string) string { return pkgName }
 
@@ -179,7 +267,7 @@ type MyInterface interface {
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -205,7 +293,7 @@ type MyStruct struct {}
 
 	args := []string{"generator", "MyInterface"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error when interface is missing")
 	}
@@ -233,7 +321,7 @@ type MyInterface interface {
 
 	args := []string{"generator", "MyInterface"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error on write failure")
 	}
@@ -259,7 +347,7 @@ type ComplexInterface interface {
 
 	args := []string{"generator", "ComplexInterface", "--name", "ComplexImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -308,7 +396,7 @@ type ValueInterface interface {
 
 	args := []string{"generator", "ValueInterface", "--name", "ValueImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -380,7 +468,7 @@ type Stringer interface {
 
 	args := []string{"generator", "fmt.Stringer", "--name", "StringerImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -405,7 +493,7 @@ func TestRun_PackageLoaderError(t *testing.T) {
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error from package loader, got nil")
 	}
@@ -434,7 +522,7 @@ type EmbeddedInterface interface {
 
 	args := []string{"generator", "EmbeddedInterface", "--name", "EmbeddedImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -476,7 +564,7 @@ type MyInterface interface {
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 	env := func(_ string) string { return "mypkg_test" }
 
-	err := run.Run(args, env, mockFS, mockPkgLoader)
+	err := run.Run(args, env, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -507,7 +595,7 @@ import "not/a/real/path"
 	// Use the imported package name - "path" is the last segment
 	args := []string{"generator", "path.SomeInterface", "--name", "TestImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error loading nonsense package path, got nil")
 	}
@@ -523,7 +611,7 @@ func TestRun_LocalPackageLoadErrorForForeignInterface(t *testing.T) {
 	// Use a qualified interface name (pkg.Interface) which requires loading local package
 	args := []string{"generator", "pkg.SomeInterface", "--name", "TestImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error loading local package for foreign interface, got nil")
 	}
@@ -560,7 +648,7 @@ func TestRun_MalformedImportPath(t *testing.T) {
 	// Try to reference a package - should fail with error about malformed import
 	args := []string{"generator", "pkg.SomeInterface", "--name", "TestImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error for malformed import path, got nil")
 	}
@@ -593,7 +681,7 @@ func TestRun_MalformedAliasedImportPath(t *testing.T) {
 	// Try to reference the aliased package - should fail with error about malformed import
 	args := []string{"generator", "pkg.SomeInterface", "--name", "TestImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error for malformed aliased import path, got nil")
 	}
@@ -615,7 +703,7 @@ import "strings"
 	// Try to reference a package that isn't imported
 	args := []string{"generator", "nothere.SomeInterface", "--name", "TestImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error when package not in imports, got nil")
 	}
@@ -641,7 +729,7 @@ func PrintSum(a, b int) int {
 	// Generate test helper for this function
 	args := []string{"impgen", "run.PrintSum", "--name", "PrintSumImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -694,7 +782,7 @@ func ProcessData(data []string, callback func(string) error) (*MyType, error) {
 	// Generate test helper
 	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -745,7 +833,7 @@ func ProcessMap(data map[string]int, ch chan<- string) map[int][]string {
 	// Generate test helper
 	args := []string{"impgen", "run.ProcessMap", "--name", "ProcessMapImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -807,7 +895,7 @@ var _ = run.Player{}
 
 	args := []string{"impgen", "run.Player.Play", "--name", "PlayerPlayImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -863,7 +951,7 @@ var _ = run.Calculator{}
 
 	args := []string{"impgen", "run.Calculator.Add", "--name", "CalculatorAddImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -915,7 +1003,7 @@ var _ = run.Divide
 
 	args := []string{"impgen", "run.Divide", "--name", "DivideImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -963,7 +1051,7 @@ func SimpleAdd(a, b int) int {
 	// Generate callable for local function without package qualifier
 	args := []string{"impgen", "SimpleAdd", "--name", "SimpleAddImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1022,7 +1110,7 @@ func ProcessData(data *MyType) int {
 
 	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error when loading local package for callable with exported types, got nil")
 
@@ -1062,7 +1150,7 @@ import "fmt"
 	// Try to generate callable for run.ProcessData, but "run" package not imported in local package
 	args := []string{"impgen", "run.ProcessData", "--name", "ProcessDataImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Error("Expected error when import path not found, got nil")
 
@@ -1096,7 +1184,7 @@ var _ = run.MyData{}
 
 	args := []string{"impgen", "run.MyInterface", "--name", "MyImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1136,7 +1224,7 @@ var _ = run.MyData{}
 
 	args := []string{"impgen", "run.MyInterface", "--name", "MyImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1171,7 +1259,7 @@ type GenericInterface interface {
 
 	args := []string{"generator", "GenericInterface", "--name", "GenericImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1212,7 +1300,7 @@ type ComplexInterface interface {
 
 	args := []string{"generator", "ComplexInterface", "--name", "ComplexImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1255,7 +1343,7 @@ type GenericInterface[T any, U comparable] interface {
 
 	args := []string{"generator", "GenericInterface", "--name", "GenericImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1305,7 +1393,7 @@ func ProcessContainer(c *Container[int]) int {
 
 	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1355,7 +1443,7 @@ func ProcessKeyValue(kv *KeyValue[string, int]) string {
 
 	args := []string{"impgen", "run.ProcessKeyValue", "--name", "ProcessKeyValueImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1400,7 +1488,7 @@ func ProcessStruct(data struct{ Name string; Age int }) string {
 
 	args := []string{"impgen", "run.ProcessStruct", "--name", "ProcessStructImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1447,7 +1535,7 @@ func ProcessTime(t time.Time) string {
 
 	args := []string{"impgen", "run.ProcessTime", "--name", "ProcessTimeImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1493,7 +1581,7 @@ type DataProcessor interface {
 
 	args := []string{"impgen", "DataProcessor", "--name", "DataProcessorImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1544,7 +1632,7 @@ func GetNames() []string {
 
 	args := []string{"impgen", "run.GetNames", "--name", "GetNamesImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1594,7 +1682,7 @@ type Calculator interface {
 
 	args := []string{"impgen", "Calculator", "--name", "CalculatorImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1637,7 +1725,7 @@ type MyInterface interface {
 	// No --call flag
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1666,7 +1754,7 @@ func MyFunc(a int) string { return "" }
 	// No --call flag, but it's a function
 	args := []string{"generator", "MyFunc", "--name", "MyFuncImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1696,7 +1784,7 @@ func (m *MyType) MyMethod(a int) {}
 	// No --call flag, but it's a method
 	args := []string{"generator", "MyType.MyMethod", "--name", "MyMethodImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1731,7 +1819,7 @@ type Service interface {
 
 	args := []string{"impgen", "external.Service", "--name", "ExternalImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1761,7 +1849,7 @@ type Service interface {
 
 	args := []string{"impgen", "external.Service", "--name", "ExternalImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Fatal("Expected error due to unexported type in external interface")
 	}
@@ -1786,7 +1874,7 @@ func DoSomething(a int) string { return "" }
 
 	args := []string{"impgen", "external.DoSomething", "--name", "DoSomethingImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1816,7 +1904,7 @@ type service interface {
 	// We need to use its full name for findSymbol to find it.
 	args := []string{"impgen", "external.service", "--name", "ServiceImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1843,7 +1931,7 @@ func doSomething(d MyData) {}
 	// doSomething is unexported, but uses exported MyData.
 	args := []string{"impgen", "external.doSomething", "--name", "DoSomethingImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1869,7 +1957,7 @@ type service interface {
 
 	args := []string{"impgen", "external.service", "--name", "ServiceImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1895,7 +1983,7 @@ type service[T any] interface {
 
 	args := []string{"impgen", "external.service", "--name", "ServiceImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1924,7 +2012,7 @@ type Processor interface {
 	args := []string{"impgen", "Processor", "--name", "ProcessorImp"}
 
 	// This should still generate code even with type errors (we're conservative)
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -1949,7 +2037,7 @@ func LocalFunc() int { return 0 }`)
 
 		args := []string{"generator", "run.LocalFunc", "--name", "LocalFuncImp"}
 
-		err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+		err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 		if err != nil {
 			t.Fatalf("Run failed: %v", err)
 		}
@@ -1978,7 +2066,7 @@ func Process(input Data) Data { return input }`)
 
 		args := []string{"generator", "external.Process", "--name", "ProcessImp"}
 
-		err := run.Run(args, func(_ string) string { return "current" }, mockFS, mockPkgLoader)
+		err := run.Run(args, func(_ string) string { return "current" }, mockFS, mockPkgLoader, io.Discard)
 		if err != nil {
 			t.Fatalf("Run failed: %v", err)
 		}
@@ -2008,10 +2096,15 @@ func TestWithCache_CacheHit(t *testing.T) {
 	mockPkgLoader := NewMockPackageLoader()
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
+	// Use the same cache filesystem across both runs
+	mockCacheFS := NewMockCacheFileSystem()
+	// Set up go.mod so FindProjectRoot succeeds
+	mockCacheFS.SetStat("/test/project/go.mod", nil)
+
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
 	// First run - populate cache
-	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader, mockCacheFS, io.Discard)
 	if err != nil {
 		t.Fatalf("First run failed: %v", err)
 	}
@@ -2022,7 +2115,7 @@ func TestWithCache_CacheHit(t *testing.T) {
 	mockFS.files["source.go"] = []byte(sourceCode)
 
 	// Second run - should hit cache and restore file
-	err = run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	err = run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader, mockCacheFS, io.Discard)
 	if err != nil {
 		t.Fatalf("Second run failed: %v", err)
 	}
@@ -2054,7 +2147,7 @@ func TestWithCache_SignatureCalculationFails(t *testing.T) {
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
 	// Should still work even if signature calculation fails
-	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader, NewMockCacheFileSystem(), io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -2078,7 +2171,7 @@ func TestWithCache_WriteErrorFromCache(t *testing.T) {
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
 	// First run - populate cache
-	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader, NewMockCacheFileSystem(), io.Discard)
 	if err != nil {
 		t.Fatalf("First run failed: %v", err)
 	}
@@ -2089,7 +2182,7 @@ func TestWithCache_WriteErrorFromCache(t *testing.T) {
 	}
 
 	// Second run - write fails (will take cache miss path since FindProjectRoot fails with mockFS)
-	err = run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	err = run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader, NewMockCacheFileSystem(), io.Discard)
 	if err == nil {
 		t.Fatal("Expected error when writing fails")
 	}
@@ -2116,10 +2209,15 @@ type OtherInterface interface {
 	mockPkgLoader := NewMockPackageLoader()
 	mockPkgLoader.AddPackageFromSource(".", sourceCode)
 
+	// Use the same cache filesystem across both runs
+	mockCacheFS := NewMockCacheFileSystem()
+	// Set up go.mod so FindProjectRoot succeeds
+	mockCacheFS.SetStat("/test/project/go.mod", nil)
+
 	// First run with MyInterface
 	args1 := []string{"generator", "MyInterface", "--name", "MyImp"}
 
-	err := run.WithCache(args1, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.WithCache(args1, envWithPkgName, mockFS, mockPkgLoader, mockCacheFS, io.Discard)
 	if err != nil {
 		t.Fatalf("First run failed: %v", err)
 	}
@@ -2127,7 +2225,7 @@ type OtherInterface interface {
 	// Second run with OtherInterface - should be cache miss (different args)
 	args2 := []string{"generator", "OtherInterface", "--name", "OtherImp"}
 
-	err = run.WithCache(args2, envWithPkgName, mockFS, mockPkgLoader)
+	err = run.WithCache(args2, envWithPkgName, mockFS, mockPkgLoader, mockCacheFS, io.Discard)
 	if err != nil {
 		t.Fatalf("Second run failed: %v", err)
 	}
@@ -2151,7 +2249,7 @@ func TestWithCache_RunError(t *testing.T) {
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
-	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.WithCache(args, envWithPkgName, mockFS, mockPkgLoader, NewMockCacheFileSystem(), io.Discard)
 	if err == nil {
 		t.Error("Expected error when Run() fails")
 	}

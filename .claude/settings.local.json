@@ -35,7 +35,8 @@
       "mcp__gopls__go_package_api",
       "Bash(go doc:*)",
       "mcp__gopls__go_search",
-      "Bash(/tmp/impgen_new:*)"
+      "Bash(/tmp/impgen_new:*)",
+      "mcp__github__issue_read"
     ],
     "deny": [],
     "ask": []

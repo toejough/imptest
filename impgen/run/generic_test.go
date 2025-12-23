@@ -1,6 +1,7 @@
 package run_test
 
 import (
+	"io"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func GenericFunc[T any, U comparable](item T, key U) (T, U) {
 
 	args := []string{"impgen", "run.GenericFunc", "--name", "GenericFuncImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -89,28 +90,28 @@ func ProcessExportedBase[T any](c MyExportedContainer[T]) {}
 
 	args := []string{"impgen", "run.ProcessMulti", "--name", "ProcessMultiImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 
 	argsList := []string{"impgen", "run.ProcessMultiList", "--name", "ProcessMultiListImp"}
 
-	err = run.Run(argsList, envWithPkgName, mockFS, mockPkgLoader)
+	err = run.Run(argsList, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 
 	argsExported := []string{"impgen", "run.ProcessExportedParam", "--name", "ProcessExportedParamImp"}
 
-	err = run.Run(argsExported, envWithPkgName, mockFS, mockPkgLoader)
+	err = run.Run(argsExported, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
 
 	argsExportedBase := []string{"impgen", "run.ProcessExportedBase", "--name", "ProcessExportedBaseImp"}
 
-	err = run.Run(argsExportedBase, envWithPkgName, mockFS, mockPkgLoader)
+	err = run.Run(argsExportedBase, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -166,7 +167,7 @@ func ProcessMapValue[T comparable](m map[T]MyExportedType) {}
 
 			args := []string{"impgen", testCase.symbol, "--name", "Imp"}
 
-			err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+			err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 			if (err != nil) != testCase.wantErr {
 				t.Fatalf("Run failed for %s: %v", testCase.symbol, err)
 			}
@@ -201,7 +202,7 @@ func ProcessContainer(c *MyContainer[MyExportedType, string]) string {
 
 	args := []string{"impgen", "run.ProcessContainer", "--name", "ProcessContainerImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -242,7 +243,7 @@ func ProcessChannels(in <-chan MyType, out chan<- string, bidir chan int) {
 
 	args := []string{"impgen", "run.ProcessChannels", "--name", "ProcessChannelsImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -290,7 +291,7 @@ func ProcessWithCallback(data CustomData, handler func(CustomData) error) error 
 
 	args := []string{"impgen", "run.ProcessWithCallback", "--name", "ProcessWithCallbackImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}
@@ -338,7 +339,7 @@ func CreateHandler(id string) func() Result {
 
 	args := []string{"impgen", "run.CreateHandler", "--name", "CreateHandlerImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err != nil {
 		t.Fatalf("Run failed: %v", err)
 	}

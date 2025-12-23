@@ -1,6 +1,7 @@
 package run_test
 
 import (
+	"io"
 	"strings"
 	"testing"
 
@@ -38,7 +39,7 @@ type Stringer interface {
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	// External embedded interfaces are now supported, so this should succeed
 	if err != nil {
 		t.Fatalf("Expected success for external embedded interface, got error: %v", err)
@@ -79,7 +80,7 @@ type MyInterface interface {
 
 	args := []string{"generator", "MyInterface", "--name", "MyImp"}
 
-	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader)
+	err := run.Run(args, envWithPkgName, mockFS, mockPkgLoader, io.Discard)
 	if err == nil {
 		t.Fatal("Expected error for nonexistent external embedded interface package, got nil")
 	}

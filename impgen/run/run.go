@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/token"
 	go_types "go/types" // Aliased import
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,23 +20,30 @@ import (
 
 // WithCache executes the impgen tool with caching support. It checks if a cached version exists based on the
 // package signature and uses it if available. Otherwise, it generates new code and caches the result.
-func WithCache(args []string, getEnv func(string) string, fileSys FileSystem, pkgLoader PackageLoader) error {
+func WithCache(
+	args []string,
+	getEnv func(string) string,
+	fileSys FileSystem,
+	pkgLoader PackageLoader,
+	cacheFS CacheFileSystem,
+	output io.Writer,
+) error {
 	// 1. Calculate current signature
 	sig, err := CalculatePackageSignature(args, fileSys)
 	if err != nil {
 		// If signature calculation fails, run without cache
-		return Run(args, getEnv, fileSys, pkgLoader)
+		return Run(args, getEnv, fileSys, pkgLoader, output)
 	}
 
 	// 2. Find project root and cache file
-	root, err := FindProjectRoot()
+	root, err := FindProjectRoot(cacheFS)
 	if err != nil {
 		// If project root not found, run without cache
-		return Run(args, getEnv, fileSys, pkgLoader)
+		return Run(args, getEnv, fileSys, pkgLoader, output)
 	}
 
 	cachePath := filepath.Join(root, CacheDirName, "cache.json")
-	cache := LoadDiskCache(cachePath)
+	cache := LoadDiskCache(cachePath, cacheFS)
 
 	// 3. Check cache
 	key := strings.Join(args[1:], " ")
@@ -52,7 +60,7 @@ func WithCache(args []string, getEnv func(string) string, fileSys FileSystem, pk
 	// 4. Cache miss - run and record
 	capturingSys := &capturingFileSystem{underlying: fileSys}
 
-	err = Run(args, getEnv, capturingSys, pkgLoader)
+	err = Run(args, getEnv, capturingSys, pkgLoader, output)
 	if err != nil {
 		return err
 	}
@@ -68,16 +76,19 @@ func WithCache(args []string, getEnv func(string) string, fileSys FileSystem, pk
 			Content:   capturingSys.writtenContent,
 			Filename:  capturingSys.writtenName,
 		}
-		SaveDiskCache(cachePath, cache)
+		SaveDiskCache(cachePath, cache, cacheFS)
 	}
 
 	return nil
 }
 
 // Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, a FileWriter
-// interface for file operations, and a PackageLoader for package operations. It returns an error if any step fails. On
-// success, it generates a Go source file implementing the specified interface, in the calling test package.
-func Run(args []string, getEnv func(string) string, fileWriter FileWriter, pkgLoader PackageLoader) error {
+// interface for file operations, a PackageLoader for package operations, and an io.Writer for output messages. It
+// returns an error if any step fails. On success, it generates a Go source file implementing the specified interface,
+// in the calling test package.
+func Run(
+	args []string, getEnv func(string) string, fileWriter FileWriter, pkgLoader PackageLoader, output io.Writer,
+) error {
 	info, err := getGeneratorCallInfo(args, getEnv)
 	if err != nil {
 		return err
@@ -104,7 +115,7 @@ func Run(args []string, getEnv func(string) string, fileWriter FileWriter, pkgLo
 		return err
 	}
 
-	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileWriter)
+	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileWriter, output)
 	if err != nil {
 		return err
 	}
@@ -283,7 +294,9 @@ func parseArgs(args []string) (cliArgs, error) {
 }
 
 // writeGeneratedCodeToFile writes the generated code to generated_<impName>.go.
-func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileWriter FileWriter) error {
+func writeGeneratedCodeToFile(
+	code string, impName string, pkgName string, fileWriter FileWriter, output io.Writer,
+) error {
 	const generatedFilePermissions = 0o600
 
 	filename := "generated_" + impName
@@ -299,7 +312,7 @@ func writeGeneratedCodeToFile(code string, impName string, pkgName string, fileW
 		return fmt.Errorf("error writing %s: %w", filename, err)
 	}
 
-	fmt.Printf("%s written successfully.\n", filename)
+	fmt.Fprintf(output, "%s written successfully.\n", filename)
 
 	return nil
 }

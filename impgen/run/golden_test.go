@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,7 +53,9 @@ type uatTestCase struct {
 //nolint:paralleltest // This test must be sequential because it uses t.Chdir which is not thread-safe.
 func TestUATConsistency(t *testing.T) {
 	// Project root relative to this test file.
-	projectRoot, err := run.FindProjectRoot()
+	cfs := realCacheFS{}
+
+	projectRoot, err := run.FindProjectRoot(cfs)
 	if err != nil {
 		t.Fatalf("failed to find project root: %v", err)
 	}
@@ -112,7 +115,7 @@ func verifyUATFile(
 		baseDir: ".",
 	}
 
-	err := run.Run(fullArgs, getEnv, fileSystem, loader)
+	err := run.Run(fullArgs, getEnv, fileSystem, loader, io.Discard)
 	if err != nil {
 		t.Errorf("Run failed for %v: %v", testCase.name, err)
 	}
@@ -132,8 +135,9 @@ func tryDiskCache(t *testing.T, projectRoot, scenarioDir string, fullArgs []stri
 		return false
 	}
 
+	cfs := realCacheFS{}
 	cachePath := filepath.Join(projectRoot, run.CacheDirName, "cache.json")
-	cache := run.LoadDiskCache(cachePath)
+	cache := run.LoadDiskCache(cachePath, cfs)
 	key := strings.Join(fullArgs[1:], " ")
 
 	entry, ok := cache.Entries[key]

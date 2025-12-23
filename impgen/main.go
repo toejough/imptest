@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -30,7 +31,7 @@ func main() {
 		return
 	}
 
-	err := run.WithCache(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{})
+	err := run.WithCache(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{}, &realCacheFileSystem{}, os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -42,6 +43,9 @@ type realFileSystem struct{}
 
 // realPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
 type realPackageLoader struct{}
+
+// realCacheFileSystem implements CacheFileSystem using os package.
+type realCacheFileSystem struct{}
 
 // Load loads a package by import path and returns its AST files, FileSet, and type information.
 func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
@@ -128,4 +132,54 @@ func (fs *realFileSystem) ReadFile(name string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// Open opens the named file for reading.
+func (cfs *realCacheFileSystem) Open(path string) (io.ReadCloser, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open %s: %w", path, err)
+	}
+
+	return file, nil
+}
+
+// Create creates the named file for writing.
+func (cfs *realCacheFileSystem) Create(path string) (io.WriteCloser, error) {
+	file, err := os.Create(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s: %w", path, err)
+	}
+
+	return file, nil
+}
+
+// MkdirAll creates a directory path and all parents.
+func (cfs *realCacheFileSystem) MkdirAll(path string, perm os.FileMode) error {
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		return fmt.Errorf("failed to create directory %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// Stat returns file info for the named file.
+func (cfs *realCacheFileSystem) Stat(path string) (os.FileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat %s: %w", path, err)
+	}
+
+	return info, nil
+}
+
+// Getwd returns the current working directory.
+func (cfs *realCacheFileSystem) Getwd() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	return dir, nil
 }
