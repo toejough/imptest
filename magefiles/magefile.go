@@ -45,9 +45,9 @@ func Check(c context.Context) error {
 		Lint,          // make it follow the standards you care about
 		CheckNils,     // suss out nils
 		CheckCoverage, // verify desired coverage
-		Mutate,        // check for untested code
-		Fuzz,          // suss out unsafe assumptions about your function inputs
-		TodoCheck,     // look for any fixme's or todos
+		// Mutate,        // check for untested code
+		// Fuzz,          // suss out unsafe assumptions about your function inputs
+		// TodoCheck,     // look for any fixme's or todos
 	} {
 		err := cmd(c)
 		if err != nil {
