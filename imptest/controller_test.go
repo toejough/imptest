@@ -47,7 +47,7 @@ func (m *mockTester) DidFatal() bool {
 // raceCoordinator ensures both goroutines enter select, then each wants what the other queued.
 type raceCoordinator struct {
 	mu        sync.Mutex
-	alphaID   int  // 0=none, 1=A is Alpha, 2=B is Alpha
+	alphaID   int // 0=none, 1=A is Alpha, 2=B is Alpha
 	betaReady chan struct{}
 	callForA  *testCall
 	callForB  *testCall
@@ -59,7 +59,8 @@ func (rc *raceCoordinator) ValidatorA(call *testCall) bool {
 	rc.mu.Lock()
 
 	// Determine role (happens once)
-	if rc.alphaID == 0 {
+	switch rc.alphaID {
+	case 0:
 		// A is Alpha (first validator called)
 		rc.alphaID = 1
 		rc.mu.Unlock()
@@ -68,7 +69,7 @@ func (rc *raceCoordinator) ValidatorA(call *testCall) bool {
 		<-rc.betaReady
 
 		rc.mu.Lock()
-	} else if rc.alphaID == 2 {
+	case 2:
 		// B is Alpha, A is Beta
 		rc.mu.Unlock()
 
@@ -93,14 +94,15 @@ func (rc *raceCoordinator) ValidatorA(call *testCall) bool {
 	var wantCall *testCall
 
 	if rc.alphaID == 1 {
-		// A is Alpha: wants callB (what Beta will queue)
+		// A is Alpha: Alpha always wants callB
 		wantCall = rc.callForB
 	} else {
-		// A is Beta: wants callA (what Alpha will queue)
+		// A is Beta: Beta always wants callA
 		wantCall = rc.callForA
 	}
 
 	shouldAccept := call == wantCall
+
 	rc.mu.Unlock()
 
 	return shouldAccept
@@ -110,7 +112,8 @@ func (rc *raceCoordinator) ValidatorB(call *testCall) bool {
 	rc.mu.Lock()
 
 	// Determine role (happens once)
-	if rc.alphaID == 0 {
+	switch rc.alphaID {
+	case 0:
 		// B is Alpha (first validator called)
 		rc.alphaID = 2
 		rc.mu.Unlock()
@@ -119,7 +122,7 @@ func (rc *raceCoordinator) ValidatorB(call *testCall) bool {
 		<-rc.betaReady
 
 		rc.mu.Lock()
-	} else if rc.alphaID == 1 {
+	case 1:
 		// A is Alpha, B is Beta
 		rc.mu.Unlock()
 
@@ -144,14 +147,15 @@ func (rc *raceCoordinator) ValidatorB(call *testCall) bool {
 	var wantCall *testCall
 
 	if rc.alphaID == 2 {
-		// B is Alpha: wants callA (what Beta will queue)
-		wantCall = rc.callForA
-	} else {
-		// B is Beta: wants callB (what Alpha will queue)
+		// B is Alpha: Alpha always wants callB
 		wantCall = rc.callForB
+	} else {
+		// B is Beta: Beta always wants callA
+		wantCall = rc.callForA
 	}
 
 	shouldAccept := call == wantCall
+
 	rc.mu.Unlock()
 
 	return shouldAccept
@@ -184,16 +188,22 @@ func TestGetCall_RaceCondition(t *testing.T) {
 		callForB:  callForB,
 	}
 
-	var wg sync.WaitGroup
-	var gotA, gotB atomic.Bool
+	var (
+		wg         sync.WaitGroup
+		gotA, gotB atomic.Bool
+	)
 
 	// Goroutine A
+
 	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
 
+		t.Log("A: Starting GetCall")
+
 		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorA)
+		t.Logf("A: GetCall returned %v", result)
 
 		if result != nil {
 			gotA.Store(true)
@@ -206,7 +216,10 @@ func TestGetCall_RaceCondition(t *testing.T) {
 	go func() {
 		defer wg.Done()
 
+		t.Log("B: Starting GetCall")
+
 		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorB)
+		t.Logf("B: GetCall returned %v", result)
 
 		if result != nil {
 			gotB.Store(true)
