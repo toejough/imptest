@@ -1,6 +1,6 @@
 //go:build mutation
 
-package imptest_test
+package imptest
 
 import (
 	"testing"

@@ -8,6 +8,7 @@ disable = [
 	'godox',          # saving todos till another validation step
 	'ireturn',        # I like generic return types
 	'nonamedreturns', # I like named returns
+	'wsl',            # deprecated
 ]
 
 [linters.settings]
@@ -20,11 +21,23 @@ allow = [
 	'github.com/alexflint/go-arg',
 	'github.com/akedrou/textdiff',
 	'github.com/davecgh/go-spew/spew',
+	'golang.org/x/tools/go/packages',
+	'github.com/toejough/imptest/UAT/run',
+	'github.com/toejough/imptest/impgen/run',
 ]
 
 [linters.settings.depguard.rules.test]
 files = ['$test']
-allow = ['$gostd', 'pgregory.net/rapid', 'github.com/toejough/imptest/imptest']
+allow = [
+	'$gostd',
+	'github.com/onsi/gomega',
+	'pgregory.net/rapid',
+	'github.com/toejough/imptest',
+	'github.com/toejough/imptest/imptest',
+	'github.com/toejough/imptest/UAT/run',
+	'github.com/toejough/imptest/impgen/run',
+	'golang.org/x/tools/go/packages',
+]
 
 [linters.settings.nlreturn]
 block-size = 2
@@ -41,6 +54,11 @@ paths = ['third_party$', 'builtin$', 'examples$']
 
 [issues]
 fix = true
+
+[[linters.exclusions.rules]]
+# Dynamic errors are acceptable and often clearer in test code/predicates.
+path = "_test.go"
+linters = ['err113']
 
 [formatters]
 enable = ['gofmt', 'gofumpt', 'goimports']

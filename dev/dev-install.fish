@@ -41,3 +41,4 @@ install-if-missing go
 install-if-missing golangci-lint
 install-if-missing mage
 go install go.uber.org/nilaway/cmd/nilaway@latest
+go install golang.org/x/tools/cmd/deadcode@latest

@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "mcp__gopls__go_workspace",
+      "Bash(grep:*)",
+      "mcp__gopls__go_diagnostics",
+      "Bash(mage check:*)",
+      "Bash(mage test:*)",
+      "mcp__gopls__go_file_context",
+      "Bash(go test:*)",
+      "Bash(mage generate:*)",
+      "Bash(go build:*)",
+      "Bash(ls:*)",
+      "Bash(/usr/bin/time -p go test:*)",
+      "Bash(/usr/bin/time -p mage check:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Skill(mgrep)",
+      "Bash(mgrep:*)",
+      "Bash(go clean:*)",
+      "Bash(head:*)",
+      "Bash(go generate:*)",
+      "Bash(go tool cover:*)",
+      "mcp__gopls__go_symbol_references",
+      "Bash(sort:*)",
+      "Bash(mage CheckCoverage:*)",
+      "Bash(done)",
+      "Bash(mage -l:*)",
+      "Bash(mage findRedundantTests:*)",
+      "Bash(go list:*)",
+      "Bash(mage -v findRedundantTests:*)",
+      "Bash(mage:*)",
+      "Bash(deadcode:*)",
+      "mcp__gopls__go_package_api",
+      "Bash(go doc:*)",
+      "mcp__gopls__go_search"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "outputStyle": "Explanatory"
+}
