@@ -95,10 +95,7 @@ func TestGetCall_ConcurrentWaiters(t *testing.T) {
 		}
 	}()
 
-	// Give waiters time to register
-	time.Sleep(10 * time.Millisecond)
-
-	// Send both calls
+	// Send both calls (dispatcher receives them immediately)
 	ctrl.CallChan <- callA
 
 	ctrl.CallChan <- callB
@@ -129,13 +126,10 @@ func TestGetCall_QueuedCallsMatchLaterWaiters(t *testing.T) {
 	call1 := &testCall{name: "call1"}
 	call2 := &testCall{name: "call2"}
 
-	// Send calls BEFORE any waiters exist - they should be queued
+	// Send calls (dispatcher receives and queues them immediately)
 	ctrl.CallChan <- call1
 
 	ctrl.CallChan <- call2
-
-	// Give dispatcher time to queue them
-	time.Sleep(10 * time.Millisecond)
 
 	// Now wait for call2 (skipping call1)
 	result := ctrl.GetCall(1*time.Second, func(call *testCall) bool {
