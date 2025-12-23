@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	mp "github.com/toejough/imptest/UAT/11-edge-many-params"
+	mp "github.com/toejough/imptest/UAT/10-edge-many-params"
 )
 
 // TestManyParams_mutant verifies that mocks work correctly for methods with many parameters.

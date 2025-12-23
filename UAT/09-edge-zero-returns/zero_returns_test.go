@@ -3,7 +3,7 @@ package zero_returns_test
 import (
 	"testing"
 
-	zr "github.com/toejough/imptest/UAT/10-edge-zero-returns"
+	zr "github.com/toejough/imptest/UAT/09-edge-zero-returns"
 )
 
 // TestProcessData_mutant verifies that callable wrappers work correctly for functions with zero returns.
