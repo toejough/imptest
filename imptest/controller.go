@@ -19,20 +19,17 @@ type Call interface {
 
 // Controller manages the call queue and synchronization for a mock or callable.
 type Controller[T Call] struct {
-	T               Tester
-	CallChan        chan T
-	callQueue       []T
-	queueLock       sync.Mutex
-	queueUpdated    chan struct{} // Closed when queue is updated to notify waiters
-	queueUpdateLock sync.Mutex    // Protects queueUpdated channel
+	T         Tester
+	CallChan  chan T
+	callQueue []T
+	queueLock sync.Mutex
 }
 
 // NewController creates a new controller.
 func NewController[T Call](t Tester) *Controller[T] {
 	return &Controller[T]{
-		T:            t,
-		CallChan:     make(chan T, 1),
-		queueUpdated: make(chan struct{}),
+		T:        t,
+		CallChan: make(chan T, 1),
 	}
 }
 
@@ -64,11 +61,6 @@ func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T
 	}
 
 	for {
-		// Get current queue-update notification channel
-		c.queueUpdateLock.Lock()
-		updateChan := c.queueUpdated
-		c.queueUpdateLock.Unlock()
-
 		select {
 		case call := <-c.CallChan:
 			if validator(call) {
@@ -78,45 +70,6 @@ func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T
 			c.queueLock.Lock()
 			c.callQueue = append(c.callQueue, call)
 			c.queueLock.Unlock()
-
-			// Notify all waiting goroutines that queue was updated
-			c.queueUpdateLock.Lock()
-			close(c.queueUpdated)
-			c.queueUpdated = make(chan struct{}) // New channel for next update
-			c.queueUpdateLock.Unlock()
-
-			// Re-check queue ourselves (another goroutine might have queued what we want)
-			c.queueLock.Lock()
-
-			for index, queuedCall := range c.callQueue {
-				if validator(queuedCall) {
-					c.callQueue = append(c.callQueue[:index], c.callQueue[index+1:]...)
-
-					c.queueLock.Unlock()
-
-					return queuedCall
-				}
-			}
-
-			c.queueLock.Unlock()
-
-		case <-updateChan:
-			// Queue was updated by another goroutine, re-check it
-			c.queueLock.Lock()
-
-			for index, call := range c.callQueue {
-				if validator(call) {
-					c.callQueue = append(c.callQueue[:index], c.callQueue[index+1:]...)
-
-					c.queueLock.Unlock()
-
-					return call
-				}
-			}
-
-			c.queueLock.Unlock()
-			// Didn't find a match, loop back to wait again
-
 		case <-timeoutChan:
 			c.T.Fatalf("timeout waiting for call matching validator")
 
