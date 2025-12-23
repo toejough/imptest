@@ -10,10 +10,10 @@ import (
 )
 
 // Generate a mock for the dependency.
-//go:generate go run ../../impgen/main.go callable.ExternalService --name ExternalServiceImp
+//go:generate impgen callable.ExternalService --name ExternalServiceImp
 
 // Generate a wrapper for the function under test.
-//go:generate go run ../../impgen/main.go callable.BusinessLogic --name BusinessLogicImp
+//go:generate impgen callable.BusinessLogic --name BusinessLogicImp
 
 // TestBusinessLogic demonstrates how to use type-safe wrappers for functions.
 //

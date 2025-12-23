@@ -166,10 +166,10 @@ go get github.com/toejough/imptest
 Install the code generator tool:
 
 ```bash
-go install github.com/toejough/imptest/cmd/impgen@latest
+go install github.com/toejough/imptest/impgen@latest
 ```
 
-Then add `//go:generate` directives to your test files and run `go generate`:
+Then add `//go:generate impgen <interface|callable>` directives to your test files and run `go generate`:
 
 ```bash
 go generate ./...

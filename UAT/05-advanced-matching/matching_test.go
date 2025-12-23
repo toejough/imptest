@@ -9,7 +9,7 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
-//go:generate go run ../../impgen/main.go matching.ComplexService --name ComplexServiceImp
+//go:generate impgen matching.ComplexService --name ComplexServiceImp
 
 // TestAdvancedMatching demonstrates how to verify complex structures where only a subset
 // of fields matter.

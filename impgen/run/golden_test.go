@@ -196,7 +196,7 @@ func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
 		return uatTestCase{}, false
 	}
 
-	if !strings.Contains(text, "impgen/main.go") {
+	if !strings.Contains(text, "impgen") {
 		return uatTestCase{}, false
 	}
 
@@ -204,12 +204,13 @@ func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
 
 	var args []string
 
-	foundMain := false
+	// iterate till we find "impgen", then collect the rest as args
+	foundImpgen := false
 	for _, field := range fields {
-		if foundMain {
+		if foundImpgen {
 			args = append(args, field)
-		} else if strings.HasSuffix(field, "impgen/main.go") {
-			foundMain = true
+		} else if strings.HasSuffix(field, "impgen") {
+			foundImpgen = true
 		}
 	}
 

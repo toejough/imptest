@@ -6,9 +6,9 @@ import (
 	safety "github.com/toejough/imptest/UAT/04-error-and-panic-handling"
 )
 
-//go:generate go run ../../impgen/main.go safety.CriticalDependency --name CriticalDependencyImp
-//go:generate go run ../../impgen/main.go safety.SafeRunner --name SafeRunnerImp
-//go:generate go run ../../impgen/main.go safety.UnsafeRunner --name UnsafeRunnerImp
+//go:generate impgen safety.CriticalDependency --name CriticalDependencyImp
+//go:generate impgen safety.SafeRunner --name SafeRunnerImp
+//go:generate impgen safety.UnsafeRunner --name UnsafeRunnerImp
 
 // TestRecoverFromPanic demonstrates injecting a panic into a dependency call
 // to verify the system-under-test's recovery logic.

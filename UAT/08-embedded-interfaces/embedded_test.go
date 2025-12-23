@@ -8,7 +8,7 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
-//go:generate go run ../../impgen/main.go embedded.ReadCloser --name ReadCloserImp
+//go:generate impgen embedded.ReadCloser --name ReadCloserImp
 
 // TestEmbeddedInterfaces demonstrates how imptest automatically expands
 // embedded interfaces.

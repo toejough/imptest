@@ -10,7 +10,7 @@ import (
 
 // imptest identifies whether the target is an interface or a function.
 // By default, it generates a name like <Interface>Imp (OpsImp in this case).
-//go:generate go run ../../impgen/main.go basic.Ops
+//go:generate impgen basic.Ops
 
 // TestBasicMocking demonstrates the "Interactive Control" pattern using a
 // custom-named mock implementation.
@@ -44,7 +44,7 @@ func TestBasicMocking(t *testing.T) {
 }
 
 // You can also use --name to specify a custom name (CustomOpsImp here).
-//go:generate go run ../../impgen/main.go basic.Ops --name CustomOpsImp
+//go:generate impgen basic.Ops --name CustomOpsImp
 
 // TestCustomNaming demonstrates that the --name flag can be used to generate a custom imp.
 func TestCustomNaming(t *testing.T) {

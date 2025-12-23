@@ -7,7 +7,7 @@ import (
 	concurrency "github.com/toejough/imptest/UAT/06-concurrency"
 )
 
-//go:generate go run ../../impgen/main.go concurrency.SlowService --name SlowServiceImp
+//go:generate impgen concurrency.SlowService --name SlowServiceImp
 
 // TestConcurrentOutOfOrder demonstrates how imptest handles code that executes
 // dependencies in parallel or in non-deterministic order.

@@ -6,7 +6,7 @@ import (
 	noncomparable "github.com/toejough/imptest/UAT/03-non-comparable-arguments"
 )
 
-//go:generate go run ../../impgen/main.go noncomparable.DataProcessor --name DataProcessorImp
+//go:generate impgen noncomparable.DataProcessor --name DataProcessorImp
 
 // TestNonComparableArguments demonstrates how imptest handles Go types that
 // cannot be compared with the == operator (like slices and maps).

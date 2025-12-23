@@ -11,10 +11,10 @@ import (
 
 // Generate a mock for the generic interface.
 // Note: We use the base interface name; the generator handles the type parameters.
-//go:generate go run ../../impgen/main.go generics.Repository --name RepositoryImp
+//go:generate impgen generics.Repository --name RepositoryImp
 
 // Generate a wrapper for the generic function.
-//go:generate go run ../../impgen/main.go generics.ProcessItem --name ProcessItemImp
+//go:generate impgen generics.ProcessItem --name ProcessItemImp
 
 var errTest = errors.New("test error")
 
