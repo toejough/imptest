@@ -36,26 +36,34 @@ func NewController[T Call](t Tester) *Controller[T] {
 	}
 }
 
-// GetCall waits for a call that matches the given validator.
-
-func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T {
-	c.T.Helper()
-
+// checkQueue looks for a matching call in the queue and removes it if found.
+// Returns the call and true if found, zero value and false otherwise.
+func (c *Controller[T]) checkQueue(validator func(T) bool) (T, bool) {
 	c.queueLock.Lock()
-
-	// Check queue first
+	defer c.queueLock.Unlock()
 
 	for index, call := range c.callQueue {
 		if validator(call) {
 			c.callQueue = append(c.callQueue[:index], c.callQueue[index+1:]...)
 
-			c.queueLock.Unlock()
-
-			return call
+			return call, true
 		}
 	}
 
-	c.queueLock.Unlock()
+	var zero T
+
+	return zero, false
+}
+
+// GetCall waits for a call that matches the given validator.
+
+func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T {
+	c.T.Helper()
+
+	// Check queue first
+	if call, found := c.checkQueue(validator); found {
+		return call
+	}
 
 	var timeoutChan <-chan time.Time
 
@@ -86,35 +94,15 @@ func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T
 			c.queueUpdateLock.Unlock()
 
 			// Re-check queue ourselves (another goroutine might have queued what we want)
-			c.queueLock.Lock()
-
-			for index, queuedCall := range c.callQueue {
-				if validator(queuedCall) {
-					c.callQueue = append(c.callQueue[:index], c.callQueue[index+1:]...)
-
-					c.queueLock.Unlock()
-
-					return queuedCall
-				}
+			if queuedCall, found := c.checkQueue(validator); found {
+				return queuedCall
 			}
-
-			c.queueLock.Unlock()
 
 		case <-updateChan:
 			// Queue was updated by another goroutine, re-check it
-			c.queueLock.Lock()
-
-			for index, call := range c.callQueue {
-				if validator(call) {
-					c.callQueue = append(c.callQueue[:index], c.callQueue[index+1:]...)
-
-					c.queueLock.Unlock()
-
-					return call
-				}
+			if call, found := c.checkQueue(validator); found {
+				return call
 			}
-
-			c.queueLock.Unlock()
 			// Didn't find a match, loop back to wait again
 
 		case <-timeoutChan:

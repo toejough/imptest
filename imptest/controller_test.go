@@ -161,6 +161,73 @@ func (rc *raceCoordinator) ValidatorB(call *testCall) bool {
 	return shouldAccept
 }
 
+// launchGetCallGoroutines starts two goroutines that call GetCall concurrently.
+func launchGetCallGoroutines(
+	t *testing.T,
+	ctrl *imptest.Controller[*testCall],
+	coordinator *raceCoordinator,
+	gotA, gotB *atomic.Bool,
+	waitGroup *sync.WaitGroup,
+) {
+	t.Helper()
+
+	// Goroutine A
+	waitGroup.Add(1)
+
+	go func() {
+		defer waitGroup.Done()
+
+		t.Log("A: Starting GetCall")
+
+		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorA)
+		t.Logf("A: GetCall returned %v", result)
+
+		if result != nil {
+			gotA.Store(true)
+		}
+	}()
+
+	// Goroutine B
+	waitGroup.Add(1)
+
+	go func() {
+		defer waitGroup.Done()
+
+		t.Log("B: Starting GetCall")
+
+		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorB)
+		t.Logf("B: GetCall returned %v", result)
+
+		if result != nil {
+			gotB.Store(true)
+		}
+	}()
+}
+
+// verifyRaceTestResults checks that both goroutines succeeded and didn't timeout.
+func verifyRaceTestResults(
+	t *testing.T,
+	tester *mockTester,
+	gotA, gotB *atomic.Bool,
+	coordinator *raceCoordinator,
+) {
+	t.Helper()
+
+	t.Logf("Test results: didFatal=%v, gotA=%v, gotB=%v", tester.DidFatal(), gotA.Load(), gotB.Load())
+	t.Logf("Coordinator state: alphaID=%d, aCalled=%v, bCalled=%v",
+		coordinator.alphaID, coordinator.aCalled, coordinator.bCalled)
+
+	if tester.DidFatal() {
+		// Goroutines timed out - bug exists
+		t.Fatal("Race condition detected: goroutines timed out while their matching calls sat in queue. " +
+			"This indicates GetCall does not re-check the queue after receiving a non-matching call.")
+	}
+
+	if !gotA.Load() || !gotB.Load() {
+		t.Errorf("Expected both goroutines to succeed, but gotA=%v, gotB=%v", gotA.Load(), gotB.Load())
+	}
+}
+
 // TestGetCall_RaceCondition demonstrates the race condition in GetCall where
 // a goroutine can be stuck waiting on CallChan while its matching call sits
 // in the queue.
@@ -189,47 +256,14 @@ func TestGetCall_RaceCondition(t *testing.T) {
 	}
 
 	var (
-		wg         sync.WaitGroup
+		waitGroup  sync.WaitGroup
 		gotA, gotB atomic.Bool
 	)
 
-	// Goroutine A
+	launchGetCallGoroutines(t, ctrl, coordinator, &gotA, &gotB, &waitGroup)
 
-	wg.Add(1)
-
+	// Send both calls
 	go func() {
-		defer wg.Done()
-
-		t.Log("A: Starting GetCall")
-
-		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorA)
-		t.Logf("A: GetCall returned %v", result)
-
-		if result != nil {
-			gotA.Store(true)
-		}
-	}()
-
-	// Goroutine B
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
-		t.Log("B: Starting GetCall")
-
-		result := ctrl.GetCall(100*time.Millisecond, coordinator.ValidatorB)
-		t.Logf("B: GetCall returned %v", result)
-
-		if result != nil {
-			gotB.Store(true)
-		}
-	}()
-
-	// Send both calls after a small delay to ensure both goroutines are waiting
-	go func() {
-		time.Sleep(10 * time.Millisecond)
-
 		// Send callA - Alpha will receive it (whichever goroutine goes first)
 		ctrl.CallChan <- callForA
 
@@ -237,23 +271,10 @@ func TestGetCall_RaceCondition(t *testing.T) {
 		ctrl.CallChan <- callForB
 	}()
 
-	wg.Wait()
+	waitGroup.Wait()
 
 	// Test expectations:
 	// - With bug: both goroutines timeout (didFatal=true, gotA=false, gotB=false)
 	// - With fix: both goroutines succeed (didFatal=false, gotA=true, gotB=true)
-
-	t.Logf("Test results: didFatal=%v, gotA=%v, gotB=%v", tester.DidFatal(), gotA.Load(), gotB.Load())
-	t.Logf("Coordinator state: alphaID=%d, aCalled=%v, bCalled=%v",
-		coordinator.alphaID, coordinator.aCalled, coordinator.bCalled)
-
-	if tester.DidFatal() {
-		// Goroutines timed out - bug exists
-		t.Fatal("Race condition detected: goroutines timed out while their matching calls sat in queue. " +
-			"This indicates GetCall does not re-check the queue after receiving a non-matching call.")
-	}
-
-	if !gotA.Load() || !gotB.Load() {
-		t.Errorf("Expected both goroutines to succeed, but gotA=%v, gotB=%v", gotA.Load(), gotB.Load())
-	}
+	verifyRaceTestResults(t, tester, &gotA, &gotB, coordinator)
 }
