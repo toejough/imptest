@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/alexflint/go-arg v1.6.0
+	github.com/dave/dst v0.27.3
 	github.com/gtramontina/ooze v0.2.0
 	github.com/magefile/mage v1.15.0
 	github.com/onsi/gomega v1.38.3

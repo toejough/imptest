@@ -12,7 +12,68 @@ import (
 	"strings"
 
 	"github.com/alexflint/go-arg"
+	"github.com/toejough/imptest/impgen/reorder"
 )
+
+// Interfaces - Public
+
+// FileReader interface for reading files during signature calculation.
+type FileReader interface {
+	Glob(pattern string) ([]string, error)
+	ReadFile(name string) ([]byte, error)
+}
+
+// FileSystem interface combines reading and writing for convenience.
+type FileSystem interface {
+	FileReader
+	FileWriter
+}
+
+// FileWriter interface for writing generated code.
+type FileWriter interface {
+	WriteFile(name string, data []byte, perm os.FileMode) error
+}
+
+// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, a FileWriter
+// interface for file operations, a PackageLoader for package operations, and an io.Writer for output messages. It
+// returns an error if any step fails. On success, it generates a Go source file implementing the specified interface,
+// in the calling test package.
+func Run(
+	args []string, getEnv func(string) string, fileWriter FileWriter, pkgLoader PackageLoader, output io.Writer,
+) error {
+	info, err := getGeneratorCallInfo(args, getEnv)
+	if err != nil {
+		return err
+	}
+
+	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader)
+	if err != nil {
+		return err
+	}
+
+	// If it's a local package, we should use the full name for symbol lookup
+	// (e.g. "MyType.MyMethod" instead of just "MyMethod")
+	if pkgImportPath == "." {
+		info.localInterfaceName = info.interfaceName
+	}
+
+	astFiles, fset, typesInfo, err := loadPackage(pkgImportPath, pkgLoader)
+	if err != nil {
+		return err
+	}
+
+	code, err := generateCode(info, astFiles, fset, typesInfo, pkgImportPath, pkgLoader)
+	if err != nil {
+		return err
+	}
+
+	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileWriter, output)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Vars.
 
@@ -82,45 +143,37 @@ func WithCache(
 	return nil
 }
 
-// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, a FileWriter
-// interface for file operations, a PackageLoader for package operations, and an io.Writer for output messages. It
-// returns an error if any step fails. On success, it generates a Go source file implementing the specified interface,
-// in the calling test package.
-func Run(
-	args []string, getEnv func(string) string, fileWriter FileWriter, pkgLoader PackageLoader, output io.Writer,
-) error {
-	info, err := getGeneratorCallInfo(args, getEnv)
-	if err != nil {
-		return err
-	}
+// capturingFileSystem wraps a FileWriter and captures what was written for caching.
+type capturingFileSystem struct {
+	underlying     FileWriter
+	writtenContent string
+	writtenName    string
+}
 
-	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader)
-	if err != nil {
-		return err
-	}
+// WriteFile implements FileWriter by capturing the written data and delegating to underlying.
+func (c *capturingFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
+	c.writtenContent = string(data)
+	c.writtenName = name
 
-	// If it's a local package, we should use the full name for symbol lookup
-	// (e.g. "MyType.MyMethod" instead of just "MyMethod")
-	if pkgImportPath == "." {
-		info.localInterfaceName = info.interfaceName
-	}
-
-	astFiles, fset, typesInfo, err := loadPackage(pkgImportPath, pkgLoader)
+	err := c.underlying.WriteFile(name, data, perm)
 	if err != nil {
-		return err
-	}
-
-	code, err := generateCode(info, astFiles, fset, typesInfo, pkgImportPath, pkgLoader)
-	if err != nil {
-		return err
-	}
-
-	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileWriter, output)
-	if err != nil {
-		return err
+		return fmt.Errorf("underlying write failed: %w", err)
 	}
 
 	return nil
+}
+
+// Structs - Private
+
+// cliArgs defines the command-line arguments for the generator.
+type cliArgs struct {
+	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
+	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
+}
+
+// generatorInfo holds information gathered for generation.
+type generatorInfo struct {
+	pkgName, interfaceName, localInterfaceName, impName string
 }
 
 func generateCode(
@@ -142,58 +195,6 @@ func generateCode(
 	}
 
 	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
-}
-
-// Interfaces - Public
-
-// FileReader interface for reading files during signature calculation.
-type FileReader interface {
-	Glob(pattern string) ([]string, error)
-	ReadFile(name string) ([]byte, error)
-}
-
-// FileWriter interface for writing generated code.
-type FileWriter interface {
-	WriteFile(name string, data []byte, perm os.FileMode) error
-}
-
-// FileSystem interface combines reading and writing for convenience.
-type FileSystem interface {
-	FileReader
-	FileWriter
-}
-
-// Structs - Private
-
-// cliArgs defines the command-line arguments for the generator.
-type cliArgs struct {
-	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
-	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
-}
-
-// generatorInfo holds information gathered for generation.
-type generatorInfo struct {
-	pkgName, interfaceName, localInterfaceName, impName string
-}
-
-// capturingFileSystem wraps a FileWriter and captures what was written for caching.
-type capturingFileSystem struct {
-	underlying     FileWriter
-	writtenContent string
-	writtenName    string
-}
-
-// WriteFile implements FileWriter by capturing the written data and delegating to underlying.
-func (c *capturingFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	c.writtenContent = string(data)
-	c.writtenName = name
-
-	err := c.underlying.WriteFile(name, data, perm)
-	if err != nil {
-		return fmt.Errorf("underlying write failed: %w", err)
-	}
-
-	return nil
 }
 
 // Functions - Private
@@ -307,7 +308,16 @@ func writeGeneratedCodeToFile(
 		filename += ".go"
 	}
 
-	err := fileWriter.WriteFile(filename, []byte(code), generatedFilePermissions)
+	// Reorder declarations according to project conventions
+	reordered, err := reorder.Source(code)
+	if err != nil {
+		// If reordering fails, log but continue with original code
+		fmt.Fprintf(output, "Warning: failed to reorder %s: %v\n", filename, err)
+
+		reordered = code
+	}
+
+	err = fileWriter.WriteFile(filename, []byte(reordered), generatedFilePermissions)
 	if err != nil {
 		return fmt.Errorf("error writing %s: %w", filename, err)
 	}

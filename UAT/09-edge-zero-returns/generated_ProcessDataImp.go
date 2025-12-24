@@ -29,25 +29,22 @@ func NewProcessDataImp(t testing.TB, callable func(data string, count int)) *Pro
 	}
 }
 
-// Start begins execution of the callable in a goroutine with the provided arguments.
-// Returns the wrapper for method chaining with expectation methods.
-// Captures both normal returns and panics for verification.
-//
-// Example:
-//
-//	wrapper.Start(arg1, arg2).ExpectReturnedValuesAre(expectedResult)
-func (s *ProcessDataImp) Start(data string, count int) *ProcessDataImp {
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				s.PanicChan <- r
-			}
-		}()
+// ExpectPanicWith asserts the callable panicked with a value matching the expectation.
+// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
+// Fails the test if the callable returned normally or panicked with a different value.
+func (s *ProcessDataImp) ExpectPanicWith(expected any) {
+	s.T.Helper()
+	s.WaitForResponse()
 
-		s.callable(data, count)
-		s.ReturnChan <- struct{}{}
-	}()
-	return s
+	if s.Panicked != nil {
+		ok, msg := imptest.MatchValue(s.Panicked, expected)
+		if !ok {
+			s.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	s.T.Fatalf("expected function to panic, but it returned")
 }
 
 // ExpectReturnedValuesAre asserts the callable returned with exactly the specified values.
@@ -78,43 +75,6 @@ func (s *ProcessDataImp) ExpectReturnedValuesShould() {
 	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
-// ExpectPanicWith asserts the callable panicked with a value matching the expectation.
-// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
-// Fails the test if the callable returned normally or panicked with a different value.
-func (s *ProcessDataImp) ExpectPanicWith(expected any) {
-	s.T.Helper()
-	s.WaitForResponse()
-
-	if s.Panicked != nil {
-		ok, msg := imptest.MatchValue(s.Panicked, expected)
-		if !ok {
-			s.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	s.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ProcessDataImpResponse represents the response from the callable (either return or panic).
-// Check EventType to determine if the callable returned normally or panicked.
-// Use AsReturn() to get return values as a slice, or access PanicVal directly.
-type ProcessDataImpResponse struct {
-	EventType string // "return" or "panic"
-	PanicVal  any
-}
-
-// Type returns the event type: "return" for normal returns, "panic" for panics.
-func (r *ProcessDataImpResponse) Type() string {
-	return r.EventType
-}
-
-// AsReturn converts the return values to a slice of any for generic processing.
-// Returns nil if the response was a panic or if there are no return values.
-func (r *ProcessDataImpResponse) AsReturn() []any {
-	return nil
-}
-
 // GetResponse waits for and returns the callable's response.
 // Use this when you need to inspect the response without asserting specific values.
 // The response indicates whether the callable returned or panicked.
@@ -131,4 +91,44 @@ func (s *ProcessDataImp) GetResponse() *ProcessDataImpResponse {
 		EventType: "PanicEvent",
 		PanicVal:  s.Panicked,
 	}
+}
+
+// Start begins execution of the callable in a goroutine with the provided arguments.
+// Returns the wrapper for method chaining with expectation methods.
+// Captures both normal returns and panics for verification.
+//
+// Example:
+//
+//	wrapper.Start(arg1, arg2).ExpectReturnedValuesAre(expectedResult)
+func (s *ProcessDataImp) Start(data string, count int) *ProcessDataImp {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.PanicChan <- r
+			}
+		}()
+
+		s.callable(data, count)
+		s.ReturnChan <- struct{}{}
+	}()
+	return s
+}
+
+// ProcessDataImpResponse represents the response from the callable (either return or panic).
+// Check EventType to determine if the callable returned normally or panicked.
+// Use AsReturn() to get return values as a slice, or access PanicVal directly.
+type ProcessDataImpResponse struct {
+	EventType string // "return" or "panic"
+	PanicVal  any
+}
+
+// AsReturn converts the return values to a slice of any for generic processing.
+// Returns nil if the response was a panic or if there are no return values.
+func (r *ProcessDataImpResponse) AsReturn() []any {
+	return nil
+}
+
+// Type returns the event type: "return" for normal returns, "panic" for panics.
+func (r *ProcessDataImpResponse) Type() string {
+	return r.EventType
 }

@@ -9,14 +9,30 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
-// Generate a mock for the generic interface.
-// Note: We use the base interface name; the generator handles the type parameters.
-//go:generate impgen generics.Repository --name RepositoryImp
+// TestGenericCallable demonstrates how imptest supports generic functions.
+//
+// Key Requirements Met:
+//  1. Generic Function Support: Generate type-safe wrappers for generic
+//     functions by specifying the type instantiation.
+func TestGenericCallable(t *testing.T) {
+	t.Parallel()
 
-// Generate a wrapper for the generic function.
-//go:generate impgen generics.ProcessItem --name ProcessItemImp
+	repoImp := NewRepositoryImp[int](t)
 
-var errTest = errors.New("test error")
+	// Initialize the callable wrapper implementation for a specific instantiation of the generic function.
+	// NewProcessItemImp is generic.
+	logicImp := NewProcessItemImp[int](t, generics.ProcessItem[int])
+
+	// Start the function.
+	transformer := func(i int) int { return i * 2 }
+	logicImp.Start(repoImp.Mock, "456", transformer)
+
+	repoImp.ExpectCallIs.Get().ExpectArgsAre("456").InjectResults(21, nil)
+	repoImp.ExpectCallIs.Save().ExpectArgsAre(42).InjectResult(nil)
+
+	// Verify it returned successfully (nil error).
+	logicImp.ExpectReturnedValuesAre(nil)
+}
 
 // TestGenericMocking demonstrates how imptest supports generic interfaces.
 //
@@ -41,31 +57,6 @@ func TestGenericMocking(t *testing.T) {
 	// Expectations are type-safe based on the generic parameter.
 	repoImp.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("hello", nil)
 	repoImp.ExpectCallIs.Save().ExpectArgsAre("hello!").InjectResult(nil)
-}
-
-// TestGenericCallable demonstrates how imptest supports generic functions.
-//
-// Key Requirements Met:
-//  1. Generic Function Support: Generate type-safe wrappers for generic
-//     functions by specifying the type instantiation.
-func TestGenericCallable(t *testing.T) {
-	t.Parallel()
-
-	repoImp := NewRepositoryImp[int](t)
-
-	// Initialize the callable wrapper implementation for a specific instantiation of the generic function.
-	// NewProcessItemImp is generic.
-	logicImp := NewProcessItemImp[int](t, generics.ProcessItem[int])
-
-	// Start the function.
-	transformer := func(i int) int { return i * 2 }
-	logicImp.Start(repoImp.Mock, "456", transformer)
-
-	repoImp.ExpectCallIs.Get().ExpectArgsAre("456").InjectResults(21, nil)
-	repoImp.ExpectCallIs.Save().ExpectArgsAre(42).InjectResult(nil)
-
-	// Verify it returned successfully (nil error).
-	logicImp.ExpectReturnedValuesAre(nil)
 }
 
 // TestProcessItem_Error demonstrates error handling in generic contexts.
@@ -109,3 +100,8 @@ func TestProcessItem_Error(t *testing.T) {
 		}))
 	})
 }
+
+// unexported variables.
+var (
+	errTest = errors.New("test error")
+)

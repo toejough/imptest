@@ -9,41 +9,6 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
-// testCall implements the Call interface for testing.
-type testCall struct {
-	name string
-	done atomic.Bool
-}
-
-func (c *testCall) Name() string {
-	return c.name
-}
-
-func (c *testCall) Done() bool {
-	return c.done.Load()
-}
-
-func (c *testCall) MarkDone() {
-	c.done.Store(true)
-}
-
-// mockTester implements the Tester interface for testing.
-type mockTester struct {
-	t       *testing.T
-	fataled atomic.Bool
-}
-
-func (m *mockTester) Helper() {}
-
-func (m *mockTester) Fatalf(format string, args ...any) {
-	m.fataled.Store(true)
-	m.t.Logf("Fatalf called: "+format, args...)
-}
-
-func (m *mockTester) DidFatal() bool {
-	return m.fataled.Load()
-}
-
 // TestGetCall_ConcurrentWaiters verifies that the waiter registration pattern
 // correctly handles concurrent goroutines waiting for different calls.
 //
@@ -148,4 +113,39 @@ func TestGetCall_QueuedCallsMatchLaterWaiters(t *testing.T) {
 	if result != call1 {
 		t.Errorf("Expected to receive call1, got %v", result)
 	}
+}
+
+// mockTester implements the Tester interface for testing.
+type mockTester struct {
+	t       *testing.T
+	fataled atomic.Bool
+}
+
+func (m *mockTester) DidFatal() bool {
+	return m.fataled.Load()
+}
+
+func (m *mockTester) Fatalf(format string, args ...any) {
+	m.fataled.Store(true)
+	m.t.Logf("Fatalf called: "+format, args...)
+}
+
+func (m *mockTester) Helper() {}
+
+// testCall implements the Call interface for testing.
+type testCall struct {
+	name string
+	done atomic.Bool
+}
+
+func (c *testCall) Done() bool {
+	return c.done.Load()
+}
+
+func (c *testCall) MarkDone() {
+	c.done.Store(true)
+}
+
+func (c *testCall) Name() string {
+	return c.name
 }

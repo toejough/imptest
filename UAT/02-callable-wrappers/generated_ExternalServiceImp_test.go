@@ -6,13 +6,6 @@ import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
 
-// ExternalServiceImpMock provides the mock implementation of the interface.
-// Pass ExternalServiceImpMock to code under test that expects the interface implementation.
-// Use the parent ExternalServiceImp controller to set expectations and inject responses.
-type ExternalServiceImpMock struct {
-	imp *ExternalServiceImp
-}
-
 // ExternalServiceImp is the test controller for mocking the interface.
 // Create with NewExternalServiceImp(t), then use Mock field to get the mock implementation
 // and ExpectCallIs field to set expectations for method calls.
@@ -29,12 +22,208 @@ type ExternalServiceImp struct {
 	currentCall  *ExternalServiceImpCall
 }
 
+// NewExternalServiceImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewExternalServiceImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
+func NewExternalServiceImp(t *testing.T) *ExternalServiceImp {
+	imp := &ExternalServiceImp{
+		Controller: imptest.NewController[*ExternalServiceImpCall](t),
+	}
+	imp.Mock = &ExternalServiceImpMock{imp: imp}
+	imp.ExpectCallIs = &ExternalServiceImpExpectCallIs{imp: imp}
+	return imp
+}
+
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
+func (i *ExternalServiceImp) GetCurrentCall() *ExternalServiceImpCall {
+	if i.currentCall != nil && !i.currentCall.Done() {
+		return i.currentCall
+	}
+	i.currentCall = i.GetCall(0, func(c *ExternalServiceImpCall) bool { return true })
+	return i.currentCall
+}
+
+// Within configures a timeout for expectations and returns a ExternalServiceImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *ExternalServiceImp) Within(d time.Duration) *ExternalServiceImpTimed {
+	return &ExternalServiceImpTimed{
+		ExpectCallIs: &ExternalServiceImpExpectCallIs{imp: i, timeout: d},
+	}
+}
+
+// ExternalServiceImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
+type ExternalServiceImpCall struct {
+	FetchData *ExternalServiceImpFetchDataCall
+	Process   *ExternalServiceImpProcessCall
+}
+
+// AsFetchData returns the call cast to ExternalServiceImpFetchDataCall for accessing call details.
+// Returns nil if the call was not to FetchData.
+func (c *ExternalServiceImpCall) AsFetchData() *ExternalServiceImpFetchDataCall {
+	return c.FetchData
+}
+
+// AsProcess returns the call cast to ExternalServiceImpProcessCall for accessing call details.
+// Returns nil if the call was not to Process.
+func (c *ExternalServiceImpCall) AsProcess() *ExternalServiceImpProcessCall {
+	return c.Process
+}
+
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
+func (c *ExternalServiceImpCall) Done() bool {
+	if c.FetchData != nil {
+		return c.FetchData.done
+	}
+	if c.Process != nil {
+		return c.Process.done
+	}
+	return false
+}
+
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
+func (c *ExternalServiceImpCall) Name() string {
+	if c.FetchData != nil {
+		return "FetchData"
+	}
+	if c.Process != nil {
+		return "Process"
+	}
+	return ""
+}
+
+// ExternalServiceImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent ExternalServiceImp to configure timeouts.
+type ExternalServiceImpExpectCallIs struct {
+	imp     *ExternalServiceImp
+	timeout time.Duration
+}
+
+// FetchData returns a builder for setting expectations on FetchData method calls.
+func (e *ExternalServiceImpExpectCallIs) FetchData() *ExternalServiceImpFetchDataBuilder {
+	return &ExternalServiceImpFetchDataBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+// Process returns a builder for setting expectations on Process method calls.
+func (e *ExternalServiceImpExpectCallIs) Process() *ExternalServiceImpProcessBuilder {
+	return &ExternalServiceImpProcessBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+// ExternalServiceImpFetchDataBuilder provides a fluent API for setting expectations on FetchData calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
+type ExternalServiceImpFetchDataBuilder struct {
+	imp     *ExternalServiceImp
+	timeout time.Duration
+}
+
+// ExpectArgsAre waits for a FetchData call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
+func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsAre(id int) *ExternalServiceImpFetchDataCall {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		if callToCheck.Name() != "FetchData" {
+			return false
+		}
+		methodCall := callToCheck.AsFetchData()
+		if methodCall.id != id {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsFetchData()
+}
+
+// ExpectArgsShould waits for a FetchData call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
+func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsShould(id any) *ExternalServiceImpFetchDataCall {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		if callToCheck.Name() != "FetchData" {
+			return false
+		}
+		methodCall := callToCheck.AsFetchData()
+		var ok bool
+		ok, _ = imptest.MatchValue(methodCall.id, id)
+		if !ok {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsFetchData()
+}
+
+// InjectPanic waits for a FetchData call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
+func (bldr *ExternalServiceImpFetchDataBuilder) InjectPanic(msg any) *ExternalServiceImpFetchDataCall {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		return callToCheck.Name() == "FetchData"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsFetchData()
+	methodCall.InjectPanic(msg)
+	return methodCall
+}
+
+// InjectResults waits for a FetchData call and immediately injects the return values.
+// This is a shortcut that combines waiting for the call with injecting multiple results.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
+func (bldr *ExternalServiceImpFetchDataBuilder) InjectResults(r0 string, r1 error) *ExternalServiceImpFetchDataCall {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		return callToCheck.Name() == "FetchData"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsFetchData()
+	methodCall.InjectResults(r0, r1)
+	return methodCall
+}
+
 // ExternalServiceImpFetchDataCall represents a captured call to the FetchData method.
 // Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type ExternalServiceImpFetchDataCall struct {
 	responseChan chan ExternalServiceImpFetchDataCallResponse
 	done         bool
 	id           int
+}
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *ExternalServiceImpFetchDataCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- ExternalServiceImpFetchDataCallResponse{Type: "panic", PanicValue: msg}
+}
+
+// InjectResults sets the return values for this method call and unblocks the caller.
+// The mocked method will return the provided result values in order.
+func (c *ExternalServiceImpFetchDataCall) InjectResults(r0 string, r1 error) {
+	c.done = true
+	resp := ExternalServiceImpFetchDataCallResponse{Type: "return", Result0: r0, Result1: r1}
+	c.responseChan <- resp
 }
 
 // ExternalServiceImpFetchDataCallResponse holds the response configuration for the FetchData method.
@@ -46,51 +235,11 @@ type ExternalServiceImpFetchDataCallResponse struct {
 	PanicValue any
 }
 
-// InjectResults sets the return values for this method call and unblocks the caller.
-// The mocked method will return the provided result values in order.
-func (c *ExternalServiceImpFetchDataCall) InjectResults(r0 string, r1 error) {
-	c.done = true
-	resp := ExternalServiceImpFetchDataCallResponse{Type: "return", Result0: r0, Result1: r1}
-	c.responseChan <- resp
-}
-
-// InjectPanic causes the mocked method to panic with the given value.
-// Use this to test panic handling in code under test.
-// The panic occurs in the goroutine where the mock was called.
-func (c *ExternalServiceImpFetchDataCall) InjectPanic(msg any) {
-	c.done = true
-	c.responseChan <- ExternalServiceImpFetchDataCallResponse{Type: "panic", PanicValue: msg}
-}
-
-// ExternalServiceImpProcessCall represents a captured call to the Process method.
-// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
-type ExternalServiceImpProcessCall struct {
-	responseChan chan ExternalServiceImpProcessCallResponse
-	done         bool
-	data         string
-}
-
-// ExternalServiceImpProcessCallResponse holds the response configuration for the Process method.
-// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
-type ExternalServiceImpProcessCallResponse struct {
-	Type       string // "return", "panic", or "resolve"
-	Result0    string
-	PanicValue any
-}
-
-// InjectResult sets the return value for this method call and unblocks the caller.
-// The mocked method will return the provided result value.
-func (c *ExternalServiceImpProcessCall) InjectResult(result string) {
-	c.done = true
-	c.responseChan <- ExternalServiceImpProcessCallResponse{Type: "return", Result0: result}
-}
-
-// InjectPanic causes the mocked method to panic with the given value.
-// Use this to test panic handling in code under test.
-// The panic occurs in the goroutine where the mock was called.
-func (c *ExternalServiceImpProcessCall) InjectPanic(msg any) {
-	c.done = true
-	c.responseChan <- ExternalServiceImpProcessCallResponse{Type: "panic", PanicValue: msg}
+// ExternalServiceImpMock provides the mock implementation of the interface.
+// Pass ExternalServiceImpMock to code under test that expects the interface implementation.
+// Use the parent ExternalServiceImp controller to set expectations and inject responses.
+type ExternalServiceImpMock struct {
+	imp *ExternalServiceImp
 }
 
 // FetchData implements the interface method and records the call for testing.
@@ -143,150 +292,11 @@ func (m *ExternalServiceImpMock) Process(data string) string {
 	return resp.Result0
 }
 
-// ExternalServiceImpCall represents a captured call to any method.
-// Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
-type ExternalServiceImpCall struct {
-	FetchData *ExternalServiceImpFetchDataCall
-	Process   *ExternalServiceImpProcessCall
-}
-
-// Name returns the name of the method that was called.
-// Returns an empty string if the call struct is invalid.
-func (c *ExternalServiceImpCall) Name() string {
-	if c.FetchData != nil {
-		return "FetchData"
-	}
-	if c.Process != nil {
-		return "Process"
-	}
-	return ""
-}
-
-// Done returns true if the call has been completed (response injected).
-// Used internally to track call state.
-func (c *ExternalServiceImpCall) Done() bool {
-	if c.FetchData != nil {
-		return c.FetchData.done
-	}
-	if c.Process != nil {
-		return c.Process.done
-	}
-	return false
-}
-
-// AsFetchData returns the call cast to ExternalServiceImpFetchDataCall for accessing call details.
-// Returns nil if the call was not to FetchData.
-func (c *ExternalServiceImpCall) AsFetchData() *ExternalServiceImpFetchDataCall {
-	return c.FetchData
-}
-
-// AsProcess returns the call cast to ExternalServiceImpProcessCall for accessing call details.
-// Returns nil if the call was not to Process.
-func (c *ExternalServiceImpCall) AsProcess() *ExternalServiceImpProcessCall {
-	return c.Process
-}
-
-// ExternalServiceImpExpectCallIs provides methods to set expectations for specific method calls.
-// Each method returns a builder for fluent expectation configuration.
-// Use Within() on the parent ExternalServiceImp to configure timeouts.
-type ExternalServiceImpExpectCallIs struct {
-	imp     *ExternalServiceImp
-	timeout time.Duration
-}
-
-// ExternalServiceImpFetchDataBuilder provides a fluent API for setting expectations on FetchData calls.
-// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
-type ExternalServiceImpFetchDataBuilder struct {
-	imp     *ExternalServiceImp
-	timeout time.Duration
-}
-
-// FetchData returns a builder for setting expectations on FetchData method calls.
-func (e *ExternalServiceImpExpectCallIs) FetchData() *ExternalServiceImpFetchDataBuilder {
-	return &ExternalServiceImpFetchDataBuilder{imp: e.imp, timeout: e.timeout}
-}
-
-// ExpectArgsAre waits for a FetchData call with exactly the specified argument values.
-// Returns the call object for response injection. Fails the test if the call
-// doesn't arrive within the timeout or if arguments don't match exactly.
-// Uses == for comparable types and reflect.DeepEqual for others.
-func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsAre(id int) *ExternalServiceImpFetchDataCall {
-	validator := func(callToCheck *ExternalServiceImpCall) bool {
-		if callToCheck.Name() != "FetchData" {
-			return false
-		}
-		methodCall := callToCheck.AsFetchData()
-		if methodCall.id != id {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsFetchData()
-}
-
-// ExpectArgsShould waits for a FetchData call with arguments matching the given matchers.
-// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
-// Returns the call object for response injection. Fails the test if the call
-// doesn't arrive within the timeout or if any matcher fails.
-func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsShould(id any) *ExternalServiceImpFetchDataCall {
-	validator := func(callToCheck *ExternalServiceImpCall) bool {
-		if callToCheck.Name() != "FetchData" {
-			return false
-		}
-		methodCall := callToCheck.AsFetchData()
-		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.id, id)
-		if !ok {
-			return false
-		}
-		return true
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsFetchData()
-}
-
-// InjectResults waits for a FetchData call and immediately injects the return values.
-// This is a shortcut that combines waiting for the call with injecting multiple results.
-// Returns the call object for further operations. Fails if no call arrives within the timeout.
-func (bldr *ExternalServiceImpFetchDataBuilder) InjectResults(r0 string, r1 error) *ExternalServiceImpFetchDataCall {
-	validator := func(callToCheck *ExternalServiceImpCall) bool {
-		return callToCheck.Name() == "FetchData"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsFetchData()
-	methodCall.InjectResults(r0, r1)
-	return methodCall
-}
-
-// InjectPanic waits for a FetchData call and causes it to panic with the given value.
-// This is a shortcut that combines waiting for the call with injecting a panic.
-// Use this to test panic handling in code under test. Returns the call object for further operations.
-func (bldr *ExternalServiceImpFetchDataBuilder) InjectPanic(msg any) *ExternalServiceImpFetchDataCall {
-	validator := func(callToCheck *ExternalServiceImpCall) bool {
-		return callToCheck.Name() == "FetchData"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsFetchData()
-	methodCall.InjectPanic(msg)
-	return methodCall
-}
-
 // ExternalServiceImpProcessBuilder provides a fluent API for setting expectations on Process calls.
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ExternalServiceImpProcessBuilder struct {
 	imp     *ExternalServiceImp
 	timeout time.Duration
-}
-
-// Process returns a builder for setting expectations on Process method calls.
-func (e *ExternalServiceImpExpectCallIs) Process() *ExternalServiceImpProcessBuilder {
-	return &ExternalServiceImpProcessBuilder{imp: e.imp, timeout: e.timeout}
 }
 
 // ExpectArgsAre waits for a Process call with exactly the specified argument values.
@@ -331,20 +341,6 @@ func (bldr *ExternalServiceImpProcessBuilder) ExpectArgsShould(data any) *Extern
 	return call.AsProcess()
 }
 
-// InjectResult waits for a Process call and immediately injects the return value.
-// This is a shortcut that combines waiting for the call with injecting the result.
-// Returns the call object for further operations. Fails if no call arrives within the timeout.
-func (bldr *ExternalServiceImpProcessBuilder) InjectResult(result string) *ExternalServiceImpProcessCall {
-	validator := func(callToCheck *ExternalServiceImpCall) bool {
-		return callToCheck.Name() == "Process"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsProcess()
-	methodCall.InjectResult(result)
-	return methodCall
-}
-
 // InjectPanic waits for a Process call and causes it to panic with the given value.
 // This is a shortcut that combines waiting for the call with injecting a panic.
 // Use this to test panic handling in code under test. Returns the call object for further operations.
@@ -359,49 +355,53 @@ func (bldr *ExternalServiceImpProcessBuilder) InjectPanic(msg any) *ExternalServ
 	return methodCall
 }
 
+// InjectResult waits for a Process call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
+func (bldr *ExternalServiceImpProcessBuilder) InjectResult(result string) *ExternalServiceImpProcessCall {
+	validator := func(callToCheck *ExternalServiceImpCall) bool {
+		return callToCheck.Name() == "Process"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsProcess()
+	methodCall.InjectResult(result)
+	return methodCall
+}
+
+// ExternalServiceImpProcessCall represents a captured call to the Process method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
+type ExternalServiceImpProcessCall struct {
+	responseChan chan ExternalServiceImpProcessCallResponse
+	done         bool
+	data         string
+}
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *ExternalServiceImpProcessCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- ExternalServiceImpProcessCallResponse{Type: "panic", PanicValue: msg}
+}
+
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
+func (c *ExternalServiceImpProcessCall) InjectResult(result string) {
+	c.done = true
+	c.responseChan <- ExternalServiceImpProcessCallResponse{Type: "return", Result0: result}
+}
+
+// ExternalServiceImpProcessCallResponse holds the response configuration for the Process method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
+type ExternalServiceImpProcessCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    string
+	PanicValue any
+}
+
 // ExternalServiceImpTimed provides timeout-configured expectation methods.
 // Access via ExternalServiceImp.Within(duration) to set a timeout for expectations.
 type ExternalServiceImpTimed struct {
 	ExpectCallIs *ExternalServiceImpExpectCallIs
-}
-
-// Within configures a timeout for expectations and returns a ExternalServiceImpTimed for method chaining.
-// The timeout applies to subsequent expectation calls.
-//
-// Example:
-//
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *ExternalServiceImp) Within(d time.Duration) *ExternalServiceImpTimed {
-	return &ExternalServiceImpTimed{
-		ExpectCallIs: &ExternalServiceImpExpectCallIs{imp: i, timeout: d},
-	}
-}
-
-// GetCurrentCall returns the current call being processed.
-// If no call is pending, waits indefinitely for the next call.
-// Returns the existing current call if it hasn't been completed yet.
-func (i *ExternalServiceImp) GetCurrentCall() *ExternalServiceImpCall {
-	if i.currentCall != nil && !i.currentCall.Done() {
-		return i.currentCall
-	}
-	i.currentCall = i.GetCall(0, func(c *ExternalServiceImpCall) bool { return true })
-	return i.currentCall
-}
-
-// NewExternalServiceImp creates a new test controller for mocking the interface.
-// The returned controller manages mock expectations and response injection.
-// Pass t to enable automatic test failure on unexpected calls or timeouts.
-//
-// Example:
-//
-//	imp := NewExternalServiceImp(t)
-//	go codeUnderTest(imp.Mock)
-//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewExternalServiceImp(t *testing.T) *ExternalServiceImp {
-	imp := &ExternalServiceImp{
-		Controller: imptest.NewController[*ExternalServiceImpCall](t),
-	}
-	imp.Mock = &ExternalServiceImpMock{imp: imp}
-	imp.ExpectCallIs = &ExternalServiceImpExpectCallIs{imp: imp}
-	return imp
 }

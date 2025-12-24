@@ -30,25 +30,22 @@ func NewUnsafeRunnerImp(t testing.TB, callable func(dep safety.CriticalDependenc
 	}
 }
 
-// Start begins execution of the callable in a goroutine with the provided arguments.
-// Returns the wrapper for method chaining with expectation methods.
-// Captures both normal returns and panics for verification.
-//
-// Example:
-//
-//	wrapper.Start(arg1, arg2).ExpectReturnedValuesAre(expectedResult)
-func (s *UnsafeRunnerImp) Start(dep safety.CriticalDependency) *UnsafeRunnerImp {
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				s.PanicChan <- r
-			}
-		}()
+// ExpectPanicWith asserts the callable panicked with a value matching the expectation.
+// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
+// Fails the test if the callable returned normally or panicked with a different value.
+func (s *UnsafeRunnerImp) ExpectPanicWith(expected any) {
+	s.T.Helper()
+	s.WaitForResponse()
 
-		s.callable(dep)
-		s.ReturnChan <- struct{}{}
-	}()
-	return s
+	if s.Panicked != nil {
+		ok, msg := imptest.MatchValue(s.Panicked, expected)
+		if !ok {
+			s.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	s.T.Fatalf("expected function to panic, but it returned")
 }
 
 // ExpectReturnedValuesAre asserts the callable returned with exactly the specified values.
@@ -79,43 +76,6 @@ func (s *UnsafeRunnerImp) ExpectReturnedValuesShould() {
 	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
-// ExpectPanicWith asserts the callable panicked with a value matching the expectation.
-// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
-// Fails the test if the callable returned normally or panicked with a different value.
-func (s *UnsafeRunnerImp) ExpectPanicWith(expected any) {
-	s.T.Helper()
-	s.WaitForResponse()
-
-	if s.Panicked != nil {
-		ok, msg := imptest.MatchValue(s.Panicked, expected)
-		if !ok {
-			s.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	s.T.Fatalf("expected function to panic, but it returned")
-}
-
-// UnsafeRunnerImpResponse represents the response from the callable (either return or panic).
-// Check EventType to determine if the callable returned normally or panicked.
-// Use AsReturn() to get return values as a slice, or access PanicVal directly.
-type UnsafeRunnerImpResponse struct {
-	EventType string // "return" or "panic"
-	PanicVal  any
-}
-
-// Type returns the event type: "return" for normal returns, "panic" for panics.
-func (r *UnsafeRunnerImpResponse) Type() string {
-	return r.EventType
-}
-
-// AsReturn converts the return values to a slice of any for generic processing.
-// Returns nil if the response was a panic or if there are no return values.
-func (r *UnsafeRunnerImpResponse) AsReturn() []any {
-	return nil
-}
-
 // GetResponse waits for and returns the callable's response.
 // Use this when you need to inspect the response without asserting specific values.
 // The response indicates whether the callable returned or panicked.
@@ -132,4 +92,44 @@ func (s *UnsafeRunnerImp) GetResponse() *UnsafeRunnerImpResponse {
 		EventType: "PanicEvent",
 		PanicVal:  s.Panicked,
 	}
+}
+
+// Start begins execution of the callable in a goroutine with the provided arguments.
+// Returns the wrapper for method chaining with expectation methods.
+// Captures both normal returns and panics for verification.
+//
+// Example:
+//
+//	wrapper.Start(arg1, arg2).ExpectReturnedValuesAre(expectedResult)
+func (s *UnsafeRunnerImp) Start(dep safety.CriticalDependency) *UnsafeRunnerImp {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.PanicChan <- r
+			}
+		}()
+
+		s.callable(dep)
+		s.ReturnChan <- struct{}{}
+	}()
+	return s
+}
+
+// UnsafeRunnerImpResponse represents the response from the callable (either return or panic).
+// Check EventType to determine if the callable returned normally or panicked.
+// Use AsReturn() to get return values as a slice, or access PanicVal directly.
+type UnsafeRunnerImpResponse struct {
+	EventType string // "return" or "panic"
+	PanicVal  any
+}
+
+// AsReturn converts the return values to a slice of any for generic processing.
+// Returns nil if the response was a panic or if there are no return values.
+func (r *UnsafeRunnerImpResponse) AsReturn() []any {
+	return nil
+}
+
+// Type returns the event type: "return" for normal returns, "panic" for panics.
+func (r *UnsafeRunnerImpResponse) Type() string {
+	return r.EventType
 }

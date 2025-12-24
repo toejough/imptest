@@ -21,21 +21,29 @@ allow = [
 	'github.com/alexflint/go-arg',
 	'github.com/akedrou/textdiff',
 	'github.com/davecgh/go-spew/spew',
+	'github.com/dave/dst',
+	'github.com/dave/dst/decorator',
+	'github.com/dave/dst/dstutil',
 	'golang.org/x/tools/go/packages',
 	'github.com/toejough/imptest/UAT/run',
 	'github.com/toejough/imptest/impgen/run',
+	'github.com/toejough/imptest/impgen/reorder',
 ]
 
 [linters.settings.depguard.rules.test]
 files = ['$test']
 allow = [
 	'$gostd',
+	'github.com/dave/dst',
+	'github.com/dave/dst/decorator',
+	'github.com/dave/dst/dstutil',
 	'github.com/onsi/gomega',
 	'pgregory.net/rapid',
 	'github.com/toejough/imptest',
 	'github.com/toejough/imptest/imptest',
 	'github.com/toejough/imptest/UAT/run',
 	'github.com/toejough/imptest/impgen/run',
+	'github.com/toejough/imptest/impgen/reorder',
 	'golang.org/x/tools/go/packages',
 ]
 

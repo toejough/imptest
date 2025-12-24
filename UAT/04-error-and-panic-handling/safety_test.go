@@ -6,6 +6,28 @@ import (
 	safety "github.com/toejough/imptest/UAT/04-error-and-panic-handling"
 )
 
+// TestPropagatePanic demonstrates verifying that a panic is correctly
+// propagated when not explicitly handled.
+//
+// Key Requirements Met:
+//  1. Panic Propagation: Verify that panics triggered in dependencies
+//     actually reach the caller using ExpectPanicWith.
+func TestPropagatePanic(t *testing.T) {
+	t.Parallel()
+
+	depImp := NewCriticalDependencyImp(t)
+	runnerImp := NewUnsafeRunnerImp(t, safety.UnsafeRunner)
+
+	// Start UnsafeRunner.
+	runnerImp.Start(depImp.Mock)
+
+	// Inject a panic into the dependency call.
+	depImp.ExpectCallIs.DoWork().InjectPanic("fatal error")
+
+	// Requirement: Verify that the panic was propagated through the runner.
+	runnerImp.ExpectPanicWith("fatal error")
+}
+
 //go:generate impgen safety.CriticalDependency --name CriticalDependencyImp
 //go:generate impgen safety.SafeRunner --name SafeRunnerImp
 //go:generate impgen safety.UnsafeRunner --name UnsafeRunnerImp
@@ -32,26 +54,4 @@ func TestRecoverFromPanic(t *testing.T) {
 
 	// Requirement: Verify that SafeRunner recovered and returned false.
 	runnerImp.ExpectReturnedValuesAre(false)
-}
-
-// TestPropagatePanic demonstrates verifying that a panic is correctly
-// propagated when not explicitly handled.
-//
-// Key Requirements Met:
-//  1. Panic Propagation: Verify that panics triggered in dependencies
-//     actually reach the caller using ExpectPanicWith.
-func TestPropagatePanic(t *testing.T) {
-	t.Parallel()
-
-	depImp := NewCriticalDependencyImp(t)
-	runnerImp := NewUnsafeRunnerImp(t, safety.UnsafeRunner)
-
-	// Start UnsafeRunner.
-	runnerImp.Start(depImp.Mock)
-
-	// Inject a panic into the dependency call.
-	depImp.ExpectCallIs.DoWork().InjectPanic("fatal error")
-
-	// Requirement: Verify that the panic was propagated through the runner.
-	runnerImp.ExpectPanicWith("fatal error")
 }

@@ -38,7 +38,11 @@
       "Bash(/tmp/impgen_new:*)",
       "mcp__github__issue_read",
       "Bash(GOPACKAGE=basic_test /tmp/impgen_new Ops)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.jetbrains.com)",
+      "Bash(go get:*)"
     ],
     "deny": [],
     "ask": []

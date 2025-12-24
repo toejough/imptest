@@ -9,24 +9,6 @@ import (
 	"github.com/toejough/imptest/impgen/run"
 )
 
-// realCacheFS implements CacheFileSystem using os package for testing.
-type realCacheFS struct{}
-
-//nolint:wrapcheck // test helper
-func (realCacheFS) Open(path string) (io.ReadCloser, error) { return os.Open(path) }
-
-//nolint:wrapcheck // test helper
-func (realCacheFS) Create(path string) (io.WriteCloser, error) { return os.Create(path) }
-
-//nolint:wrapcheck // test helper
-func (realCacheFS) MkdirAll(path string, perm os.FileMode) error { return os.MkdirAll(path, perm) }
-
-//nolint:wrapcheck // test helper
-func (realCacheFS) Stat(path string) (os.FileInfo, error) { return os.Stat(path) }
-
-//nolint:wrapcheck // test helper
-func (realCacheFS) Getwd() (string, error) { return os.Getwd() }
-
 func TestDiskCache(t *testing.T) {
 	t.Parallel()
 	tempDir := t.TempDir()
@@ -63,3 +45,21 @@ func TestDiskCache(t *testing.T) {
 		t.Errorf("Loaded data mismatch")
 	}
 }
+
+// realCacheFS implements CacheFileSystem using os package for testing.
+type realCacheFS struct{}
+
+//nolint:wrapcheck // test helper
+func (realCacheFS) Create(path string) (io.WriteCloser, error) { return os.Create(path) }
+
+//nolint:wrapcheck // test helper
+func (realCacheFS) Getwd() (string, error) { return os.Getwd() }
+
+//nolint:wrapcheck // test helper
+func (realCacheFS) MkdirAll(path string, perm os.FileMode) error { return os.MkdirAll(path, perm) }
+
+//nolint:wrapcheck // test helper
+func (realCacheFS) Open(path string) (io.ReadCloser, error) { return os.Open(path) }
+
+//nolint:wrapcheck // test helper
+func (realCacheFS) Stat(path string) (os.FileInfo, error) { return os.Stat(path) }

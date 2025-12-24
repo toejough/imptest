@@ -7,98 +7,6 @@ import (
 	"testing"
 )
 
-func TestIsBuiltinType(t *testing.T) {
-	t.Parallel()
-
-	builtins := []string{
-		"bool", "byte", "complex64", "complex128", "error", "float32", "float64",
-		"int", "int8", "int16", "int32", "int64", "rune", "string", "uint",
-		"uint8", "uint16", "uint32", "uint64", "uintptr", "any",
-	}
-
-	for _, builtin := range builtins {
-		t.Run(builtin, func(t *testing.T) {
-			t.Parallel()
-
-			if !isBuiltinType(builtin) {
-				t.Errorf("isBuiltinType(%q) = false, want true", builtin)
-			}
-		})
-	}
-
-	t.Run("non-builtin", func(t *testing.T) {
-		t.Parallel()
-
-		if isBuiltinType("MyCustomType") {
-			t.Error("isBuiltinType(\"MyCustomType\") = true, want false")
-		}
-	})
-}
-
-func TestHasExportedIdent_Func(t *testing.T) {
-	t.Parallel()
-
-	expr1 := &ast.FuncType{Params: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
-	if !hasExportedIdent(expr1, func(string) bool { return false }) {
-		t.Error("expected true for FuncType with exported param")
-	}
-
-	expr2 := &ast.FuncType{Results: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
-	if !hasExportedIdent(expr2, func(string) bool { return false }) {
-		t.Error("expected true for FuncType with exported result")
-	}
-}
-
-func TestHasExportedIdent_Struct(t *testing.T) {
-	t.Parallel()
-
-	expr := &ast.StructType{Fields: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
-	if !hasExportedIdent(expr, func(string) bool { return false }) {
-		t.Error("expected true for StructType with exported field")
-	}
-}
-
-func TestNormalizeVariadicType(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{"variadic type", "...int", "[]int"},
-		{"variadic custom type", "...MyType", "[]MyType"},
-		{"non-variadic type", "int", "int"},
-		{"slice type", "[]string", "[]string"},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := normalizeVariadicType(testCase.input)
-			if got != testCase.expected {
-				t.Errorf("normalizeVariadicType(%q) = %q, want %q", testCase.input, got, testCase.expected)
-			}
-		})
-	}
-}
-
-// newTestBaseGenerator creates a baseGenerator for testing.
-func newTestBaseGenerator() baseGenerator {
-	fset := token.NewFileSet()
-	typeParams := &ast.FieldList{
-		List: []*ast.Field{
-			{
-				Names: []*ast.Ident{{Name: "T"}},
-				Type:  &ast.Ident{Name: "any"},
-			},
-		},
-	}
-
-	return newBaseGenerator(fset, "mypkg", "MyImp", "path", "qual", typeParams, nil)
-}
-
 func TestBaseGenerator(t *testing.T) {
 	t.Parallel()
 
@@ -157,25 +65,6 @@ func TestBaseGenerator(t *testing.T) {
 	})
 }
 
-func TestBaseGeneratorNilTypeParams(t *testing.T) {
-	t.Parallel()
-
-	fset := token.NewFileSet()
-	baseGenNil := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", nil, nil)
-
-	if got := baseGenNil.formatTypeParamsDecl(); got != "" {
-		t.Errorf("expected empty string for nil typeParams, got %q", got)
-	}
-
-	if got := baseGenNil.formatTypeParamsUse(); got != "" {
-		t.Errorf("expected empty string for nil typeParams, got %q", got)
-	}
-
-	if baseGenNil.isTypeParameter("T") {
-		t.Error("expected nil typeParams to return false for any name")
-	}
-}
-
 func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
 	t.Parallel()
 
@@ -213,113 +102,22 @@ func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
 	}
 }
 
-func TestHasParams_mutant(t *testing.T) {
+func TestBaseGeneratorNilTypeParams(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		ftype    *ast.FuncType
-		expected bool
-	}{
-		{
-			name:     "nil params",
-			ftype:    &ast.FuncType{Params: nil},
-			expected: false,
-		},
-		{
-			name:     "empty params list",
-			ftype:    &ast.FuncType{Params: &ast.FieldList{List: []*ast.Field{}}},
-			expected: false,
-		},
-		{
-			name: "single param",
-			ftype: &ast.FuncType{
-				Params: &ast.FieldList{
-					List: []*ast.Field{
-						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
-					},
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "multiple params",
-			ftype: &ast.FuncType{
-				Params: &ast.FieldList{
-					List: []*ast.Field{
-						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
-						{Names: []*ast.Ident{{Name: "y"}}, Type: &ast.Ident{Name: "string"}},
-					},
-				},
-			},
-			expected: true,
-		},
+	fset := token.NewFileSet()
+	baseGenNil := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", nil, nil)
+
+	if got := baseGenNil.formatTypeParamsDecl(); got != "" {
+		t.Errorf("expected empty string for nil typeParams, got %q", got)
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := hasParams(testCase.ftype)
-			if got != testCase.expected {
-				t.Errorf("hasParams() = %v, want %v", got, testCase.expected)
-			}
-		})
-	}
-}
-
-func TestHasResults_mutant(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		ftype    *ast.FuncType
-		expected bool
-	}{
-		{
-			name:     "nil results",
-			ftype:    &ast.FuncType{Results: nil},
-			expected: false,
-		},
-		{
-			name:     "empty results list",
-			ftype:    &ast.FuncType{Results: &ast.FieldList{List: []*ast.Field{}}},
-			expected: false,
-		},
-		{
-			name: "single result",
-			ftype: &ast.FuncType{
-				Results: &ast.FieldList{
-					List: []*ast.Field{
-						{Type: &ast.Ident{Name: "int"}},
-					},
-				},
-			},
-			expected: true,
-		},
-		{
-			name: "multiple results",
-			ftype: &ast.FuncType{
-				Results: &ast.FieldList{
-					List: []*ast.Field{
-						{Type: &ast.Ident{Name: "int"}},
-						{Type: &ast.Ident{Name: "error"}},
-					},
-				},
-			},
-			expected: true,
-		},
+	if got := baseGenNil.formatTypeParamsUse(); got != "" {
+		t.Errorf("expected empty string for nil typeParams, got %q", got)
 	}
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := hasResults(testCase.ftype)
-			if got != testCase.expected {
-				t.Errorf("hasResults() = %v, want %v", got, testCase.expected)
-			}
-		})
+	if baseGenNil.isTypeParameter("T") {
+		t.Error("expected nil typeParams to return false for any name")
 	}
 }
 
@@ -445,6 +243,193 @@ func TestFieldNameCount_mutant(t *testing.T) {
 	}
 }
 
+func TestHasExportedIdent_Func(t *testing.T) {
+	t.Parallel()
+
+	expr1 := &ast.FuncType{Params: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
+	if !hasExportedIdent(expr1, func(string) bool { return false }) {
+		t.Error("expected true for FuncType with exported param")
+	}
+
+	expr2 := &ast.FuncType{Results: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
+	if !hasExportedIdent(expr2, func(string) bool { return false }) {
+		t.Error("expected true for FuncType with exported result")
+	}
+}
+
+func TestHasExportedIdent_Struct(t *testing.T) {
+	t.Parallel()
+
+	expr := &ast.StructType{Fields: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
+	if !hasExportedIdent(expr, func(string) bool { return false }) {
+		t.Error("expected true for StructType with exported field")
+	}
+}
+
+func TestHasParams_mutant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		ftype    *ast.FuncType
+		expected bool
+	}{
+		{
+			name:     "nil params",
+			ftype:    &ast.FuncType{Params: nil},
+			expected: false,
+		},
+		{
+			name:     "empty params list",
+			ftype:    &ast.FuncType{Params: &ast.FieldList{List: []*ast.Field{}}},
+			expected: false,
+		},
+		{
+			name: "single param",
+			ftype: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "multiple params",
+			ftype: &ast.FuncType{
+				Params: &ast.FieldList{
+					List: []*ast.Field{
+						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+						{Names: []*ast.Ident{{Name: "y"}}, Type: &ast.Ident{Name: "string"}},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := hasParams(testCase.ftype)
+			if got != testCase.expected {
+				t.Errorf("hasParams() = %v, want %v", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestHasResults_mutant(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		ftype    *ast.FuncType
+		expected bool
+	}{
+		{
+			name:     "nil results",
+			ftype:    &ast.FuncType{Results: nil},
+			expected: false,
+		},
+		{
+			name:     "empty results list",
+			ftype:    &ast.FuncType{Results: &ast.FieldList{List: []*ast.Field{}}},
+			expected: false,
+		},
+		{
+			name: "single result",
+			ftype: &ast.FuncType{
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{Type: &ast.Ident{Name: "int"}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "multiple results",
+			ftype: &ast.FuncType{
+				Results: &ast.FieldList{
+					List: []*ast.Field{
+						{Type: &ast.Ident{Name: "int"}},
+						{Type: &ast.Ident{Name: "error"}},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := hasResults(testCase.ftype)
+			if got != testCase.expected {
+				t.Errorf("hasResults() = %v, want %v", got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestIsBuiltinType(t *testing.T) {
+	t.Parallel()
+
+	builtins := []string{
+		"bool", "byte", "complex64", "complex128", "error", "float32", "float64",
+		"int", "int8", "int16", "int32", "int64", "rune", "string", "uint",
+		"uint8", "uint16", "uint32", "uint64", "uintptr", "any",
+	}
+
+	for _, builtin := range builtins {
+		t.Run(builtin, func(t *testing.T) {
+			t.Parallel()
+
+			if !isBuiltinType(builtin) {
+				t.Errorf("isBuiltinType(%q) = false, want true", builtin)
+			}
+		})
+	}
+
+	t.Run("non-builtin", func(t *testing.T) {
+		t.Parallel()
+
+		if isBuiltinType("MyCustomType") {
+			t.Error("isBuiltinType(\"MyCustomType\") = true, want false")
+		}
+	})
+}
+
+func TestNormalizeVariadicType(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"variadic type", "...int", "[]int"},
+		{"variadic custom type", "...MyType", "[]MyType"},
+		{"non-variadic type", "int", "int"},
+		{"slice type", "[]string", "[]string"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := normalizeVariadicType(testCase.input)
+			if got != testCase.expected {
+				t.Errorf("normalizeVariadicType(%q) = %q, want %q", testCase.input, got, testCase.expected)
+			}
+		})
+	}
+}
+
 func TestParamNamesToString_mutant(t *testing.T) {
 	t.Parallel()
 
@@ -499,4 +484,19 @@ func TestParamNamesToString_mutant(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newTestBaseGenerator creates a baseGenerator for testing.
+func newTestBaseGenerator() baseGenerator {
+	fset := token.NewFileSet()
+	typeParams := &ast.FieldList{
+		List: []*ast.Field{
+			{
+				Names: []*ast.Ident{{Name: "T"}},
+				Type:  &ast.Ident{Name: "any"},
+			},
+		},
+	}
+
+	return newBaseGenerator(fset, "mypkg", "MyImp", "path", "qual", typeParams, nil)
 }

@@ -6,13 +6,6 @@ import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
 
-// ManyParamsImpMock provides the mock implementation of the interface.
-// Pass ManyParamsImpMock to code under test that expects the interface implementation.
-// Use the parent ManyParamsImp controller to set expectations and inject responses.
-type ManyParamsImpMock struct {
-	imp *ManyParamsImp
-}
-
 // ManyParamsImp is the test controller for mocking the interface.
 // Create with NewManyParamsImp(t), then use Mock field to get the mock implementation
 // and ExpectCallIs field to set expectations for method calls.
@@ -29,44 +22,96 @@ type ManyParamsImp struct {
 	currentCall  *ManyParamsImpCall
 }
 
-// ManyParamsImpProcessCall represents a captured call to the Process method.
-// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
-type ManyParamsImpProcessCall struct {
-	responseChan chan ManyParamsImpProcessCallResponse
-	done         bool
-	a            int
-	b            int
-	c            int
-	d            int
-	e            int
-	f            int
-	g            int
-	h            int
-	i            int
-	j            int
+// NewManyParamsImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewManyParamsImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
+func NewManyParamsImp(t *testing.T) *ManyParamsImp {
+	imp := &ManyParamsImp{
+		Controller: imptest.NewController[*ManyParamsImpCall](t),
+	}
+	imp.Mock = &ManyParamsImpMock{imp: imp}
+	imp.ExpectCallIs = &ManyParamsImpExpectCallIs{imp: imp}
+	return imp
 }
 
-// ManyParamsImpProcessCallResponse holds the response configuration for the Process method.
-// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
-type ManyParamsImpProcessCallResponse struct {
-	Type       string // "return", "panic", or "resolve"
-	Result0    string
-	PanicValue any
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
+func (i *ManyParamsImp) GetCurrentCall() *ManyParamsImpCall {
+	if i.currentCall != nil && !i.currentCall.Done() {
+		return i.currentCall
+	}
+	i.currentCall = i.GetCall(0, func(c *ManyParamsImpCall) bool { return true })
+	return i.currentCall
 }
 
-// InjectResult sets the return value for this method call and unblocks the caller.
-// The mocked method will return the provided result value.
-func (c *ManyParamsImpProcessCall) InjectResult(result string) {
-	c.done = true
-	c.responseChan <- ManyParamsImpProcessCallResponse{Type: "return", Result0: result}
+// Within configures a timeout for expectations and returns a ManyParamsImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *ManyParamsImp) Within(d time.Duration) *ManyParamsImpTimed {
+	return &ManyParamsImpTimed{
+		ExpectCallIs: &ManyParamsImpExpectCallIs{imp: i, timeout: d},
+	}
 }
 
-// InjectPanic causes the mocked method to panic with the given value.
-// Use this to test panic handling in code under test.
-// The panic occurs in the goroutine where the mock was called.
-func (c *ManyParamsImpProcessCall) InjectPanic(msg any) {
-	c.done = true
-	c.responseChan <- ManyParamsImpProcessCallResponse{Type: "panic", PanicValue: msg}
+// ManyParamsImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
+type ManyParamsImpCall struct {
+	Process *ManyParamsImpProcessCall
+}
+
+// AsProcess returns the call cast to ManyParamsImpProcessCall for accessing call details.
+// Returns nil if the call was not to Process.
+func (c *ManyParamsImpCall) AsProcess() *ManyParamsImpProcessCall {
+	return c.Process
+}
+
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
+func (c *ManyParamsImpCall) Done() bool {
+	if c.Process != nil {
+		return c.Process.done
+	}
+	return false
+}
+
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
+func (c *ManyParamsImpCall) Name() string {
+	if c.Process != nil {
+		return "Process"
+	}
+	return ""
+}
+
+// ManyParamsImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent ManyParamsImp to configure timeouts.
+type ManyParamsImpExpectCallIs struct {
+	imp     *ManyParamsImp
+	timeout time.Duration
+}
+
+// Process returns a builder for setting expectations on Process method calls.
+func (e *ManyParamsImpExpectCallIs) Process() *ManyParamsImpProcessBuilder {
+	return &ManyParamsImpProcessBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+// ManyParamsImpMock provides the mock implementation of the interface.
+// Pass ManyParamsImpMock to code under test that expects the interface implementation.
+// Use the parent ManyParamsImp controller to set expectations and inject responses.
+type ManyParamsImpMock struct {
+	imp *ManyParamsImp
 }
 
 // Process implements the interface method and records the call for testing.
@@ -103,55 +148,11 @@ func (m *ManyParamsImpMock) Process(a int, b int, c int, d int, e int, f int, g 
 	return resp.Result0
 }
 
-// ManyParamsImpCall represents a captured call to any method.
-// Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
-type ManyParamsImpCall struct {
-	Process *ManyParamsImpProcessCall
-}
-
-// Name returns the name of the method that was called.
-// Returns an empty string if the call struct is invalid.
-func (c *ManyParamsImpCall) Name() string {
-	if c.Process != nil {
-		return "Process"
-	}
-	return ""
-}
-
-// Done returns true if the call has been completed (response injected).
-// Used internally to track call state.
-func (c *ManyParamsImpCall) Done() bool {
-	if c.Process != nil {
-		return c.Process.done
-	}
-	return false
-}
-
-// AsProcess returns the call cast to ManyParamsImpProcessCall for accessing call details.
-// Returns nil if the call was not to Process.
-func (c *ManyParamsImpCall) AsProcess() *ManyParamsImpProcessCall {
-	return c.Process
-}
-
-// ManyParamsImpExpectCallIs provides methods to set expectations for specific method calls.
-// Each method returns a builder for fluent expectation configuration.
-// Use Within() on the parent ManyParamsImp to configure timeouts.
-type ManyParamsImpExpectCallIs struct {
-	imp     *ManyParamsImp
-	timeout time.Duration
-}
-
 // ManyParamsImpProcessBuilder provides a fluent API for setting expectations on Process calls.
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ManyParamsImpProcessBuilder struct {
 	imp     *ManyParamsImp
 	timeout time.Duration
-}
-
-// Process returns a builder for setting expectations on Process method calls.
-func (e *ManyParamsImpExpectCallIs) Process() *ManyParamsImpProcessBuilder {
-	return &ManyParamsImpProcessBuilder{imp: e.imp, timeout: e.timeout}
 }
 
 // ExpectArgsAre waits for a Process call with exactly the specified argument values.
@@ -259,20 +260,6 @@ func (bldr *ManyParamsImpProcessBuilder) ExpectArgsShould(a any, b any, c any, d
 	return call.AsProcess()
 }
 
-// InjectResult waits for a Process call and immediately injects the return value.
-// This is a shortcut that combines waiting for the call with injecting the result.
-// Returns the call object for further operations. Fails if no call arrives within the timeout.
-func (bldr *ManyParamsImpProcessBuilder) InjectResult(result string) *ManyParamsImpProcessCall {
-	validator := func(callToCheck *ManyParamsImpCall) bool {
-		return callToCheck.Name() == "Process"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsProcess()
-	methodCall.InjectResult(result)
-	return methodCall
-}
-
 // InjectPanic waits for a Process call and causes it to panic with the given value.
 // This is a shortcut that combines waiting for the call with injecting a panic.
 // Use this to test panic handling in code under test. Returns the call object for further operations.
@@ -287,49 +274,62 @@ func (bldr *ManyParamsImpProcessBuilder) InjectPanic(msg any) *ManyParamsImpProc
 	return methodCall
 }
 
+// InjectResult waits for a Process call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
+func (bldr *ManyParamsImpProcessBuilder) InjectResult(result string) *ManyParamsImpProcessCall {
+	validator := func(callToCheck *ManyParamsImpCall) bool {
+		return callToCheck.Name() == "Process"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsProcess()
+	methodCall.InjectResult(result)
+	return methodCall
+}
+
+// ManyParamsImpProcessCall represents a captured call to the Process method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
+type ManyParamsImpProcessCall struct {
+	responseChan chan ManyParamsImpProcessCallResponse
+	done         bool
+	a            int
+	b            int
+	c            int
+	d            int
+	e            int
+	f            int
+	g            int
+	h            int
+	i            int
+	j            int
+}
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *ManyParamsImpProcessCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- ManyParamsImpProcessCallResponse{Type: "panic", PanicValue: msg}
+}
+
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
+func (c *ManyParamsImpProcessCall) InjectResult(result string) {
+	c.done = true
+	c.responseChan <- ManyParamsImpProcessCallResponse{Type: "return", Result0: result}
+}
+
+// ManyParamsImpProcessCallResponse holds the response configuration for the Process method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
+type ManyParamsImpProcessCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    string
+	PanicValue any
+}
+
 // ManyParamsImpTimed provides timeout-configured expectation methods.
 // Access via ManyParamsImp.Within(duration) to set a timeout for expectations.
 type ManyParamsImpTimed struct {
 	ExpectCallIs *ManyParamsImpExpectCallIs
-}
-
-// Within configures a timeout for expectations and returns a ManyParamsImpTimed for method chaining.
-// The timeout applies to subsequent expectation calls.
-//
-// Example:
-//
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *ManyParamsImp) Within(d time.Duration) *ManyParamsImpTimed {
-	return &ManyParamsImpTimed{
-		ExpectCallIs: &ManyParamsImpExpectCallIs{imp: i, timeout: d},
-	}
-}
-
-// GetCurrentCall returns the current call being processed.
-// If no call is pending, waits indefinitely for the next call.
-// Returns the existing current call if it hasn't been completed yet.
-func (i *ManyParamsImp) GetCurrentCall() *ManyParamsImpCall {
-	if i.currentCall != nil && !i.currentCall.Done() {
-		return i.currentCall
-	}
-	i.currentCall = i.GetCall(0, func(c *ManyParamsImpCall) bool { return true })
-	return i.currentCall
-}
-
-// NewManyParamsImp creates a new test controller for mocking the interface.
-// The returned controller manages mock expectations and response injection.
-// Pass t to enable automatic test failure on unexpected calls or timeouts.
-//
-// Example:
-//
-//	imp := NewManyParamsImp(t)
-//	go codeUnderTest(imp.Mock)
-//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewManyParamsImp(t *testing.T) *ManyParamsImp {
-	imp := &ManyParamsImp{
-		Controller: imptest.NewController[*ManyParamsImpCall](t),
-	}
-	imp.Mock = &ManyParamsImpMock{imp: imp}
-	imp.ExpectCallIs = &ManyParamsImpExpectCallIs{imp: imp}
-	return imp
 }

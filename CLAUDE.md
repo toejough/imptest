@@ -52,19 +52,24 @@ If that's overly awkward, write unit tests closer to the tested code, in either 
 
 Lint configs are in `dev/golangci.toml` and `dev/golangci-todos.toml`. The project enforces 80% minimum function coverage.
 
-Preferred Sorting order for code within files:
+Preferred order for code within files:
 1. Package-level comments
 2. Imports
-3. Entry points (in this order: main, exported code, code called by other files)
-4. Everything else.
+3. main (if present)
+4. exported items
+5. unexported items
 
-Within those sections, sort by:
-1. Constants
-2. Variables
-3. Types
-4. Functions/Methods (grouped by receiver type for methods)
-
-Within those sections, sort alphabetically.
+Within those sections, order by:
+1. Constants (alphabetically)
+2. Enums (alphabetically by type name)
+    * The type itself (if not present in this file, just leave a comment with the type name at the top of the group)
+    * The iota constants (as declared, do not reorder)
+2. Variables (alphabetically)
+3. Types (alphabetically)
+    * The type itself
+    * Any associated NewType functions (alphabetically)
+    * The type's methods (alphabetically)
+4. Functions (alphabetically)
 
 ## How to work with me
 

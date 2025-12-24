@@ -43,8 +43,6 @@ func TestBusinessLogic(t *testing.T) {
 	logicImp.ExpectReturnedValuesAre("Result: processed data", nil)
 }
 
-var errNotFound = errors.New("not found")
-
 // TestBusinessLogicError demonstrates error path validation using matchers.
 //
 // Key Requirements Met:
@@ -71,3 +69,8 @@ func TestBusinessLogicError(t *testing.T) {
 		return nil
 	}))
 }
+
+// unexported variables.
+var (
+	errNotFound = errors.New("not found")
+)

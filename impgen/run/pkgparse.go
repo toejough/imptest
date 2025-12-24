@@ -9,13 +9,34 @@ import (
 	"strings"
 )
 
+// PackageLoader defines an interface for loading Go packages.
+
+type PackageLoader interface {
+	Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error)
+}
+
 // symbolType identifies the kind of symbol found.
 type symbolType int
 
+// symbolType values.
 const (
 	symbolInterface symbolType = iota
 	symbolFunction
 )
+
+// unexported variables.
+var (
+	errFunctionNotFound  = errors.New("function or method not found")
+	errInterfaceNotFound = errors.New("interface not found")
+	errPackageNotFound   = errors.New("package not found in imports or as a loadable package")
+	errSymbolNotFound    = errors.New("symbol (interface or function) not found")
+)
+
+// ifaceWithDetails is a helper struct to return both the interface and its type parameters.
+type ifaceWithDetails struct {
+	iface      *ast.InterfaceType
+	typeParams *ast.FieldList
+}
 
 // symbolDetails holds information about the detected symbol.
 
@@ -25,44 +46,43 @@ type symbolDetails struct {
 	iface ifaceWithDetails
 }
 
-// ifaceWithDetails is a helper struct to return both the interface and its type parameters.
-type ifaceWithDetails struct {
-	iface      *ast.InterfaceType
-	typeParams *ast.FieldList
+// checkImport checks if an import matches the target package name.
+
+func checkImport(imp *ast.ImportSpec, pkgName string, pkgLoader PackageLoader) (string, error) {
+	path := strings.Trim(imp.Path.Value, `"`)
+
+	if imp.Name != nil && imp.Name.Name == pkgName {
+		// Aliased import: `import alias "path/to/pkg"`
+		return path, nil
+	}
+
+	// Non-aliased import: `import "path/to/pkg"`
+
+	if strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
+		return path, nil
+	}
+
+	// If suffix doesn't match, the package name might still match the internal package name.
+
+	// Load the package to check.
+
+	importedFiles, _, _, err := pkgLoader.Load(path)
+
+	if err == nil && len(importedFiles) > 0 && importedFiles[0].Name.Name == pkgName {
+		return path, nil
+	}
+
+	return "", errPackageNotFound
 }
 
-var (
-	errFunctionNotFound = errors.New("function or method not found")
-
-	errInterfaceNotFound = errors.New("interface not found")
-
-	errPackageNotFound = errors.New("package not found in imports or as a loadable package")
-
-	errSymbolNotFound = errors.New("symbol (interface or function) not found")
-)
-
-// findSymbol looks for either an interface or a function/method in the given AST files.
-func findSymbol(
-	astFiles []*ast.File, fset *token.FileSet, symbolName string, pkgImportPath string,
-) (symbolDetails, error) {
-	// 1. Try finding it as an interface first
-	iface, err := getMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
-	if err == nil {
-		return symbolDetails{
-			kind:  symbolInterface,
-			iface: iface,
-		}, nil
+// extractPackageName extracts the package name from a fully qualified name (e.g., "pkg.Interface" -> "pkg").
+func extractPackageName(qualifiedName string) string {
+	parts := strings.Split(qualifiedName, ".")
+	if len(parts) > 1 {
+		return parts[0]
 	}
 
-	// 2. Try finding it as a function or method
-	_, err = findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
-	if err == nil {
-		return symbolDetails{
-			kind: symbolFunction,
-		}, nil
-	}
-
-	return symbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
+	return ""
 }
 
 // findFunctionInAST looks for a function declaration in the given AST files.
@@ -121,6 +141,61 @@ func findFunctionInAST(
 	return nil, fmt.Errorf("%w: %s in package %s", errFunctionNotFound, funcName, pkgImportPath)
 }
 
+// findImportPath finds the import path for a given package name by parsing the provided AST files.
+
+func findImportPath(
+	astFiles []*ast.File, pkgName string, pkgLoader PackageLoader,
+) (string, error) {
+	for _, file := range astFiles {
+		for _, imp := range file.Imports {
+			path, err := checkImport(imp, pkgName, pkgLoader)
+			if err == nil {
+				return path, nil
+			}
+		}
+	}
+
+	// As a last resort, try loading the package by name.
+
+	// This covers cases where the package is implicitly imported (e.g., "builtin").
+
+	// This is also important for when the package under test is the one being referenced,
+
+	// and therefore will not appear in the imports (e.g., "mytypes.MyStruct").
+
+	files, _, _, err := pkgLoader.Load(pkgName)
+
+	if err == nil && len(files) > 0 {
+		return pkgName, nil
+	}
+
+	return "", fmt.Errorf("%w: %s", errPackageNotFound, pkgName)
+}
+
+// findSymbol looks for either an interface or a function/method in the given AST files.
+func findSymbol(
+	astFiles []*ast.File, fset *token.FileSet, symbolName string, pkgImportPath string,
+) (symbolDetails, error) {
+	// 1. Try finding it as an interface first
+	iface, err := getMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
+	if err == nil {
+		return symbolDetails{
+			kind:  symbolInterface,
+			iface: iface,
+		}, nil
+	}
+
+	// 2. Try finding it as a function or method
+	_, err = findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
+	if err == nil {
+		return symbolDetails{
+			kind: symbolFunction,
+		}, nil
+	}
+
+	return symbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
+}
+
 // getMatchingInterfaceFromAST extracts the target interface declaration and its type parameters from AST files.
 
 func getMatchingInterfaceFromAST(
@@ -175,80 +250,4 @@ func getMatchingInterfaceFromAST(
 	}
 
 	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
-}
-
-// PackageLoader defines an interface for loading Go packages.
-
-type PackageLoader interface {
-	Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error)
-}
-
-// findImportPath finds the import path for a given package name by parsing the provided AST files.
-
-func findImportPath(
-	astFiles []*ast.File, pkgName string, pkgLoader PackageLoader,
-) (string, error) {
-	for _, file := range astFiles {
-		for _, imp := range file.Imports {
-			path, err := checkImport(imp, pkgName, pkgLoader)
-			if err == nil {
-				return path, nil
-			}
-		}
-	}
-
-	// As a last resort, try loading the package by name.
-
-	// This covers cases where the package is implicitly imported (e.g., "builtin").
-
-	// This is also important for when the package under test is the one being referenced,
-
-	// and therefore will not appear in the imports (e.g., "mytypes.MyStruct").
-
-	files, _, _, err := pkgLoader.Load(pkgName)
-
-	if err == nil && len(files) > 0 {
-		return pkgName, nil
-	}
-
-	return "", fmt.Errorf("%w: %s", errPackageNotFound, pkgName)
-}
-
-// checkImport checks if an import matches the target package name.
-
-func checkImport(imp *ast.ImportSpec, pkgName string, pkgLoader PackageLoader) (string, error) {
-	path := strings.Trim(imp.Path.Value, `"`)
-
-	if imp.Name != nil && imp.Name.Name == pkgName {
-		// Aliased import: `import alias "path/to/pkg"`
-		return path, nil
-	}
-
-	// Non-aliased import: `import "path/to/pkg"`
-
-	if strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
-		return path, nil
-	}
-
-	// If suffix doesn't match, the package name might still match the internal package name.
-
-	// Load the package to check.
-
-	importedFiles, _, _, err := pkgLoader.Load(path)
-
-	if err == nil && len(importedFiles) > 0 && importedFiles[0].Name.Name == pkgName {
-		return path, nil
-	}
-
-	return "", errPackageNotFound
-}
-
-// extractPackageName extracts the package name from a fully qualified name (e.g., "pkg.Interface" -> "pkg").
-func extractPackageName(qualifiedName string) string {
-	parts := strings.Split(qualifiedName, ".")
-	if len(parts) > 1 {
-		return parts[0]
-	}
-
-	return ""
 }

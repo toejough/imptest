@@ -6,13 +6,6 @@ import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
 
-// CriticalDependencyImpMock provides the mock implementation of the interface.
-// Pass CriticalDependencyImpMock to code under test that expects the interface implementation.
-// Use the parent CriticalDependencyImp controller to set expectations and inject responses.
-type CriticalDependencyImpMock struct {
-	imp *CriticalDependencyImp
-}
-
 // CriticalDependencyImp is the test controller for mocking the interface.
 // Create with NewCriticalDependencyImp(t), then use Mock field to get the mock implementation
 // and ExpectCallIs field to set expectations for method calls.
@@ -29,6 +22,113 @@ type CriticalDependencyImp struct {
 	currentCall  *CriticalDependencyImpCall
 }
 
+// NewCriticalDependencyImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewCriticalDependencyImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
+func NewCriticalDependencyImp(t *testing.T) *CriticalDependencyImp {
+	imp := &CriticalDependencyImp{
+		Controller: imptest.NewController[*CriticalDependencyImpCall](t),
+	}
+	imp.Mock = &CriticalDependencyImpMock{imp: imp}
+	imp.ExpectCallIs = &CriticalDependencyImpExpectCallIs{imp: imp}
+	return imp
+}
+
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
+func (i *CriticalDependencyImp) GetCurrentCall() *CriticalDependencyImpCall {
+	if i.currentCall != nil && !i.currentCall.Done() {
+		return i.currentCall
+	}
+	i.currentCall = i.GetCall(0, func(c *CriticalDependencyImpCall) bool { return true })
+	return i.currentCall
+}
+
+// Within configures a timeout for expectations and returns a CriticalDependencyImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *CriticalDependencyImp) Within(d time.Duration) *CriticalDependencyImpTimed {
+	return &CriticalDependencyImpTimed{
+		ExpectCallIs: &CriticalDependencyImpExpectCallIs{imp: i, timeout: d},
+	}
+}
+
+// CriticalDependencyImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
+type CriticalDependencyImpCall struct {
+	DoWork *CriticalDependencyImpDoWorkCall
+}
+
+// AsDoWork returns the call cast to CriticalDependencyImpDoWorkCall for accessing call details.
+// Returns nil if the call was not to DoWork.
+func (c *CriticalDependencyImpCall) AsDoWork() *CriticalDependencyImpDoWorkCall {
+	return c.DoWork
+}
+
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
+func (c *CriticalDependencyImpCall) Done() bool {
+	if c.DoWork != nil {
+		return c.DoWork.done
+	}
+	return false
+}
+
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
+func (c *CriticalDependencyImpCall) Name() string {
+	if c.DoWork != nil {
+		return "DoWork"
+	}
+	return ""
+}
+
+// CriticalDependencyImpDoWorkBuilder provides a fluent API for setting expectations on DoWork calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
+type CriticalDependencyImpDoWorkBuilder struct {
+	imp     *CriticalDependencyImp
+	timeout time.Duration
+}
+
+// InjectPanic waits for a DoWork call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
+func (bldr *CriticalDependencyImpDoWorkBuilder) InjectPanic(msg any) *CriticalDependencyImpDoWorkCall {
+	validator := func(callToCheck *CriticalDependencyImpCall) bool {
+		return callToCheck.Name() == "DoWork"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsDoWork()
+	methodCall.InjectPanic(msg)
+	return methodCall
+}
+
+// Resolve waits for a DoWork call and immediately completes it without error.
+// This is a shortcut that combines waiting for the call with resolving it.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
+func (bldr *CriticalDependencyImpDoWorkBuilder) Resolve() *CriticalDependencyImpDoWorkCall {
+	validator := func(callToCheck *CriticalDependencyImpCall) bool {
+		return callToCheck.Name() == "DoWork"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsDoWork()
+	methodCall.Resolve()
+	return methodCall
+}
+
 // CriticalDependencyImpDoWorkCall represents a captured call to the DoWork method.
 // Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type CriticalDependencyImpDoWorkCall struct {
@@ -36,11 +136,12 @@ type CriticalDependencyImpDoWorkCall struct {
 	done         bool
 }
 
-// CriticalDependencyImpDoWorkCallResponse holds the response configuration for the DoWork method.
-// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
-type CriticalDependencyImpDoWorkCallResponse struct {
-	Type       string // "return", "panic", or "resolve"
-	PanicValue any
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *CriticalDependencyImpDoWorkCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- CriticalDependencyImpDoWorkCallResponse{Type: "panic", PanicValue: msg}
 }
 
 // Resolve completes a void method call without error.
@@ -51,12 +152,31 @@ func (c *CriticalDependencyImpDoWorkCall) Resolve() {
 	c.responseChan <- CriticalDependencyImpDoWorkCallResponse{Type: "resolve"}
 }
 
-// InjectPanic causes the mocked method to panic with the given value.
-// Use this to test panic handling in code under test.
-// The panic occurs in the goroutine where the mock was called.
-func (c *CriticalDependencyImpDoWorkCall) InjectPanic(msg any) {
-	c.done = true
-	c.responseChan <- CriticalDependencyImpDoWorkCallResponse{Type: "panic", PanicValue: msg}
+// CriticalDependencyImpDoWorkCallResponse holds the response configuration for the DoWork method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
+type CriticalDependencyImpDoWorkCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	PanicValue any
+}
+
+// CriticalDependencyImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent CriticalDependencyImp to configure timeouts.
+type CriticalDependencyImpExpectCallIs struct {
+	imp     *CriticalDependencyImp
+	timeout time.Duration
+}
+
+// DoWork returns a builder for setting expectations on DoWork method calls.
+func (e *CriticalDependencyImpExpectCallIs) DoWork() *CriticalDependencyImpDoWorkBuilder {
+	return &CriticalDependencyImpDoWorkBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+// CriticalDependencyImpMock provides the mock implementation of the interface.
+// Pass CriticalDependencyImpMock to code under test that expects the interface implementation.
+// Use the parent CriticalDependencyImp controller to set expectations and inject responses.
+type CriticalDependencyImpMock struct {
+	imp *CriticalDependencyImp
 }
 
 // DoWork implements the interface method and records the call for testing.
@@ -83,128 +203,8 @@ func (m *CriticalDependencyImpMock) DoWork() {
 	return
 }
 
-// CriticalDependencyImpCall represents a captured call to any method.
-// Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
-type CriticalDependencyImpCall struct {
-	DoWork *CriticalDependencyImpDoWorkCall
-}
-
-// Name returns the name of the method that was called.
-// Returns an empty string if the call struct is invalid.
-func (c *CriticalDependencyImpCall) Name() string {
-	if c.DoWork != nil {
-		return "DoWork"
-	}
-	return ""
-}
-
-// Done returns true if the call has been completed (response injected).
-// Used internally to track call state.
-func (c *CriticalDependencyImpCall) Done() bool {
-	if c.DoWork != nil {
-		return c.DoWork.done
-	}
-	return false
-}
-
-// AsDoWork returns the call cast to CriticalDependencyImpDoWorkCall for accessing call details.
-// Returns nil if the call was not to DoWork.
-func (c *CriticalDependencyImpCall) AsDoWork() *CriticalDependencyImpDoWorkCall {
-	return c.DoWork
-}
-
-// CriticalDependencyImpExpectCallIs provides methods to set expectations for specific method calls.
-// Each method returns a builder for fluent expectation configuration.
-// Use Within() on the parent CriticalDependencyImp to configure timeouts.
-type CriticalDependencyImpExpectCallIs struct {
-	imp     *CriticalDependencyImp
-	timeout time.Duration
-}
-
-// CriticalDependencyImpDoWorkBuilder provides a fluent API for setting expectations on DoWork calls.
-// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
-type CriticalDependencyImpDoWorkBuilder struct {
-	imp     *CriticalDependencyImp
-	timeout time.Duration
-}
-
-// DoWork returns a builder for setting expectations on DoWork method calls.
-func (e *CriticalDependencyImpExpectCallIs) DoWork() *CriticalDependencyImpDoWorkBuilder {
-	return &CriticalDependencyImpDoWorkBuilder{imp: e.imp, timeout: e.timeout}
-}
-
-// Resolve waits for a DoWork call and immediately completes it without error.
-// This is a shortcut that combines waiting for the call with resolving it.
-// Returns the call object for further operations. Fails if no call arrives within the timeout.
-func (bldr *CriticalDependencyImpDoWorkBuilder) Resolve() *CriticalDependencyImpDoWorkCall {
-	validator := func(callToCheck *CriticalDependencyImpCall) bool {
-		return callToCheck.Name() == "DoWork"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsDoWork()
-	methodCall.Resolve()
-	return methodCall
-}
-
-// InjectPanic waits for a DoWork call and causes it to panic with the given value.
-// This is a shortcut that combines waiting for the call with injecting a panic.
-// Use this to test panic handling in code under test. Returns the call object for further operations.
-func (bldr *CriticalDependencyImpDoWorkBuilder) InjectPanic(msg any) *CriticalDependencyImpDoWorkCall {
-	validator := func(callToCheck *CriticalDependencyImpCall) bool {
-		return callToCheck.Name() == "DoWork"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsDoWork()
-	methodCall.InjectPanic(msg)
-	return methodCall
-}
-
 // CriticalDependencyImpTimed provides timeout-configured expectation methods.
 // Access via CriticalDependencyImp.Within(duration) to set a timeout for expectations.
 type CriticalDependencyImpTimed struct {
 	ExpectCallIs *CriticalDependencyImpExpectCallIs
-}
-
-// Within configures a timeout for expectations and returns a CriticalDependencyImpTimed for method chaining.
-// The timeout applies to subsequent expectation calls.
-//
-// Example:
-//
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *CriticalDependencyImp) Within(d time.Duration) *CriticalDependencyImpTimed {
-	return &CriticalDependencyImpTimed{
-		ExpectCallIs: &CriticalDependencyImpExpectCallIs{imp: i, timeout: d},
-	}
-}
-
-// GetCurrentCall returns the current call being processed.
-// If no call is pending, waits indefinitely for the next call.
-// Returns the existing current call if it hasn't been completed yet.
-func (i *CriticalDependencyImp) GetCurrentCall() *CriticalDependencyImpCall {
-	if i.currentCall != nil && !i.currentCall.Done() {
-		return i.currentCall
-	}
-	i.currentCall = i.GetCall(0, func(c *CriticalDependencyImpCall) bool { return true })
-	return i.currentCall
-}
-
-// NewCriticalDependencyImp creates a new test controller for mocking the interface.
-// The returned controller manages mock expectations and response injection.
-// Pass t to enable automatic test failure on unexpected calls or timeouts.
-//
-// Example:
-//
-//	imp := NewCriticalDependencyImp(t)
-//	go codeUnderTest(imp.Mock)
-//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewCriticalDependencyImp(t *testing.T) *CriticalDependencyImp {
-	imp := &CriticalDependencyImp{
-		Controller: imptest.NewController[*CriticalDependencyImpCall](t),
-	}
-	imp.Mock = &CriticalDependencyImpMock{imp: imp}
-	imp.ExpectCallIs = &CriticalDependencyImpExpectCallIs{imp: imp}
-	return imp
 }

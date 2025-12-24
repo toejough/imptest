@@ -8,6 +8,37 @@ import (
 	"github.com/toejough/imptest/impgen/run"
 )
 
+func TestIsExportedIdent(t *testing.T) {
+	t.Parallel()
+
+	isTypeParam := func(name string) bool {
+		return name == "T"
+	}
+
+	tests := []struct {
+		name  string
+		ident string
+		want  bool
+	}{
+		{"exported", "Exported", true},
+		{"unexported", "unexported", false},
+		{"builtin", "int", true},
+		{"type param", "T", true},
+		{"empty", "", true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			ident := &ast.Ident{Name: testCase.ident}
+			if got := run.IsExportedIdent(ident, isTypeParam); got != testCase.want {
+				t.Errorf("IsExportedIdent() = %v, want %v", got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestValidateExportedTypes(t *testing.T) {
 	t.Parallel()
 
@@ -55,37 +86,6 @@ func TestValidateExportedTypes(t *testing.T) {
 			err = run.ValidateExportedTypes(expr, isTypeParam)
 			if (err != nil) != testCase.wantErr {
 				t.Errorf("ValidateExportedTypes() error = %v, wantErr %v", err, testCase.wantErr)
-			}
-		})
-	}
-}
-
-func TestIsExportedIdent(t *testing.T) {
-	t.Parallel()
-
-	isTypeParam := func(name string) bool {
-		return name == "T"
-	}
-
-	tests := []struct {
-		name  string
-		ident string
-		want  bool
-	}{
-		{"exported", "Exported", true},
-		{"unexported", "unexported", false},
-		{"builtin", "int", true},
-		{"type param", "T", true},
-		{"empty", "", true},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			ident := &ast.Ident{Name: testCase.ident}
-			if got := run.IsExportedIdent(ident, isTypeParam); got != testCase.want {
-				t.Errorf("IsExportedIdent() = %v, want %v", got, testCase.want)
 			}
 		})
 	}

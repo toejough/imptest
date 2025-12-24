@@ -5,34 +5,41 @@ import (
 	"time"
 )
 
-// Tester is a subset of testing.TB.
-type Tester interface {
-	Fatalf(format string, args ...any)
-	Helper()
-}
-
-// Timer abstracts time-based operations for testability.
-type Timer interface {
-	After(d time.Duration) <-chan time.Time
-}
-
-// realTimer is the default timer implementation that uses the standard time package.
-type realTimer struct{}
-
-func (realTimer) After(d time.Duration) <-chan time.Time {
-	return time.After(d)
-}
-
 // Call represents a single call to a mock or callable.
 type Call interface {
 	Name() string
 	Done() bool
 }
 
-// waiter represents a goroutine waiting for a matching call.
-type waiter[T any] struct {
-	validator func(T) bool
-	result    chan T
+// CallableController manages the state of a single function execution.
+type CallableController[T any] struct {
+	T          Tester
+	ReturnChan chan T
+	PanicChan  chan any
+	Returned   *T
+	Panicked   any
+}
+
+// NewCallableController creates a new callable controller.
+func NewCallableController[T any](t Tester) *CallableController[T] {
+	return &CallableController[T]{
+		T:          t,
+		ReturnChan: make(chan T, 1),
+		PanicChan:  make(chan any, 1),
+	}
+}
+
+func (c *CallableController[T]) WaitForResponse() {
+	if c.Returned != nil || c.Panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-c.ReturnChan:
+		c.Returned = &ret
+	case p := <-c.PanicChan:
+		c.Panicked = p
+	}
 }
 
 // Controller manages the call queue and synchronization for a mock or callable.
@@ -147,33 +154,26 @@ func (c *Controller[T]) dispatchLoop() {
 	}
 }
 
-// CallableController manages the state of a single function execution.
-type CallableController[T any] struct {
-	T          Tester
-	ReturnChan chan T
-	PanicChan  chan any
-	Returned   *T
-	Panicked   any
+// Tester is a subset of testing.TB.
+type Tester interface {
+	Fatalf(format string, args ...any)
+	Helper()
 }
 
-// NewCallableController creates a new callable controller.
-func NewCallableController[T any](t Tester) *CallableController[T] {
-	return &CallableController[T]{
-		T:          t,
-		ReturnChan: make(chan T, 1),
-		PanicChan:  make(chan any, 1),
-	}
+// Timer abstracts time-based operations for testability.
+type Timer interface {
+	After(d time.Duration) <-chan time.Time
 }
 
-func (c *CallableController[T]) WaitForResponse() {
-	if c.Returned != nil || c.Panicked != nil {
-		return
-	}
+// realTimer is the default timer implementation that uses the standard time package.
+type realTimer struct{}
 
-	select {
-	case ret := <-c.ReturnChan:
-		c.Returned = &ret
-	case p := <-c.PanicChan:
-		c.Panicked = p
-	}
+func (realTimer) After(d time.Duration) <-chan time.Time {
+	return time.After(d)
+}
+
+// waiter represents a goroutine waiting for a matching call.
+type waiter[T any] struct {
+	validator func(T) bool
+	result    chan T
 }

@@ -7,33 +7,6 @@ import (
 	mp "github.com/toejough/imptest/UAT/10-edge-many-params"
 )
 
-// TestManyParams_mutant verifies that mocks work correctly for methods with many parameters.
-// This catches mutations in:
-// - Parameter index arithmetic (index + 1, index + 0, index + 2)
-// - Parameter naming beyond A-H (should use param8, param9, etc)
-// - Array bounds checking (index < len(names) vs index <= len(names)).
-func TestManyParams_mutant(t *testing.T) {
-	t.Parallel()
-
-	mock := mp.NewManyParamsImp(t)
-
-	// Call with all 10 parameters in a goroutine
-	resultChan := make(chan string)
-
-	go func() {
-		resultChan <- mock.Mock.Process(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-	}()
-
-	// Set up expectation with all 10 parameters
-	mock.ExpectCallIs.Process().ExpectArgsAre(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).InjectResult("success")
-
-	// Verify result
-	result := <-resultChan
-	if result != "success" {
-		t.Errorf("Process() = %v, want 'success'", result)
-	}
-}
-
 // TestManyParams_DifferentValues_mutant tests with different parameter values.
 // This ensures index arithmetic is correct even when values differ.
 func TestManyParams_DifferentValues_mutant(t *testing.T) {
@@ -93,6 +66,25 @@ func TestManyParams_DifferentValues_mutant(t *testing.T) {
 	}
 }
 
+// TestManyParams_UnnamedParams_mutant tests interfaces with unnamed parameters.
+func TestManyParams_UnnamedParams_mutant(t *testing.T) {
+	t.Parallel()
+
+	// Note: This would test an interface with unnamed params which exercises different code paths
+	// type UnnamedParams interface {
+	// 	Execute(int, int, int) error
+	// }
+
+	// Generate message to document what this would test
+	msg := fmt.Sprintf("Interface with %d unnamed parameters would test unnamed parameter indexing", 10)
+	if len(msg) == 0 {
+		t.Error("Message should not be empty")
+	}
+
+	// Note: To fully test this, we'd need to generate UnnamedParams with //go:generate
+	// and create a mock for it. This test documents the edge case.
+}
+
 // TestManyParams_VerifyArgs_mutant tests that all 10 arguments are captured correctly.
 // This is critical for catching off-by-one errors in parameter indexing.
 func TestManyParams_VerifyArgs_mutant(t *testing.T) {
@@ -126,21 +118,29 @@ func TestManyParams_VerifyArgs_mutant(t *testing.T) {
 	}
 }
 
-// TestManyParams_UnnamedParams_mutant tests interfaces with unnamed parameters.
-func TestManyParams_UnnamedParams_mutant(t *testing.T) {
+// TestManyParams_mutant verifies that mocks work correctly for methods with many parameters.
+// This catches mutations in:
+// - Parameter index arithmetic (index + 1, index + 0, index + 2)
+// - Parameter naming beyond A-H (should use param8, param9, etc)
+// - Array bounds checking (index < len(names) vs index <= len(names)).
+func TestManyParams_mutant(t *testing.T) {
 	t.Parallel()
 
-	// Note: This would test an interface with unnamed params which exercises different code paths
-	// type UnnamedParams interface {
-	// 	Execute(int, int, int) error
-	// }
+	mock := mp.NewManyParamsImp(t)
 
-	// Generate message to document what this would test
-	msg := fmt.Sprintf("Interface with %d unnamed parameters would test unnamed parameter indexing", 10)
-	if len(msg) == 0 {
-		t.Error("Message should not be empty")
+	// Call with all 10 parameters in a goroutine
+	resultChan := make(chan string)
+
+	go func() {
+		resultChan <- mock.Mock.Process(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	}()
+
+	// Set up expectation with all 10 parameters
+	mock.ExpectCallIs.Process().ExpectArgsAre(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).InjectResult("success")
+
+	// Verify result
+	result := <-resultChan
+	if result != "success" {
+		t.Errorf("Process() = %v, want 'success'", result)
 	}
-
-	// Note: To fully test this, we'd need to generate UnnamedParams with //go:generate
-	// and create a mock for it. This test documents the edge case.
 }

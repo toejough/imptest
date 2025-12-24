@@ -7,13 +7,6 @@ import "reflect"
 import "testing"
 import "time"
 
-// DataProcessorImpMock provides the mock implementation of the interface.
-// Pass DataProcessorImpMock to code under test that expects the interface implementation.
-// Use the parent DataProcessorImp controller to set expectations and inject responses.
-type DataProcessorImpMock struct {
-	imp *DataProcessorImp
-}
-
 // DataProcessorImp is the test controller for mocking the interface.
 // Create with NewDataProcessorImp(t), then use Mock field to get the mock implementation
 // and ExpectCallIs field to set expectations for method calls.
@@ -30,91 +23,114 @@ type DataProcessorImp struct {
 	currentCall  *DataProcessorImpCall
 }
 
-// DataProcessorImpProcessSliceCall represents a captured call to the ProcessSlice method.
-// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
-type DataProcessorImpProcessSliceCall struct {
-	responseChan chan DataProcessorImpProcessSliceCallResponse
-	done         bool
-	data         []string
-}
-
-// DataProcessorImpProcessSliceCallResponse holds the response configuration for the ProcessSlice method.
-// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
-type DataProcessorImpProcessSliceCallResponse struct {
-	Type       string // "return", "panic", or "resolve"
-	Result0    int
-	PanicValue any
-}
-
-// InjectResult sets the return value for this method call and unblocks the caller.
-// The mocked method will return the provided result value.
-func (c *DataProcessorImpProcessSliceCall) InjectResult(result int) {
-	c.done = true
-	c.responseChan <- DataProcessorImpProcessSliceCallResponse{Type: "return", Result0: result}
-}
-
-// InjectPanic causes the mocked method to panic with the given value.
-// Use this to test panic handling in code under test.
-// The panic occurs in the goroutine where the mock was called.
-func (c *DataProcessorImpProcessSliceCall) InjectPanic(msg any) {
-	c.done = true
-	c.responseChan <- DataProcessorImpProcessSliceCallResponse{Type: "panic", PanicValue: msg}
-}
-
-// DataProcessorImpProcessMapCall represents a captured call to the ProcessMap method.
-// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
-type DataProcessorImpProcessMapCall struct {
-	responseChan chan DataProcessorImpProcessMapCallResponse
-	done         bool
-	config       map[string]int
-}
-
-// DataProcessorImpProcessMapCallResponse holds the response configuration for the ProcessMap method.
-// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
-type DataProcessorImpProcessMapCallResponse struct {
-	Type       string // "return", "panic", or "resolve"
-	Result0    bool
-	PanicValue any
-}
-
-// InjectResult sets the return value for this method call and unblocks the caller.
-// The mocked method will return the provided result value.
-func (c *DataProcessorImpProcessMapCall) InjectResult(result bool) {
-	c.done = true
-	c.responseChan <- DataProcessorImpProcessMapCallResponse{Type: "return", Result0: result}
-}
-
-// InjectPanic causes the mocked method to panic with the given value.
-// Use this to test panic handling in code under test.
-// The panic occurs in the goroutine where the mock was called.
-func (c *DataProcessorImpProcessMapCall) InjectPanic(msg any) {
-	c.done = true
-	c.responseChan <- DataProcessorImpProcessMapCallResponse{Type: "panic", PanicValue: msg}
-}
-
-// ProcessSlice implements the interface method and records the call for testing.
-// The method blocks until a response is injected via the test controller.
-func (m *DataProcessorImpMock) ProcessSlice(data []string) int {
-	responseChan := make(chan DataProcessorImpProcessSliceCallResponse, 1)
-
-	call := &DataProcessorImpProcessSliceCall{
-		responseChan: responseChan,
-		data:         data,
+// NewDataProcessorImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewDataProcessorImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
+func NewDataProcessorImp(t *testing.T) *DataProcessorImp {
+	imp := &DataProcessorImp{
+		Controller: imptest.NewController[*DataProcessorImpCall](t),
 	}
+	imp.Mock = &DataProcessorImpMock{imp: imp}
+	imp.ExpectCallIs = &DataProcessorImpExpectCallIs{imp: imp}
+	return imp
+}
 
-	callEvent := &DataProcessorImpCall{
-		ProcessSlice: call,
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
+func (i *DataProcessorImp) GetCurrentCall() *DataProcessorImpCall {
+	if i.currentCall != nil && !i.currentCall.Done() {
+		return i.currentCall
 	}
+	i.currentCall = i.GetCall(0, func(c *DataProcessorImpCall) bool { return true })
+	return i.currentCall
+}
 
-	m.imp.CallChan <- callEvent
-
-	resp := <-responseChan
-
-	if resp.Type == "panic" {
-		panic(resp.PanicValue)
+// Within configures a timeout for expectations and returns a DataProcessorImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *DataProcessorImp) Within(d time.Duration) *DataProcessorImpTimed {
+	return &DataProcessorImpTimed{
+		ExpectCallIs: &DataProcessorImpExpectCallIs{imp: i, timeout: d},
 	}
+}
 
-	return resp.Result0
+// DataProcessorImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
+type DataProcessorImpCall struct {
+	ProcessSlice *DataProcessorImpProcessSliceCall
+	ProcessMap   *DataProcessorImpProcessMapCall
+}
+
+// AsProcessMap returns the call cast to DataProcessorImpProcessMapCall for accessing call details.
+// Returns nil if the call was not to ProcessMap.
+func (c *DataProcessorImpCall) AsProcessMap() *DataProcessorImpProcessMapCall {
+	return c.ProcessMap
+}
+
+// AsProcessSlice returns the call cast to DataProcessorImpProcessSliceCall for accessing call details.
+// Returns nil if the call was not to ProcessSlice.
+func (c *DataProcessorImpCall) AsProcessSlice() *DataProcessorImpProcessSliceCall {
+	return c.ProcessSlice
+}
+
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
+func (c *DataProcessorImpCall) Done() bool {
+	if c.ProcessSlice != nil {
+		return c.ProcessSlice.done
+	}
+	if c.ProcessMap != nil {
+		return c.ProcessMap.done
+	}
+	return false
+}
+
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
+func (c *DataProcessorImpCall) Name() string {
+	if c.ProcessSlice != nil {
+		return "ProcessSlice"
+	}
+	if c.ProcessMap != nil {
+		return "ProcessMap"
+	}
+	return ""
+}
+
+// DataProcessorImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent DataProcessorImp to configure timeouts.
+type DataProcessorImpExpectCallIs struct {
+	imp     *DataProcessorImp
+	timeout time.Duration
+}
+
+// ProcessMap returns a builder for setting expectations on ProcessMap method calls.
+func (e *DataProcessorImpExpectCallIs) ProcessMap() *DataProcessorImpProcessMapBuilder {
+	return &DataProcessorImpProcessMapBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+// ProcessSlice returns a builder for setting expectations on ProcessSlice method calls.
+func (e *DataProcessorImpExpectCallIs) ProcessSlice() *DataProcessorImpProcessSliceBuilder {
+	return &DataProcessorImpProcessSliceBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+// DataProcessorImpMock provides the mock implementation of the interface.
+// Pass DataProcessorImpMock to code under test that expects the interface implementation.
+// Use the parent DataProcessorImp controller to set expectations and inject responses.
+type DataProcessorImpMock struct {
+	imp *DataProcessorImp
 }
 
 // ProcessMap implements the interface method and records the call for testing.
@@ -142,138 +158,29 @@ func (m *DataProcessorImpMock) ProcessMap(config map[string]int) bool {
 	return resp.Result0
 }
 
-// DataProcessorImpCall represents a captured call to any method.
-// Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
-type DataProcessorImpCall struct {
-	ProcessSlice *DataProcessorImpProcessSliceCall
-	ProcessMap   *DataProcessorImpProcessMapCall
-}
+// ProcessSlice implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
+func (m *DataProcessorImpMock) ProcessSlice(data []string) int {
+	responseChan := make(chan DataProcessorImpProcessSliceCallResponse, 1)
 
-// Name returns the name of the method that was called.
-// Returns an empty string if the call struct is invalid.
-func (c *DataProcessorImpCall) Name() string {
-	if c.ProcessSlice != nil {
-		return "ProcessSlice"
-	}
-	if c.ProcessMap != nil {
-		return "ProcessMap"
-	}
-	return ""
-}
-
-// Done returns true if the call has been completed (response injected).
-// Used internally to track call state.
-func (c *DataProcessorImpCall) Done() bool {
-	if c.ProcessSlice != nil {
-		return c.ProcessSlice.done
-	}
-	if c.ProcessMap != nil {
-		return c.ProcessMap.done
-	}
-	return false
-}
-
-// AsProcessSlice returns the call cast to DataProcessorImpProcessSliceCall for accessing call details.
-// Returns nil if the call was not to ProcessSlice.
-func (c *DataProcessorImpCall) AsProcessSlice() *DataProcessorImpProcessSliceCall {
-	return c.ProcessSlice
-}
-
-// AsProcessMap returns the call cast to DataProcessorImpProcessMapCall for accessing call details.
-// Returns nil if the call was not to ProcessMap.
-func (c *DataProcessorImpCall) AsProcessMap() *DataProcessorImpProcessMapCall {
-	return c.ProcessMap
-}
-
-// DataProcessorImpExpectCallIs provides methods to set expectations for specific method calls.
-// Each method returns a builder for fluent expectation configuration.
-// Use Within() on the parent DataProcessorImp to configure timeouts.
-type DataProcessorImpExpectCallIs struct {
-	imp     *DataProcessorImp
-	timeout time.Duration
-}
-
-// DataProcessorImpProcessSliceBuilder provides a fluent API for setting expectations on ProcessSlice calls.
-// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
-type DataProcessorImpProcessSliceBuilder struct {
-	imp     *DataProcessorImp
-	timeout time.Duration
-}
-
-// ProcessSlice returns a builder for setting expectations on ProcessSlice method calls.
-func (e *DataProcessorImpExpectCallIs) ProcessSlice() *DataProcessorImpProcessSliceBuilder {
-	return &DataProcessorImpProcessSliceBuilder{imp: e.imp, timeout: e.timeout}
-}
-
-// ExpectArgsAre waits for a ProcessSlice call with exactly the specified argument values.
-// Returns the call object for response injection. Fails the test if the call
-// doesn't arrive within the timeout or if arguments don't match exactly.
-// Uses == for comparable types and reflect.DeepEqual for others.
-func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsAre(data []string) *DataProcessorImpProcessSliceCall {
-	validator := func(callToCheck *DataProcessorImpCall) bool {
-		if callToCheck.Name() != "ProcessSlice" {
-			return false
-		}
-		methodCall := callToCheck.AsProcessSlice()
-		if !reflect.DeepEqual(methodCall.data, data) {
-			return false
-		}
-		return true
+	call := &DataProcessorImpProcessSliceCall{
+		responseChan: responseChan,
+		data:         data,
 	}
 
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsProcessSlice()
-}
-
-// ExpectArgsShould waits for a ProcessSlice call with arguments matching the given matchers.
-// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
-// Returns the call object for response injection. Fails the test if the call
-// doesn't arrive within the timeout or if any matcher fails.
-func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsShould(data any) *DataProcessorImpProcessSliceCall {
-	validator := func(callToCheck *DataProcessorImpCall) bool {
-		if callToCheck.Name() != "ProcessSlice" {
-			return false
-		}
-		methodCall := callToCheck.AsProcessSlice()
-		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.data, data)
-		if !ok {
-			return false
-		}
-		return true
+	callEvent := &DataProcessorImpCall{
+		ProcessSlice: call,
 	}
 
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	return call.AsProcessSlice()
-}
+	m.imp.CallChan <- callEvent
 
-// InjectResult waits for a ProcessSlice call and immediately injects the return value.
-// This is a shortcut that combines waiting for the call with injecting the result.
-// Returns the call object for further operations. Fails if no call arrives within the timeout.
-func (bldr *DataProcessorImpProcessSliceBuilder) InjectResult(result int) *DataProcessorImpProcessSliceCall {
-	validator := func(callToCheck *DataProcessorImpCall) bool {
-		return callToCheck.Name() == "ProcessSlice"
+	resp := <-responseChan
+
+	if resp.Type == "panic" {
+		panic(resp.PanicValue)
 	}
 
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsProcessSlice()
-	methodCall.InjectResult(result)
-	return methodCall
-}
-
-// InjectPanic waits for a ProcessSlice call and causes it to panic with the given value.
-// This is a shortcut that combines waiting for the call with injecting a panic.
-// Use this to test panic handling in code under test. Returns the call object for further operations.
-func (bldr *DataProcessorImpProcessSliceBuilder) InjectPanic(msg any) *DataProcessorImpProcessSliceCall {
-	validator := func(callToCheck *DataProcessorImpCall) bool {
-		return callToCheck.Name() == "ProcessSlice"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsProcessSlice()
-	methodCall.InjectPanic(msg)
-	return methodCall
+	return resp.Result0
 }
 
 // DataProcessorImpProcessMapBuilder provides a fluent API for setting expectations on ProcessMap calls.
@@ -281,11 +188,6 @@ func (bldr *DataProcessorImpProcessSliceBuilder) InjectPanic(msg any) *DataProce
 type DataProcessorImpProcessMapBuilder struct {
 	imp     *DataProcessorImp
 	timeout time.Duration
-}
-
-// ProcessMap returns a builder for setting expectations on ProcessMap method calls.
-func (e *DataProcessorImpExpectCallIs) ProcessMap() *DataProcessorImpProcessMapBuilder {
-	return &DataProcessorImpProcessMapBuilder{imp: e.imp, timeout: e.timeout}
 }
 
 // ExpectArgsAre waits for a ProcessMap call with exactly the specified argument values.
@@ -330,20 +232,6 @@ func (bldr *DataProcessorImpProcessMapBuilder) ExpectArgsShould(config any) *Dat
 	return call.AsProcessMap()
 }
 
-// InjectResult waits for a ProcessMap call and immediately injects the return value.
-// This is a shortcut that combines waiting for the call with injecting the result.
-// Returns the call object for further operations. Fails if no call arrives within the timeout.
-func (bldr *DataProcessorImpProcessMapBuilder) InjectResult(result bool) *DataProcessorImpProcessMapCall {
-	validator := func(callToCheck *DataProcessorImpCall) bool {
-		return callToCheck.Name() == "ProcessMap"
-	}
-
-	call := bldr.imp.GetCall(bldr.timeout, validator)
-	methodCall := call.AsProcessMap()
-	methodCall.InjectResult(result)
-	return methodCall
-}
-
 // InjectPanic waits for a ProcessMap call and causes it to panic with the given value.
 // This is a shortcut that combines waiting for the call with injecting a panic.
 // Use this to test panic handling in code under test. Returns the call object for further operations.
@@ -358,49 +246,161 @@ func (bldr *DataProcessorImpProcessMapBuilder) InjectPanic(msg any) *DataProcess
 	return methodCall
 }
 
+// InjectResult waits for a ProcessMap call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
+func (bldr *DataProcessorImpProcessMapBuilder) InjectResult(result bool) *DataProcessorImpProcessMapCall {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		return callToCheck.Name() == "ProcessMap"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsProcessMap()
+	methodCall.InjectResult(result)
+	return methodCall
+}
+
+// DataProcessorImpProcessMapCall represents a captured call to the ProcessMap method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
+type DataProcessorImpProcessMapCall struct {
+	responseChan chan DataProcessorImpProcessMapCallResponse
+	done         bool
+	config       map[string]int
+}
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *DataProcessorImpProcessMapCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- DataProcessorImpProcessMapCallResponse{Type: "panic", PanicValue: msg}
+}
+
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
+func (c *DataProcessorImpProcessMapCall) InjectResult(result bool) {
+	c.done = true
+	c.responseChan <- DataProcessorImpProcessMapCallResponse{Type: "return", Result0: result}
+}
+
+// DataProcessorImpProcessMapCallResponse holds the response configuration for the ProcessMap method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
+type DataProcessorImpProcessMapCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    bool
+	PanicValue any
+}
+
+// DataProcessorImpProcessSliceBuilder provides a fluent API for setting expectations on ProcessSlice calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
+type DataProcessorImpProcessSliceBuilder struct {
+	imp     *DataProcessorImp
+	timeout time.Duration
+}
+
+// ExpectArgsAre waits for a ProcessSlice call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
+func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsAre(data []string) *DataProcessorImpProcessSliceCall {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		if callToCheck.Name() != "ProcessSlice" {
+			return false
+		}
+		methodCall := callToCheck.AsProcessSlice()
+		if !reflect.DeepEqual(methodCall.data, data) {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsProcessSlice()
+}
+
+// ExpectArgsShould waits for a ProcessSlice call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
+func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsShould(data any) *DataProcessorImpProcessSliceCall {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		if callToCheck.Name() != "ProcessSlice" {
+			return false
+		}
+		methodCall := callToCheck.AsProcessSlice()
+		var ok bool
+		ok, _ = imptest.MatchValue(methodCall.data, data)
+		if !ok {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsProcessSlice()
+}
+
+// InjectPanic waits for a ProcessSlice call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
+func (bldr *DataProcessorImpProcessSliceBuilder) InjectPanic(msg any) *DataProcessorImpProcessSliceCall {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		return callToCheck.Name() == "ProcessSlice"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsProcessSlice()
+	methodCall.InjectPanic(msg)
+	return methodCall
+}
+
+// InjectResult waits for a ProcessSlice call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
+func (bldr *DataProcessorImpProcessSliceBuilder) InjectResult(result int) *DataProcessorImpProcessSliceCall {
+	validator := func(callToCheck *DataProcessorImpCall) bool {
+		return callToCheck.Name() == "ProcessSlice"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsProcessSlice()
+	methodCall.InjectResult(result)
+	return methodCall
+}
+
+// DataProcessorImpProcessSliceCall represents a captured call to the ProcessSlice method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
+type DataProcessorImpProcessSliceCall struct {
+	responseChan chan DataProcessorImpProcessSliceCallResponse
+	done         bool
+	data         []string
+}
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *DataProcessorImpProcessSliceCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- DataProcessorImpProcessSliceCallResponse{Type: "panic", PanicValue: msg}
+}
+
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
+func (c *DataProcessorImpProcessSliceCall) InjectResult(result int) {
+	c.done = true
+	c.responseChan <- DataProcessorImpProcessSliceCallResponse{Type: "return", Result0: result}
+}
+
+// DataProcessorImpProcessSliceCallResponse holds the response configuration for the ProcessSlice method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
+type DataProcessorImpProcessSliceCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    int
+	PanicValue any
+}
+
 // DataProcessorImpTimed provides timeout-configured expectation methods.
 // Access via DataProcessorImp.Within(duration) to set a timeout for expectations.
 type DataProcessorImpTimed struct {
 	ExpectCallIs *DataProcessorImpExpectCallIs
-}
-
-// Within configures a timeout for expectations and returns a DataProcessorImpTimed for method chaining.
-// The timeout applies to subsequent expectation calls.
-//
-// Example:
-//
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *DataProcessorImp) Within(d time.Duration) *DataProcessorImpTimed {
-	return &DataProcessorImpTimed{
-		ExpectCallIs: &DataProcessorImpExpectCallIs{imp: i, timeout: d},
-	}
-}
-
-// GetCurrentCall returns the current call being processed.
-// If no call is pending, waits indefinitely for the next call.
-// Returns the existing current call if it hasn't been completed yet.
-func (i *DataProcessorImp) GetCurrentCall() *DataProcessorImpCall {
-	if i.currentCall != nil && !i.currentCall.Done() {
-		return i.currentCall
-	}
-	i.currentCall = i.GetCall(0, func(c *DataProcessorImpCall) bool { return true })
-	return i.currentCall
-}
-
-// NewDataProcessorImp creates a new test controller for mocking the interface.
-// The returned controller manages mock expectations and response injection.
-// Pass t to enable automatic test failure on unexpected calls or timeouts.
-//
-// Example:
-//
-//	imp := NewDataProcessorImp(t)
-//	go codeUnderTest(imp.Mock)
-//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewDataProcessorImp(t *testing.T) *DataProcessorImp {
-	imp := &DataProcessorImp{
-		Controller: imptest.NewController[*DataProcessorImpCall](t),
-	}
-	imp.Mock = &DataProcessorImpMock{imp: imp}
-	imp.ExpectCallIs = &DataProcessorImpExpectCallIs{imp: imp}
-	return imp
 }

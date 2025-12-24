@@ -13,6 +13,7 @@ import (
 	"strings"
 )
 
+// Exported constants.
 const (
 	// CacheDirName is the name of the local cache directory.
 	CacheDirName = ".impgen"
@@ -21,15 +22,6 @@ const (
 	// FilePerm is the default file permission.
 	FilePerm = 0o600
 )
-
-// CacheFileSystem abstracts file operations for the cache system.
-type CacheFileSystem interface {
-	Open(path string) (io.ReadCloser, error)
-	Create(path string) (io.WriteCloser, error)
-	MkdirAll(path string, perm os.FileMode) error
-	Stat(path string) (os.FileInfo, error)
-	Getwd() (string, error)
-}
 
 // CacheData represents the structure of the persistent disk cache.
 type CacheData struct {
@@ -43,7 +35,14 @@ type CacheEntry struct {
 	Filename  string `json:"filename"`
 }
 
-var errProjectRootNotFound = errors.New("could not find project root (go.mod)")
+// CacheFileSystem abstracts file operations for the cache system.
+type CacheFileSystem interface {
+	Open(path string) (io.ReadCloser, error)
+	Create(path string) (io.WriteCloser, error)
+	MkdirAll(path string, perm os.FileMode) error
+	Stat(path string) (os.FileInfo, error)
+	Getwd() (string, error)
+}
 
 // CalculatePackageSignature generates a unique hash based on CLI arguments
 // and the Go source files in the current directory.
@@ -80,6 +79,28 @@ func CalculatePackageSignature(args []string, fileReader FileReader) (string, er
 	return hex.EncodeToString(pkgHash.Sum(nil)), nil
 }
 
+// FindProjectRoot locates the nearest directory containing a go.mod file.
+func FindProjectRoot(cfs CacheFileSystem) (string, error) {
+	curr, err := cfs.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	for {
+		_, err = cfs.Stat(filepath.Join(curr, "go.mod"))
+		if err == nil {
+			return curr, nil
+		}
+
+		parent := filepath.Dir(curr)
+		if parent == curr {
+			return "", errProjectRootNotFound
+		}
+
+		curr = parent
+	}
+}
+
 // LoadDiskCache reads the cache from the specified path.
 func LoadDiskCache(path string, cfs CacheFileSystem) CacheData {
 	var data CacheData
@@ -110,24 +131,7 @@ func SaveDiskCache(path string, data CacheData, cfs CacheFileSystem) {
 	_ = enc.Encode(data) //nolint:errchkjson
 }
 
-// FindProjectRoot locates the nearest directory containing a go.mod file.
-func FindProjectRoot(cfs CacheFileSystem) (string, error) {
-	curr, err := cfs.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	for {
-		_, err = cfs.Stat(filepath.Join(curr, "go.mod"))
-		if err == nil {
-			return curr, nil
-		}
-
-		parent := filepath.Dir(curr)
-		if parent == curr {
-			return "", errProjectRootNotFound
-		}
-
-		curr = parent
-	}
-}
+// unexported variables.
+var (
+	errProjectRootNotFound = errors.New("could not find project root (go.mod)")
+)

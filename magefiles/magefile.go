@@ -22,13 +22,34 @@ import (
 	"time"
 
 	"github.com/magefile/mage/mg"
+	"github.com/toejough/imptest/impgen/reorder"
 )
 
-// Types
+// BaselineTestSpec specifies a test or set of tests to include in the baseline coverage.
+type BaselineTestSpec struct {
+	Package     string // Package path (e.g., "./impgen/run" or "./UAT/...")
+	TestPattern string // Test name pattern for -run flag (empty string runs all tests in package)
+}
 
-type lineAndCoverage struct {
-	line     string
-	coverage float64
+// RedundancyConfig configures the redundant test analysis.
+type RedundancyConfig struct {
+	BaselineTests     []BaselineTestSpec // Tests that form the baseline coverage
+	CoverageThreshold float64            // Percentage threshold (e.g., 80.0 for 80%)
+	PackageToAnalyze  string             // Package containing tests to analyze (e.g., "./impgen/run")
+}
+
+// Build builds the local impgen binary.
+func Build(c context.Context) error {
+	fmt.Println("Building impgen...")
+
+	// Create bin directory if it doesn't exist
+	err := os.MkdirAll("bin", 0o755)
+	if err != nil {
+		return fmt.Errorf("failed to create bin directory: %w", err)
+	}
+
+	// Build impgen to ./bin/impgen
+	return run(c, "go", "build", "-o", "bin/impgen", "./impgen")
 }
 
 // Public Functions (Mage Targets)
@@ -53,262 +74,6 @@ func Check(c context.Context) error {
 		if err != nil {
 			return fmt.Errorf("unable to finish checking: %w", err)
 		}
-	}
-
-	return nil
-}
-
-type coverageBlock struct {
-	file       string
-	startLine  int
-	startCol   int
-	endLine    int
-	endCol     int
-	statements int
-	count      int
-}
-
-// parseBlockID parses a block ID like "file.go:10.5,20.10" into components.
-func parseBlockID(blockID string) (file string, startLine, startCol, endLine, endCol int, err error) {
-	// Format: file:startLine.startCol,endLine.endCol
-	fileParts := strings.Split(blockID, ":")
-	if len(fileParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid block ID format: %s", blockID)
-	}
-	file = fileParts[0]
-
-	rangeParts := strings.Split(fileParts[1], ",")
-	if len(rangeParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid range format: %s", blockID)
-	}
-
-	startParts := strings.Split(rangeParts[0], ".")
-	if len(startParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid start position: %s", blockID)
-	}
-
-	endParts := strings.Split(rangeParts[1], ".")
-	if len(endParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid end position: %s", blockID)
-	}
-
-	startLine, _ = strconv.Atoi(startParts[0])
-	startCol, _ = strconv.Atoi(startParts[1])
-	endLine, _ = strconv.Atoi(endParts[0])
-	endCol, _ = strconv.Atoi(endParts[1])
-
-	return file, startLine, startCol, endLine, endCol, nil
-}
-
-// position represents a line:column position in a file.
-type position struct {
-	line int
-	col  int
-}
-
-// compare returns -1 if p < other, 0 if p == other, 1 if p > other.
-func (p position) compare(other position) int {
-	if p.line < other.line {
-		return -1
-	}
-	if p.line > other.line {
-		return 1
-	}
-	if p.col < other.col {
-		return -1
-	}
-	if p.col > other.col {
-		return 1
-	}
-	return 0
-}
-
-// segment represents a coverage segment with summed counts from all overlapping blocks.
-type segment struct {
-	start position
-	end   position
-	count int
-}
-
-// splitBlocksIntoSegments splits overlapping blocks into non-overlapping segments,
-// summing counts for each segment from all blocks that cover it.
-func splitBlocksIntoSegments(blocks []coverageBlock) []coverageBlock {
-	if len(blocks) == 0 {
-		return nil
-	}
-
-	// Collect all unique boundary positions
-	boundarySet := make(map[position]bool)
-	for _, block := range blocks {
-		boundarySet[position{block.startLine, block.startCol}] = true
-		boundarySet[position{block.endLine, block.endCol}] = true
-	}
-
-	// Convert to sorted slice
-	var boundaries []position
-	for pos := range boundarySet {
-		boundaries = append(boundaries, pos)
-	}
-	sort.Slice(boundaries, func(i, j int) bool {
-		return boundaries[i].compare(boundaries[j]) < 0
-	})
-
-	// Create segments between consecutive boundaries
-	var segments []segment
-	for i := 0; i < len(boundaries)-1; i++ {
-		seg := segment{
-			start: boundaries[i],
-			end:   boundaries[i+1],
-			count: 0,
-		}
-
-		// Sum counts from all blocks that cover this segment
-		for _, block := range blocks {
-			blockStart := position{block.startLine, block.startCol}
-			blockEnd := position{block.endLine, block.endCol}
-
-			// Check if block covers this segment
-			// Segment is covered if: blockStart <= segStart AND segEnd <= blockEnd
-			if blockStart.compare(seg.start) <= 0 && seg.end.compare(blockEnd) <= 0 {
-				seg.count += block.count
-			}
-		}
-
-		// Only keep segments with non-zero count
-		if seg.count > 0 {
-			segments = append(segments, seg)
-		}
-	}
-
-	// Convert segments back to coverageBlocks
-	// We need to estimate the number of statements in each segment
-	var result []coverageBlock
-	for _, seg := range segments {
-		// For simplicity, use 1 statement per segment
-		// The actual number doesn't affect coverage percentage calculations
-		result = append(result, coverageBlock{
-			file:       blocks[0].file, // All blocks in input have same file
-			startLine:  seg.start.line,
-			startCol:   seg.start.col,
-			endLine:    seg.end.line,
-			endCol:     seg.end.col,
-			statements: 1,
-			count:      seg.count,
-		})
-	}
-
-	return result
-}
-
-// mergeCoverageBlocks merges coverage blocks, splitting overlapping blocks into segments.
-// When Go's coverage tool instruments code, it creates overlapping blocks that can
-// cause incorrect coverage percentages. This function:
-// 1. Sums counts for identical blocks from different test packages
-// 2. Splits overlapping (but non-identical) blocks into non-overlapping segments
-// 3. Sums execution counts for each segment from all blocks that cover it
-func mergeCoverageBlocks() error {
-	// TODO: take the coverage file name as an arg
-	data, err := os.ReadFile("coverage.out")
-	if err != nil {
-		return fmt.Errorf("failed to read coverage.out: %w", err)
-	}
-
-	lines := strings.Split(string(data), "\n")
-	if len(lines) == 0 {
-		return nil
-	}
-
-	// Keep the mode line
-	mode := lines[0]
-
-	// Parse all blocks
-	var blocks []coverageBlock
-	blockCounts := make(map[string]int) // Sum counts for identical blocks
-
-	for _, line := range lines[1:] {
-		if line == "" {
-			continue
-		}
-
-		parts := strings.Fields(line)
-		if len(parts) != 3 {
-			continue
-		}
-
-		blockID := parts[0]
-		numStmts, _ := strconv.Atoi(parts[1])
-		count, _ := strconv.Atoi(parts[2])
-
-		file, startLine, startCol, endLine, endCol, err := parseBlockID(blockID)
-		if err != nil {
-			continue
-		}
-
-		// Sum counts for identical blocks
-		blockCounts[blockID] += count
-
-		// Store block for deduplication
-		found := false
-		for i, b := range blocks {
-			if b.file == file && b.startLine == startLine && b.startCol == startCol &&
-				b.endLine == endLine && b.endCol == endCol {
-				blocks[i].count = blockCounts[blockID]
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			blocks = append(blocks, coverageBlock{
-				file:       file,
-				startLine:  startLine,
-				startCol:   startCol,
-				endLine:    endLine,
-				endCol:     endCol,
-				statements: numStmts,
-				count:      blockCounts[blockID],
-			})
-		}
-	}
-
-	// For each file, split overlapping blocks into non-overlapping segments
-	fileBlocks := make(map[string][]coverageBlock)
-	for _, block := range blocks {
-		fileBlocks[block.file] = append(fileBlocks[block.file], block)
-	}
-
-	var finalBlocks []coverageBlock
-	for _, blocks := range fileBlocks {
-		// Split overlapping blocks into segments and sum their counts
-		segments := splitBlocksIntoSegments(blocks)
-		finalBlocks = append(finalBlocks, segments...)
-	}
-
-	// Rebuild coverage file
-	var merged []string
-	merged = append(merged, mode)
-
-	// Sort for deterministic output
-	sort.Slice(finalBlocks, func(i, j int) bool {
-		if finalBlocks[i].file != finalBlocks[j].file {
-			return finalBlocks[i].file < finalBlocks[j].file
-		}
-		if finalBlocks[i].startLine != finalBlocks[j].startLine {
-			return finalBlocks[i].startLine < finalBlocks[j].startLine
-		}
-		return finalBlocks[i].startCol < finalBlocks[j].startCol
-	})
-
-	for _, block := range finalBlocks {
-		blockID := fmt.Sprintf("%s:%d.%d,%d.%d",
-			block.file, block.startLine, block.startCol, block.endLine, block.endCol)
-		merged = append(merged, fmt.Sprintf("%s %d %d", blockID, block.statements, block.count))
-	}
-
-	// Write merged coverage
-	err = os.WriteFile("coverage.out", []byte(strings.Join(merged, "\n")+"\n"), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write merged coverage: %w", err)
 	}
 
 	return nil
@@ -430,177 +195,6 @@ func Deadcode(c context.Context) error {
 	}
 
 	return nil
-}
-
-// Run the fuzz tests.
-func Fuzz(c context.Context) error {
-	fmt.Println("Running fuzz tests...")
-	return run(c, "./dev/fuzz.fish")
-}
-
-// Build builds the local impgen binary.
-func Build(c context.Context) error {
-	fmt.Println("Building impgen...")
-
-	// Create bin directory if it doesn't exist
-	err := os.MkdirAll("bin", 0o755)
-	if err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
-	}
-
-	// Build impgen to ./bin/impgen
-	return run(c, "go", "build", "-o", "bin/impgen", "./impgen")
-}
-
-// Generate runs go generate on all packages using the locally-built impgen binary.
-func Generate(c context.Context) error {
-	fmt.Println("Generating...")
-
-	// Build local impgen first
-	mg.Deps(Build)
-
-	// Get current PATH and prepend our bin directory
-	currentPath := os.Getenv("PATH")
-	binDir, err := filepath.Abs("bin")
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for bin: %w", err)
-	}
-	newPath := binDir + string(filepath.ListSeparator) + currentPath
-
-	// Run go generate with modified PATH
-	cmd := exec.CommandContext(c, "go", "generate", "./...")
-	cmd.Env = append(os.Environ(), "PATH="+newPath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
-}
-
-// Install development tooling.
-func InstallTools(c context.Context) error {
-	fmt.Println("Installing development tools...")
-	return run(c, "./dev/dev-install.sh")
-}
-
-// Lint lints the codebase.
-func Lint(c context.Context) error {
-	fmt.Println("Linting...")
-	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci.toml")
-	// return err
-	return run(c, "golangci-lint", "run", "-c", "dev/golangci.toml")
-}
-
-// LintForFail lints the codebase purely to find out whether anything fails.
-func LintForFail(c context.Context) error {
-	fmt.Println("Linting to check for overall pass/fail...")
-	// _, err := sh.Exec(
-	// 	nil, os.Stdout, nil,
-	// 	"golangci-lint", "run",
-	// 	"-c", "dev/golangci.toml",
-	// 	"--fix=false",
-	// 	"--max-issues-per-linter=1",
-	// 	"--max-same-issues=1",
-	// )
-	// return err
-	return run(
-		c,
-		"golangci-lint", "run",
-		"-c", "dev/golangci.toml",
-		"--fix=false",
-		"--max-issues-per-linter=1",
-		"--max-same-issues=1",
-	)
-}
-
-// Modernize the codebase.
-func Modernize(c context.Context) error {
-	fmt.Println("Modernizing codebase...")
-	return run(c, "go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
-		"-fix", "./...")
-}
-
-// Run the mutation tests.
-func Mutate(c context.Context) error {
-	fmt.Println("Running mutation tests...")
-
-	for _, cmd := range []func(context.Context) error{
-		TestForFail,
-		func(c context.Context) error {
-			return run(
-				c,
-				"go",
-				"test",
-				// "-v",
-				"-timeout=6000s",
-				"-tags=mutation",
-				"-ooze.v",
-				"./...",
-				"-run=TestMutation",
-			)
-		},
-	} {
-		err := cmd(c)
-		if err != nil {
-			return fmt.Errorf("unable to finish checking: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// Run the unit tests.
-func Test(c context.Context) error {
-	fmt.Println("Running unit tests...")
-	err := run(
-		c,
-		"go",
-		"test",
-		"-timeout=10s",
-		"-race",
-		"-coverprofile=coverage.out",
-		"-coverpkg=./...",
-		// "-coverpkg=./impgen/...,./imptest/...",
-		"-cover",
-		"./...",
-	)
-	if err != nil {
-		return err
-	}
-
-	// Strip main.go coverage lines from coverage.out
-	data, err := os.ReadFile("coverage.out")
-	if err != nil {
-		return fmt.Errorf("failed to read coverage.out: %w", err)
-	}
-
-	lines := strings.Split(string(data), "\n")
-	var filtered []string
-	for _, line := range lines {
-		if !strings.Contains(line, "/main.go:") {
-			filtered = append(filtered, line)
-		}
-	}
-
-	err = os.WriteFile("coverage.out", []byte(strings.Join(filtered, "\n")), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write coverage.out: %w", err)
-	}
-
-	return nil
-}
-
-// BaselineTestSpec specifies a test or set of tests to include in the baseline coverage.
-type BaselineTestSpec struct {
-	Package     string // Package path (e.g., "./impgen/run" or "./UAT/...")
-	TestPattern string // Test name pattern for -run flag (empty string runs all tests in package)
-}
-
-// RedundancyConfig configures the redundant test analysis.
-type RedundancyConfig struct {
-	BaselineTests     []BaselineTestSpec // Tests that form the baseline coverage
-	CoverageThreshold float64            // Percentage threshold (e.g., 80.0 for 80%)
-	PackageToAnalyze  string             // Package containing tests to analyze (e.g., "./impgen/run")
 }
 
 // FindRedundantTests identifies unit tests that don't provide unique coverage beyond golden+UAT tests.
@@ -874,6 +468,203 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	return nil
 }
 
+// Run the fuzz tests.
+func Fuzz(c context.Context) error {
+	fmt.Println("Running fuzz tests...")
+	return run(c, "./dev/fuzz.fish")
+}
+
+// Generate runs go generate on all packages using the locally-built impgen binary.
+func Generate(c context.Context) error {
+	fmt.Println("Generating...")
+
+	// Build local impgen first
+	mg.Deps(Build)
+
+	// Get current PATH and prepend our bin directory
+	currentPath := os.Getenv("PATH")
+	binDir, err := filepath.Abs("bin")
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for bin: %w", err)
+	}
+	newPath := binDir + string(filepath.ListSeparator) + currentPath
+
+	// Run go generate with modified PATH
+	cmd := exec.CommandContext(c, "go", "generate", "./...")
+	cmd.Env = append(os.Environ(), "PATH="+newPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+// Install development tooling.
+func InstallTools(c context.Context) error {
+	fmt.Println("Installing development tools...")
+	return run(c, "./dev/dev-install.sh")
+}
+
+// Lint lints the codebase.
+func Lint(c context.Context) error {
+	fmt.Println("Linting...")
+	// _, err := sh.Exec(nil, os.Stdout, nil, "golangci-lint", "run", "-c", "dev/golangci.toml")
+	// return err
+	return run(c, "golangci-lint", "run", "-c", "dev/golangci.toml")
+}
+
+// LintForFail lints the codebase purely to find out whether anything fails.
+func LintForFail(c context.Context) error {
+	fmt.Println("Linting to check for overall pass/fail...")
+	// _, err := sh.Exec(
+	// 	nil, os.Stdout, nil,
+	// 	"golangci-lint", "run",
+	// 	"-c", "dev/golangci.toml",
+	// 	"--fix=false",
+	// 	"--max-issues-per-linter=1",
+	// 	"--max-same-issues=1",
+	// )
+	// return err
+	return run(
+		c,
+		"golangci-lint", "run",
+		"-c", "dev/golangci.toml",
+		"--fix=false",
+		"--max-issues-per-linter=1",
+		"--max-same-issues=1",
+	)
+}
+
+// Modernize the codebase.
+func Modernize(c context.Context) error {
+	fmt.Println("Modernizing codebase...")
+	return run(c, "go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
+		"-fix", "./...")
+}
+
+// Run the mutation tests.
+func Mutate(c context.Context) error {
+	fmt.Println("Running mutation tests...")
+
+	for _, cmd := range []func(context.Context) error{
+		TestForFail,
+		func(c context.Context) error {
+			return run(
+				c,
+				"go",
+				"test",
+				// "-v",
+				"-timeout=6000s",
+				"-tags=mutation",
+				"-ooze.v",
+				"./...",
+				"-run=TestMutation",
+			)
+		},
+	} {
+		err := cmd(c)
+		if err != nil {
+			return fmt.Errorf("unable to finish checking: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ReorderDecls reorders declarations in Go files per CLAUDE.md conventions.
+// Run manually with 'mage ReorderDecls' when needed.
+func ReorderDecls(c context.Context) error {
+	fmt.Println("Reordering declarations...")
+
+	files, err := globs(".", []string{".go"})
+	if err != nil {
+		return fmt.Errorf("failed to find Go files: %w", err)
+	}
+
+	reorderedCount := 0
+	for _, file := range files {
+		// Skip generated files
+		if strings.Contains(file, "generated_") {
+			continue
+		}
+		// Skip vendor
+		if strings.HasPrefix(file, "vendor/") {
+			continue
+		}
+		// Skip hidden directories
+		if strings.Contains(file, "/.") {
+			continue
+		}
+
+		// Read file
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", file, err)
+		}
+
+		// Reorder
+		reordered, err := reorder.Source(string(content))
+		if err != nil {
+			fmt.Printf("Warning: failed to reorder %s: %v\n", file, err)
+			continue
+		}
+
+		// Write back if changed
+		if string(content) != reordered {
+			err = os.WriteFile(file, []byte(reordered), 0o600)
+			if err != nil {
+				return fmt.Errorf("failed to write %s: %w", file, err)
+			}
+			fmt.Printf("  Reordered: %s\n", file)
+			reorderedCount++
+		}
+	}
+
+	fmt.Printf("Reordered %d file(s).\n", reorderedCount)
+	return nil
+}
+
+// Run the unit tests.
+func Test(c context.Context) error {
+	fmt.Println("Running unit tests...")
+	err := run(
+		c,
+		"go",
+		"test",
+		"-timeout=10s",
+		"-race",
+		"-coverprofile=coverage.out",
+		"-coverpkg=./...",
+		// "-coverpkg=./impgen/...,./imptest/...",
+		"-cover",
+		"./...",
+	)
+	if err != nil {
+		return err
+	}
+
+	// Strip main.go coverage lines from coverage.out
+	data, err := os.ReadFile("coverage.out")
+	if err != nil {
+		return fmt.Errorf("failed to read coverage.out: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var filtered []string
+	for _, line := range lines {
+		if !strings.Contains(line, "/main.go:") {
+			filtered = append(filtered, line)
+		}
+	}
+
+	err = os.WriteFile("coverage.out", []byte(strings.Join(filtered, "\n")), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write coverage.out: %w", err)
+	}
+
+	return nil
+}
+
 // Run the unit tests purely to find out whether any fail.
 func TestForFail(c context.Context) error {
 	fmt.Println("Running unit tests for overall pass/fail...")
@@ -981,46 +772,344 @@ func Watch() error {
 	}
 }
 
-// Private Functions
+type coverageBlock struct {
+	file       string
+	startLine  int
+	startCol   int
+	endLine    int
+	endCol     int
+	statements int
+	count      int
+}
 
-// mergeMultipleCoverageFiles merges multiple coverage files into a single output file.
-func mergeMultipleCoverageFiles(files []string, output string) error {
-	if len(files) == 0 {
-		return fmt.Errorf("no files to merge")
+// Types
+
+type lineAndCoverage struct {
+	line     string
+	coverage float64
+}
+
+// position represents a line:column position in a file.
+type position struct {
+	line int
+	col  int
+}
+
+// compare returns -1 if p < other, 0 if p == other, 1 if p > other.
+func (p position) compare(other position) int {
+	if p.line < other.line {
+		return -1
+	}
+	if p.line > other.line {
+		return 1
+	}
+	if p.col < other.col {
+		return -1
+	}
+	if p.col > other.col {
+		return 1
+	}
+	return 0
+}
+
+// segment represents a coverage segment with summed counts from all overlapping blocks.
+type segment struct {
+	start position
+	end   position
+	count int
+}
+
+// calculateFileHashes computes SHA256 hashes for all files matching the given extensions.
+// Returns a map of relative file path to hash string.
+func calculateFileHashes(dir string, extensions []string) (map[string]string, error) {
+	hashes := make(map[string]string)
+
+	files, err := globs(dir, extensions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to glob files: %w", err)
 	}
 
-	var mode string
-	var allBlocks []string
-
-	for i, file := range files {
-		data, err := os.ReadFile(file)
+	for _, filePath := range files {
+		hash, err := hashFile(filePath)
 		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", file, err)
+			// If we can't read a file, skip it (might be deleted or temporary)
+			continue
 		}
+		hashes[filePath] = hash
+	}
 
-		lines := strings.Split(string(data), "\n")
-		if len(lines) == 0 {
+	return hashes, nil
+}
+
+// findTestFile finds which file contains the given test function in the package.
+func findTestFile(c context.Context, pkg, testName string) (string, error) {
+	var searchDir string
+
+	if pkg == "./..." {
+		// When analyzing all packages, search from current directory
+		searchDir = "."
+	} else {
+		// Get specific package directory
+		out, err := output(c, "go", "list", "-f", "{{.Dir}}", pkg)
+		if err != nil {
+			return "", fmt.Errorf("failed to get package dir: %w", err)
+		}
+		searchDir = strings.TrimSpace(out)
+	}
+
+	// Search for the test function in _test.go files
+	pattern := fmt.Sprintf("^func %s(", testName)
+	cmd := exec.CommandContext(c, "grep", "-l", "-r", "--include=*_test.go", pattern, searchDir)
+	outBytes, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("test not found")
+	}
+
+	// Get the first matching file
+	files := strings.Split(strings.TrimSpace(string(outBytes)), "\n")
+	if len(files) == 0 {
+		return "", fmt.Errorf("test not found")
+	}
+
+	// Return cleaned relative path (grep returns paths like ./path/to/file.go)
+	path := strings.TrimPrefix(files[0], "./")
+	return filepath.Clean(path), nil
+}
+
+// getFunctionsAboveThreshold returns a set of functions that have coverage >= threshold.
+func getFunctionsAboveThreshold(coverageFile string, threshold float64) (map[string]bool, error) {
+	out, err := exec.Command("go", "tool", "cover", "-func="+coverageFile).Output()
+	if err != nil {
+		return nil, fmt.Errorf("go tool cover failed: %w", err)
+	}
+
+	funcs := make(map[string]bool)
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "total:") {
 			continue
 		}
 
-		// Use mode from first file
-		if i == 0 {
-			mode = lines[0]
+		// Format: file:line:  functionName  percentage%
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
 		}
 
-		// Append blocks from this file (skip mode line)
-		allBlocks = append(allBlocks, lines[1:]...)
+		// Last field is percentage like "85.7%"
+		percentStr := fields[len(fields)-1]
+		percentStr = strings.TrimSuffix(percentStr, "%")
+		percent, err := strconv.ParseFloat(percentStr, 64)
+		if err != nil {
+			continue
+		}
+
+		// Function name with location (e.g., "file.go:123: funcName")
+		funcName := strings.Join(fields[0:len(fields)-1], " ")
+
+		if percent >= threshold {
+			funcs[funcName] = true
+		}
 	}
 
-	// Write combined file
-	combined := mode + "\n" + strings.Join(allBlocks, "\n")
-	err := os.WriteFile(output, []byte(combined), 0o600)
+	return funcs, nil
+}
+
+// better glob expansion
+// https://stackoverflow.com/a/26809999
+func globs(dir string, ext []string) ([]string, error) {
+	files := []string{}
+	err := filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("unable to find all glob matches: %w", err)
+		}
+
+		for _, each := range ext {
+			if filepath.Ext(path) == each {
+				files = append(files, path)
+				return nil
+			}
+		}
+
+		return nil
+	})
+
+	return files, err
+}
+
+// hasFileHashesChanged compares two hash maps and returns true if they differ.
+// This includes detecting new files, deleted files, or modified files.
+func hasFileHashesChanged(oldHashes, newHashes map[string]string) bool {
+	// Check if the number of files changed
+	if len(oldHashes) != len(newHashes) {
+		return true
+	}
+
+	// Check if any file's hash changed
+	for path, newHash := range newHashes {
+		oldHash, exists := oldHashes[path]
+		if !exists || oldHash != newHash {
+			return true
+		}
+	}
+
+	// Check if any files were deleted
+	for path := range oldHashes {
+		if _, exists := newHashes[path]; !exists {
+			return true
+		}
+	}
+
+	return false
+}
+
+// hashFile computes the SHA256 hash of a file's contents.
+func hashFile(path string) (string, error) {
+	file, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("failed to write %s: %w", output, err)
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
 	}
 
-	// Merge overlapping blocks using existing logic
-	return mergeCoverageBlocksFile(output)
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// listTestFunctions lists all test functions in the given package.
+func listTestFunctions(c context.Context, pkg string) ([]string, error) {
+	out, err := output(c, "go", "test", "-list", ".", pkg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tests: %w", err)
+	}
+
+	var tests []string
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Test") {
+			tests = append(tests, line)
+		}
+	}
+
+	return tests, nil
+}
+
+// mergeCoverageBlocks merges coverage blocks, splitting overlapping blocks into segments.
+// When Go's coverage tool instruments code, it creates overlapping blocks that can
+// cause incorrect coverage percentages. This function:
+// 1. Sums counts for identical blocks from different test packages
+// 2. Splits overlapping (but non-identical) blocks into non-overlapping segments
+// 3. Sums execution counts for each segment from all blocks that cover it
+func mergeCoverageBlocks() error {
+	// TODO: take the coverage file name as an arg
+	data, err := os.ReadFile("coverage.out")
+	if err != nil {
+		return fmt.Errorf("failed to read coverage.out: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) == 0 {
+		return nil
+	}
+
+	// Keep the mode line
+	mode := lines[0]
+
+	// Parse all blocks
+	var blocks []coverageBlock
+	blockCounts := make(map[string]int) // Sum counts for identical blocks
+
+	for _, line := range lines[1:] {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) != 3 {
+			continue
+		}
+
+		blockID := parts[0]
+		numStmts, _ := strconv.Atoi(parts[1])
+		count, _ := strconv.Atoi(parts[2])
+
+		file, startLine, startCol, endLine, endCol, err := parseBlockID(blockID)
+		if err != nil {
+			continue
+		}
+
+		// Sum counts for identical blocks
+		blockCounts[blockID] += count
+
+		// Store block for deduplication
+		found := false
+		for i, b := range blocks {
+			if b.file == file && b.startLine == startLine && b.startCol == startCol &&
+				b.endLine == endLine && b.endCol == endCol {
+				blocks[i].count = blockCounts[blockID]
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			blocks = append(blocks, coverageBlock{
+				file:       file,
+				startLine:  startLine,
+				startCol:   startCol,
+				endLine:    endLine,
+				endCol:     endCol,
+				statements: numStmts,
+				count:      blockCounts[blockID],
+			})
+		}
+	}
+
+	// For each file, split overlapping blocks into non-overlapping segments
+	fileBlocks := make(map[string][]coverageBlock)
+	for _, block := range blocks {
+		fileBlocks[block.file] = append(fileBlocks[block.file], block)
+	}
+
+	var finalBlocks []coverageBlock
+	for _, blocks := range fileBlocks {
+		// Split overlapping blocks into segments and sum their counts
+		segments := splitBlocksIntoSegments(blocks)
+		finalBlocks = append(finalBlocks, segments...)
+	}
+
+	// Rebuild coverage file
+	var merged []string
+	merged = append(merged, mode)
+
+	// Sort for deterministic output
+	sort.Slice(finalBlocks, func(i, j int) bool {
+		if finalBlocks[i].file != finalBlocks[j].file {
+			return finalBlocks[i].file < finalBlocks[j].file
+		}
+		if finalBlocks[i].startLine != finalBlocks[j].startLine {
+			return finalBlocks[i].startLine < finalBlocks[j].startLine
+		}
+		return finalBlocks[i].startCol < finalBlocks[j].startCol
+	})
+
+	for _, block := range finalBlocks {
+		blockID := fmt.Sprintf("%s:%d.%d,%d.%d",
+			block.file, block.startLine, block.startCol, block.endLine, block.endCol)
+		merged = append(merged, fmt.Sprintf("%s %d %d", blockID, block.statements, block.count))
+	}
+
+	// Write merged coverage
+	err = os.WriteFile("coverage.out", []byte(strings.Join(merged, "\n")+"\n"), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write merged coverage: %w", err)
+	}
+
+	return nil
 }
 
 // mergeCoverageBlocksFile merges coverage blocks in the specified file (in-place).
@@ -1125,119 +1214,46 @@ func mergeCoverageBlocksFile(filename string) error {
 	return os.WriteFile(filename, []byte(strings.Join(merged, "\n")+"\n"), 0o600)
 }
 
-// getFunctionsAboveThreshold returns a set of functions that have coverage >= threshold.
-func getFunctionsAboveThreshold(coverageFile string, threshold float64) (map[string]bool, error) {
-	out, err := exec.Command("go", "tool", "cover", "-func="+coverageFile).Output()
-	if err != nil {
-		return nil, fmt.Errorf("go tool cover failed: %w", err)
-	}
+// Private Functions
 
-	funcs := make(map[string]bool)
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		if line == "" || strings.HasPrefix(line, "total:") {
-			continue
-		}
-
-		// Format: file:line:  functionName  percentage%
-		fields := strings.Fields(line)
-		if len(fields) < 3 {
-			continue
-		}
-
-		// Last field is percentage like "85.7%"
-		percentStr := fields[len(fields)-1]
-		percentStr = strings.TrimSuffix(percentStr, "%")
-		percent, err := strconv.ParseFloat(percentStr, 64)
-		if err != nil {
-			continue
-		}
-
-		// Function name with location (e.g., "file.go:123: funcName")
-		funcName := strings.Join(fields[0:len(fields)-1], " ")
-
-		if percent >= threshold {
-			funcs[funcName] = true
-		}
-	}
-
-	return funcs, nil
-}
-
-// listTestFunctions lists all test functions in the given package.
-func listTestFunctions(c context.Context, pkg string) ([]string, error) {
-	out, err := output(c, "go", "test", "-list", ".", pkg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list tests: %w", err)
-	}
-
-	var tests []string
-	lines := strings.Split(out, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "Test") {
-			tests = append(tests, line)
-		}
-	}
-
-	return tests, nil
-}
-
-// findTestFile finds which file contains the given test function in the package.
-func findTestFile(c context.Context, pkg, testName string) (string, error) {
-	var searchDir string
-
-	if pkg == "./..." {
-		// When analyzing all packages, search from current directory
-		searchDir = "."
-	} else {
-		// Get specific package directory
-		out, err := output(c, "go", "list", "-f", "{{.Dir}}", pkg)
-		if err != nil {
-			return "", fmt.Errorf("failed to get package dir: %w", err)
-		}
-		searchDir = strings.TrimSpace(out)
-	}
-
-	// Search for the test function in _test.go files
-	pattern := fmt.Sprintf("^func %s(", testName)
-	cmd := exec.CommandContext(c, "grep", "-l", "-r", "--include=*_test.go", pattern, searchDir)
-	outBytes, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("test not found")
-	}
-
-	// Get the first matching file
-	files := strings.Split(strings.TrimSpace(string(outBytes)), "\n")
+// mergeMultipleCoverageFiles merges multiple coverage files into a single output file.
+func mergeMultipleCoverageFiles(files []string, output string) error {
 	if len(files) == 0 {
-		return "", fmt.Errorf("test not found")
+		return fmt.Errorf("no files to merge")
 	}
 
-	// Return cleaned relative path (grep returns paths like ./path/to/file.go)
-	path := strings.TrimPrefix(files[0], "./")
-	return filepath.Clean(path), nil
-}
+	var mode string
+	var allBlocks []string
 
-// better glob expansion
-// https://stackoverflow.com/a/26809999
-func globs(dir string, ext []string) ([]string, error) {
-	files := []string{}
-	err := filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
+	for i, file := range files {
+		data, err := os.ReadFile(file)
 		if err != nil {
-			return fmt.Errorf("unable to find all glob matches: %w", err)
+			return fmt.Errorf("failed to read %s: %w", file, err)
 		}
 
-		for _, each := range ext {
-			if filepath.Ext(path) == each {
-				files = append(files, path)
-				return nil
-			}
+		lines := strings.Split(string(data), "\n")
+		if len(lines) == 0 {
+			continue
 		}
 
-		return nil
-	})
+		// Use mode from first file
+		if i == 0 {
+			mode = lines[0]
+		}
 
-	return files, err
+		// Append blocks from this file (skip mode line)
+		allBlocks = append(allBlocks, lines[1:]...)
+	}
+
+	// Write combined file
+	combined := mode + "\n" + strings.Join(allBlocks, "\n")
+	err := os.WriteFile(output, []byte(combined), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", output, err)
+	}
+
+	// Merge overlapping blocks using existing logic
+	return mergeCoverageBlocksFile(output)
 }
 
 func output(c context.Context, command string, arg ...string) (string, error) {
@@ -1249,6 +1265,38 @@ func output(c context.Context, command string, arg ...string) (string, error) {
 	err := cmd.Run()
 
 	return strings.TrimSuffix(buf.String(), "\n"), err
+}
+
+// parseBlockID parses a block ID like "file.go:10.5,20.10" into components.
+func parseBlockID(blockID string) (file string, startLine, startCol, endLine, endCol int, err error) {
+	// Format: file:startLine.startCol,endLine.endCol
+	fileParts := strings.Split(blockID, ":")
+	if len(fileParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid block ID format: %s", blockID)
+	}
+	file = fileParts[0]
+
+	rangeParts := strings.Split(fileParts[1], ",")
+	if len(rangeParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid range format: %s", blockID)
+	}
+
+	startParts := strings.Split(rangeParts[0], ".")
+	if len(startParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid start position: %s", blockID)
+	}
+
+	endParts := strings.Split(rangeParts[1], ".")
+	if len(endParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid end position: %s", blockID)
+	}
+
+	startLine, _ = strconv.Atoi(startParts[0])
+	startCol, _ = strconv.Atoi(startParts[1])
+	endLine, _ = strconv.Atoi(endParts[0])
+	endCol, _ = strconv.Atoi(endParts[1])
+
+	return file, startLine, startCol, endLine, endCol, nil
 }
 
 func run(c context.Context, command string, arg ...string) error {
@@ -1275,66 +1323,72 @@ func runQuiet(c context.Context, command string, arg ...string) error {
 	return cmd.Run()
 }
 
-// calculateFileHashes computes SHA256 hashes for all files matching the given extensions.
-// Returns a map of relative file path to hash string.
-func calculateFileHashes(dir string, extensions []string) (map[string]string, error) {
-	hashes := make(map[string]string)
-
-	files, err := globs(dir, extensions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to glob files: %w", err)
+// splitBlocksIntoSegments splits overlapping blocks into non-overlapping segments,
+// summing counts for each segment from all blocks that cover it.
+func splitBlocksIntoSegments(blocks []coverageBlock) []coverageBlock {
+	if len(blocks) == 0 {
+		return nil
 	}
 
-	for _, filePath := range files {
-		hash, err := hashFile(filePath)
-		if err != nil {
-			// If we can't read a file, skip it (might be deleted or temporary)
-			continue
+	// Collect all unique boundary positions
+	boundarySet := make(map[position]bool)
+	for _, block := range blocks {
+		boundarySet[position{block.startLine, block.startCol}] = true
+		boundarySet[position{block.endLine, block.endCol}] = true
+	}
+
+	// Convert to sorted slice
+	var boundaries []position
+	for pos := range boundarySet {
+		boundaries = append(boundaries, pos)
+	}
+	sort.Slice(boundaries, func(i, j int) bool {
+		return boundaries[i].compare(boundaries[j]) < 0
+	})
+
+	// Create segments between consecutive boundaries
+	var segments []segment
+	for i := 0; i < len(boundaries)-1; i++ {
+		seg := segment{
+			start: boundaries[i],
+			end:   boundaries[i+1],
+			count: 0,
 		}
-		hashes[filePath] = hash
-	}
 
-	return hashes, nil
-}
+		// Sum counts from all blocks that cover this segment
+		for _, block := range blocks {
+			blockStart := position{block.startLine, block.startCol}
+			blockEnd := position{block.endLine, block.endCol}
 
-// hashFile computes the SHA256 hash of a file's contents.
-func hashFile(path string) (string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
+			// Check if block covers this segment
+			// Segment is covered if: blockStart <= segStart AND segEnd <= blockEnd
+			if blockStart.compare(seg.start) <= 0 && seg.end.compare(blockEnd) <= 0 {
+				seg.count += block.count
+			}
+		}
 
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-// hasFileHashesChanged compares two hash maps and returns true if they differ.
-// This includes detecting new files, deleted files, or modified files.
-func hasFileHashesChanged(oldHashes, newHashes map[string]string) bool {
-	// Check if the number of files changed
-	if len(oldHashes) != len(newHashes) {
-		return true
-	}
-
-	// Check if any file's hash changed
-	for path, newHash := range newHashes {
-		oldHash, exists := oldHashes[path]
-		if !exists || oldHash != newHash {
-			return true
+		// Only keep segments with non-zero count
+		if seg.count > 0 {
+			segments = append(segments, seg)
 		}
 	}
 
-	// Check if any files were deleted
-	for path := range oldHashes {
-		if _, exists := newHashes[path]; !exists {
-			return true
-		}
+	// Convert segments back to coverageBlocks
+	// We need to estimate the number of statements in each segment
+	var result []coverageBlock
+	for _, seg := range segments {
+		// For simplicity, use 1 statement per segment
+		// The actual number doesn't affect coverage percentage calculations
+		result = append(result, coverageBlock{
+			file:       blocks[0].file, // All blocks in input have same file
+			startLine:  seg.start.line,
+			startCol:   seg.start.col,
+			endLine:    seg.end.line,
+			endCol:     seg.end.col,
+			statements: 1,
+			count:      seg.count,
+		})
 	}
 
-	return false
+	return result
 }

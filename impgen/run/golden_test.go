@@ -18,35 +18,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var (
-	// globalLoadCache persists across all test runs in this process to minimize expensive go/packages.Load calls.
-	//
-	//nolint:gochecknoglobals // This global cache is intentional to speed up tests across the entire package.
-	globalLoadCache = make(map[string]loadResult)
-	//nolint:gochecknoglobals // Global mutex to protect the global cache.
-	globalLoadMu sync.RWMutex
-
-	// loadSemaphore limits concurrent packages.Load calls to prevent GC thrashing.
-	// We limit to 2 concurrent loads as they are extremely memory intensive.
-	//
-	//nolint:gochecknoglobals
-	loadSemaphore = make(chan struct{}, 2)
-)
-
-type loadResult struct {
-	files []*ast.File
-	fset  *token.FileSet
-	info  *types.Info
-	err   error
-}
-
-type uatTestCase struct {
-	name    string
-	args    []string
-	pkgName string
-	dir     string
-}
-
 // TestUATConsistency ensures that the generated files in the UAT directory
 // are exactly what the current generator code produces.
 //
@@ -84,169 +55,34 @@ func TestUATConsistency(t *testing.T) {
 	}
 }
 
-func verifyUATFile(
-	t *testing.T,
-	loader *testPackageLoader,
-	testCase uatTestCase,
-) {
-	t.Helper()
+// unexported variables.
+var (
+	errNoPackagesFound = errors.New("no packages found")
+	errPackageErrors   = errors.New("package errors")
+	// globalLoadCache persists across all test runs in this process to minimize expensive go/packages.Load calls.
+	//
+	//nolint:gochecknoglobals // This global cache is intentional to speed up tests across the entire package.
+	globalLoadCache = make(map[string]loadResult)
+	//nolint:gochecknoglobals // Global mutex to protect the global cache.
+	globalLoadMu sync.RWMutex
+	// loadSemaphore limits concurrent packages.Load calls to prevent GC thrashing.
+	// We limit to 2 concurrent loads as they are extremely memory intensive.
+	//
+	//nolint:gochecknoglobals
+	loadSemaphore = make(chan struct{}, 2)
+)
 
-	// 1. Check disk cache if possible
-	fullArgs := append([]string{"impgen"}, testCase.args...)
-
-	if tryDiskCache(t, loader.ProjectRoot, testCase.dir, fullArgs) {
-		return
-	}
-
-	// Change directory to the scenario dir to run matching how CLI is used
-	t.Chdir(testCase.dir)
-
-	getEnv := func(key string) string {
-		if key == "GOPACKAGE" {
-			return testCase.pkgName
-		}
-
-		return ""
-	}
-
-	// Mock FileSystem: Instead of writing, we read the existing file and compare
-	fileSystem := &verifyingFileSystem{
-		t:       t,
-		baseDir: ".",
-	}
-
-	err := run.Run(fullArgs, getEnv, fileSystem, loader, io.Discard)
-	if err != nil {
-		t.Errorf("Run failed for %v: %v", testCase.name, err)
-	}
-}
-
-func tryDiskCache(t *testing.T, projectRoot, scenarioDir string, fullArgs []string) bool {
-	t.Helper()
-
-	// Change to scenario dir for signature calculation (it globs for files)
-	t.Chdir(scenarioDir)
-
-	// Use real filesystem for signature calculation in tests
-	fs := &realTestFileSystem{}
-
-	sig, err := run.CalculatePackageSignature(fullArgs, fs)
-	if err != nil {
-		return false
-	}
-
-	cfs := realCacheFS{}
-	cachePath := filepath.Join(projectRoot, run.CacheDirName, "cache.json")
-	cache := run.LoadDiskCache(cachePath, cfs)
-	key := strings.Join(fullArgs[1:], " ")
-
-	entry, ok := cache.Entries[key]
-	if !ok || entry.Signature != sig {
-		return false
-	}
-
-	// Cache hit! Verify content matches disk.
-	path := filepath.Join(scenarioDir, entry.Filename)
-
-	actualData, err := os.ReadFile(path)
-	if err != nil {
-		// If file is missing, we can't verify consistency via cache hit.
-		// Return false to fall back to full Run().
-		return false
-	}
-
-	if string(actualData) != entry.Content {
-		t.Errorf("Cached content for %s differs from disk file", path)
-	}
-
-	return true
-}
-
-func scanUATDirectives(dir string) ([]uatTestCase, error) {
-	var testCases []uatTestCase
-
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-
-		if info.IsDir() || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-
-		fset := token.NewFileSet()
-
-		fileAst, parseErr := parser.ParseFile(fset, path, nil, parser.ParseComments)
-		if parseErr != nil {
-			return nil //nolint:nilerr // skip files that don't parse
-		}
-
-		for _, cg := range fileAst.Comments {
-			for _, c := range cg.List {
-				if tc, ok := parseGenerateComment(c.Text, fileAst.Name.Name, filepath.Dir(path)); ok {
-					testCases = append(testCases, tc)
-				}
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk UAT directory: %w", err)
-	}
-
-	return testCases, nil
-}
-
-func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
-	if !strings.HasPrefix(text, "//go:generate") {
-		return uatTestCase{}, false
-	}
-
-	if !strings.Contains(text, "impgen") {
-		return uatTestCase{}, false
-	}
-
-	fields := strings.Fields(text)
-
-	var args []string
-
-	// iterate till we find "impgen", then collect the rest as args
-	foundImpgen := false
-	for _, field := range fields {
-		if foundImpgen {
-			args = append(args, field)
-		} else if strings.HasSuffix(field, "impgen") {
-			foundImpgen = true
-		}
-	}
-
-	if len(args) == 0 {
-		return uatTestCase{}, false
-	}
-
-	// Use the interface/function name as the test case name
-	return uatTestCase{
-		name:    args[0],
-		args:    args,
-		pkgName: pkgName,
-		dir:     dir,
-	}, true
+type loadResult struct {
+	files []*ast.File
+	fset  *token.FileSet
+	info  *types.Info
+	err   error
 }
 
 // verifyingFileSystem implements FileSystem.
 // It reads the file from disk that *would* be overwritten and compares content.
 // realTestFileSystem implements FileSystem using os package for golden tests.
 type realTestFileSystem struct{}
-
-func (fs *realTestFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	err := os.WriteFile(name, data, perm)
-	if err != nil {
-		return fmt.Errorf("failed to write file %s: %w", name, err)
-	}
-
-	return nil
-}
 
 func (fs *realTestFileSystem) Glob(pattern string) ([]string, error) {
 	matches, err := filepath.Glob(pattern)
@@ -266,56 +102,13 @@ func (fs *realTestFileSystem) ReadFile(name string) ([]byte, error) {
 	return data, nil
 }
 
-type verifyingFileSystem struct {
-	t       *testing.T
-	baseDir string
-}
-
-func (v *verifyingFileSystem) WriteFile(name string, data []byte, _ os.FileMode) error {
-	path := filepath.Join(v.baseDir, name)
-	// Read the actual committed file from the UAT directory
-	expectedData, err := os.ReadFile(path)
+func (fs *realTestFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
+	err := os.WriteFile(name, data, perm)
 	if err != nil {
-		return fmt.Errorf("failed to read expected file %s: %w", path, err)
-	}
-
-	// Compare generated content with committed content
-	if string(expectedData) != string(data) {
-		v.t.Errorf("Generated code differs from UAT golden file: %s", path)
+		return fmt.Errorf("failed to write file %s: %w", name, err)
 	}
 
 	return nil
-}
-
-func (v *verifyingFileSystem) Glob(pattern string) ([]string, error) {
-	// Delegate to real filesystem in the base directory
-	matches, err := filepath.Glob(filepath.Join(v.baseDir, pattern))
-	if err != nil {
-		return nil, fmt.Errorf("glob failed for pattern %s: %w", pattern, err)
-	}
-
-	// Strip the base directory prefix from results
-	for idx, match := range matches {
-		rel, err := filepath.Rel(v.baseDir, match)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get relative path for %s: %w", match, err)
-		}
-
-		matches[idx] = rel
-	}
-
-	return matches, nil
-}
-
-func (v *verifyingFileSystem) ReadFile(name string) ([]byte, error) {
-	path := filepath.Join(v.baseDir, name)
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
-	}
-
-	return data, nil
 }
 
 // testPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
@@ -323,11 +116,6 @@ type testPackageLoader struct {
 	ProjectRoot string
 	ScenarioDir string
 }
-
-var (
-	errNoPackagesFound = errors.New("no packages found")
-	errPackageErrors   = errors.New("package errors")
-)
 
 // Load loads a package by import path and returns its AST files, FileSet, and type information.
 // It uses a shared cache to avoid redundant work across different test cases.
@@ -443,4 +231,213 @@ func (pl *testPackageLoader) processPackages(
 	}
 
 	return allFiles, fset, typesInfo, nil
+}
+
+type uatTestCase struct {
+	name    string
+	args    []string
+	pkgName string
+	dir     string
+}
+
+type verifyingFileSystem struct {
+	t       *testing.T
+	baseDir string
+}
+
+func (v *verifyingFileSystem) Glob(pattern string) ([]string, error) {
+	// Delegate to real filesystem in the base directory
+	matches, err := filepath.Glob(filepath.Join(v.baseDir, pattern))
+	if err != nil {
+		return nil, fmt.Errorf("glob failed for pattern %s: %w", pattern, err)
+	}
+
+	// Strip the base directory prefix from results
+	for idx, match := range matches {
+		rel, err := filepath.Rel(v.baseDir, match)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get relative path for %s: %w", match, err)
+		}
+
+		matches[idx] = rel
+	}
+
+	return matches, nil
+}
+
+func (v *verifyingFileSystem) ReadFile(name string) ([]byte, error) {
+	path := filepath.Join(v.baseDir, name)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
+	}
+
+	return data, nil
+}
+
+func (v *verifyingFileSystem) WriteFile(name string, data []byte, _ os.FileMode) error {
+	path := filepath.Join(v.baseDir, name)
+	// Read the actual committed file from the UAT directory
+	expectedData, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read expected file %s: %w", path, err)
+	}
+
+	// Compare generated content with committed content
+	if string(expectedData) != string(data) {
+		v.t.Errorf("Generated code differs from UAT golden file: %s", path)
+	}
+
+	return nil
+}
+
+func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
+	if !strings.HasPrefix(text, "//go:generate") {
+		return uatTestCase{}, false
+	}
+
+	if !strings.Contains(text, "impgen") {
+		return uatTestCase{}, false
+	}
+
+	fields := strings.Fields(text)
+
+	var args []string
+
+	// iterate till we find "impgen", then collect the rest as args
+	foundImpgen := false
+	for _, field := range fields {
+		if foundImpgen {
+			args = append(args, field)
+		} else if strings.HasSuffix(field, "impgen") {
+			foundImpgen = true
+		}
+	}
+
+	if len(args) == 0 {
+		return uatTestCase{}, false
+	}
+
+	// Use the interface/function name as the test case name
+	return uatTestCase{
+		name:    args[0],
+		args:    args,
+		pkgName: pkgName,
+		dir:     dir,
+	}, true
+}
+
+func scanUATDirectives(dir string) ([]uatTestCase, error) {
+	var testCases []uatTestCase
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if info.IsDir() || !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+
+		fset := token.NewFileSet()
+
+		fileAst, parseErr := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if parseErr != nil {
+			return nil //nolint:nilerr // skip files that don't parse
+		}
+
+		for _, cg := range fileAst.Comments {
+			for _, c := range cg.List {
+				if tc, ok := parseGenerateComment(c.Text, fileAst.Name.Name, filepath.Dir(path)); ok {
+					testCases = append(testCases, tc)
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk UAT directory: %w", err)
+	}
+
+	return testCases, nil
+}
+
+func tryDiskCache(t *testing.T, projectRoot, scenarioDir string, fullArgs []string) bool {
+	t.Helper()
+
+	// Change to scenario dir for signature calculation (it globs for files)
+	t.Chdir(scenarioDir)
+
+	// Use real filesystem for signature calculation in tests
+	fs := &realTestFileSystem{}
+
+	sig, err := run.CalculatePackageSignature(fullArgs, fs)
+	if err != nil {
+		return false
+	}
+
+	cfs := realCacheFS{}
+	cachePath := filepath.Join(projectRoot, run.CacheDirName, "cache.json")
+	cache := run.LoadDiskCache(cachePath, cfs)
+	key := strings.Join(fullArgs[1:], " ")
+
+	entry, ok := cache.Entries[key]
+	if !ok || entry.Signature != sig {
+		return false
+	}
+
+	// Cache hit! Verify content matches disk.
+	path := filepath.Join(scenarioDir, entry.Filename)
+
+	actualData, err := os.ReadFile(path)
+	if err != nil {
+		// If file is missing, we can't verify consistency via cache hit.
+		// Return false to fall back to full Run().
+		return false
+	}
+
+	if string(actualData) != entry.Content {
+		t.Errorf("Cached content for %s differs from disk file", path)
+	}
+
+	return true
+}
+
+func verifyUATFile(
+	t *testing.T,
+	loader *testPackageLoader,
+	testCase uatTestCase,
+) {
+	t.Helper()
+
+	// 1. Check disk cache if possible
+	fullArgs := append([]string{"impgen"}, testCase.args...)
+
+	if tryDiskCache(t, loader.ProjectRoot, testCase.dir, fullArgs) {
+		return
+	}
+
+	// Change directory to the scenario dir to run matching how CLI is used
+	t.Chdir(testCase.dir)
+
+	getEnv := func(key string) string {
+		if key == "GOPACKAGE" {
+			return testCase.pkgName
+		}
+
+		return ""
+	}
+
+	// Mock FileSystem: Instead of writing, we read the existing file and compare
+	fileSystem := &verifyingFileSystem{
+		t:       t,
+		baseDir: ".",
+	}
+
+	err := run.Run(fullArgs, getEnv, fileSystem, loader, io.Discard)
+	if err != nil {
+		t.Errorf("Run failed for %v: %v", testCase.name, err)
+	}
 }
