@@ -5,6 +5,7 @@ package concurrency_test
 import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
+import concurrency "github.com/toejough/imptest/UAT/06-concurrency"
 
 // SlowServiceImp is the test controller for mocking the interface.
 // Create with NewSlowServiceImp(t), then use Mock field to get the mock implementation
@@ -403,3 +404,9 @@ func (m *SlowServiceImpMock) DoB(id int) string {
 type SlowServiceImpTimed struct {
 	ExpectCallIs *SlowServiceImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that SlowServiceImpMock implements concurrency.SlowService.
+	_ concurrency.SlowService = (*SlowServiceImpMock)(nil)
+)

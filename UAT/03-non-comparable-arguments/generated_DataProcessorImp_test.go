@@ -6,6 +6,7 @@ import "github.com/toejough/imptest/imptest"
 import "reflect"
 import "testing"
 import "time"
+import noncomparable "github.com/toejough/imptest/UAT/03-non-comparable-arguments"
 
 // DataProcessorImp is the test controller for mocking the interface.
 // Create with NewDataProcessorImp(t), then use Mock field to get the mock implementation
@@ -404,3 +405,9 @@ type DataProcessorImpProcessSliceCallResponse struct {
 type DataProcessorImpTimed struct {
 	ExpectCallIs *DataProcessorImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that DataProcessorImpMock implements noncomparable.DataProcessor.
+	_ noncomparable.DataProcessor = (*DataProcessorImpMock)(nil)
+)

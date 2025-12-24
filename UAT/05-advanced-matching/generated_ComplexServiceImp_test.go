@@ -253,3 +253,9 @@ type ComplexServiceImpProcessCallResponse struct {
 type ComplexServiceImpTimed struct {
 	ExpectCallIs *ComplexServiceImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that ComplexServiceImpMock implements matching.ComplexService.
+	_ matching.ComplexService = (*ComplexServiceImpMock)(nil)
+)

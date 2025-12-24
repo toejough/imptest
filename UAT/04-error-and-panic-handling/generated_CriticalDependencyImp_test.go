@@ -5,6 +5,7 @@ package safety_test
 import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
+import safety "github.com/toejough/imptest/UAT/04-error-and-panic-handling"
 
 // CriticalDependencyImp is the test controller for mocking the interface.
 // Create with NewCriticalDependencyImp(t), then use Mock field to get the mock implementation
@@ -208,3 +209,9 @@ func (m *CriticalDependencyImpMock) DoWork() {
 type CriticalDependencyImpTimed struct {
 	ExpectCallIs *CriticalDependencyImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that CriticalDependencyImpMock implements safety.CriticalDependency.
+	_ safety.CriticalDependency = (*CriticalDependencyImpMock)(nil)
+)

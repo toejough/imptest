@@ -5,6 +5,7 @@ package callable_test
 import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
+import callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
 
 // ExternalServiceImp is the test controller for mocking the interface.
 // Create with NewExternalServiceImp(t), then use Mock field to get the mock implementation
@@ -405,3 +406,9 @@ type ExternalServiceImpProcessCallResponse struct {
 type ExternalServiceImpTimed struct {
 	ExpectCallIs *ExternalServiceImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that ExternalServiceImpMock implements callable.ExternalService.
+	_ callable.ExternalService = (*ExternalServiceImpMock)(nil)
+)

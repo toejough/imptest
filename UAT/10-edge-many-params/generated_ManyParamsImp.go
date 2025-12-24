@@ -333,3 +333,9 @@ type ManyParamsImpProcessCallResponse struct {
 type ManyParamsImpTimed struct {
 	ExpectCallIs *ManyParamsImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that ManyParamsImpMock implements ManyParams.
+	_ ManyParams = (*ManyParamsImpMock)(nil)
+)

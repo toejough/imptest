@@ -786,3 +786,14 @@ func visitParams(ftype *ast.FuncType, typeFormatter func(ast.Expr) string, visit
 		paramNameIndex, unnamedIndex = visit(param, paramType, paramNameIndex, unnamedIndex, totalParams)
 	}
 }
+
+// getStdlibAlias returns the alias to use for a stdlib package if there's a conflict
+// with the user's package qualifier. Returns empty string if no conflict.
+// For example, if the user has a package named "time", we alias the stdlib time as "_time".
+func getStdlibAlias(qualifier, stdlibPkgName string) string {
+	if qualifier == stdlibPkgName {
+		return "_" + stdlibPkgName
+	}
+
+	return ""
+}

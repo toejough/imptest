@@ -6,6 +6,7 @@ import "github.com/toejough/imptest/imptest"
 import "reflect"
 import "testing"
 import "time"
+import basic "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
 
 // OpsImp is the test controller for mocking the interface.
 // Create with NewOpsImp(t), then use Mock field to get the mock implementation
@@ -842,3 +843,9 @@ type OpsImpStoreCallResponse struct {
 type OpsImpTimed struct {
 	ExpectCallIs *OpsImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that OpsImpMock implements basic.Ops.
+	_ basic.Ops = (*OpsImpMock)(nil)
+)

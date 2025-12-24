@@ -26,6 +26,7 @@ type codeGenerator struct {
 	callName            string
 	expectCallIsName    string
 	timedName           string
+	interfaceName       string // Full interface name for compile-time verification
 	identifiedInterface *ast.InterfaceType
 	astFiles            []*ast.File
 	pkgImportPath       string
@@ -129,6 +130,11 @@ func (gen *codeGenerator) generate() (string, error) {
 	// Pre-scan to see if qualifier is needed
 	gen.checkIfQualifierNeeded()
 
+	// If we have an interface name, we need the qualifier for interface verification
+	if gen.interfaceName != "" && gen.qualifier != "" {
+		gen.needsQualifier = true
+	}
+
 	err := gen.checkIfValidForExternalUsage()
 	if err != nil {
 		return "", err
@@ -136,6 +142,7 @@ func (gen *codeGenerator) generate() (string, error) {
 
 	gen.generateHeader()
 	gen.generateMockStruct()
+	gen.generateInterfaceVerification()
 	gen.generateMainStruct()
 	gen.generateMethodStructs()
 	gen.generateMockMethods()
@@ -330,6 +337,11 @@ func (gen *codeGenerator) generateHeader() {
 	gen.execTemplate(headerTemplate, gen.templateData())
 }
 
+// generateInterfaceVerification generates a compile-time check that the mock implements the interface.
+func (gen *codeGenerator) generateInterfaceVerification() {
+	gen.execTemplate(interfaceVerificationTemplate, gen.templateData())
+}
+
 // generateInjectPanicMethod generates the InjectPanic method for simulating panics.
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
 	gen.execTemplate(injectPanicMethodTemplate, gen.methodTemplateData(methodCallName))
@@ -392,7 +404,7 @@ func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *ast.Fu
 	gen.pf("// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.\n")
 	gen.pf("type %s%s struct {\n", builderName, gen.formatTypeParamsDecl())
 	gen.pf("\timp     *%s%s\n", gen.impName, gen.formatTypeParamsUse())
-	gen.pf("\ttimeout time.Duration\n")
+	gen.pf("\ttimeout %s.Duration\n", gen.timePkg())
 	gen.pf("}\n\n")
 
 	// Generate ExpectCallIs.MethodName() -> returns builder
@@ -594,15 +606,50 @@ func (gen *codeGenerator) templateData() templateData {
 			NeedsQualifier: gen.needsQualifier,
 			TypeParamsDecl: gen.formatTypeParamsDecl(),
 			TypeParamsUse:  gen.formatTypeParamsUse(),
+			TimeAlias:      getStdlibAlias(gen.qualifier, "time"),
+			TestingAlias:   getStdlibAlias(gen.qualifier, "testing"),
+			ReflectAlias:   getStdlibAlias(gen.qualifier, "reflect"),
+			ImptestAlias:   getStdlibAlias(gen.qualifier, "imptest"),
 		},
 		MockName:         gen.mockName,
 		CallName:         gen.callName,
 		ExpectCallIsName: gen.expectCallIsName,
 		TimedName:        gen.timedName,
+		InterfaceName:    gen.interfaceName,
 		MethodNames:      gen.methodNames,
 		NeedsReflect:     gen.needsReflect,
 		NeedsImptest:     gen.needsImptest,
 	}
+}
+
+// timePkg returns the package name to use for time, with alias if needed.
+func (gen *codeGenerator) timePkg() string {
+	alias := getStdlibAlias(gen.qualifier, "time")
+	if alias != "" {
+		return alias
+	}
+
+	return "time"
+}
+
+// imptestPkg returns the package name to use for imptest, with alias if needed.
+func (gen *codeGenerator) imptestPkg() string {
+	alias := getStdlibAlias(gen.qualifier, "imptest")
+	if alias != "" {
+		return alias
+	}
+
+	return "imptest"
+}
+
+// reflectPkg returns the package name to use for reflect, with alias if needed.
+func (gen *codeGenerator) reflectPkg() string {
+	alias := getStdlibAlias(gen.qualifier, "reflect")
+	if alias != "" {
+		return alias
+	}
+
+	return "reflect"
 }
 
 // writeCallStructField writes a single field assignment for a call struct initialization.
@@ -630,13 +677,13 @@ func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames 
 func (gen *codeGenerator) writeComparisonCheck(fieldName, expectedName string, isComparable, useMatcher bool) {
 	switch {
 	case useMatcher:
-		gen.pf("\tok, _ = imptest.MatchValue(methodCall.%s, %s)\n", fieldName, expectedName)
+		gen.pf("\tok, _ = %s.MatchValue(methodCall.%s, %s)\n", gen.imptestPkg(), fieldName, expectedName)
 		gen.pf("\t\tif !ok {\n")
 	case isComparable:
 		gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, expectedName)
 	default:
 		gen.needsReflect = true
-		gen.pf("\t\tif !reflect.DeepEqual(methodCall.%s, %s) {\n", fieldName, expectedName)
+		gen.pf("\t\tif !%s.DeepEqual(methodCall.%s, %s) {\n", gen.reflectPkg(), fieldName, expectedName)
 	}
 
 	gen.pf("\t\t\treturn false\n")
@@ -1100,7 +1147,8 @@ func newCodeGenerator(
 		pkgPath, qualifier string
 		err                error
 	)
-	if pkgImportPath != "." {
+	// Get package info for external interfaces OR when in a _test package (which needs to import the non-test package)
+	if pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test") {
 		pkgPath, qualifier, err = GetPackageInfo(
 			info.interfaceName,
 			pkgLoader,
@@ -1109,6 +1157,14 @@ func newCodeGenerator(
 		if err != nil {
 			return nil, fmt.Errorf("failed to get interface package info: %w", err)
 		}
+	}
+
+	// Construct the full interface name for compile-time verification
+	var interfaceName string
+	if qualifier != "" {
+		interfaceName = qualifier + "." + info.localInterfaceName
+	} else {
+		interfaceName = info.localInterfaceName
 	}
 
 	gen := &codeGenerator{
@@ -1120,6 +1176,8 @@ func newCodeGenerator(
 		mockName: impName + "Mock", callName: impName + "Call",
 
 		expectCallIsName: impName + "ExpectCallIs", timedName: impName + "Timed",
+
+		interfaceName: interfaceName,
 
 		identifiedInterface: ifaceWithDetails.iface, astFiles: astFiles,
 

@@ -61,9 +61,9 @@ func (r *{{.ImpName}}Response{{.TypeParamsUse}}) AsReturn() []any {
 //
 //	wrapper := New{{.ImpName}}(t, myFunction)
 //	wrapper.Start(args...).ExpectReturnedValuesAre(expectedVals...)
-func New{{.ImpName}}{{.TypeParamsDecl}}(t testing.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
+func New{{.ImpName}}{{.TypeParamsDecl}}(t {{if .TestingAlias}}{{.TestingAlias}}{{else}}testing{{end}}.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
 	return &{{.ImpName}}{{.TypeParamsUse}}{
-		CallableController: imptest.NewCallableController[{{.ReturnType}}](t),
+		CallableController: {{if .ImptestAlias}}{{.ImptestAlias}}{{else}}imptest{{end}}.NewCallableController[{{.ReturnType}}](t),
 		callable:           callable,
 	}
 }
@@ -151,8 +151,8 @@ func (s *{{.ImpName}}{{.TypeParamsUse}}) GetResponse() *{{.ImpName}}Response{{.T
 package {{.PkgName}}
 
 import (
-	"github.com/toejough/imptest/imptest"
-	"testing"
+	{{if .ImptestAlias}}{{.ImptestAlias}} {{end}}"github.com/toejough/imptest/imptest"
+	{{if .TestingAlias}}{{.TestingAlias}} {{end}}"testing"
 {{if .NeedsQualifier}}	{{.Qualifier}} "{{.PkgPath}}"
 {{end}})
 
@@ -229,9 +229,9 @@ func (s *{{.ImpName}}{{.TypeParamsUse}}) Start({{.CallableSignature}}) *{{.ImpNa
 //	imp := New{{.ImpName}}(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func New{{.ImpName}}{{.TypeParamsDecl}}(t *testing.T) *{{.ImpName}}{{.TypeParamsUse}} {
+func New{{.ImpName}}{{.TypeParamsDecl}}(t *{{if .TestingAlias}}{{.TestingAlias}}{{else}}testing{{end}}.T) *{{.ImpName}}{{.TypeParamsUse}} {
 	imp := &{{.ImpName}}{{.TypeParamsUse}}{
-		Controller: imptest.NewController[*{{.CallName}}{{.TypeParamsUse}}](t),
+		Controller: {{if .ImptestAlias}}{{.ImptestAlias}}{{else}}imptest{{end}}.NewController[*{{.CallName}}{{.TypeParamsUse}}](t),
 	}
 	imp.Mock = &{{.MockName}}{{.TypeParamsUse}}{imp: imp}
 	imp.ExpectCallIs = &{{.ExpectCallIsName}}{{.TypeParamsUse}}{imp: imp}
@@ -245,7 +245,7 @@ func New{{.ImpName}}{{.TypeParamsDecl}}(t *testing.T) *{{.ImpName}}{{.TypeParams
 // Use Within() on the parent {{.ImpName}} to configure timeouts.
 type {{.ExpectCallIsName}}{{.TypeParamsDecl}} struct {
 	imp *{{.ImpName}}{{.TypeParamsUse}}
-	timeout time.Duration
+	timeout {{if .TimeAlias}}{{.TimeAlias}}{{else}}time{{end}}.Duration
 }
 
 `)
@@ -266,12 +266,19 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}}{{.TypeP
 
 package {{.PkgName}}
 
-import "github.com/toejough/imptest/imptest"
-{{if .NeedsReflect}}import "reflect"
-{{end}}import "testing"
-import "time"
+import {{if .ImptestAlias}}{{.ImptestAlias}} {{end}}"github.com/toejough/imptest/imptest"
+{{if .NeedsReflect}}import {{if .ReflectAlias}}{{.ReflectAlias}} {{end}}"reflect"
+{{end}}import {{if .TestingAlias}}{{.TestingAlias}} {{end}}"testing"
+import {{if .TimeAlias}}{{.TimeAlias}} {{end}}"time"
 {{if .NeedsQualifier}}import {{.Qualifier}} "{{.PkgPath}}"
 {{end}}
+`)
+	interfaceVerificationTemplate = mustParse("interfaceVerification",
+		`var (
+	// Compile-time verification that {{.MockName}} implements {{.InterfaceName}}.
+	_ {{.InterfaceName}}{{.TypeParamsUse}} = (*{{.MockName}}{{.TypeParamsUse}})(nil)
+)
+
 `)
 	injectPanicMethodTemplate = mustParse("injectPanic",
 		`// InjectPanic causes the mocked method to panic with the given value.
@@ -327,8 +334,8 @@ type {{.TimedName}}{{.TypeParamsDecl}} struct {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}{{.TypeParamsUse}} {
+//	imp.Within(100*{{if .TimeAlias}}{{.TimeAlias}}{{else}}time{{end}}.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d {{if .TimeAlias}}{{.TimeAlias}}{{else}}time{{end}}.Duration) *{{.TimedName}}{{.TypeParamsUse}} {
 	return &{{.TimedName}}{{.TypeParamsUse}}{
 		ExpectCallIs: &{{.ExpectCallIsName}}{{.TypeParamsUse}}{imp: i, timeout: d},
 	}
@@ -346,6 +353,13 @@ type baseTemplateData struct {
 	NeedsQualifier bool   // Whether the package qualifier is actually used
 	TypeParamsDecl string // Type parameters with constraints, e.g., "[T any, U comparable]"
 	TypeParamsUse  string // Type parameters for instantiation, e.g., "[T, U]"
+
+	// Aliases for stdlib packages when they conflict with the user's package qualifier.
+	// Empty string means no alias needed (no conflict).
+	TimeAlias    string // "_time" if qualifier conflicts with "time"
+	TestingAlias string // "_testing" if qualifier conflicts with "testing"
+	ReflectAlias string // "_reflect" if qualifier conflicts with "reflect"
+	ImptestAlias string // "_imptest" if qualifier conflicts with "imptest"
 }
 
 // callStructMethodData holds data for generating call struct methods with method field info.
@@ -389,6 +403,7 @@ type templateData struct {
 	CallName         string
 	ExpectCallIsName string
 	TimedName        string
+	InterfaceName    string // Full interface name for compile-time verification
 	MethodNames      []string
 	NeedsReflect     bool // Whether reflect import is needed for DeepEqual
 	NeedsImptest     bool // Whether imptest import is needed for matchers

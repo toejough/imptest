@@ -68,6 +68,11 @@ fix = true
 path = "_test.go"
 linters = ['err113']
 
+[[linters.exclusions.rules]]
+# UAT/11 intentionally uses a package name that conflicts with stdlib to test aliasing.
+path = "UAT/11-package-name-conflicts"
+linters = ['depguard', 'mnd', 'revive']
+
 [formatters]
 enable = ['gofmt', 'gofumpt', 'goimports']
 

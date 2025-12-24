@@ -6,6 +6,7 @@ import "github.com/toejough/imptest/imptest"
 import "reflect"
 import "testing"
 import "time"
+import embedded "github.com/toejough/imptest/UAT/08-embedded-interfaces"
 
 // ReadCloserImp is the test controller for mocking the interface.
 // Create with NewReadCloserImp(t), then use Mock field to get the mock implementation
@@ -362,3 +363,9 @@ type ReadCloserImpReadCallResponse struct {
 type ReadCloserImpTimed struct {
 	ExpectCallIs *ReadCloserImpExpectCallIs
 }
+
+// unexported variables.
+var (
+	// Compile-time verification that ReadCloserImpMock implements embedded.ReadCloser.
+	_ embedded.ReadCloser = (*ReadCloserImpMock)(nil)
+)
