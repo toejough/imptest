@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/akedrou/textdiff"
 	"github.com/magefile/mage/mg"
 	"github.com/toejough/imptest/impgen/reorder"
 )
@@ -187,10 +188,34 @@ func Deadcode(c context.Context) error {
 		return err
 	}
 
-	fmt.Println(out)
+	// Filter out functions that are used by magefiles (separate build context)
+	// These appear as dead code to the deadcode tool but are actually used
+	excludePatterns := []string{
+		"impgen/reorder/reorder.go:.*: unreachable func: AnalyzeSectionOrder",
+		"impgen/reorder/reorder.go:.*: unreachable func: identifySection",
+	}
 
 	lines := strings.Split(out, "\n")
-	if len(lines) > 0 && len(lines[0]) > 0 {
+	filteredLines := []string{}
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		excluded := false
+		for _, pattern := range excludePatterns {
+			matched, _ := regexp.MatchString(pattern, line)
+			if matched {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			filteredLines = append(filteredLines, line)
+		}
+	}
+
+	if len(filteredLines) > 0 {
+		fmt.Println(strings.Join(filteredLines, "\n"))
 		return errors.New("found dead code")
 	}
 
@@ -621,6 +646,119 @@ func ReorderDecls(c context.Context) error {
 	}
 
 	fmt.Printf("Reordered %d file(s).\n", reorderedCount)
+	return nil
+}
+
+// ReorderDeclsCheck checks which files need reordering without modifying them.
+// Run with 'mage ReorderDeclsCheck' to list out-of-order files.
+// Run with 'mage -v ReorderDeclsCheck' to also see the diffs.
+func ReorderDeclsCheck(c context.Context) error {
+	fmt.Println("Checking declaration order...")
+
+	files, err := globs(".", []string{".go"})
+	if err != nil {
+		return fmt.Errorf("failed to find Go files: %w", err)
+	}
+
+	outOfOrderFiles := 0
+	filesProcessed := 0
+	for _, file := range files {
+		// Skip generated files
+		if strings.Contains(file, "generated_") {
+			continue
+		}
+		// Skip vendor
+		if strings.HasPrefix(file, "vendor/") {
+			continue
+		}
+		// Skip hidden directories
+		if strings.Contains(file, "/.") {
+			continue
+		}
+
+		// Read file
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", file, err)
+		}
+
+		// Analyze section order
+		sectionOrder, err := reorder.AnalyzeSectionOrder(string(content))
+		if err != nil {
+			fmt.Printf("Warning: failed to analyze %s: %v\n", file, err)
+			continue
+		}
+
+		filesProcessed++
+
+		// In verbose mode, show all files and their sections
+		if mg.Verbose() {
+			fmt.Printf("\nProcessing %s:\n", file)
+			if len(sectionOrder.Sections) > 0 {
+				fmt.Println("  Sections found:")
+				for i, section := range sectionOrder.Sections {
+					fmt.Printf("    %d. %s\n", i+1, section.Name)
+				}
+			} else {
+				fmt.Println("  No sections found")
+			}
+		}
+
+		// Get reordered version
+		reordered, err := reorder.Source(string(content))
+		if err != nil {
+			fmt.Printf("Warning: failed to reorder %s: %v\n", file, err)
+			continue
+		}
+
+		// Check if reordering would change the file
+		if string(content) != reordered {
+			outOfOrderFiles++
+			// Only print filename if not already printed in verbose mode
+			if !mg.Verbose() {
+				fmt.Printf("\n%s:\n", file)
+			}
+
+			// Print section analysis
+			fmt.Println("  Current order:")
+			for i, section := range sectionOrder.Sections {
+				posStr := fmt.Sprintf("%d", i+1)
+				expectedNote := ""
+				if section.Expected != i+1 {
+					expectedNote = fmt.Sprintf(" <- should be #%d", section.Expected)
+				}
+				fmt.Printf("    %s. %-24s%s\n", posStr, section.Name, expectedNote)
+			}
+
+			// Identify sections that are out of place
+			outOfPlace := []string{}
+			for i, section := range sectionOrder.Sections {
+				if section.Expected != i+1 {
+					outOfPlace = append(outOfPlace, fmt.Sprintf("%s (at #%d, should be #%d)",
+						section.Name, i+1, section.Expected))
+				}
+			}
+
+			if len(outOfPlace) > 0 {
+				fmt.Printf("  Sections out of place: %s\n", strings.Join(outOfPlace, ", "))
+			}
+
+			// If verbose, show diff
+			if mg.Verbose() {
+				diff := textdiff.Unified(file+" (current)", file+" (reordered)", string(content), reordered)
+				if diff != "" {
+					fmt.Printf("\n%s\n", diff)
+				}
+			}
+		}
+	}
+
+	if outOfOrderFiles > 0 {
+		fmt.Printf("\n%d file(s) need reordering (out of %d processed). Run 'mage ReorderDecls' to fix.\n", outOfOrderFiles, filesProcessed)
+		return fmt.Errorf("%d file(s) need reordering", outOfOrderFiles)
+	}
+
+	fmt.Printf("All files are correctly ordered (%d files processed).\n", filesProcessed)
 	return nil
 }
 

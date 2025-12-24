@@ -3,6 +3,7 @@ module github.com/toejough/imptest
 go 1.24.0
 
 require (
+	github.com/akedrou/textdiff v0.1.0
 	github.com/alexflint/go-arg v1.6.0
 	github.com/dave/dst v0.27.3
 	github.com/gtramontina/ooze v0.2.0

@@ -337,11 +337,6 @@ func (gen *codeGenerator) generateHeader() {
 	gen.execTemplate(headerTemplate, gen.templateData())
 }
 
-// generateInterfaceVerification generates a compile-time check that the mock implements the interface.
-func (gen *codeGenerator) generateInterfaceVerification() {
-	gen.execTemplate(interfaceVerificationTemplate, gen.templateData())
-}
-
 // generateInjectPanicMethod generates the InjectPanic method for simulating panics.
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
 	gen.execTemplate(injectPanicMethodTemplate, gen.methodTemplateData(methodCallName))
@@ -386,6 +381,11 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 	c.responseChan <- resp
 }
 `)
+}
+
+// generateInterfaceVerification generates a compile-time check that the mock implements the interface.
+func (gen *codeGenerator) generateInterfaceVerification() {
+	gen.execTemplate(interfaceVerificationTemplate, gen.templateData())
 }
 
 // generateMainStruct generates the main implementation struct that handles test call tracking.
@@ -542,6 +542,16 @@ func (gen *codeGenerator) generateTimedStruct() {
 	gen.execTemplate(timedStructTemplate, gen.templateData())
 }
 
+// imptestPkg returns the package name to use for imptest, with alias if needed.
+func (gen *codeGenerator) imptestPkg() string {
+	alias := getStdlibAlias(gen.qualifier, "imptest")
+	if alias != "" {
+		return alias
+	}
+
+	return "imptest"
+}
+
 // methodBuilderName returns the builder struct name for a method (e.g. "MyImpAddBuilder").
 func (gen *codeGenerator) methodBuilderName(methodName string) string {
 	return gen.impName + methodName + "Builder"
@@ -558,6 +568,16 @@ func (gen *codeGenerator) methodTemplateData(methodCallName string) methodTempla
 		templateData:   gen.templateData(),
 		MethodCallName: methodCallName,
 	}
+}
+
+// reflectPkg returns the package name to use for reflect, with alias if needed.
+func (gen *codeGenerator) reflectPkg() string {
+	alias := getStdlibAlias(gen.qualifier, "reflect")
+	if alias != "" {
+		return alias
+	}
+
+	return "reflect"
 }
 
 // renderField renders a single field with its name and type.
@@ -630,26 +650,6 @@ func (gen *codeGenerator) timePkg() string {
 	}
 
 	return "time"
-}
-
-// imptestPkg returns the package name to use for imptest, with alias if needed.
-func (gen *codeGenerator) imptestPkg() string {
-	alias := getStdlibAlias(gen.qualifier, "imptest")
-	if alias != "" {
-		return alias
-	}
-
-	return "imptest"
-}
-
-// reflectPkg returns the package name to use for reflect, with alias if needed.
-func (gen *codeGenerator) reflectPkg() string {
-	alias := getStdlibAlias(gen.qualifier, "reflect")
-	if alias != "" {
-		return alias
-	}
-
-	return "reflect"
 }
 
 // writeCallStructField writes a single field assignment for a call struct initialization.

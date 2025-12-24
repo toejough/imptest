@@ -14,6 +14,82 @@ import (
 	"github.com/dave/dst/dstutil"
 )
 
+// Section represents a declaration section in a Go file.
+type Section struct {
+	Name     string // e.g., "Imports", "Exported Types", "unexported functions"
+	Position int    // Position in file (1-indexed)
+	Expected int    // Expected position (1-indexed), 0 if section shouldn't exist
+}
+
+// SectionOrder represents the detected sections in a file and their order.
+type SectionOrder struct {
+	Sections []Section
+}
+
+// AnalyzeSectionOrder analyzes the current declaration order in source code.
+// Returns a SectionOrder showing which sections are present and their positions.
+func AnalyzeSectionOrder(src string) (*SectionOrder, error) {
+	dec := decorator.NewDecorator(token.NewFileSet())
+
+	file, err := dec.Parse(src)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source: %w", err)
+	}
+
+	// Map section names to their expected positions (1-indexed)
+	//nolint:mnd // These are the canonical ordering positions from CLAUDE.md
+	expectedPositions := map[string]int{
+		"Imports":              1,
+		"main()":               2,
+		"Exported Constants":   3,
+		"Exported Enums":       4,
+		"Exported Variables":   5,
+		"Exported Types":       6,
+		"Exported Functions":   7,
+		"unexported constants": 8,
+		"unexported enums":     9,
+		"unexported variables": 10,
+		"unexported types":     11,
+		"unexported functions": 12,
+	}
+
+	// Track which sections we've seen and their first occurrence position
+	sectionPositions := make(map[string]int)
+	currentPos := 0
+
+	// Walk through original declarations to track section transitions
+	for _, decl := range file.Decls {
+		currentPos++
+
+		sectionName := identifySection(decl)
+		if sectionName == "" {
+			continue
+		}
+
+		// Record first occurrence of each section
+		if _, seen := sectionPositions[sectionName]; !seen {
+			sectionPositions[sectionName] = currentPos
+		}
+	}
+
+	// Build the section list
+	sections := make([]Section, 0, len(sectionPositions))
+	for name, pos := range sectionPositions {
+		sections = append(sections, Section{
+			Name:     name,
+			Position: pos,
+			Expected: expectedPositions[name],
+		})
+	}
+
+	// Sort by current position
+	slices.SortFunc(sections, func(a, b Section) int {
+		return a.Position - b.Position
+	})
+
+	return &SectionOrder{Sections: sections}, nil
+}
+
 // File reorders declarations in a dst.File according to project conventions.
 func File(file *dst.File) error {
 	categorized := categorizeDeclarations(file)
@@ -351,6 +427,88 @@ func extractTypeName(expr dst.Expr) string {
 		return extractTypeName(typeExpr.X)
 	case *dst.IndexListExpr:
 		return extractTypeName(typeExpr.X)
+	}
+
+	return ""
+}
+
+// identifySection determines which section a declaration belongs to.
+//
+//nolint:gocognit,cyclop,funlen,nestif,varnamelen // Complex type checking is inherent to declaration categorization
+func identifySection(decl dst.Decl) string {
+	switch d := decl.(type) {
+	case *dst.GenDecl:
+		if d.Tok == token.IMPORT {
+			return "Imports"
+		}
+
+		if d.Tok == token.CONST {
+			if isIotaBlock(d) {
+				typeName := extractEnumType(d)
+				if isExported(typeName) {
+					return "Exported Enums"
+				}
+
+				return "unexported enums"
+			}
+			// Check if it's a merged const block
+			if len(d.Specs) > 0 {
+				if vspec, ok := d.Specs[0].(*dst.ValueSpec); ok {
+					if len(vspec.Names) > 0 {
+						if isExported(vspec.Names[0].Name) {
+							return "Exported Constants"
+						}
+
+						return "unexported constants"
+					}
+				}
+			}
+		}
+
+		if d.Tok == token.VAR {
+			if len(d.Specs) > 0 {
+				if vspec, ok := d.Specs[0].(*dst.ValueSpec); ok {
+					if len(vspec.Names) > 0 {
+						if isExported(vspec.Names[0].Name) {
+							return "Exported Variables"
+						}
+
+						return "unexported variables"
+					}
+				}
+			}
+		}
+
+		if d.Tok == token.TYPE {
+			if len(d.Specs) > 0 {
+				if tspec, ok := d.Specs[0].(*dst.TypeSpec); ok {
+					if isExported(tspec.Name.Name) {
+						return "Exported Types"
+					}
+
+					return "unexported types"
+				}
+			}
+		}
+	case *dst.FuncDecl:
+		if d.Name.Name == "main" && d.Recv == nil {
+			return "main()"
+		}
+		// Skip methods (they're part of type groups)
+		if d.Recv != nil {
+			typeName := extractReceiverTypeName(d.Recv)
+			if isExported(typeName) {
+				return "Exported Types"
+			}
+
+			return "unexported types"
+		}
+
+		if isExported(d.Name.Name) {
+			return "Exported Functions"
+		}
+
+		return "unexported functions"
 	}
 
 	return ""

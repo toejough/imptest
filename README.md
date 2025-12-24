@@ -307,8 +307,9 @@ func TestAdd_Simple(t *testing.T) {
 | **Verify Call Order** | ❌ Manual | ❌ Complex | ✅ Easy |
 | **Verify Call Args** | ❌ Manual | ⚠️ Per function | ✅ Per call |
 | **Interactive Control** | ❌ Difficult | ❌ Difficult | ✅ Easy |
-| **Concurrent Testing** | ❌ Difficult | ⚠️Possible | ✅ Easy |
+| **Concurrent Testing** | ❌ Difficult | ⚠️ Possible | ✅ Easy |
 | **Return Validation** | ❌ Manual | ✅ Yes | ✅ Yes |
+| **Panic Validation** | ❌ Manual | ❌ Manual | ✅ Yes/Automatic |
 
 
 **Zero manual mocking. Full control.**
