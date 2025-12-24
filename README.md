@@ -181,7 +181,17 @@ go generate ./...
 - **More Examples**: See the [UAT](https://github.com/toejough/imptest/tree/main/UAT) directory for comprehensive examples
 - **How It Works**: imptest generates mocks that communicate via channels, enabling interactive test control of even asynchronous function behavior
 
-## Comparison with Traditional Testing Approaches
+## Why imptest?
+
+**Traditional mocking libraries** require you to:
+- Write mock implementations by hand, or
+- Configure complex expectations upfront, then run the code
+
+**imptest** lets you:
+- Generate mocks automatically from interfaces
+- Control mocks interactively—inject responses as calls happen
+- Choose type-safe exact matching OR flexible gomega-style matchers
+- Test concurrent behavior with timeout-based call matching
 
 Let's test a function that processes user data by calling an external service. Here's how different testing approaches compare:
 
@@ -219,10 +229,9 @@ func TestProcessUser_Basic(t *testing.T) {
 }
 ```
 
-### Approach 2: Using testify
+### Approach 2: Using others
 
 ```go
-import "github.com/stretchr/testify/assert"
 
 func TestProcessUser_Testify(t *testing.T) {
     // ❌ Still need to write mock implementation
@@ -237,52 +246,11 @@ func TestProcessUser_Testify(t *testing.T) {
     assert.NoError(t, err)
     assert.Equal(t, "processed", result)
 
-    // ❌ Problem: Still can't verify mock interactions easily
+    // ❌ Problem: can't control behavior per call interactively
 }
 ```
 
-### Approach 3: Using gomega (BDD-style)
-
-```go
-import . "github.com/onsi/gomega"
-
-func TestProcessUser_Gomega(t *testing.T) {
-    RegisterTestingT(t)
-
-    // ❌ Still need manual mock
-    mock := &MockService{
-        fetchResult: "test data",
-        processResult: "processed",
-    }
-
-    result, err := ProcessUser(mock, 42)
-
-    // ✅ Better: Expressive matchers
-    Expect(err).NotTo(HaveOccurred())
-    Expect(result).To(Equal("processed"))
-
-    // ❌ Problem: Can't control mock behavior per-call
-}
-```
-
-### Approach 4: Using imptest
-
-**For simple return value assertions (without dependencies):**
-
-```go
-//go:generate impgen Add
-
-func Add(a, b int) int {
-    return a + b
-}
-
-func TestAdd_Simple(t *testing.T) {
-    t.Parallel()
-
-    // ✅ Wrap function and validate returns in one go
-    NewAddImp(t, Add).Start(2, 3).ExpectReturnedValuesAre(5)
-}
-```
+### Approach 3: Using imptest
 
 **For testing with dependencies:**
 
@@ -308,45 +276,38 @@ func TestProcessUser_Imptest(t *testing.T) {
 }
 ```
 
-**Key Differences:**
-
-| Feature | Basic Go | testify | gomega | imptest |
-|---------|----------|---------|---------|---------|
-| **Clean Assertions** | ❌ Verbose | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Auto-Generated Mocks** | ❌ Manual | ❌ Manual | ❌ Manual | ✅ Yes |
-| **Verify Call Order** | ❌ Hard | ⚠️ Possible | ⚠️ Possible | ✅ Built-in |
-| **Verify Call Args** | ❌ Hard | ⚠️ Possible | ⚠️ Possible | ✅ Type-safe |
-| **Interactive Control** | ❌ No | ❌ No | ❌ No | ✅ Yes |
-| **Concurrent Testing** | ❌ Hard | ❌ Hard | ❌ Hard | ✅ Built-in |
-| **Return Validation** | ✅ Manual | ✅ Library | ✅ Matchers | ✅ Wrappers + Matchers |
+**For simple return value assertions (without dependencies):**
 
 ```go
-func TestComplexFlow(t *testing.T) {
-    svc := NewExternalServiceImp(t)
-    processImp := NewProcessUserImp(t, ProcessUser).Start(svc.Mock, 42)
+// generate the wrapper for the Add function
+//go:generate impgen Add
 
-    // imptest: Control dependencies
-    svc.ExpectCallIs.FetchData().ExpectArgsAre(42).InjectResults("test", nil)
-    svc.ExpectCallIs.Process().ExpectArgsAre("test").InjectResult("result")
+func Add(a, b int) int {
+    return a + b
+}
 
-    // gomega: Validate outputs
-    processImp.ExpectReturnedValuesShould(
-        ContainSubstring("result"),
-        BeNil(),
-    )
+func TestAdd_Simple(t *testing.T) {
+    t.Parallel()
+
+    // ✅ Wrap function and validate returns in one line
+    // ✅ Args are type-safe and checked at compile time - your IDE can autocomplete them or inform you of mismatches!
+    // ✅ Panics are caught cleanly and reported in failure messages
+    NewAddImp(t, Add).Start(2, 3).ExpectReturnedValuesAre(5)
 }
 ```
 
-## Why imptest?
 
-**Traditional mocking libraries** require you to:
-- Write mock implementations by hand, or
-- Configure complex expectations upfront, then run the code
+**Key Differences:**
 
-**imptest** lets you:
-- Generate mocks automatically from interfaces
-- Control mocks interactively—inject responses as calls happen
-- Choose type-safe exact matching OR flexible gomega-style matchers
-- Test concurrent behavior with timeout-based call matching
+| Feature | Basic Go | others | imptest |
+|---------|----------|---------|---------|---------|
+| **Clean Assertions** | ❌ Verbose | ✅ Yes | ✅ Yes |
+| **Auto-Generated Mocks** | ❌ No | ✅ Yes | ✅ Yes |
+| **Verify Call Order** | ❌ Manual | ❌ Complex | ✅ Easy |
+| **Verify Call Args** | ❌ Manual | ⚠️ Per function  ✅ Per call |
+| **Interactive Control** | ❌ Difficult | ❌ Difficult | ✅ Easy |
+| **Concurrent Testing** | ❌ Difficult | ⚠️Possible | ✅ Easy |
+| **Return Validation** | ❌ Manual | ✅ Yes | ✅ Yes |
+
 
 **Zero manual mocking. Full control.**
