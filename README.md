@@ -193,6 +193,7 @@ go generate ./...
 - Choose type-safe exact matching OR flexible gomega-style matchers
 - Test concurrent behavior with timeout-based call matching
 
+### Comparison Example
 Let's test a function that processes user data by calling an external service. Here's how different testing approaches compare:
 
 **The Function Under Test:**
