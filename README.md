@@ -305,7 +305,7 @@ func TestAdd_Simple(t *testing.T) {
 | **Clean Assertions** | ❌ Verbose | ✅ Yes | ✅ Yes |
 | **Auto-Generated Mocks** | ❌ No | ✅ Yes | ✅ Yes |
 | **Verify Call Order** | ❌ Manual | ❌ Complex | ✅ Easy |
-| **Verify Call Args** | ❌ Manual | ⚠️ Per function  ✅ Per call |
+| **Verify Call Args** | ❌ Manual | ⚠️ Per function | ✅ Per call |
 | **Interactive Control** | ❌ Difficult | ❌ Difficult | ✅ Easy |
 | **Concurrent Testing** | ❌ Difficult | ⚠️Possible | ✅ Easy |
 | **Return Validation** | ❌ Manual | ✅ Yes | ✅ Yes |
