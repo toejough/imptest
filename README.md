@@ -320,17 +320,6 @@ func TestProcessUser_Imptest(t *testing.T) {
 | **Concurrent Testing** | ❌ Hard | ❌ Hard | ❌ Hard | ✅ Built-in |
 | **Return Validation** | ✅ Manual | ✅ Library | ✅ Matchers | ✅ Wrappers + Matchers |
 
-**When to Use Each:**
-
-- **testify/gomega**: Testing pure functions, validating outputs, general assertions
-- **imptest**: Testing impure functions that coordinate with dependencies, especially when:
-  - You need to verify how dependencies are called
-  - Dependencies are called in a specific order
-  - You want to inject different responses per call
-  - You're testing concurrent or async behavior
-
-**Best Together:** Use imptest for coordination logic, testify/gomega for assertions!
-
 ```go
 func TestComplexFlow(t *testing.T) {
     svc := NewExternalServiceImp(t)
