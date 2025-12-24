@@ -301,8 +301,12 @@ func writeGeneratedCodeToFile(
 	const generatedFilePermissions = 0o600
 
 	filename := "generated_" + impName
-	// If we're in a test package, append _test to the filename
-	if strings.HasSuffix(pkgName, "_test") && !strings.HasSuffix(impName, "_test") {
+	// If we're in a test package OR the source file is a test file, append _test to the filename
+	// This handles both blackbox testing (package xxx_test) and whitebox testing (package xxx in xxx_test.go)
+	goFile := os.Getenv("GOFILE")
+
+	isTestFile := strings.HasSuffix(pkgName, "_test") || strings.HasSuffix(goFile, "_test.go")
+	if isTestFile && !strings.HasSuffix(impName, "_test") {
 		filename = "generated_" + strings.TrimSuffix(impName, ".go") + "_test.go"
 	} else if !strings.HasSuffix(filename, ".go") {
 		filename += ".go"

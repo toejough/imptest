@@ -73,6 +73,11 @@ linters = ['err113']
 path = "UAT/11-package-name-conflicts"
 linters = ['depguard', 'mnd', 'revive']
 
+[[linters.exclusions.rules]]
+# UAT/12 intentionally uses whitebox testing (tests in same package as code).
+path = "UAT/12-whitebox-testing"
+linters = ['testpackage']
+
 [formatters]
 enable = ['gofmt', 'gofumpt', 'goimports']
 
