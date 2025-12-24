@@ -7,6 +7,8 @@ import (
 	mp "github.com/toejough/imptest/UAT/10-edge-many-params"
 )
 
+//go:generate impgen many_params.ManyParams
+
 // TestManyParams_DifferentValues_mutant tests with different parameter values.
 // This ensures index arithmetic is correct even when values differ.
 func TestManyParams_DifferentValues_mutant(t *testing.T) {

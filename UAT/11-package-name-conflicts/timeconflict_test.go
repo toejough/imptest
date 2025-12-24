@@ -6,7 +6,7 @@ import (
 	timeconflict "github.com/toejough/imptest/UAT/11-package-name-conflicts"
 )
 
-//go:generate go run ../../impgen time.Timer
+//go:generate impgen time.Timer
 
 // TestUseTimer demonstrates testing with a package that shadows stdlib time.
 //

@@ -6,6 +6,8 @@ import (
 	zr "github.com/toejough/imptest/UAT/09-edge-zero-returns"
 )
 
+//go:generate impgen ProcessData
+
 // TestProcessData_MultipleArgs_mutant tests with various argument combinations.
 func TestProcessData_MultipleArgs_mutant(t *testing.T) {
 	t.Parallel()
