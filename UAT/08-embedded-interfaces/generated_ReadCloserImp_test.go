@@ -7,10 +7,22 @@ import "reflect"
 import "testing"
 import "time"
 
+// ReadCloserImpMock provides the mock implementation of the interface.
+// Pass ReadCloserImpMock to code under test that expects the interface implementation.
+// Use the parent ReadCloserImp controller to set expectations and inject responses.
 type ReadCloserImpMock struct {
 	imp *ReadCloserImp
 }
 
+// ReadCloserImp is the test controller for mocking the interface.
+// Create with NewReadCloserImp(t), then use Mock field to get the mock implementation
+// and ExpectCallIs field to set expectations for method calls.
+//
+// Example:
+//
+//	imp := NewReadCloserImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type ReadCloserImp struct {
 	*imptest.Controller[*ReadCloserImpCall]
 	Mock         *ReadCloserImpMock
@@ -18,12 +30,16 @@ type ReadCloserImp struct {
 	currentCall  *ReadCloserImpCall
 }
 
+// ReadCloserImpReadCall represents a captured call to the Read method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type ReadCloserImpReadCall struct {
 	responseChan chan ReadCloserImpReadCallResponse
 	done         bool
 	p            []byte
 }
 
+// ReadCloserImpReadCallResponse holds the response configuration for the Read method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type ReadCloserImpReadCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	n          int
@@ -31,36 +47,54 @@ type ReadCloserImpReadCallResponse struct {
 	PanicValue any
 }
 
+// InjectResults sets the return values for this method call and unblocks the caller.
+// The mocked method will return the provided result values in order.
 func (c *ReadCloserImpReadCall) InjectResults(r0 int, r1 error) {
 	c.done = true
 	resp := ReadCloserImpReadCallResponse{Type: "return", n: r0, err: r1}
 	c.responseChan <- resp
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *ReadCloserImpReadCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- ReadCloserImpReadCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// ReadCloserImpCloseCall represents a captured call to the Close method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type ReadCloserImpCloseCall struct {
 	responseChan chan ReadCloserImpCloseCallResponse
 	done         bool
 }
 
+// ReadCloserImpCloseCallResponse holds the response configuration for the Close method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type ReadCloserImpCloseCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    error
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *ReadCloserImpCloseCall) InjectResult(result error) {
 	c.done = true
 	c.responseChan <- ReadCloserImpCloseCallResponse{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *ReadCloserImpCloseCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- ReadCloserImpCloseCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// Read implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *ReadCloserImpMock) Read(p []byte) (n int, err error) {
 	responseChan := make(chan ReadCloserImpReadCallResponse, 1)
 
@@ -84,6 +118,8 @@ func (m *ReadCloserImpMock) Read(p []byte) (n int, err error) {
 	return resp.n, resp.err
 }
 
+// Close implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *ReadCloserImpMock) Close() error {
 	responseChan := make(chan ReadCloserImpCloseCallResponse, 1)
 
@@ -106,11 +142,16 @@ func (m *ReadCloserImpMock) Close() error {
 	return resp.Result0
 }
 
+// ReadCloserImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
 type ReadCloserImpCall struct {
 	Read  *ReadCloserImpReadCall
 	Close *ReadCloserImpCloseCall
 }
 
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
 func (c *ReadCloserImpCall) Name() string {
 	if c.Read != nil {
 		return "Read"
@@ -121,6 +162,8 @@ func (c *ReadCloserImpCall) Name() string {
 	return ""
 }
 
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
 func (c *ReadCloserImpCall) Done() bool {
 	if c.Read != nil {
 		return c.Read.done
@@ -131,28 +174,42 @@ func (c *ReadCloserImpCall) Done() bool {
 	return false
 }
 
+// AsRead returns the call cast to ReadCloserImpReadCall for accessing call details.
+// Returns nil if the call was not to Read.
 func (c *ReadCloserImpCall) AsRead() *ReadCloserImpReadCall {
 	return c.Read
 }
 
+// AsClose returns the call cast to ReadCloserImpCloseCall for accessing call details.
+// Returns nil if the call was not to Close.
 func (c *ReadCloserImpCall) AsClose() *ReadCloserImpCloseCall {
 	return c.Close
 }
 
+// ReadCloserImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent ReadCloserImp to configure timeouts.
 type ReadCloserImpExpectCallIs struct {
 	imp     *ReadCloserImp
 	timeout time.Duration
 }
 
+// ReadCloserImpReadBuilder provides a fluent API for setting expectations on Read calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ReadCloserImpReadBuilder struct {
 	imp     *ReadCloserImp
 	timeout time.Duration
 }
 
+// Read returns a builder for setting expectations on Read method calls.
 func (e *ReadCloserImpExpectCallIs) Read() *ReadCloserImpReadBuilder {
 	return &ReadCloserImpReadBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Read call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *ReadCloserImpReadBuilder) ExpectArgsAre(p []byte) *ReadCloserImpReadCall {
 	validator := func(callToCheck *ReadCloserImpCall) bool {
 		if callToCheck.Name() != "Read" {
@@ -169,6 +226,10 @@ func (bldr *ReadCloserImpReadBuilder) ExpectArgsAre(p []byte) *ReadCloserImpRead
 	return call.AsRead()
 }
 
+// ExpectArgsShould waits for a Read call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *ReadCloserImpReadBuilder) ExpectArgsShould(p any) *ReadCloserImpReadCall {
 	validator := func(callToCheck *ReadCloserImpCall) bool {
 		if callToCheck.Name() != "Read" {
@@ -187,6 +248,9 @@ func (bldr *ReadCloserImpReadBuilder) ExpectArgsShould(p any) *ReadCloserImpRead
 	return call.AsRead()
 }
 
+// InjectResults waits for a Read call and immediately injects the return values.
+// This is a shortcut that combines waiting for the call with injecting multiple results.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *ReadCloserImpReadBuilder) InjectResults(r0 int, r1 error) *ReadCloserImpReadCall {
 	validator := func(callToCheck *ReadCloserImpCall) bool {
 		return callToCheck.Name() == "Read"
@@ -198,6 +262,9 @@ func (bldr *ReadCloserImpReadBuilder) InjectResults(r0 int, r1 error) *ReadClose
 	return methodCall
 }
 
+// InjectPanic waits for a Read call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *ReadCloserImpReadBuilder) InjectPanic(msg any) *ReadCloserImpReadCall {
 	validator := func(callToCheck *ReadCloserImpCall) bool {
 		return callToCheck.Name() == "Read"
@@ -209,15 +276,21 @@ func (bldr *ReadCloserImpReadBuilder) InjectPanic(msg any) *ReadCloserImpReadCal
 	return methodCall
 }
 
+// ReadCloserImpCloseBuilder provides a fluent API for setting expectations on Close calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ReadCloserImpCloseBuilder struct {
 	imp     *ReadCloserImp
 	timeout time.Duration
 }
 
+// Close returns a builder for setting expectations on Close method calls.
 func (e *ReadCloserImpExpectCallIs) Close() *ReadCloserImpCloseBuilder {
 	return &ReadCloserImpCloseBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// InjectResult waits for a Close call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *ReadCloserImpCloseBuilder) InjectResult(result error) *ReadCloserImpCloseCall {
 	validator := func(callToCheck *ReadCloserImpCall) bool {
 		return callToCheck.Name() == "Close"
@@ -229,6 +302,9 @@ func (bldr *ReadCloserImpCloseBuilder) InjectResult(result error) *ReadCloserImp
 	return methodCall
 }
 
+// InjectPanic waits for a Close call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *ReadCloserImpCloseBuilder) InjectPanic(msg any) *ReadCloserImpCloseCall {
 	validator := func(callToCheck *ReadCloserImpCall) bool {
 		return callToCheck.Name() == "Close"
@@ -240,16 +316,27 @@ func (bldr *ReadCloserImpCloseBuilder) InjectPanic(msg any) *ReadCloserImpCloseC
 	return methodCall
 }
 
+// ReadCloserImpTimed provides timeout-configured expectation methods.
+// Access via ReadCloserImp.Within(duration) to set a timeout for expectations.
 type ReadCloserImpTimed struct {
 	ExpectCallIs *ReadCloserImpExpectCallIs
 }
 
+// Within configures a timeout for expectations and returns a ReadCloserImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
 func (i *ReadCloserImp) Within(d time.Duration) *ReadCloserImpTimed {
 	return &ReadCloserImpTimed{
 		ExpectCallIs: &ReadCloserImpExpectCallIs{imp: i, timeout: d},
 	}
 }
 
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
 func (i *ReadCloserImp) GetCurrentCall() *ReadCloserImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -258,6 +345,15 @@ func (i *ReadCloserImp) GetCurrentCall() *ReadCloserImpCall {
 	return i.currentCall
 }
 
+// NewReadCloserImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewReadCloserImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
 func NewReadCloserImp(t *testing.T) *ReadCloserImp {
 	imp := &ReadCloserImp{
 		Controller: imptest.NewController[*ReadCloserImpCall](t),

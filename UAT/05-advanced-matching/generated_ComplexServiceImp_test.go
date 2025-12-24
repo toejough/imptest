@@ -7,10 +7,22 @@ import "testing"
 import "time"
 import matching "github.com/toejough/imptest/UAT/05-advanced-matching"
 
+// ComplexServiceImpMock provides the mock implementation of the interface.
+// Pass ComplexServiceImpMock to code under test that expects the interface implementation.
+// Use the parent ComplexServiceImp controller to set expectations and inject responses.
 type ComplexServiceImpMock struct {
 	imp *ComplexServiceImp
 }
 
+// ComplexServiceImp is the test controller for mocking the interface.
+// Create with NewComplexServiceImp(t), then use Mock field to get the mock implementation
+// and ExpectCallIs field to set expectations for method calls.
+//
+// Example:
+//
+//	imp := NewComplexServiceImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type ComplexServiceImp struct {
 	*imptest.Controller[*ComplexServiceImpCall]
 	Mock         *ComplexServiceImpMock
@@ -18,27 +30,39 @@ type ComplexServiceImp struct {
 	currentCall  *ComplexServiceImpCall
 }
 
+// ComplexServiceImpProcessCall represents a captured call to the Process method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type ComplexServiceImpProcessCall struct {
 	responseChan chan ComplexServiceImpProcessCallResponse
 	done         bool
 	d            matching.Data
 }
 
+// ComplexServiceImpProcessCallResponse holds the response configuration for the Process method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type ComplexServiceImpProcessCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    bool
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *ComplexServiceImpProcessCall) InjectResult(result bool) {
 	c.done = true
 	c.responseChan <- ComplexServiceImpProcessCallResponse{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *ComplexServiceImpProcessCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- ComplexServiceImpProcessCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// Process implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *ComplexServiceImpMock) Process(d matching.Data) bool {
 	responseChan := make(chan ComplexServiceImpProcessCallResponse, 1)
 
@@ -62,10 +86,15 @@ func (m *ComplexServiceImpMock) Process(d matching.Data) bool {
 	return resp.Result0
 }
 
+// ComplexServiceImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
 type ComplexServiceImpCall struct {
 	Process *ComplexServiceImpProcessCall
 }
 
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
 func (c *ComplexServiceImpCall) Name() string {
 	if c.Process != nil {
 		return "Process"
@@ -73,6 +102,8 @@ func (c *ComplexServiceImpCall) Name() string {
 	return ""
 }
 
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
 func (c *ComplexServiceImpCall) Done() bool {
 	if c.Process != nil {
 		return c.Process.done
@@ -80,24 +111,36 @@ func (c *ComplexServiceImpCall) Done() bool {
 	return false
 }
 
+// AsProcess returns the call cast to ComplexServiceImpProcessCall for accessing call details.
+// Returns nil if the call was not to Process.
 func (c *ComplexServiceImpCall) AsProcess() *ComplexServiceImpProcessCall {
 	return c.Process
 }
 
+// ComplexServiceImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent ComplexServiceImp to configure timeouts.
 type ComplexServiceImpExpectCallIs struct {
 	imp     *ComplexServiceImp
 	timeout time.Duration
 }
 
+// ComplexServiceImpProcessBuilder provides a fluent API for setting expectations on Process calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ComplexServiceImpProcessBuilder struct {
 	imp     *ComplexServiceImp
 	timeout time.Duration
 }
 
+// Process returns a builder for setting expectations on Process method calls.
 func (e *ComplexServiceImpExpectCallIs) Process() *ComplexServiceImpProcessBuilder {
 	return &ComplexServiceImpProcessBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Process call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsAre(d matching.Data) *ComplexServiceImpProcessCall {
 	validator := func(callToCheck *ComplexServiceImpCall) bool {
 		if callToCheck.Name() != "Process" {
@@ -114,6 +157,10 @@ func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsAre(d matching.Data) *Com
 	return call.AsProcess()
 }
 
+// ExpectArgsShould waits for a Process call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsShould(d any) *ComplexServiceImpProcessCall {
 	validator := func(callToCheck *ComplexServiceImpCall) bool {
 		if callToCheck.Name() != "Process" {
@@ -132,6 +179,9 @@ func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsShould(d any) *ComplexSer
 	return call.AsProcess()
 }
 
+// InjectResult waits for a Process call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *ComplexServiceImpProcessBuilder) InjectResult(result bool) *ComplexServiceImpProcessCall {
 	validator := func(callToCheck *ComplexServiceImpCall) bool {
 		return callToCheck.Name() == "Process"
@@ -143,6 +193,9 @@ func (bldr *ComplexServiceImpProcessBuilder) InjectResult(result bool) *ComplexS
 	return methodCall
 }
 
+// InjectPanic waits for a Process call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *ComplexServiceImpProcessBuilder) InjectPanic(msg any) *ComplexServiceImpProcessCall {
 	validator := func(callToCheck *ComplexServiceImpCall) bool {
 		return callToCheck.Name() == "Process"
@@ -154,16 +207,27 @@ func (bldr *ComplexServiceImpProcessBuilder) InjectPanic(msg any) *ComplexServic
 	return methodCall
 }
 
+// ComplexServiceImpTimed provides timeout-configured expectation methods.
+// Access via ComplexServiceImp.Within(duration) to set a timeout for expectations.
 type ComplexServiceImpTimed struct {
 	ExpectCallIs *ComplexServiceImpExpectCallIs
 }
 
+// Within configures a timeout for expectations and returns a ComplexServiceImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
 func (i *ComplexServiceImp) Within(d time.Duration) *ComplexServiceImpTimed {
 	return &ComplexServiceImpTimed{
 		ExpectCallIs: &ComplexServiceImpExpectCallIs{imp: i, timeout: d},
 	}
 }
 
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
 func (i *ComplexServiceImp) GetCurrentCall() *ComplexServiceImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -172,6 +236,15 @@ func (i *ComplexServiceImp) GetCurrentCall() *ComplexServiceImpCall {
 	return i.currentCall
 }
 
+// NewComplexServiceImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewComplexServiceImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
 func NewComplexServiceImp(t *testing.T) *ComplexServiceImp {
 	imp := &ComplexServiceImp{
 		Controller: imptest.NewController[*ComplexServiceImpCall](t),

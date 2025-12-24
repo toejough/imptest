@@ -307,6 +307,8 @@ func (gen *codeGenerator) generateMethodStructs() {
 // generateMethodCallStruct generates the call struct for a specific method, which tracks the method call parameters.
 func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
+	gen.pf("// %s%s represents a captured call to the %s method.\n", callName, gen.formatTypeParamsDecl(), methodName)
+	gen.pf("// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.\n")
 	gen.pf(`type %s%s struct {
 	responseChan chan %sResponse%s
 	done bool
@@ -356,6 +358,9 @@ func (gen *codeGenerator) writeUnnamedParamField(param *ast.Field, paramType str
 // generateMethodResponseStruct generates the response struct for a method, which holds return values or panic data.
 func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype *ast.FuncType) {
 	callName := gen.methodCallName(methodName)
+	gen.pf("// %sResponse%s holds the response configuration for the %s method.\n",
+		callName, gen.formatTypeParamsDecl(), methodName)
+	gen.pf("// Set Type to \"return\" for normal returns, \"panic\" to cause a panic, or \"resolve\" for void methods.\n")
 	gen.pf(`type %sResponse%s struct {
 	Type string // "return", "panic", or "resolve"
 `, callName, gen.formatTypeParamsDecl())
@@ -400,6 +405,8 @@ func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype
 // generateInjectResultMethod generates the InjectResult method for methods with a single return value.
 func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftype *ast.FuncType) {
 	resultType := gen.typeWithQualifier(ftype.Results.List[0].Type)
+	gen.pf("// InjectResult sets the return value for this method call and unblocks the caller.\n")
+	gen.pf("// The mocked method will return the provided result value.\n")
 	gen.pf(`func (c *%s%s) InjectResult(result %s) {
 	c.done = true
 	c.responseChan <- %sResponse%s{Type: "return"`,
@@ -418,6 +425,8 @@ func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftyp
 
 // generateInjectResultsMethod generates the InjectResults method for methods with multiple return values.
 func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, ftype *ast.FuncType) {
+	gen.pf("// InjectResults sets the return values for this method call and unblocks the caller.\n")
+	gen.pf("// The mocked method will return the provided result values in order.\n")
 	gen.pf("func (c *%s%s) InjectResults(", methodCallName, gen.formatTypeParamsUse())
 
 	returnParamNames := gen.writeInjectResultsParams(ftype)
@@ -486,6 +495,8 @@ func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncT
 
 // writeMockMethodSignature writes the mock method signature and opening brace.
 func (gen *codeGenerator) writeMockMethodSignature(methodName string, ftype *ast.FuncType, paramNames []string) {
+	gen.pf("// %s implements the interface method and records the call for testing.\n", methodName)
+	gen.pf("// The method blocks until a response is injected via the test controller.\n")
 	gen.pf("func (m *%s%s) ", gen.mockName, gen.formatTypeParamsUse())
 	gen.writeMethodSignature(methodName, ftype, paramNames)
 	gen.pf("%s", gen.renderFieldList(ftype.Results))
@@ -653,12 +664,16 @@ func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *ast.Fu
 	callName := gen.methodCallName(methodName)
 
 	// Generate builder struct
+	gen.pf("// %s%s provides a fluent API for setting expectations on %s calls.\n",
+		builderName, gen.formatTypeParamsDecl(), methodName)
+	gen.pf("// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.\n")
 	gen.pf("type %s%s struct {\n", builderName, gen.formatTypeParamsDecl())
 	gen.pf("\timp     *%s%s\n", gen.impName, gen.formatTypeParamsUse())
 	gen.pf("\ttimeout time.Duration\n")
 	gen.pf("}\n\n")
 
 	// Generate ExpectCallIs.MethodName() -> returns builder
+	gen.pf("// %s returns a builder for setting expectations on %s method calls.\n", methodName, methodName)
 	gen.pf("func (e *%s%s) %s() *%s%s {\n",
 		gen.expectCallIsName, gen.formatTypeParamsUse(), methodName, builderName, gen.formatTypeParamsUse())
 	gen.pf("\treturn &%s%s{imp: e.imp, timeout: e.timeout}\n", builderName, gen.formatTypeParamsUse())
@@ -682,6 +697,10 @@ func (gen *codeGenerator) generateExpectArgsAre(methodName string, ftype *ast.Fu
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
 	// Method signature
+	gen.pf("// ExpectArgsAre waits for a %s call with exactly the specified argument values.\n", methodName)
+	gen.pf("// Returns the call object for response injection. Fails the test if the call\n")
+	gen.pf("// doesn't arrive within the timeout or if arguments don't match exactly.\n")
+	gen.pf("// Uses == for comparable types and reflect.DeepEqual for others.\n")
 	gen.pf("func (bldr *%s%s) ExpectArgsAre(", builderName, gen.formatTypeParamsUse())
 	gen.writeMethodParams(ftype, paramNames)
 	gen.pf(") *%s%s {\n", callName, gen.formatTypeParamsUse())
@@ -753,6 +772,10 @@ func (gen *codeGenerator) generateExpectArgsShould(
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
 	// Method signature - all params are 'any'
+	gen.pf("// ExpectArgsShould waits for a %s call with arguments matching the given matchers.\n", methodName)
+	gen.pf("// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.\n")
+	gen.pf("// Returns the call object for response injection. Fails the test if the call\n")
+	gen.pf("// doesn't arrive within the timeout or if any matcher fails.\n")
 	gen.pf("func (bldr *%s%s) ExpectArgsShould(", builderName, gen.formatTypeParamsUse())
 	gen.writeMethodParamsAsAny(ftype, paramNames)
 	gen.pf(") *%s%s {\n", callName, gen.formatTypeParamsUse())
@@ -800,6 +823,9 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 		// Generate InjectResult shortcut
 		if len(ftype.Results.List) == 1 {
 			resultType := exprToString(gen.fset, ftype.Results.List[0].Type)
+			gen.pf("// InjectResult waits for a %s call and immediately injects the return value.\n", methodName)
+			gen.pf("// This is a shortcut that combines waiting for the call with injecting the result.\n")
+			gen.pf("// Returns the call object for further operations. Fails if no call arrives within the timeout.\n")
 			gen.pf("func (bldr *%s%s) InjectResult(result %s) *%s%s {\n",
 				builderName, gen.formatTypeParamsUse(), resultType, callName, gen.formatTypeParamsUse())
 			gen.pf("\t%s", validatorCode)
@@ -808,6 +834,9 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 			gen.pf("}\n\n")
 		} else {
 			// Multiple return values - InjectResults
+			gen.pf("// InjectResults waits for a %s call and immediately injects the return values.\n", methodName)
+			gen.pf("// This is a shortcut that combines waiting for the call with injecting multiple results.\n")
+			gen.pf("// Returns the call object for further operations. Fails if no call arrives within the timeout.\n")
 			gen.pf("func (bldr *%s%s) InjectResults(", builderName, gen.formatTypeParamsUse())
 			gen.writeInjectResultsParams(ftype)
 			gen.pf(") *%s%s {\n", callName, gen.formatTypeParamsUse())
@@ -820,6 +849,9 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 		}
 	} else {
 		// No results - generate Resolve shortcut
+		gen.pf("// Resolve waits for a %s call and immediately completes it without error.\n", methodName)
+		gen.pf("// This is a shortcut that combines waiting for the call with resolving it.\n")
+		gen.pf("// Returns the call object for further operations. Fails if no call arrives within the timeout.\n")
 		gen.pf("func (bldr *%s%s) Resolve() *%s%s {\n",
 			builderName, gen.formatTypeParamsUse(), callName, gen.formatTypeParamsUse())
 		gen.pf("\t%s", validatorCode)
@@ -829,6 +861,9 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 	}
 
 	// Generate InjectPanic shortcut (always available)
+	gen.pf("// InjectPanic waits for a %s call and causes it to panic with the given value.\n", methodName)
+	gen.pf("// This is a shortcut that combines waiting for the call with injecting a panic.\n")
+	gen.pf("// Use this to test panic handling in code under test. Returns the call object for further operations.\n")
 	gen.pf("func (bldr *%s%s) InjectPanic(msg any) *%s%s {\n",
 		builderName, gen.formatTypeParamsUse(), callName, gen.formatTypeParamsUse())
 	gen.pf("\t%s", validatorCode)

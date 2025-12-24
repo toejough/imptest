@@ -7,10 +7,22 @@ import "reflect"
 import "testing"
 import "time"
 
+// RepositoryImpMock provides the mock implementation of the interface.
+// Pass RepositoryImpMock to code under test that expects the interface implementation.
+// Use the parent RepositoryImp controller to set expectations and inject responses.
 type RepositoryImpMock[T any] struct {
 	imp *RepositoryImp[T]
 }
 
+// RepositoryImp is the test controller for mocking the interface.
+// Create with NewRepositoryImp(t), then use Mock field to get the mock implementation
+// and ExpectCallIs field to set expectations for method calls.
+//
+// Example:
+//
+//	imp := NewRepositoryImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type RepositoryImp[T any] struct {
 	*imptest.Controller[*RepositoryImpCall[T]]
 	Mock         *RepositoryImpMock[T]
@@ -18,33 +30,47 @@ type RepositoryImp[T any] struct {
 	currentCall  *RepositoryImpCall[T]
 }
 
+// RepositoryImpSaveCall[T any] represents a captured call to the Save method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type RepositoryImpSaveCall[T any] struct {
 	responseChan chan RepositoryImpSaveCallResponse[T]
 	done         bool
 	item         T
 }
 
+// RepositoryImpSaveCallResponse[T any] holds the response configuration for the Save method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type RepositoryImpSaveCallResponse[T any] struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    error
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *RepositoryImpSaveCall[T]) InjectResult(result error) {
 	c.done = true
 	c.responseChan <- RepositoryImpSaveCallResponse[T]{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *RepositoryImpSaveCall[T]) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- RepositoryImpSaveCallResponse[T]{Type: "panic", PanicValue: msg}
 }
 
+// RepositoryImpGetCall[T any] represents a captured call to the Get method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type RepositoryImpGetCall[T any] struct {
 	responseChan chan RepositoryImpGetCallResponse[T]
 	done         bool
 	id           string
 }
 
+// RepositoryImpGetCallResponse[T any] holds the response configuration for the Get method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type RepositoryImpGetCallResponse[T any] struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    T
@@ -52,16 +78,24 @@ type RepositoryImpGetCallResponse[T any] struct {
 	PanicValue any
 }
 
+// InjectResults sets the return values for this method call and unblocks the caller.
+// The mocked method will return the provided result values in order.
 func (c *RepositoryImpGetCall[T]) InjectResults(r0 T, r1 error) {
 	c.done = true
 	resp := RepositoryImpGetCallResponse[T]{Type: "return", Result0: r0, Result1: r1}
 	c.responseChan <- resp
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *RepositoryImpGetCall[T]) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- RepositoryImpGetCallResponse[T]{Type: "panic", PanicValue: msg}
 }
 
+// Save implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *RepositoryImpMock[T]) Save(item T) error {
 	responseChan := make(chan RepositoryImpSaveCallResponse[T], 1)
 
@@ -85,6 +119,8 @@ func (m *RepositoryImpMock[T]) Save(item T) error {
 	return resp.Result0
 }
 
+// Get implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *RepositoryImpMock[T]) Get(id string) (T, error) {
 	responseChan := make(chan RepositoryImpGetCallResponse[T], 1)
 
@@ -108,11 +144,16 @@ func (m *RepositoryImpMock[T]) Get(id string) (T, error) {
 	return resp.Result0, resp.Result1
 }
 
+// RepositoryImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
 type RepositoryImpCall[T any] struct {
 	Save *RepositoryImpSaveCall[T]
 	Get  *RepositoryImpGetCall[T]
 }
 
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
 func (c *RepositoryImpCall[T]) Name() string {
 	if c.Save != nil {
 		return "Save"
@@ -123,6 +164,8 @@ func (c *RepositoryImpCall[T]) Name() string {
 	return ""
 }
 
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
 func (c *RepositoryImpCall[T]) Done() bool {
 	if c.Save != nil {
 		return c.Save.done
@@ -133,28 +176,42 @@ func (c *RepositoryImpCall[T]) Done() bool {
 	return false
 }
 
+// AsSave returns the call cast to RepositoryImpSaveCall for accessing call details.
+// Returns nil if the call was not to Save.
 func (c *RepositoryImpCall[T]) AsSave() *RepositoryImpSaveCall[T] {
 	return c.Save
 }
 
+// AsGet returns the call cast to RepositoryImpGetCall for accessing call details.
+// Returns nil if the call was not to Get.
 func (c *RepositoryImpCall[T]) AsGet() *RepositoryImpGetCall[T] {
 	return c.Get
 }
 
+// RepositoryImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent RepositoryImp to configure timeouts.
 type RepositoryImpExpectCallIs[T any] struct {
 	imp     *RepositoryImp[T]
 	timeout time.Duration
 }
 
+// RepositoryImpSaveBuilder[T any] provides a fluent API for setting expectations on Save calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type RepositoryImpSaveBuilder[T any] struct {
 	imp     *RepositoryImp[T]
 	timeout time.Duration
 }
 
+// Save returns a builder for setting expectations on Save method calls.
 func (e *RepositoryImpExpectCallIs[T]) Save() *RepositoryImpSaveBuilder[T] {
 	return &RepositoryImpSaveBuilder[T]{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Save call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsAre(item T) *RepositoryImpSaveCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		if callToCheck.Name() != "Save" {
@@ -171,6 +228,10 @@ func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsAre(item T) *RepositoryImpSav
 	return call.AsSave()
 }
 
+// ExpectArgsShould waits for a Save call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsShould(item any) *RepositoryImpSaveCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		if callToCheck.Name() != "Save" {
@@ -189,6 +250,9 @@ func (bldr *RepositoryImpSaveBuilder[T]) ExpectArgsShould(item any) *RepositoryI
 	return call.AsSave()
 }
 
+// InjectResult waits for a Save call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *RepositoryImpSaveBuilder[T]) InjectResult(result error) *RepositoryImpSaveCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		return callToCheck.Name() == "Save"
@@ -200,6 +264,9 @@ func (bldr *RepositoryImpSaveBuilder[T]) InjectResult(result error) *RepositoryI
 	return methodCall
 }
 
+// InjectPanic waits for a Save call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *RepositoryImpSaveBuilder[T]) InjectPanic(msg any) *RepositoryImpSaveCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		return callToCheck.Name() == "Save"
@@ -211,15 +278,22 @@ func (bldr *RepositoryImpSaveBuilder[T]) InjectPanic(msg any) *RepositoryImpSave
 	return methodCall
 }
 
+// RepositoryImpGetBuilder[T any] provides a fluent API for setting expectations on Get calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type RepositoryImpGetBuilder[T any] struct {
 	imp     *RepositoryImp[T]
 	timeout time.Duration
 }
 
+// Get returns a builder for setting expectations on Get method calls.
 func (e *RepositoryImpExpectCallIs[T]) Get() *RepositoryImpGetBuilder[T] {
 	return &RepositoryImpGetBuilder[T]{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Get call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsAre(id string) *RepositoryImpGetCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		if callToCheck.Name() != "Get" {
@@ -236,6 +310,10 @@ func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsAre(id string) *RepositoryImpG
 	return call.AsGet()
 }
 
+// ExpectArgsShould waits for a Get call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsShould(id any) *RepositoryImpGetCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		if callToCheck.Name() != "Get" {
@@ -254,6 +332,9 @@ func (bldr *RepositoryImpGetBuilder[T]) ExpectArgsShould(id any) *RepositoryImpG
 	return call.AsGet()
 }
 
+// InjectResults waits for a Get call and immediately injects the return values.
+// This is a shortcut that combines waiting for the call with injecting multiple results.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *RepositoryImpGetBuilder[T]) InjectResults(r0 T, r1 error) *RepositoryImpGetCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		return callToCheck.Name() == "Get"
@@ -265,6 +346,9 @@ func (bldr *RepositoryImpGetBuilder[T]) InjectResults(r0 T, r1 error) *Repositor
 	return methodCall
 }
 
+// InjectPanic waits for a Get call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *RepositoryImpGetBuilder[T]) InjectPanic(msg any) *RepositoryImpGetCall[T] {
 	validator := func(callToCheck *RepositoryImpCall[T]) bool {
 		return callToCheck.Name() == "Get"
@@ -276,16 +360,27 @@ func (bldr *RepositoryImpGetBuilder[T]) InjectPanic(msg any) *RepositoryImpGetCa
 	return methodCall
 }
 
+// RepositoryImpTimed provides timeout-configured expectation methods.
+// Access via RepositoryImp.Within(duration) to set a timeout for expectations.
 type RepositoryImpTimed[T any] struct {
 	ExpectCallIs *RepositoryImpExpectCallIs[T]
 }
 
+// Within configures a timeout for expectations and returns a RepositoryImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
 func (i *RepositoryImp[T]) Within(d time.Duration) *RepositoryImpTimed[T] {
 	return &RepositoryImpTimed[T]{
 		ExpectCallIs: &RepositoryImpExpectCallIs[T]{imp: i, timeout: d},
 	}
 }
 
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
 func (i *RepositoryImp[T]) GetCurrentCall() *RepositoryImpCall[T] {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -294,6 +389,15 @@ func (i *RepositoryImp[T]) GetCurrentCall() *RepositoryImpCall[T] {
 	return i.currentCall
 }
 
+// NewRepositoryImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewRepositoryImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
 func NewRepositoryImp[T any](t *testing.T) *RepositoryImp[T] {
 	imp := &RepositoryImp[T]{
 		Controller: imptest.NewController[*RepositoryImpCall[T]](t),

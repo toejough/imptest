@@ -27,13 +27,25 @@ import "time"
 {{end}}
 `)
 
-	mockStructTemplate = mustParse("mockStruct", `type {{.MockName}}{{.TypeParamsDecl}} struct {
+	mockStructTemplate = mustParse("mockStruct", `// {{.MockName}} provides the mock implementation of the interface.
+// Pass {{.MockName}} to code under test that expects the interface implementation.
+// Use the parent {{.ImpName}} controller to set expectations and inject responses.
+type {{.MockName}}{{.TypeParamsDecl}} struct {
 	imp *{{.ImpName}}{{.TypeParamsUse}}
 }
 
 `)
 
-	mainStructTemplate = mustParse("mainStruct", `type {{.ImpName}}{{.TypeParamsDecl}} struct {
+	mainStructTemplate = mustParse("mainStruct", `// {{.ImpName}} is the test controller for mocking the interface.
+// Create with New{{.ImpName}}(t), then use Mock field to get the mock implementation
+// and ExpectCallIs field to set expectations for method calls.
+//
+// Example:
+//
+//	imp := New{{.ImpName}}(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
+type {{.ImpName}}{{.TypeParamsDecl}} struct {
 	*imptest.Controller[*{{.CallName}}{{.TypeParamsUse}}]
 	Mock *{{.MockName}}{{.TypeParamsUse}}
 	ExpectCallIs *{{.ExpectCallIsName}}{{.TypeParamsUse}}
@@ -43,17 +55,28 @@ import "time"
 `)
 
 	expectCallIsStructTemplate = mustParse("expectCallIsStruct",
-		`type {{.ExpectCallIsName}}{{.TypeParamsDecl}} struct {
+		`// {{.ExpectCallIsName}} provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent {{.ImpName}} to configure timeouts.
+type {{.ExpectCallIsName}}{{.TypeParamsDecl}} struct {
 	imp *{{.ImpName}}{{.TypeParamsUse}}
 	timeout time.Duration
 }
 
 `)
 
-	timedStructTemplate = mustParse("timedStruct", `type {{.TimedName}}{{.TypeParamsDecl}} struct {
+	timedStructTemplate = mustParse("timedStruct", `// {{.TimedName}} provides timeout-configured expectation methods.
+// Access via {{.ImpName}}.Within(duration) to set a timeout for expectations.
+type {{.TimedName}}{{.TypeParamsDecl}} struct {
 	ExpectCallIs *{{.ExpectCallIsName}}{{.TypeParamsUse}}
 }
 
+// Within configures a timeout for expectations and returns a {{.TimedName}} for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
 func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}{{.TypeParamsUse}} {
 	return &{{.TimedName}}{{.TypeParamsUse}}{
 		ExpectCallIs: &{{.ExpectCallIsName}}{{.TypeParamsUse}}{imp: i, timeout: d},
@@ -63,7 +86,10 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 `)
 
 	getCurrentCallMethodTemplate = mustParse("getCurrentCallMethod",
-		`func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}}{{.TypeParamsUse}} {
+		`// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
+func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}}{{.TypeParamsUse}} {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
 	}
@@ -74,7 +100,16 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 `)
 
 	constructorTemplate = mustParse("constructor",
-		`func New{{.ImpName}}{{.TypeParamsDecl}}(t *testing.T) *{{.ImpName}}{{.TypeParamsUse}} {
+		`// New{{.ImpName}} creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := New{{.ImpName}}(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
+func New{{.ImpName}}{{.TypeParamsDecl}}(t *testing.T) *{{.ImpName}}{{.TypeParamsUse}} {
 	imp := &{{.ImpName}}{{.TypeParamsUse}}{
 		Controller: imptest.NewController[*{{.CallName}}{{.TypeParamsUse}}](t),
 	}
@@ -86,23 +121,34 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d time.Duration) *{{.TimedName}}
 `)
 
 	injectPanicMethodTemplate = mustParse("injectPanic",
-		`func (c *{{.MethodCallName}}{{.TypeParamsUse}}) InjectPanic(msg any) {
+		`// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *{{.MethodCallName}}{{.TypeParamsUse}}) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- {{.MethodCallName}}Response{{.TypeParamsUse}}{Type: "panic", PanicValue: msg}
 }
 `)
 
 	resolveMethodTemplate = mustParse("resolve",
-		`func (c *{{.MethodCallName}}{{.TypeParamsUse}}) Resolve() {
+		`// Resolve completes a void method call without error.
+// Use this to unblock the mock method and allow execution to continue.
+// Only applicable to methods with no return values.
+func (c *{{.MethodCallName}}{{.TypeParamsUse}}) Resolve() {
 	c.done = true
 	c.responseChan <- {{.MethodCallName}}Response{{.TypeParamsUse}}{Type: "resolve"}
 }
 `)
 
-	callStructTemplate = mustParse("callStruct", `type {{.CallName}}{{.TypeParamsDecl}} struct {
+	callStructTemplate = mustParse("callStruct", `// {{.CallName}} represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
+type {{.CallName}}{{.TypeParamsDecl}} struct {
 {{range .Methods}}	{{.Name}} *{{.CallName}}{{.TypeParamsUse}}
 {{end}}}
 
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
 func (c *{{.CallName}}{{.TypeParamsUse}}) Name() string {
 {{range .Methods}}	if c.{{.Name}} != nil {
 		return "{{.Name}}"
@@ -110,6 +156,8 @@ func (c *{{.CallName}}{{.TypeParamsUse}}) Name() string {
 {{end}}	return ""
 }
 
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
 func (c *{{.CallName}}{{.TypeParamsUse}}) Done() bool {
 {{range .Methods}}	if c.{{.Name}} != nil {
 		return c.{{.Name}}.done
@@ -117,7 +165,9 @@ func (c *{{.CallName}}{{.TypeParamsUse}}) Done() bool {
 {{end}}	return false
 }
 
-{{range .Methods}}func (c *{{$.CallName}}{{.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeParamsUse}} {
+{{range .Methods}}// As{{.Name}} returns the call cast to {{.CallName}} for accessing call details.
+// Returns nil if the call was not to {{.Name}}.
+func (c *{{$.CallName}}{{.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeParamsUse}} {
 	return c.{{.Name}}
 }
 
@@ -137,7 +187,10 @@ import (
 
 `)
 
-	callableMainStructTemplate = mustParse("callableMainStruct", `type {{.ImpName}}{{.TypeParamsDecl}} struct {
+	callableMainStructTemplate = mustParse("callableMainStruct", `// {{.ImpName}} wraps a callable function for testing.
+// Create with New{{.ImpName}}(t, yourFunction), call Start() to execute,
+// then use ExpectReturnedValuesAre/Should() or ExpectPanicWith() to verify behavior.
+type {{.ImpName}}{{.TypeParamsDecl}} struct {
 	*imptest.CallableController[{{.ReturnType}}]
 	callable func({{.CallableSignature}}){{.CallableReturns}}
 }
@@ -145,7 +198,14 @@ import (
 `)
 
 	callableConstructorTemplate = mustParse("callableConstructor",
-		`func New{{.ImpName}}{{.TypeParamsDecl}}(t testing.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
+		`// New{{.ImpName}} creates a new wrapper for testing the callable function.
+// Pass the function to test and a testing.TB to enable assertion failures.
+//
+// Example:
+//
+//	wrapper := New{{.ImpName}}(t, myFunction)
+//	wrapper.Start(args...).ExpectReturnedValuesAre(expectedVals...)
+func New{{.ImpName}}{{.TypeParamsDecl}}(t testing.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
 	return &{{.ImpName}}{{.TypeParamsUse}}{
 		CallableController: imptest.NewCallableController[{{.ReturnType}}](t),
 		callable:           callable,
@@ -155,14 +215,19 @@ import (
 `)
 
 	callableReturnStructTemplate = mustParse("callableReturnStruct",
-		`{{if .HasReturns}}type {{.ImpName}}Return{{.TypeParamsDecl}} struct {
+		`{{if .HasReturns}}// {{.ImpName}}Return holds the return values from the callable function.
+// Access individual return values via Result0, Result1, etc. fields.
+type {{.ImpName}}Return{{.TypeParamsDecl}} struct {
 {{range .ReturnFields}}	Result{{.Index}} {{.Type}}
 {{end}}}
 
 {{end}}`)
 
 	callableExpectPanicWithTemplate = mustParse("callableExpectPanicWith",
-		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectPanicWith(expected any) {
+		`// ExpectPanicWith asserts the callable panicked with a value matching the expectation.
+// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
+// Fails the test if the callable returned normally or panicked with a different value.
+func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectPanicWith(expected any) {
 	s.T.Helper()
 	s.WaitForResponse()
 
@@ -180,7 +245,10 @@ import (
 `)
 
 	callableResponseStructTemplate = mustParse("callableResponseStruct",
-		`type {{.ImpName}}Response{{.TypeParamsDecl}} struct {
+		`// {{.ImpName}}Response represents the response from the callable (either return or panic).
+// Check EventType to determine if the callable returned normally or panicked.
+// Use AsReturn() to get return values as a slice, or access PanicVal directly.
+type {{.ImpName}}Response{{.TypeParamsDecl}} struct {
 	EventType string // "return" or "panic"
 {{if .HasReturns}}	ReturnVal *{{.ImpName}}Return{{.TypeParamsUse}}
 {{end}}	PanicVal  any
@@ -189,14 +257,22 @@ import (
 `)
 
 	callableResponseTypeMethodTemplate = mustParse("callableResponseTypeMethod",
-		`func (r *{{.ImpName}}Response{{.TypeParamsUse}}) Type() string {
+		`// Type returns the event type: "return" for normal returns, "panic" for panics.
+func (r *{{.ImpName}}Response{{.TypeParamsUse}}) Type() string {
 	return r.EventType
 }
 
 `)
 
 	callableStartMethodTemplate = mustParse("callableStartMethod",
-		`func (s *{{.ImpName}}{{.TypeParamsUse}}) Start({{.CallableSignature}}) *{{.ImpName}}{{.TypeParamsUse}} {
+		`// Start begins execution of the callable in a goroutine with the provided arguments.
+// Returns the wrapper for method chaining with expectation methods.
+// Captures both normal returns and panics for verification.
+//
+// Example:
+//
+//	wrapper.Start(arg1, arg2).ExpectReturnedValuesAre(expectedResult)
+func (s *{{.ImpName}}{{.TypeParamsUse}}) Start({{.CallableSignature}}) *{{.ImpName}}{{.TypeParamsUse}} {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -217,7 +293,10 @@ import (
 `)
 
 	callableExpectReturnedValuesAreTemplate = mustParse("callableExpectReturnedValuesAre",
-		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesAre({{.ResultParams}}) {
+		`// ExpectReturnedValuesAre asserts the callable returned with exactly the specified values.
+// Fails the test if the values don't match exactly or if the callable panicked.
+// Uses == for comparison, so reference types must be the same instance.
+func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesAre({{.ResultParams}}) {
 	s.T.Helper()
 	s.WaitForResponse()
 
@@ -231,7 +310,10 @@ import (
 `)
 
 	callableExpectReturnedValuesShouldTemplate = mustParse("callableExpectReturnedValuesShould",
-		`func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesShould({{.ResultParamsAny}}) {
+		`// ExpectReturnedValuesShould asserts return values match the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Fails the test if any matcher fails or if the callable panicked.
+func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectReturnedValuesShould({{.ResultParamsAny}}) {
 	s.T.Helper()
 	s.WaitForResponse()
 
@@ -247,7 +329,10 @@ import (
 `)
 
 	callableGetResponseMethodTemplate = mustParse("callableGetResponseMethod",
-		`func (s *{{.ImpName}}{{.TypeParamsUse}}) GetResponse() *{{.ImpName}}Response{{.TypeParamsUse}} {
+		`// GetResponse waits for and returns the callable's response.
+// Use this when you need to inspect the response without asserting specific values.
+// The response indicates whether the callable returned or panicked.
+func (s *{{.ImpName}}{{.TypeParamsUse}}) GetResponse() *{{.ImpName}}Response{{.TypeParamsUse}} {
 	s.WaitForResponse()
 
 	if s.Returned != nil {
@@ -266,7 +351,9 @@ import (
 `)
 
 	callableAsReturnMethodTemplate = mustParse("callableAsReturnMethod",
-		`func (r *{{.ImpName}}Response{{.TypeParamsUse}}) AsReturn() []any {
+		`// AsReturn converts the return values to a slice of any for generic processing.
+// Returns nil if the response was a panic or if there are no return values.
+func (r *{{.ImpName}}Response{{.TypeParamsUse}}) AsReturn() []any {
 {{if .HasReturns}}	if r.ReturnVal == nil {
 		return nil
 	}

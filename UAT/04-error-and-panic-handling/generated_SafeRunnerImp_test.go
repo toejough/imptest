@@ -8,15 +8,27 @@ import (
 	"testing"
 )
 
+// SafeRunnerImpReturn holds the return values from the callable function.
+// Access individual return values via Result0, Result1, etc. fields.
 type SafeRunnerImpReturn struct {
 	Result0 bool
 }
 
+// SafeRunnerImp wraps a callable function for testing.
+// Create with NewSafeRunnerImp(t, yourFunction), call Start() to execute,
+// then use ExpectReturnedValuesAre/Should() or ExpectPanicWith() to verify behavior.
 type SafeRunnerImp struct {
 	*imptest.CallableController[SafeRunnerImpReturn]
 	callable func(dep safety.CriticalDependency) bool
 }
 
+// NewSafeRunnerImp creates a new wrapper for testing the callable function.
+// Pass the function to test and a testing.TB to enable assertion failures.
+//
+// Example:
+//
+//	wrapper := NewSafeRunnerImp(t, myFunction)
+//	wrapper.Start(args...).ExpectReturnedValuesAre(expectedVals...)
 func NewSafeRunnerImp(t testing.TB, callable func(dep safety.CriticalDependency) bool) *SafeRunnerImp {
 	return &SafeRunnerImp{
 		CallableController: imptest.NewCallableController[SafeRunnerImpReturn](t),
@@ -24,6 +36,13 @@ func NewSafeRunnerImp(t testing.TB, callable func(dep safety.CriticalDependency)
 	}
 }
 
+// Start begins execution of the callable in a goroutine with the provided arguments.
+// Returns the wrapper for method chaining with expectation methods.
+// Captures both normal returns and panics for verification.
+//
+// Example:
+//
+//	wrapper.Start(arg1, arg2).ExpectReturnedValuesAre(expectedResult)
 func (s *SafeRunnerImp) Start(dep safety.CriticalDependency) *SafeRunnerImp {
 	go func() {
 		defer func() {
@@ -40,6 +59,9 @@ func (s *SafeRunnerImp) Start(dep safety.CriticalDependency) *SafeRunnerImp {
 	return s
 }
 
+// ExpectReturnedValuesAre asserts the callable returned with exactly the specified values.
+// Fails the test if the values don't match exactly or if the callable panicked.
+// Uses == for comparison, so reference types must be the same instance.
 func (s *SafeRunnerImp) ExpectReturnedValuesAre(v1 bool) {
 	s.T.Helper()
 	s.WaitForResponse()
@@ -54,6 +76,9 @@ func (s *SafeRunnerImp) ExpectReturnedValuesAre(v1 bool) {
 	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
+// ExpectReturnedValuesShould asserts return values match the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Fails the test if any matcher fails or if the callable panicked.
 func (s *SafeRunnerImp) ExpectReturnedValuesShould(v1 any) {
 	s.T.Helper()
 	s.WaitForResponse()
@@ -71,6 +96,9 @@ func (s *SafeRunnerImp) ExpectReturnedValuesShould(v1 any) {
 	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
+// ExpectPanicWith asserts the callable panicked with a value matching the expectation.
+// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
+// Fails the test if the callable returned normally or panicked with a different value.
 func (s *SafeRunnerImp) ExpectPanicWith(expected any) {
 	s.T.Helper()
 	s.WaitForResponse()
@@ -86,16 +114,22 @@ func (s *SafeRunnerImp) ExpectPanicWith(expected any) {
 	s.T.Fatalf("expected function to panic, but it returned")
 }
 
+// SafeRunnerImpResponse represents the response from the callable (either return or panic).
+// Check EventType to determine if the callable returned normally or panicked.
+// Use AsReturn() to get return values as a slice, or access PanicVal directly.
 type SafeRunnerImpResponse struct {
 	EventType string // "return" or "panic"
 	ReturnVal *SafeRunnerImpReturn
 	PanicVal  any
 }
 
+// Type returns the event type: "return" for normal returns, "panic" for panics.
 func (r *SafeRunnerImpResponse) Type() string {
 	return r.EventType
 }
 
+// AsReturn converts the return values to a slice of any for generic processing.
+// Returns nil if the response was a panic or if there are no return values.
 func (r *SafeRunnerImpResponse) AsReturn() []any {
 	if r.ReturnVal == nil {
 		return nil
@@ -103,6 +137,9 @@ func (r *SafeRunnerImpResponse) AsReturn() []any {
 	return []any{r.ReturnVal.Result0}
 }
 
+// GetResponse waits for and returns the callable's response.
+// Use this when you need to inspect the response without asserting specific values.
+// The response indicates whether the callable returned or panicked.
 func (s *SafeRunnerImp) GetResponse() *SafeRunnerImpResponse {
 	s.WaitForResponse()
 

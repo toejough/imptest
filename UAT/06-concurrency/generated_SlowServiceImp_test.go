@@ -6,10 +6,22 @@ import "github.com/toejough/imptest/imptest"
 import "testing"
 import "time"
 
+// SlowServiceImpMock provides the mock implementation of the interface.
+// Pass SlowServiceImpMock to code under test that expects the interface implementation.
+// Use the parent SlowServiceImp controller to set expectations and inject responses.
 type SlowServiceImpMock struct {
 	imp *SlowServiceImp
 }
 
+// SlowServiceImp is the test controller for mocking the interface.
+// Create with NewSlowServiceImp(t), then use Mock field to get the mock implementation
+// and ExpectCallIs field to set expectations for method calls.
+//
+// Example:
+//
+//	imp := NewSlowServiceImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type SlowServiceImp struct {
 	*imptest.Controller[*SlowServiceImpCall]
 	Mock         *SlowServiceImpMock
@@ -17,48 +29,70 @@ type SlowServiceImp struct {
 	currentCall  *SlowServiceImpCall
 }
 
+// SlowServiceImpDoACall represents a captured call to the DoA method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type SlowServiceImpDoACall struct {
 	responseChan chan SlowServiceImpDoACallResponse
 	done         bool
 	id           int
 }
 
+// SlowServiceImpDoACallResponse holds the response configuration for the DoA method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type SlowServiceImpDoACallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    string
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *SlowServiceImpDoACall) InjectResult(result string) {
 	c.done = true
 	c.responseChan <- SlowServiceImpDoACallResponse{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *SlowServiceImpDoACall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- SlowServiceImpDoACallResponse{Type: "panic", PanicValue: msg}
 }
 
+// SlowServiceImpDoBCall represents a captured call to the DoB method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type SlowServiceImpDoBCall struct {
 	responseChan chan SlowServiceImpDoBCallResponse
 	done         bool
 	id           int
 }
 
+// SlowServiceImpDoBCallResponse holds the response configuration for the DoB method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type SlowServiceImpDoBCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    string
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *SlowServiceImpDoBCall) InjectResult(result string) {
 	c.done = true
 	c.responseChan <- SlowServiceImpDoBCallResponse{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *SlowServiceImpDoBCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- SlowServiceImpDoBCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// DoA implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *SlowServiceImpMock) DoA(id int) string {
 	responseChan := make(chan SlowServiceImpDoACallResponse, 1)
 
@@ -82,6 +116,8 @@ func (m *SlowServiceImpMock) DoA(id int) string {
 	return resp.Result0
 }
 
+// DoB implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *SlowServiceImpMock) DoB(id int) string {
 	responseChan := make(chan SlowServiceImpDoBCallResponse, 1)
 
@@ -105,11 +141,16 @@ func (m *SlowServiceImpMock) DoB(id int) string {
 	return resp.Result0
 }
 
+// SlowServiceImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
 type SlowServiceImpCall struct {
 	DoA *SlowServiceImpDoACall
 	DoB *SlowServiceImpDoBCall
 }
 
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
 func (c *SlowServiceImpCall) Name() string {
 	if c.DoA != nil {
 		return "DoA"
@@ -120,6 +161,8 @@ func (c *SlowServiceImpCall) Name() string {
 	return ""
 }
 
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
 func (c *SlowServiceImpCall) Done() bool {
 	if c.DoA != nil {
 		return c.DoA.done
@@ -130,28 +173,42 @@ func (c *SlowServiceImpCall) Done() bool {
 	return false
 }
 
+// AsDoA returns the call cast to SlowServiceImpDoACall for accessing call details.
+// Returns nil if the call was not to DoA.
 func (c *SlowServiceImpCall) AsDoA() *SlowServiceImpDoACall {
 	return c.DoA
 }
 
+// AsDoB returns the call cast to SlowServiceImpDoBCall for accessing call details.
+// Returns nil if the call was not to DoB.
 func (c *SlowServiceImpCall) AsDoB() *SlowServiceImpDoBCall {
 	return c.DoB
 }
 
+// SlowServiceImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent SlowServiceImp to configure timeouts.
 type SlowServiceImpExpectCallIs struct {
 	imp     *SlowServiceImp
 	timeout time.Duration
 }
 
+// SlowServiceImpDoABuilder provides a fluent API for setting expectations on DoA calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type SlowServiceImpDoABuilder struct {
 	imp     *SlowServiceImp
 	timeout time.Duration
 }
 
+// DoA returns a builder for setting expectations on DoA method calls.
 func (e *SlowServiceImpExpectCallIs) DoA() *SlowServiceImpDoABuilder {
 	return &SlowServiceImpDoABuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a DoA call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *SlowServiceImpDoABuilder) ExpectArgsAre(id int) *SlowServiceImpDoACall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		if callToCheck.Name() != "DoA" {
@@ -168,6 +225,10 @@ func (bldr *SlowServiceImpDoABuilder) ExpectArgsAre(id int) *SlowServiceImpDoACa
 	return call.AsDoA()
 }
 
+// ExpectArgsShould waits for a DoA call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *SlowServiceImpDoABuilder) ExpectArgsShould(id any) *SlowServiceImpDoACall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		if callToCheck.Name() != "DoA" {
@@ -186,6 +247,9 @@ func (bldr *SlowServiceImpDoABuilder) ExpectArgsShould(id any) *SlowServiceImpDo
 	return call.AsDoA()
 }
 
+// InjectResult waits for a DoA call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *SlowServiceImpDoABuilder) InjectResult(result string) *SlowServiceImpDoACall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		return callToCheck.Name() == "DoA"
@@ -197,6 +261,9 @@ func (bldr *SlowServiceImpDoABuilder) InjectResult(result string) *SlowServiceIm
 	return methodCall
 }
 
+// InjectPanic waits for a DoA call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *SlowServiceImpDoABuilder) InjectPanic(msg any) *SlowServiceImpDoACall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		return callToCheck.Name() == "DoA"
@@ -208,15 +275,22 @@ func (bldr *SlowServiceImpDoABuilder) InjectPanic(msg any) *SlowServiceImpDoACal
 	return methodCall
 }
 
+// SlowServiceImpDoBBuilder provides a fluent API for setting expectations on DoB calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type SlowServiceImpDoBBuilder struct {
 	imp     *SlowServiceImp
 	timeout time.Duration
 }
 
+// DoB returns a builder for setting expectations on DoB method calls.
 func (e *SlowServiceImpExpectCallIs) DoB() *SlowServiceImpDoBBuilder {
 	return &SlowServiceImpDoBBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a DoB call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *SlowServiceImpDoBBuilder) ExpectArgsAre(id int) *SlowServiceImpDoBCall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		if callToCheck.Name() != "DoB" {
@@ -233,6 +307,10 @@ func (bldr *SlowServiceImpDoBBuilder) ExpectArgsAre(id int) *SlowServiceImpDoBCa
 	return call.AsDoB()
 }
 
+// ExpectArgsShould waits for a DoB call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *SlowServiceImpDoBBuilder) ExpectArgsShould(id any) *SlowServiceImpDoBCall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		if callToCheck.Name() != "DoB" {
@@ -251,6 +329,9 @@ func (bldr *SlowServiceImpDoBBuilder) ExpectArgsShould(id any) *SlowServiceImpDo
 	return call.AsDoB()
 }
 
+// InjectResult waits for a DoB call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *SlowServiceImpDoBBuilder) InjectResult(result string) *SlowServiceImpDoBCall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		return callToCheck.Name() == "DoB"
@@ -262,6 +343,9 @@ func (bldr *SlowServiceImpDoBBuilder) InjectResult(result string) *SlowServiceIm
 	return methodCall
 }
 
+// InjectPanic waits for a DoB call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *SlowServiceImpDoBBuilder) InjectPanic(msg any) *SlowServiceImpDoBCall {
 	validator := func(callToCheck *SlowServiceImpCall) bool {
 		return callToCheck.Name() == "DoB"
@@ -273,16 +357,27 @@ func (bldr *SlowServiceImpDoBBuilder) InjectPanic(msg any) *SlowServiceImpDoBCal
 	return methodCall
 }
 
+// SlowServiceImpTimed provides timeout-configured expectation methods.
+// Access via SlowServiceImp.Within(duration) to set a timeout for expectations.
 type SlowServiceImpTimed struct {
 	ExpectCallIs *SlowServiceImpExpectCallIs
 }
 
+// Within configures a timeout for expectations and returns a SlowServiceImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
 func (i *SlowServiceImp) Within(d time.Duration) *SlowServiceImpTimed {
 	return &SlowServiceImpTimed{
 		ExpectCallIs: &SlowServiceImpExpectCallIs{imp: i, timeout: d},
 	}
 }
 
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
 func (i *SlowServiceImp) GetCurrentCall() *SlowServiceImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -291,6 +386,15 @@ func (i *SlowServiceImp) GetCurrentCall() *SlowServiceImpCall {
 	return i.currentCall
 }
 
+// NewSlowServiceImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewSlowServiceImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
 func NewSlowServiceImp(t *testing.T) *SlowServiceImp {
 	imp := &SlowServiceImp{
 		Controller: imptest.NewController[*SlowServiceImpCall](t),

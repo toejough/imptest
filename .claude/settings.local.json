@@ -36,7 +36,9 @@
       "Bash(go doc:*)",
       "mcp__gopls__go_search",
       "Bash(/tmp/impgen_new:*)",
-      "mcp__github__issue_read"
+      "mcp__github__issue_read",
+      "Bash(GOPACKAGE=basic_test /tmp/impgen_new Ops)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

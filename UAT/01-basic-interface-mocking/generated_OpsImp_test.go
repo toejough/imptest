@@ -7,10 +7,22 @@ import "reflect"
 import "testing"
 import "time"
 
+// OpsImpMock provides the mock implementation of the interface.
+// Pass OpsImpMock to code under test that expects the interface implementation.
+// Use the parent OpsImp controller to set expectations and inject responses.
 type OpsImpMock struct {
 	imp *OpsImp
 }
 
+// OpsImp is the test controller for mocking the interface.
+// Create with NewOpsImp(t), then use Mock field to get the mock implementation
+// and ExpectCallIs field to set expectations for method calls.
+//
+// Example:
+//
+//	imp := NewOpsImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type OpsImp struct {
 	*imptest.Controller[*OpsImpCall]
 	Mock         *OpsImpMock
@@ -18,6 +30,8 @@ type OpsImp struct {
 	currentCall  *OpsImpCall
 }
 
+// OpsImpAddCall represents a captured call to the Add method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type OpsImpAddCall struct {
 	responseChan chan OpsImpAddCallResponse
 	done         bool
@@ -25,21 +39,31 @@ type OpsImpAddCall struct {
 	b            int
 }
 
+// OpsImpAddCallResponse holds the response configuration for the Add method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type OpsImpAddCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    int
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *OpsImpAddCall) InjectResult(result int) {
 	c.done = true
 	c.responseChan <- OpsImpAddCallResponse{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *OpsImpAddCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- OpsImpAddCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// OpsImpStoreCall represents a captured call to the Store method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type OpsImpStoreCall struct {
 	responseChan chan OpsImpStoreCallResponse
 	done         bool
@@ -47,6 +71,8 @@ type OpsImpStoreCall struct {
 	value        any
 }
 
+// OpsImpStoreCallResponse holds the response configuration for the Store method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type OpsImpStoreCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    int
@@ -54,36 +80,55 @@ type OpsImpStoreCallResponse struct {
 	PanicValue any
 }
 
+// InjectResults sets the return values for this method call and unblocks the caller.
+// The mocked method will return the provided result values in order.
 func (c *OpsImpStoreCall) InjectResults(r0 int, r1 error) {
 	c.done = true
 	resp := OpsImpStoreCallResponse{Type: "return", Result0: r0, Result1: r1}
 	c.responseChan <- resp
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *OpsImpStoreCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- OpsImpStoreCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// OpsImpLogCall represents a captured call to the Log method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type OpsImpLogCall struct {
 	responseChan chan OpsImpLogCallResponse
 	done         bool
 	message      string
 }
 
+// OpsImpLogCallResponse holds the response configuration for the Log method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type OpsImpLogCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	PanicValue any
 }
 
+// Resolve completes a void method call without error.
+// Use this to unblock the mock method and allow execution to continue.
+// Only applicable to methods with no return values.
 func (c *OpsImpLogCall) Resolve() {
 	c.done = true
 	c.responseChan <- OpsImpLogCallResponse{Type: "resolve"}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *OpsImpLogCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- OpsImpLogCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// OpsImpNotifyCall represents a captured call to the Notify method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type OpsImpNotifyCall struct {
 	responseChan chan OpsImpNotifyCallResponse
 	done         bool
@@ -91,41 +136,61 @@ type OpsImpNotifyCall struct {
 	ids          []int
 }
 
+// OpsImpNotifyCallResponse holds the response configuration for the Notify method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type OpsImpNotifyCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    bool
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *OpsImpNotifyCall) InjectResult(result bool) {
 	c.done = true
 	c.responseChan <- OpsImpNotifyCallResponse{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *OpsImpNotifyCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- OpsImpNotifyCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// OpsImpFinishCall represents a captured call to the Finish method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
 type OpsImpFinishCall struct {
 	responseChan chan OpsImpFinishCallResponse
 	done         bool
 }
 
+// OpsImpFinishCallResponse holds the response configuration for the Finish method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type OpsImpFinishCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    bool
 	PanicValue any
 }
 
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
 func (c *OpsImpFinishCall) InjectResult(result bool) {
 	c.done = true
 	c.responseChan <- OpsImpFinishCallResponse{Type: "return", Result0: result}
 }
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
 func (c *OpsImpFinishCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- OpsImpFinishCallResponse{Type: "panic", PanicValue: msg}
 }
 
+// Add implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *OpsImpMock) Add(a int, b int) int {
 	responseChan := make(chan OpsImpAddCallResponse, 1)
 
@@ -150,6 +215,8 @@ func (m *OpsImpMock) Add(a int, b int) int {
 	return resp.Result0
 }
 
+// Store implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *OpsImpMock) Store(key string, value any) (int, error) {
 	responseChan := make(chan OpsImpStoreCallResponse, 1)
 
@@ -174,6 +241,8 @@ func (m *OpsImpMock) Store(key string, value any) (int, error) {
 	return resp.Result0, resp.Result1
 }
 
+// Log implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *OpsImpMock) Log(message string) {
 	responseChan := make(chan OpsImpLogCallResponse, 1)
 
@@ -197,6 +266,8 @@ func (m *OpsImpMock) Log(message string) {
 	return
 }
 
+// Notify implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *OpsImpMock) Notify(message string, ids ...int) bool {
 	responseChan := make(chan OpsImpNotifyCallResponse, 1)
 
@@ -221,6 +292,8 @@ func (m *OpsImpMock) Notify(message string, ids ...int) bool {
 	return resp.Result0
 }
 
+// Finish implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
 func (m *OpsImpMock) Finish() bool {
 	responseChan := make(chan OpsImpFinishCallResponse, 1)
 
@@ -243,6 +316,9 @@ func (m *OpsImpMock) Finish() bool {
 	return resp.Result0
 }
 
+// OpsImpCall represents a captured call to any method.
+// Only one method field is non-nil at a time, indicating which method was called.
+// Use Name() to identify the method and As{Method}() to access typed call details.
 type OpsImpCall struct {
 	Add    *OpsImpAddCall
 	Store  *OpsImpStoreCall
@@ -251,6 +327,8 @@ type OpsImpCall struct {
 	Finish *OpsImpFinishCall
 }
 
+// Name returns the name of the method that was called.
+// Returns an empty string if the call struct is invalid.
 func (c *OpsImpCall) Name() string {
 	if c.Add != nil {
 		return "Add"
@@ -270,6 +348,8 @@ func (c *OpsImpCall) Name() string {
 	return ""
 }
 
+// Done returns true if the call has been completed (response injected).
+// Used internally to track call state.
 func (c *OpsImpCall) Done() bool {
 	if c.Add != nil {
 		return c.Add.done
@@ -289,40 +369,60 @@ func (c *OpsImpCall) Done() bool {
 	return false
 }
 
+// AsAdd returns the call cast to OpsImpAddCall for accessing call details.
+// Returns nil if the call was not to Add.
 func (c *OpsImpCall) AsAdd() *OpsImpAddCall {
 	return c.Add
 }
 
+// AsStore returns the call cast to OpsImpStoreCall for accessing call details.
+// Returns nil if the call was not to Store.
 func (c *OpsImpCall) AsStore() *OpsImpStoreCall {
 	return c.Store
 }
 
+// AsLog returns the call cast to OpsImpLogCall for accessing call details.
+// Returns nil if the call was not to Log.
 func (c *OpsImpCall) AsLog() *OpsImpLogCall {
 	return c.Log
 }
 
+// AsNotify returns the call cast to OpsImpNotifyCall for accessing call details.
+// Returns nil if the call was not to Notify.
 func (c *OpsImpCall) AsNotify() *OpsImpNotifyCall {
 	return c.Notify
 }
 
+// AsFinish returns the call cast to OpsImpFinishCall for accessing call details.
+// Returns nil if the call was not to Finish.
 func (c *OpsImpCall) AsFinish() *OpsImpFinishCall {
 	return c.Finish
 }
 
+// OpsImpExpectCallIs provides methods to set expectations for specific method calls.
+// Each method returns a builder for fluent expectation configuration.
+// Use Within() on the parent OpsImp to configure timeouts.
 type OpsImpExpectCallIs struct {
 	imp     *OpsImp
 	timeout time.Duration
 }
 
+// OpsImpAddBuilder provides a fluent API for setting expectations on Add calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpAddBuilder struct {
 	imp     *OpsImp
 	timeout time.Duration
 }
 
+// Add returns a builder for setting expectations on Add method calls.
 func (e *OpsImpExpectCallIs) Add() *OpsImpAddBuilder {
 	return &OpsImpAddBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Add call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *OpsImpAddBuilder) ExpectArgsAre(a int, b int) *OpsImpAddCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Add" {
@@ -342,6 +442,10 @@ func (bldr *OpsImpAddBuilder) ExpectArgsAre(a int, b int) *OpsImpAddCall {
 	return call.AsAdd()
 }
 
+// ExpectArgsShould waits for a Add call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *OpsImpAddBuilder) ExpectArgsShould(a any, b any) *OpsImpAddCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Add" {
@@ -364,6 +468,9 @@ func (bldr *OpsImpAddBuilder) ExpectArgsShould(a any, b any) *OpsImpAddCall {
 	return call.AsAdd()
 }
 
+// InjectResult waits for a Add call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *OpsImpAddBuilder) InjectResult(result int) *OpsImpAddCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Add"
@@ -375,6 +482,9 @@ func (bldr *OpsImpAddBuilder) InjectResult(result int) *OpsImpAddCall {
 	return methodCall
 }
 
+// InjectPanic waits for a Add call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *OpsImpAddBuilder) InjectPanic(msg any) *OpsImpAddCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Add"
@@ -386,15 +496,22 @@ func (bldr *OpsImpAddBuilder) InjectPanic(msg any) *OpsImpAddCall {
 	return methodCall
 }
 
+// OpsImpStoreBuilder provides a fluent API for setting expectations on Store calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpStoreBuilder struct {
 	imp     *OpsImp
 	timeout time.Duration
 }
 
+// Store returns a builder for setting expectations on Store method calls.
 func (e *OpsImpExpectCallIs) Store() *OpsImpStoreBuilder {
 	return &OpsImpStoreBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Store call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *OpsImpStoreBuilder) ExpectArgsAre(key string, value any) *OpsImpStoreCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Store" {
@@ -414,6 +531,10 @@ func (bldr *OpsImpStoreBuilder) ExpectArgsAre(key string, value any) *OpsImpStor
 	return call.AsStore()
 }
 
+// ExpectArgsShould waits for a Store call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *OpsImpStoreBuilder) ExpectArgsShould(key any, value any) *OpsImpStoreCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Store" {
@@ -436,6 +557,9 @@ func (bldr *OpsImpStoreBuilder) ExpectArgsShould(key any, value any) *OpsImpStor
 	return call.AsStore()
 }
 
+// InjectResults waits for a Store call and immediately injects the return values.
+// This is a shortcut that combines waiting for the call with injecting multiple results.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *OpsImpStoreBuilder) InjectResults(r0 int, r1 error) *OpsImpStoreCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Store"
@@ -447,6 +571,9 @@ func (bldr *OpsImpStoreBuilder) InjectResults(r0 int, r1 error) *OpsImpStoreCall
 	return methodCall
 }
 
+// InjectPanic waits for a Store call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *OpsImpStoreBuilder) InjectPanic(msg any) *OpsImpStoreCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Store"
@@ -458,15 +585,22 @@ func (bldr *OpsImpStoreBuilder) InjectPanic(msg any) *OpsImpStoreCall {
 	return methodCall
 }
 
+// OpsImpLogBuilder provides a fluent API for setting expectations on Log calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpLogBuilder struct {
 	imp     *OpsImp
 	timeout time.Duration
 }
 
+// Log returns a builder for setting expectations on Log method calls.
 func (e *OpsImpExpectCallIs) Log() *OpsImpLogBuilder {
 	return &OpsImpLogBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Log call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *OpsImpLogBuilder) ExpectArgsAre(message string) *OpsImpLogCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Log" {
@@ -483,6 +617,10 @@ func (bldr *OpsImpLogBuilder) ExpectArgsAre(message string) *OpsImpLogCall {
 	return call.AsLog()
 }
 
+// ExpectArgsShould waits for a Log call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *OpsImpLogBuilder) ExpectArgsShould(message any) *OpsImpLogCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Log" {
@@ -501,6 +639,9 @@ func (bldr *OpsImpLogBuilder) ExpectArgsShould(message any) *OpsImpLogCall {
 	return call.AsLog()
 }
 
+// Resolve waits for a Log call and immediately completes it without error.
+// This is a shortcut that combines waiting for the call with resolving it.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *OpsImpLogBuilder) Resolve() *OpsImpLogCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Log"
@@ -512,6 +653,9 @@ func (bldr *OpsImpLogBuilder) Resolve() *OpsImpLogCall {
 	return methodCall
 }
 
+// InjectPanic waits for a Log call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *OpsImpLogBuilder) InjectPanic(msg any) *OpsImpLogCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Log"
@@ -523,15 +667,22 @@ func (bldr *OpsImpLogBuilder) InjectPanic(msg any) *OpsImpLogCall {
 	return methodCall
 }
 
+// OpsImpNotifyBuilder provides a fluent API for setting expectations on Notify calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpNotifyBuilder struct {
 	imp     *OpsImp
 	timeout time.Duration
 }
 
+// Notify returns a builder for setting expectations on Notify method calls.
 func (e *OpsImpExpectCallIs) Notify() *OpsImpNotifyBuilder {
 	return &OpsImpNotifyBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// ExpectArgsAre waits for a Notify call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *OpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *OpsImpNotifyCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Notify" {
@@ -551,6 +702,10 @@ func (bldr *OpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *OpsI
 	return call.AsNotify()
 }
 
+// ExpectArgsShould waits for a Notify call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
 func (bldr *OpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *OpsImpNotifyCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		if callToCheck.Name() != "Notify" {
@@ -573,6 +728,9 @@ func (bldr *OpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *OpsImpN
 	return call.AsNotify()
 }
 
+// InjectResult waits for a Notify call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *OpsImpNotifyBuilder) InjectResult(result bool) *OpsImpNotifyCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Notify"
@@ -584,6 +742,9 @@ func (bldr *OpsImpNotifyBuilder) InjectResult(result bool) *OpsImpNotifyCall {
 	return methodCall
 }
 
+// InjectPanic waits for a Notify call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *OpsImpNotifyBuilder) InjectPanic(msg any) *OpsImpNotifyCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Notify"
@@ -595,15 +756,21 @@ func (bldr *OpsImpNotifyBuilder) InjectPanic(msg any) *OpsImpNotifyCall {
 	return methodCall
 }
 
+// OpsImpFinishBuilder provides a fluent API for setting expectations on Finish calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpFinishBuilder struct {
 	imp     *OpsImp
 	timeout time.Duration
 }
 
+// Finish returns a builder for setting expectations on Finish method calls.
 func (e *OpsImpExpectCallIs) Finish() *OpsImpFinishBuilder {
 	return &OpsImpFinishBuilder{imp: e.imp, timeout: e.timeout}
 }
 
+// InjectResult waits for a Finish call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *OpsImpFinishBuilder) InjectResult(result bool) *OpsImpFinishCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Finish"
@@ -615,6 +782,9 @@ func (bldr *OpsImpFinishBuilder) InjectResult(result bool) *OpsImpFinishCall {
 	return methodCall
 }
 
+// InjectPanic waits for a Finish call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *OpsImpFinishBuilder) InjectPanic(msg any) *OpsImpFinishCall {
 	validator := func(callToCheck *OpsImpCall) bool {
 		return callToCheck.Name() == "Finish"
@@ -626,16 +796,27 @@ func (bldr *OpsImpFinishBuilder) InjectPanic(msg any) *OpsImpFinishCall {
 	return methodCall
 }
 
+// OpsImpTimed provides timeout-configured expectation methods.
+// Access via OpsImp.Within(duration) to set a timeout for expectations.
 type OpsImpTimed struct {
 	ExpectCallIs *OpsImpExpectCallIs
 }
 
+// Within configures a timeout for expectations and returns a OpsImpTimed for method chaining.
+// The timeout applies to subsequent expectation calls.
+//
+// Example:
+//
+//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
 func (i *OpsImp) Within(d time.Duration) *OpsImpTimed {
 	return &OpsImpTimed{
 		ExpectCallIs: &OpsImpExpectCallIs{imp: i, timeout: d},
 	}
 }
 
+// GetCurrentCall returns the current call being processed.
+// If no call is pending, waits indefinitely for the next call.
+// Returns the existing current call if it hasn't been completed yet.
 func (i *OpsImp) GetCurrentCall() *OpsImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
@@ -644,6 +825,15 @@ func (i *OpsImp) GetCurrentCall() *OpsImpCall {
 	return i.currentCall
 }
 
+// NewOpsImp creates a new test controller for mocking the interface.
+// The returned controller manages mock expectations and response injection.
+// Pass t to enable automatic test failure on unexpected calls or timeouts.
+//
+// Example:
+//
+//	imp := NewOpsImp(t)
+//	go codeUnderTest(imp.Mock)
+//	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
 func NewOpsImp(t *testing.T) *OpsImp {
 	imp := &OpsImp{
 		Controller: imptest.NewController[*OpsImpCall](t),
