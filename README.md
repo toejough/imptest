@@ -181,6 +181,173 @@ go generate ./...
 - **More Examples**: See the [UAT](https://github.com/toejough/imptest/tree/main/UAT) directory for comprehensive examples
 - **How It Works**: imptest generates mocks that communicate via channels, enabling interactive test control of even asynchronous function behavior
 
+## Comparison with Traditional Testing Approaches
+
+Let's test a function that processes user data by calling an external service. Here's how different testing approaches compare:
+
+**The Function Under Test:**
+```go
+func ProcessUser(svc ExternalService, userID int) (string, error) {
+    data, err := svc.FetchData(userID)
+    if err != nil {
+        return "", err
+    }
+    return svc.Process(data), nil
+}
+```
+
+### Approach 1: Basic Go Testing
+
+```go
+func TestProcessUser_Basic(t *testing.T) {
+    // ❌ Problem: Must write a complete mock implementation by hand
+    mock := &MockService{
+        fetchResult: "test data",
+        processResult: "processed",
+    }
+
+    result, err := ProcessUser(mock, 42)
+
+    // ❌ Problem: Manual assertions, verbose error messages
+    if err != nil {
+        t.Fatalf("expected no error, got %v", err)
+    }
+    if result != "processed" {
+        t.Fatalf("expected 'processed', got '%s'", result)
+    }
+    // ❌ Problem: Can't verify FetchData was called with correct args
+}
+```
+
+### Approach 2: Using testify
+
+```go
+import "github.com/stretchr/testify/assert"
+
+func TestProcessUser_Testify(t *testing.T) {
+    // ❌ Still need to write mock implementation
+    mock := &MockService{
+        fetchResult: "test data",
+        processResult: "processed",
+    }
+
+    result, err := ProcessUser(mock, 42)
+
+    // ✅ Better: Cleaner assertions
+    assert.NoError(t, err)
+    assert.Equal(t, "processed", result)
+
+    // ❌ Problem: Still can't verify mock interactions easily
+}
+```
+
+### Approach 3: Using gomega (BDD-style)
+
+```go
+import . "github.com/onsi/gomega"
+
+func TestProcessUser_Gomega(t *testing.T) {
+    RegisterTestingT(t)
+
+    // ❌ Still need manual mock
+    mock := &MockService{
+        fetchResult: "test data",
+        processResult: "processed",
+    }
+
+    result, err := ProcessUser(mock, 42)
+
+    // ✅ Better: Expressive matchers
+    Expect(err).NotTo(HaveOccurred())
+    Expect(result).To(Equal("processed"))
+
+    // ❌ Problem: Can't control mock behavior per-call
+}
+```
+
+### Approach 4: Using imptest
+
+**For simple return value assertions (without dependencies):**
+
+```go
+//go:generate impgen Add
+
+func Add(a, b int) int {
+    return a + b
+}
+
+func TestAdd_Simple(t *testing.T) {
+    t.Parallel()
+
+    // ✅ Wrap function and validate returns in one go
+    NewAddImp(t, Add).Start(2, 3).ExpectReturnedValuesAre(5)
+}
+```
+
+**For testing with dependencies:**
+
+```go
+//go:generate impgen ExternalService
+//go:generate impgen ProcessUser
+
+func TestProcessUser_Imptest(t *testing.T) {
+    t.Parallel()
+
+    // ✅ Generated mock, no manual implementation
+    svc := NewExternalServiceImp(t)
+
+    // ✅ Wrap function for return value validation
+    processImp := NewProcessUserImp(t, ProcessUser).Start(svc.Mock, 42)
+
+    // ✅ Interactive control: expect calls and inject responses
+    svc.ExpectCallIs.FetchData().ExpectArgsAre(42).InjectResults("test data", nil)
+    svc.ExpectCallIs.Process().ExpectArgsAre("test data").InjectResult("processed")
+
+    // ✅ Validate return values (can use gomega matchers too!)
+    processImp.ExpectReturnedValuesAre("processed", nil)
+}
+```
+
+**Key Differences:**
+
+| Feature | Basic Go | testify | gomega | imptest |
+|---------|----------|---------|---------|---------|
+| **Clean Assertions** | ❌ Verbose | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Auto-Generated Mocks** | ❌ Manual | ❌ Manual | ❌ Manual | ✅ Yes |
+| **Verify Call Order** | ❌ Hard | ⚠️ Possible | ⚠️ Possible | ✅ Built-in |
+| **Verify Call Args** | ❌ Hard | ⚠️ Possible | ⚠️ Possible | ✅ Type-safe |
+| **Interactive Control** | ❌ No | ❌ No | ❌ No | ✅ Yes |
+| **Concurrent Testing** | ❌ Hard | ❌ Hard | ❌ Hard | ✅ Built-in |
+| **Return Validation** | ✅ Manual | ✅ Library | ✅ Matchers | ✅ Wrappers + Matchers |
+
+**When to Use Each:**
+
+- **testify/gomega**: Testing pure functions, validating outputs, general assertions
+- **imptest**: Testing impure functions that coordinate with dependencies, especially when:
+  - You need to verify how dependencies are called
+  - Dependencies are called in a specific order
+  - You want to inject different responses per call
+  - You're testing concurrent or async behavior
+
+**Best Together:** Use imptest for coordination logic, testify/gomega for assertions!
+
+```go
+func TestComplexFlow(t *testing.T) {
+    svc := NewExternalServiceImp(t)
+    processImp := NewProcessUserImp(t, ProcessUser).Start(svc.Mock, 42)
+
+    // imptest: Control dependencies
+    svc.ExpectCallIs.FetchData().ExpectArgsAre(42).InjectResults("test", nil)
+    svc.ExpectCallIs.Process().ExpectArgsAre("test").InjectResult("result")
+
+    // gomega: Validate outputs
+    processImp.ExpectReturnedValuesShould(
+        ContainSubstring("result"),
+        BeNil(),
+    )
+}
+```
+
 ## Why imptest?
 
 **Traditional mocking libraries** require you to:
