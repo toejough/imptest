@@ -301,7 +301,7 @@ func TestAdd_Simple(t *testing.T) {
 **Key Differences:**
 
 | Feature | Basic Go | others | imptest |
-|---------|----------|---------|---------|---------|
+|---------|----------|---------|---------|
 | **Clean Assertions** | ❌ Verbose | ✅ Yes | ✅ Yes |
 | **Auto-Generated Mocks** | ❌ No | ✅ Yes | ✅ Yes |
 | **Verify Call Order** | ❌ Manual | ❌ Complex | ✅ Easy |
