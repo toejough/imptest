@@ -62,6 +62,22 @@ func (g *callableGenerator) buildReturnFieldData(returnVars []string) []returnFi
 	return fields
 }
 
+// checkIfReflectNeeded scans return types and sets needsReflect if any are non-comparable.
+// This must be called before generating templates to ensure the reflect import is included.
+func (g *callableGenerator) checkIfReflectNeeded(funcType *dst.FuncType) {
+	if !hasResults(funcType) {
+		return
+	}
+
+	results := extractResults(g.fset, funcType)
+	for _, result := range results {
+		if !isComparableExpr(result.Field.Type, g.typesInfo) {
+			g.needsReflect = true
+			return
+		}
+	}
+}
+
 // extendedTemplateData returns template data with dynamic signature info.
 // The result is cached after the first call to avoid redundant struct construction.
 func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData {
@@ -262,22 +278,6 @@ func (g *callableGenerator) writeParamsWithQualifiersTo(buf *strings.Builder) {
 		}
 
 		buf.WriteString(g.typeWithQualifier(field.Type))
-	}
-}
-
-// checkIfReflectNeeded scans return types and sets needsReflect if any are non-comparable.
-// This must be called before generating templates to ensure the reflect import is included.
-func (g *callableGenerator) checkIfReflectNeeded(funcType *dst.FuncType) {
-	if !hasResults(funcType) {
-		return
-	}
-
-	results := extractResults(g.fset, funcType)
-	for _, result := range results {
-		if !isComparableExpr(result.Field.Type, g.typesInfo) {
-			g.needsReflect = true
-			return
-		}
 	}
 }
 

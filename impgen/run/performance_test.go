@@ -10,34 +10,49 @@ import (
 	"github.com/toejough/imptest/impgen/run"
 )
 
-// Helper functions for benchmarks.
-func mustFindProjectRoot(b *testing.B) string {
-	b.Helper()
+// BenchmarkCallableGeneration measures the performance of generating a simple callable.
+// This benchmark establishes a baseline for callable template data construction and execution.
+func BenchmarkCallableGeneration(b *testing.B) {
+	projectRoot := mustFindProjectRoot(b)
+	scenarioDir := filepath.Join(projectRoot, "UAT", "01-basic-interface-mocking")
 
-	cfs := realCacheFS{}
-
-	projectRoot, err := run.FindProjectRoot(cfs)
-	if err != nil {
-		b.Fatalf("failed to find project root: %v", err)
+	loader := &testPackageLoader{
+		ProjectRoot: projectRoot,
+		ScenarioDir: scenarioDir,
 	}
 
-	return projectRoot
-}
-
-func mustGetCwd(b *testing.B) string {
-	b.Helper()
-
-	cwd, err := os.Getwd()
+	// Warm up the package loader cache
+	_, _, _, err := loader.Load(scenarioDir) //nolint:dogsled // Only checking for error during warmup
 	if err != nil {
-		b.Fatalf("failed to get current directory: %v", err)
+		b.Fatalf("failed to load package: %v", err)
 	}
 
-	return cwd
-}
+	for b.Loop() {
+		var buf bytes.Buffer
 
-func mustChdir(b *testing.B, dir string) {
-	b.Helper()
-	b.Chdir(dir)
+		// Simulate the generation by calling Run with the PerformOps callable
+		args := []string{"impgen", "PerformOps"}
+		getEnv := func(key string) string {
+			if key == "GOPACKAGE" {
+				return "basic"
+			}
+
+			return ""
+		}
+
+		fileSystem := &discardFileSystem{}
+
+		// Change to scenario dir
+		oldCwd := mustGetCwd(b)
+		mustChdir(b, scenarioDir)
+
+		err := run.Run(args, getEnv, fileSystem, loader, &buf)
+		if err != nil {
+			b.Fatalf("Run failed: %v", err)
+		}
+
+		mustChdir(b, oldCwd)
+	}
 }
 
 // BenchmarkInterfaceGeneration measures the performance of generating a simple interface.
@@ -85,51 +100,6 @@ func BenchmarkInterfaceGeneration(b *testing.B) {
 	}
 }
 
-// BenchmarkCallableGeneration measures the performance of generating a simple callable.
-// This benchmark establishes a baseline for callable template data construction and execution.
-func BenchmarkCallableGeneration(b *testing.B) {
-	projectRoot := mustFindProjectRoot(b)
-	scenarioDir := filepath.Join(projectRoot, "UAT", "01-basic-interface-mocking")
-
-	loader := &testPackageLoader{
-		ProjectRoot: projectRoot,
-		ScenarioDir: scenarioDir,
-	}
-
-	// Warm up the package loader cache
-	_, _, _, err := loader.Load(scenarioDir) //nolint:dogsled // Only checking for error during warmup
-	if err != nil {
-		b.Fatalf("failed to load package: %v", err)
-	}
-
-	for b.Loop() {
-		var buf bytes.Buffer
-
-		// Simulate the generation by calling Run with the PerformOps callable
-		args := []string{"impgen", "PerformOps"}
-		getEnv := func(key string) string {
-			if key == "GOPACKAGE" {
-				return "basic"
-			}
-
-			return ""
-		}
-
-		fileSystem := &discardFileSystem{}
-
-		// Change to scenario dir
-		oldCwd := mustGetCwd(b)
-		mustChdir(b, scenarioDir)
-
-		err := run.Run(args, getEnv, fileSystem, loader, &buf)
-		if err != nil {
-			b.Fatalf("Run failed: %v", err)
-		}
-
-		mustChdir(b, oldCwd)
-	}
-}
-
 // discardFileSystem implements run.FileSystem, discarding all writes.
 type discardFileSystem struct{}
 
@@ -144,4 +114,34 @@ func (d *discardFileSystem) ReadFile(_ string) ([]byte, error) {
 func (d *discardFileSystem) WriteFile(_ string, _ []byte, _ os.FileMode) error {
 	// Discard the write
 	return nil
+}
+
+func mustChdir(b *testing.B, dir string) {
+	b.Helper()
+	b.Chdir(dir)
+}
+
+// Helper functions for benchmarks.
+func mustFindProjectRoot(b *testing.B) string {
+	b.Helper()
+
+	cfs := realCacheFS{}
+
+	projectRoot, err := run.FindProjectRoot(cfs)
+	if err != nil {
+		b.Fatalf("failed to find project root: %v", err)
+	}
+
+	return projectRoot
+}
+
+func mustGetCwd(b *testing.B) string {
+	b.Helper()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		b.Fatalf("failed to get current directory: %v", err)
+	}
+
+	return cwd
 }

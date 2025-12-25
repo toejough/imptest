@@ -449,103 +449,6 @@ func exprToString(_ *token.FileSet, expr dst.Expr) string {
 	return stringifyDSTExpr(expr)
 }
 
-// stringifyDSTExpr converts a DST expression to its string representation.
-//
-//nolint:cyclop,funlen // Type-switch dispatcher handling all DST expression types; complexity is inherent
-func stringifyDSTExpr(expr dst.Expr) string {
-	if expr == nil {
-		return ""
-	}
-
-	switch typedExpr := expr.(type) {
-	case *dst.Ident:
-		return typedExpr.Name
-	case *dst.BasicLit:
-		return typedExpr.Value
-	case *dst.SelectorExpr:
-		return stringifyDSTExpr(typedExpr.X) + "." + typedExpr.Sel.Name
-	case *dst.StarExpr:
-		return "*" + stringifyDSTExpr(typedExpr.X)
-	case *dst.ArrayType:
-		if typedExpr.Len != nil {
-			return "[" + stringifyDSTExpr(typedExpr.Len) + "]" + stringifyDSTExpr(typedExpr.Elt)
-		}
-
-		return "[]" + stringifyDSTExpr(typedExpr.Elt)
-	case *dst.MapType:
-		return "map[" + stringifyDSTExpr(typedExpr.Key) + "]" + stringifyDSTExpr(typedExpr.Value)
-	case *dst.ChanType:
-		switch typedExpr.Dir {
-		case dst.SEND:
-			return "chan<- " + stringifyDSTExpr(typedExpr.Value)
-		case dst.RECV:
-			return "<-chan " + stringifyDSTExpr(typedExpr.Value)
-		default:
-			return "chan " + stringifyDSTExpr(typedExpr.Value)
-		}
-	case *dst.FuncType:
-		return stringifyFuncType(typedExpr)
-	case *dst.InterfaceType:
-		return "interface{}"
-	case *dst.StructType:
-		return "struct{}"
-	case *dst.Ellipsis:
-		return "..." + stringifyDSTExpr(typedExpr.Elt)
-	case *dst.IndexExpr:
-		return stringifyDSTExpr(typedExpr.X) + "[" + stringifyDSTExpr(typedExpr.Index) + "]"
-	case *dst.IndexListExpr:
-		indices := make([]string, len(typedExpr.Indices))
-		for i, idx := range typedExpr.Indices {
-			indices[i] = stringifyDSTExpr(idx)
-		}
-
-		return stringifyDSTExpr(typedExpr.X) + "[" + strings.Join(indices, ", ") + "]"
-	case *dst.ParenExpr:
-		return "(" + stringifyDSTExpr(typedExpr.X) + ")"
-	default:
-		return fmt.Sprintf("%T", expr)
-	}
-}
-
-// stringifyFuncType converts a function type to string.
-func stringifyFuncType(funcType *dst.FuncType) string {
-	var buf strings.Builder
-	buf.WriteString("func")
-
-	if funcType.Params != nil {
-		buf.WriteString("(")
-		buf.WriteString(stringifyFieldList(funcType.Params))
-		buf.WriteString(")")
-	}
-
-	if funcType.Results != nil {
-		if len(funcType.Results.List) > 1 {
-			buf.WriteString(" (")
-			buf.WriteString(stringifyFieldList(funcType.Results))
-			buf.WriteString(")")
-		} else if len(funcType.Results.List) == 1 {
-			buf.WriteString(" ")
-			buf.WriteString(stringifyFieldList(funcType.Results))
-		}
-	}
-
-	return buf.String()
-}
-
-// stringifyFieldList converts a field list to string.
-func stringifyFieldList(fieldList *dst.FieldList) string {
-	if fieldList == nil || len(fieldList.List) == 0 {
-		return ""
-	}
-
-	parts := make([]string, 0, len(fieldList.List))
-	for _, field := range fieldList.List {
-		parts = append(parts, stringifyDSTExpr(field.Type))
-	}
-
-	return strings.Join(parts, ", ")
-}
-
 // extractFields extracts all individual fields from a field list.
 // For unnamed fields, generates names using the provided prefix and index.
 // For named fields with multiple names, creates separate entries for each.
@@ -700,14 +603,6 @@ func generateResultVarNames(count int, prefix string) []string {
 	return names
 }
 
-// getTimePath returns the import path for the stdlib time package used by Within() method.
-// This is always "time" (stdlib) since the NeedsQualifier section handles local "time" packages separately.
-func getTimePath(_, _ string) string {
-	// Always return stdlib "time" - it's needed for time.Duration in Within() method
-	// The local "time" package (if any) is handled by NeedsQualifier import
-	return "time"
-}
-
 // getStdlibAlias returns the alias to use for a stdlib package if there's a conflict
 // with the user's package qualifier. Returns empty string if no conflict.
 // For example, if the user has a package named "time", we alias the stdlib time as "_time".
@@ -717,6 +612,14 @@ func getStdlibAlias(qualifier, stdlibPkgName string) string {
 	}
 
 	return ""
+}
+
+// getTimePath returns the import path for the stdlib time package used by Within() method.
+// This is always "time" (stdlib) since the NeedsQualifier section handles local "time" packages separately.
+func getTimePath(_, _ string) string {
+	// Always return stdlib "time" - it's needed for time.Duration in Within() method
+	// The local "time" package (if any) is handled by NeedsQualifier import
+	return "time"
 }
 
 // hasExportedIdent checks if an expression contains an exported identifier.
@@ -754,30 +657,6 @@ func hasParams(ftype *dst.FuncType) bool {
 // hasResults returns true if the function type has return values.
 func hasResults(ftype *dst.FuncType) bool {
 	return ftype.Results != nil && len(ftype.Results.List) > 0
-}
-
-// isBuiltinType checks if a type name is a Go builtin.
-//
-//nolint:goconst // Using literal type names for clarity in type checking
-func isBuiltinType(name string) bool {
-	switch name {
-	case "bool", "byte", "complex64", "complex128",
-		"error", "float32", "float64", "int",
-		"int8", "int16", "int32", "int64",
-		"rune", "string", "uint", "uint8",
-		"uint16", "uint32", "uint64", "uintptr",
-		anyTypeString:
-		return true
-	}
-
-	return false
-}
-
-// isComparableExpr checks if an expression represents a comparable type.
-func isComparableExpr(expr dst.Expr, _ *go_types.Info) bool {
-	// For DST, we need to convert to AST to look up in types.Info
-	// Since we don't have access to the original AST, we use syntax-based detection
-	return isBasicComparableType(expr)
 }
 
 // isBasicComparableType determines if an expression is a basic type that supports == comparison.
@@ -824,6 +703,30 @@ func isBasicComparableType(expr dst.Expr) bool {
 		// Unknown type → use DeepEqual to be safe
 		return false
 	}
+}
+
+// isBuiltinType checks if a type name is a Go builtin.
+//
+//nolint:goconst // Using literal type names for clarity in type checking
+func isBuiltinType(name string) bool {
+	switch name {
+	case "bool", "byte", "complex64", "complex128",
+		"error", "float32", "float64", "int",
+		"int8", "int16", "int32", "int64",
+		"rune", "string", "uint", "uint8",
+		"uint16", "uint32", "uint64", "uintptr",
+		anyTypeString:
+		return true
+	}
+
+	return false
+}
+
+// isComparableExpr checks if an expression represents a comparable type.
+func isComparableExpr(expr dst.Expr, _ *go_types.Info) bool {
+	// For DST, we need to convert to AST to look up in types.Info
+	// Since we don't have access to the original AST, we use syntax-based detection
+	return isBasicComparableType(expr)
 }
 
 // joinWith joins a slice of items into a string using a format function and separator.
@@ -882,6 +785,103 @@ func paramNamesToString(params []fieldInfo) string {
 	}
 
 	return strings.Join(names, ", ")
+}
+
+// stringifyDSTExpr converts a DST expression to its string representation.
+//
+//nolint:cyclop,funlen // Type-switch dispatcher handling all DST expression types; complexity is inherent
+func stringifyDSTExpr(expr dst.Expr) string {
+	if expr == nil {
+		return ""
+	}
+
+	switch typedExpr := expr.(type) {
+	case *dst.Ident:
+		return typedExpr.Name
+	case *dst.BasicLit:
+		return typedExpr.Value
+	case *dst.SelectorExpr:
+		return stringifyDSTExpr(typedExpr.X) + "." + typedExpr.Sel.Name
+	case *dst.StarExpr:
+		return "*" + stringifyDSTExpr(typedExpr.X)
+	case *dst.ArrayType:
+		if typedExpr.Len != nil {
+			return "[" + stringifyDSTExpr(typedExpr.Len) + "]" + stringifyDSTExpr(typedExpr.Elt)
+		}
+
+		return "[]" + stringifyDSTExpr(typedExpr.Elt)
+	case *dst.MapType:
+		return "map[" + stringifyDSTExpr(typedExpr.Key) + "]" + stringifyDSTExpr(typedExpr.Value)
+	case *dst.ChanType:
+		switch typedExpr.Dir {
+		case dst.SEND:
+			return "chan<- " + stringifyDSTExpr(typedExpr.Value)
+		case dst.RECV:
+			return "<-chan " + stringifyDSTExpr(typedExpr.Value)
+		default:
+			return "chan " + stringifyDSTExpr(typedExpr.Value)
+		}
+	case *dst.FuncType:
+		return stringifyFuncType(typedExpr)
+	case *dst.InterfaceType:
+		return "interface{}"
+	case *dst.StructType:
+		return "struct{}"
+	case *dst.Ellipsis:
+		return "..." + stringifyDSTExpr(typedExpr.Elt)
+	case *dst.IndexExpr:
+		return stringifyDSTExpr(typedExpr.X) + "[" + stringifyDSTExpr(typedExpr.Index) + "]"
+	case *dst.IndexListExpr:
+		indices := make([]string, len(typedExpr.Indices))
+		for i, idx := range typedExpr.Indices {
+			indices[i] = stringifyDSTExpr(idx)
+		}
+
+		return stringifyDSTExpr(typedExpr.X) + "[" + strings.Join(indices, ", ") + "]"
+	case *dst.ParenExpr:
+		return "(" + stringifyDSTExpr(typedExpr.X) + ")"
+	default:
+		return fmt.Sprintf("%T", expr)
+	}
+}
+
+// stringifyFieldList converts a field list to string.
+func stringifyFieldList(fieldList *dst.FieldList) string {
+	if fieldList == nil || len(fieldList.List) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(fieldList.List))
+	for _, field := range fieldList.List {
+		parts = append(parts, stringifyDSTExpr(field.Type))
+	}
+
+	return strings.Join(parts, ", ")
+}
+
+// stringifyFuncType converts a function type to string.
+func stringifyFuncType(funcType *dst.FuncType) string {
+	var buf strings.Builder
+	buf.WriteString("func")
+
+	if funcType.Params != nil {
+		buf.WriteString("(")
+		buf.WriteString(stringifyFieldList(funcType.Params))
+		buf.WriteString(")")
+	}
+
+	if funcType.Results != nil {
+		if len(funcType.Results.List) > 1 {
+			buf.WriteString(" (")
+			buf.WriteString(stringifyFieldList(funcType.Results))
+			buf.WriteString(")")
+		} else if len(funcType.Results.List) == 1 {
+			buf.WriteString(" ")
+			buf.WriteString(stringifyFieldList(funcType.Results))
+		}
+	}
+
+	return buf.String()
 }
 
 // typeWithQualifierFunc handles function types.

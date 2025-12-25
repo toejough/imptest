@@ -13,11 +13,6 @@ import (
 	"github.com/dave/dst/decorator"
 )
 
-// unexported variables.
-var (
-	errNoPackagesFound = errors.New("no packages found")
-)
-
 // LoadPackageDST loads a package by import path and returns its DST files and FileSet.
 // This is the shared implementation used by all PackageLoader implementations.
 // Uses fast DST parsing with no type checking for better performance.
@@ -112,3 +107,8 @@ func LoadPackageDST(importPath string) ([]*dst.File, *token.FileSet, error) {
 
 	return allFiles, fset, nil
 }
+
+// unexported variables.
+var (
+	errNoPackagesFound = errors.New("no packages found")
+)

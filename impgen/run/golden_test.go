@@ -55,10 +55,7 @@ func TestUATConsistency(t *testing.T) {
 	}
 }
 
-// In-memory package cache for test optimization.
-// Caches parsed packages across test cases to avoid redundant parsing.
-//
-//nolint:gochecknoglobals // Test-only cache that lives for duration of test run
+// unexported variables.
 var (
 	packageCache   = make(map[string]cachedPackage)
 	packageCacheMu sync.RWMutex
@@ -115,38 +112,6 @@ func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSe
 
 	// Return nil for typesInfo - we use syntax-based type detection
 	return files, fset, nil, nil
-}
-
-// resolveLocalPackageFromDir checks if importPath refers to a local subdirectory package
-// relative to the specified workDir. This is similar to run.ResolveLocalPackagePath
-// but works from an explicit directory instead of using os.Getwd().
-func (pl *testPackageLoader) resolveLocalPackageFromDir(importPath, workDir string) string {
-	// Only check for simple package names (no slashes, not ".", not absolute paths)
-	if importPath == "." || strings.HasPrefix(importPath, "/") || strings.Contains(importPath, "/") {
-		return importPath
-	}
-
-	localDir := filepath.Join(workDir, importPath)
-
-	info, err := os.Stat(localDir)
-	if err != nil || !info.IsDir() {
-		return importPath
-	}
-
-	// Check if it contains .go files
-	entries, err := os.ReadDir(localDir)
-	if err != nil {
-		return importPath
-	}
-
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
-			// Found a local package - return the absolute path
-			return localDir
-		}
-	}
-
-	return importPath
 }
 
 // loadPackageFromDir loads a package from a specific working directory.
@@ -233,6 +198,38 @@ func (pl *testPackageLoader) loadPackageFromDir(importPath, workDir string) ([]*
 	}
 
 	return allFiles, fset, nil
+}
+
+// resolveLocalPackageFromDir checks if importPath refers to a local subdirectory package
+// relative to the specified workDir. This is similar to run.ResolveLocalPackagePath
+// but works from an explicit directory instead of using os.Getwd().
+func (pl *testPackageLoader) resolveLocalPackageFromDir(importPath, workDir string) string {
+	// Only check for simple package names (no slashes, not ".", not absolute paths)
+	if importPath == "." || strings.HasPrefix(importPath, "/") || strings.Contains(importPath, "/") {
+		return importPath
+	}
+
+	localDir := filepath.Join(workDir, importPath)
+
+	info, err := os.Stat(localDir)
+	if err != nil || !info.IsDir() {
+		return importPath
+	}
+
+	// Check if it contains .go files
+	entries, err := os.ReadDir(localDir)
+	if err != nil {
+		return importPath
+	}
+
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
+			// Found a local package - return the absolute path
+			return localDir
+		}
+	}
+
+	return importPath
 }
 
 type uatTestCase struct {

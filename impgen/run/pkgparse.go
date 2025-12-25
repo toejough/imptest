@@ -79,6 +79,11 @@ var (
 	errInterfaceNotFound = errors.New("interface not found")
 	errPackageNotFound   = errors.New("package not found in imports or as a loadable package")
 	errSymbolNotFound    = errors.New("symbol (interface or function) not found")
+	// goListCache caches results of 'go list' subprocess calls to avoid redundant execution.
+	//nolint:gochecknoglobals // Cache for performance optimization
+	goListCache = make(map[string]string)
+	//nolint:gochecknoglobals // Mutex for goListCache
+	goListCacheMu sync.RWMutex
 	// stdlibPackages contains common stdlib packages that might be shadowed by local packages.
 	// This list doesn't need to be exhaustive - just common cases.
 	//nolint:gochecknoglobals // Global constant map for stdlib package detection
@@ -95,22 +100,7 @@ var (
 		"testing": true, "text": true, "time": true, "unicode": true,
 		"unsafe": true,
 	}
-	// goListCache caches results of 'go list' subprocess calls to avoid redundant execution.
-	//nolint:gochecknoglobals // Cache for performance optimization
-	goListCache = make(map[string]string)
-	//nolint:gochecknoglobals // Mutex for goListCache
-	goListCacheMu sync.RWMutex
 )
-
-// isStdlibPackage checks if a package name is a standard library package.
-func isStdlibPackage(pkgName string) bool {
-	// Simple packages without slashes that are in our stdlib list
-	if !strings.Contains(pkgName, "/") {
-		return stdlibPackages[pkgName]
-	}
-
-	return false
-}
 
 // ifaceWithDetails is a helper struct to return both the interface and its type parameters.
 type ifaceWithDetails struct {
@@ -305,62 +295,6 @@ func findSymbol(
 	return symbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
 }
 
-// getMatchingInterfaceFromAST extracts the target interface declaration and its type parameters from AST files.
-
-func getMatchingInterfaceFromAST(
-	astFiles []*dst.File, interfaceName string, pkgImportPath string,
-) (ifaceWithDetails, error) {
-	var (
-		targetIface *dst.InterfaceType
-
-		typeParams *dst.FieldList
-	)
-
-	for _, file := range astFiles {
-		dst.Inspect(file, func(node dst.Node) bool {
-			genDecl, ok := node.(*dst.GenDecl)
-
-			if !ok || genDecl.Tok != token.TYPE {
-				return true // Not a type declaration
-			}
-
-			for _, spec := range genDecl.Specs {
-				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
-
-				if !isTypeSpec || typeSpec.Name.Name != interfaceName {
-					continue // Not the interface we're looking for
-				}
-
-				iface, isInterfaceType := typeSpec.Type.(*dst.InterfaceType)
-
-				if !isInterfaceType {
-					continue // Not an interface type
-				}
-
-				// Found it!
-
-				targetIface = iface
-
-				typeParams = typeSpec.TypeParams // Capture type parameters
-
-				return false // Stop inspecting
-			}
-
-			return true
-		})
-
-		if targetIface != nil {
-			break // Found in this file, no need to check others
-		}
-	}
-
-	if targetIface == nil {
-		return ifaceWithDetails{}, fmt.Errorf("%w: %s in package %s", errInterfaceNotFound, interfaceName, pkgImportPath)
-	}
-
-	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
-}
-
 // getFullImportPath uses 'go list' to get the full import path for a package.
 // This is needed to handle local packages that might shadow stdlib packages.
 // Results are cached to avoid redundant subprocess calls.
@@ -460,4 +394,70 @@ func getImportPathFromFiles(files []*dst.File, fset *token.FileSet, _ string) (s
 	goListCacheMu.Unlock()
 
 	return importPath, nil
+}
+
+// getMatchingInterfaceFromAST extracts the target interface declaration and its type parameters from AST files.
+
+func getMatchingInterfaceFromAST(
+	astFiles []*dst.File, interfaceName string, pkgImportPath string,
+) (ifaceWithDetails, error) {
+	var (
+		targetIface *dst.InterfaceType
+
+		typeParams *dst.FieldList
+	)
+
+	for _, file := range astFiles {
+		dst.Inspect(file, func(node dst.Node) bool {
+			genDecl, ok := node.(*dst.GenDecl)
+
+			if !ok || genDecl.Tok != token.TYPE {
+				return true // Not a type declaration
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
+
+				if !isTypeSpec || typeSpec.Name.Name != interfaceName {
+					continue // Not the interface we're looking for
+				}
+
+				iface, isInterfaceType := typeSpec.Type.(*dst.InterfaceType)
+
+				if !isInterfaceType {
+					continue // Not an interface type
+				}
+
+				// Found it!
+
+				targetIface = iface
+
+				typeParams = typeSpec.TypeParams // Capture type parameters
+
+				return false // Stop inspecting
+			}
+
+			return true
+		})
+
+		if targetIface != nil {
+			break // Found in this file, no need to check others
+		}
+	}
+
+	if targetIface == nil {
+		return ifaceWithDetails{}, fmt.Errorf("%w: %s in package %s", errInterfaceNotFound, interfaceName, pkgImportPath)
+	}
+
+	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
+}
+
+// isStdlibPackage checks if a package name is a standard library package.
+func isStdlibPackage(pkgName string) bool {
+	// Simple packages without slashes that are in our stdlib list
+	if !strings.Contains(pkgName, "/") {
+		return stdlibPackages[pkgName]
+	}
+
+	return false
 }
