@@ -65,7 +65,11 @@
       "Bash(git -C /Users/joe/repos/personal/imptest/UAT/07-generics status)",
       "Bash(timeout 15 go test:*)",
       "Bash(GOPACKAGE=test_check go env:*)",
-      "Bash(GOPACKAGE=whitebox ../../bin/impgen:*)"
+      "Bash(GOPACKAGE=whitebox ../../bin/impgen:*)",
+      "Bash(time go test:*)",
+      "Bash(for i in 1 2 3)",
+      "Bash(do go clean -testcache)",
+      "Bash(for i in 1 2 3 4 5)"
     ],
     "deny": [],
     "ask": []

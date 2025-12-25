@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/dave/dst"
 )
@@ -94,6 +95,11 @@ var (
 		"testing": true, "text": true, "time": true, "unicode": true,
 		"unsafe": true,
 	}
+	// goListCache caches results of 'go list' subprocess calls to avoid redundant execution.
+	//nolint:gochecknoglobals // Cache for performance optimization
+	goListCache = make(map[string]string)
+	//nolint:gochecknoglobals // Mutex for goListCache
+	goListCacheMu sync.RWMutex
 )
 
 // isStdlibPackage checks if a package name is a standard library package.
@@ -357,9 +363,23 @@ func getMatchingInterfaceFromAST(
 
 // getFullImportPath uses 'go list' to get the full import path for a package.
 // This is needed to handle local packages that might shadow stdlib packages.
+// Results are cached to avoid redundant subprocess calls.
 func getFullImportPath(pkgName string) (string, error) {
-	//nolint:gosec,noctx // pkgName comes from parsed Go code, not user input; context not needed for simple command
-	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", "./"+pkgName)
+	cacheKey := "./" + pkgName
+
+	// Check cache first
+	goListCacheMu.RLock()
+
+	if cached, ok := goListCache[cacheKey]; ok {
+		goListCacheMu.RUnlock()
+		return cached, nil
+	}
+
+	goListCacheMu.RUnlock()
+
+	// Cache miss - run go list
+	//nolint:noctx // context not needed for simple command
+	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", cacheKey)
 
 	var out bytes.Buffer
 
@@ -373,11 +393,19 @@ func getFullImportPath(pkgName string) (string, error) {
 
 	importPath := strings.TrimSpace(out.String())
 
+	// Store in cache
+	goListCacheMu.Lock()
+
+	goListCache[cacheKey] = importPath
+
+	goListCacheMu.Unlock()
+
 	return importPath, nil
 }
 
 // getImportPathFromFiles determines the import path of a package by examining its loaded files.
 // It gets the directory from the FileSet and runs `go list` on that directory.
+// Results are cached to avoid redundant subprocess calls.
 func getImportPathFromFiles(files []*dst.File, fset *token.FileSet, _ string) (string, error) {
 	if len(files) == 0 {
 		return "", fmt.Errorf("%w: no files provided", errPackageNotFound)
@@ -398,7 +426,17 @@ func getImportPathFromFiles(files []*dst.File, fset *token.FileSet, _ string) (s
 	// Get the directory containing the file
 	dir := filepath.Dir(filePath)
 
-	// Run `go list` on the directory to get its import path
+	// Check cache first
+	goListCacheMu.RLock()
+
+	if cached, ok := goListCache[dir]; ok {
+		goListCacheMu.RUnlock()
+		return cached, nil
+	}
+
+	goListCacheMu.RUnlock()
+
+	// Cache miss - run go list
 	//nolint:noctx // context not needed for simple command
 	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", dir)
 
@@ -413,6 +451,13 @@ func getImportPathFromFiles(files []*dst.File, fset *token.FileSet, _ string) (s
 	}
 
 	importPath := strings.TrimSpace(out.String())
+
+	// Store in cache
+	goListCacheMu.Lock()
+
+	goListCache[dir] = importPath
+
+	goListCacheMu.Unlock()
 
 	return importPath, nil
 }

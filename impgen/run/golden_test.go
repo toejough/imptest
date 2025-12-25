@@ -2,6 +2,7 @@ package run_test
 
 import (
 	"fmt"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -9,17 +10,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
 )
 
 // TestUATConsistency ensures that the generated files in the UAT directory
 // are exactly what the current generator code produces.
-//
-//nolint:paralleltest // This test must be sequential because it uses t.Chdir which is not thread-safe.
 func TestUATConsistency(t *testing.T) {
+	t.Parallel()
 	// Project root relative to this test file.
 	cfs := realCacheFS{}
 
@@ -47,27 +49,190 @@ func TestUATConsistency(t *testing.T) {
 	for _, testCase := range testCases {
 		tc := testCase
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			verifyUATFile(t, loader, tc)
 		})
 	}
+}
+
+// In-memory package cache for test optimization.
+// Caches parsed packages across test cases to avoid redundant parsing.
+//
+//nolint:gochecknoglobals // Test-only cache that lives for duration of test run
+var (
+	packageCache   = make(map[string]cachedPackage)
+	packageCacheMu sync.RWMutex
+)
+
+// cachedPackage holds parsed package data.
+type cachedPackage struct {
+	files []*dst.File
+	fset  *token.FileSet
 }
 
 // testPackageLoader implements PackageLoader using direct DST parsing.
 type testPackageLoader struct {
 	ProjectRoot string
 	ScenarioDir string
+	WorkDir     string // Working directory for package resolution
 }
 
 // Load loads a package by import path and returns its DST files and FileSet.
-// Uses the shared LoadPackageDST function for direct DST parsing.
+// Uses in-memory caching to avoid re-parsing the same packages across test cases.
 func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
-	files, fset, err := run.LoadPackageDST(importPath)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to load package %q: %w", importPath, err)
+	// Use WorkDir if set, otherwise fall back to current directory
+	workDir := pl.WorkDir
+	if workDir == "" {
+		workDir, _ = os.Getwd()
 	}
+
+	// Create cache key that includes working directory
+	// since package resolution depends on the source directory
+	cacheKey := workDir + "|" + importPath
+
+	// Check cache first
+	packageCacheMu.RLock()
+
+	if cached, ok := packageCache[cacheKey]; ok {
+		packageCacheMu.RUnlock()
+		return cached.files, cached.fset, nil, nil
+	}
+
+	packageCacheMu.RUnlock()
+
+	// Cache miss - load package from the specified working directory
+	files, fset, err := pl.loadPackageFromDir(importPath, workDir)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to load package %q from %q: %w", importPath, workDir, err)
+	}
+
+	// Store in cache
+	packageCacheMu.Lock()
+
+	packageCache[cacheKey] = cachedPackage{files: files, fset: fset}
+
+	packageCacheMu.Unlock()
 
 	// Return nil for typesInfo - we use syntax-based type detection
 	return files, fset, nil, nil
+}
+
+// resolveLocalPackageFromDir checks if importPath refers to a local subdirectory package
+// relative to the specified workDir. This is similar to run.ResolveLocalPackagePath
+// but works from an explicit directory instead of using os.Getwd().
+func (pl *testPackageLoader) resolveLocalPackageFromDir(importPath, workDir string) string {
+	// Only check for simple package names (no slashes, not ".", not absolute paths)
+	if importPath == "." || strings.HasPrefix(importPath, "/") || strings.Contains(importPath, "/") {
+		return importPath
+	}
+
+	localDir := filepath.Join(workDir, importPath)
+
+	info, err := os.Stat(localDir)
+	if err != nil || !info.IsDir() {
+		return importPath
+	}
+
+	// Check if it contains .go files
+	entries, err := os.ReadDir(localDir)
+	if err != nil {
+		return importPath
+	}
+
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
+			// Found a local package - return the absolute path
+			return localDir
+		}
+	}
+
+	return importPath
+}
+
+// loadPackageFromDir loads a package from a specific working directory.
+// This is similar to run.LoadPackageDST but works from an explicit directory.
+//
+//nolint:cyclop,funlen // Package loading mirrors production code structure
+func (pl *testPackageLoader) loadPackageFromDir(importPath, workDir string) ([]*dst.File, *token.FileSet, error) {
+	// Resolve import path to directory
+	var dir string
+
+	//nolint:nestif // Path resolution requires conditional logic
+	if importPath == "." {
+		// Use the specified working directory
+		dir = workDir
+	} else {
+		// Check if it's a local subdirectory package relative to workDir
+		resolvedPath := pl.resolveLocalPackageFromDir(importPath, workDir)
+
+		if resolvedPath != importPath {
+			// It's a local package - use the resolved absolute path
+			dir = resolvedPath
+		} else {
+			// Use go/build to resolve the import path from the specified working directory
+			pkg, err := build.Import(importPath, workDir, build.FindOnly)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to find package %q from %q: %w", importPath, workDir, err)
+			}
+
+			dir = pkg.Dir
+		}
+	}
+
+	// Find all .go files
+	// For local packages (importPath == "."), include test files
+	// For external/stdlib packages, exclude test files to avoid parse errors
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read directory %s: %w", dir, err)
+	}
+
+	includeTests := (importPath == ".")
+
+	goFiles := make([]string, 0, len(entries))
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".go") {
+			continue
+		}
+		// Skip test files for non-local packages
+		if !includeTests && strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+
+		goFiles = append(goFiles, filepath.Join(dir, name))
+	}
+
+	if len(goFiles) == 0 {
+		return nil, nil, fmt.Errorf("no .go files in %s", dir)
+	}
+
+	// Parse all files using DST
+	fset := token.NewFileSet()
+	dec := decorator.NewDecorator(fset)
+
+	allFiles := make([]*dst.File, 0, len(goFiles))
+
+	for _, goFile := range goFiles {
+		dstFile, err := dec.ParseFile(goFile, nil, 0)
+		if err != nil {
+			// Skip files with parse errors
+			continue
+		}
+
+		allFiles = append(allFiles, dstFile)
+	}
+
+	if len(allFiles) == 0 {
+		return nil, nil, fmt.Errorf("failed to parse any .go files in %s", dir)
+	}
+
+	return allFiles, fset, nil
 }
 
 type uatTestCase struct {
@@ -205,15 +370,20 @@ func scanUATDirectives(dir string) ([]uatTestCase, error) {
 
 func verifyUATFile(
 	t *testing.T,
-	loader *testPackageLoader,
+	baseLoader *testPackageLoader,
 	testCase uatTestCase,
 ) {
 	t.Helper()
 
 	fullArgs := append([]string{"impgen"}, testCase.args...)
 
-	// Change directory to the scenario dir to run matching how CLI is used
-	t.Chdir(testCase.dir)
+	// Create a per-test loader with the scenario directory as WorkDir
+	// This enables parallel test execution without changing the working directory
+	testLoader := &testPackageLoader{
+		ProjectRoot: baseLoader.ProjectRoot,
+		ScenarioDir: baseLoader.ScenarioDir,
+		WorkDir:     testCase.dir,
+	}
 
 	getEnv := func(key string) string {
 		if key == "GOPACKAGE" { //nolint:goconst // Test file can't access unexported constant from run package
@@ -227,13 +397,13 @@ func verifyUATFile(
 		return ""
 	}
 
-	// Mock FileSystem: Instead of writing, we read the existing file and compare
+	// Mock FileSystem: Use the test case directory as baseDir
 	fileSystem := &verifyingFileSystem{
 		t:       t,
-		baseDir: ".",
+		baseDir: testCase.dir,
 	}
 
-	err := run.Run(fullArgs, getEnv, fileSystem, loader, io.Discard)
+	err := run.Run(fullArgs, getEnv, fileSystem, testLoader, io.Discard)
 	if err != nil {
 		t.Errorf("Run failed for %v: %v", testCase.name, err)
 	}
