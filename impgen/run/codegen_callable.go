@@ -11,7 +11,7 @@ import (
 
 // callableExtendedTemplateData extends callableTemplateData with dynamic signature info.
 type callableExtendedTemplateData struct {
-	callableTemplateData //nolint:unused // embedded fields accessed via templates
+	callableTemplateData
 
 	CallableSignature string
 	CallableReturns   string
@@ -31,7 +31,9 @@ type callableExtendedTemplateData struct {
 type callableGenerator struct {
 	baseGenerator
 
-	funcDecl *ast.FuncDecl
+	funcDecl                   *ast.FuncDecl
+	cachedTemplateData         *callableTemplateData         // Cache to avoid redundant templateData() calls
+	cachedExtendedTemplateData *callableExtendedTemplateData // Cache to avoid redundant extendedTemplateData() calls
 }
 
 // buildReturnFieldData builds return field data with types for templates.
@@ -60,11 +62,16 @@ func (g *callableGenerator) buildReturnFieldData(returnVars []string) []returnFi
 }
 
 // extendedTemplateData returns template data with dynamic signature info.
+// The result is cached after the first call to avoid redundant struct construction.
 func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData {
+	if g.cachedExtendedTemplateData != nil {
+		return *g.cachedExtendedTemplateData
+	}
+
 	returnVars := g.returnVarNames()
 	returnFields := g.buildReturnFieldData(returnVars)
 
-	return callableExtendedTemplateData{
+	data := callableExtendedTemplateData{
 		callableTemplateData: g.templateData(),
 		CallableSignature:    g.paramsString(),
 		CallableReturns:      g.returnsString(),
@@ -77,31 +84,35 @@ func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData 
 		ResultComparisons:    g.resultComparisonsString("s.Returned"),
 		ResultMatchers:       g.resultMatchersString("s.Returned"),
 	}
+
+	g.cachedExtendedTemplateData = &data
+
+	return data
 }
 
 // generateCallableTemplates executes all templates to generate the callable wrapper code.
 func (g *callableGenerator) generateCallableTemplates() {
 	// Generate header
-	g.execTemplate(callableHeaderTemplate, g.templateData())
+	baseData := g.templateData()
+	WriteCallableHeader(&g.buf, baseData.baseTemplateData)
 
 	// Generate structs and methods
 	extData := g.extendedTemplateData()
-	g.execTemplate(callableReturnStructTemplate, extData)
-	g.execTemplate(callableMainStructTemplate, extData)
-	g.execTemplate(callableConstructorTemplate, extData)
-	g.execTemplate(callableStartMethodTemplate, extData)
+	WriteCallableReturnStruct(&g.buf, extData)
+	WriteCallableMainStruct(&g.buf, extData)
+	WriteCallableConstructor(&g.buf, extData)
+	WriteCallableStartMethod(&g.buf, extData)
 
 	// Generate ExpectReturnedValues methods
-	g.execTemplate(callableExpectReturnedValuesAreTemplate, extData)
-	g.execTemplate(callableExpectReturnedValuesShouldTemplate, extData)
+	WriteCallableExpectReturnedValuesAre(&g.buf, extData)
+	WriteCallableExpectReturnedValuesShould(&g.buf, extData)
 
 	// Generate panic and response methods
-	baseData := g.templateData()
-	g.execTemplate(callableExpectPanicWithTemplate, baseData)
-	g.execTemplate(callableResponseStructTemplate, baseData)
-	g.execTemplate(callableResponseTypeMethodTemplate, baseData)
-	g.execTemplate(callableAsReturnMethodTemplate, extData)
-	g.execTemplate(callableGetResponseMethodTemplate, extData)
+	WriteCallableExpectPanicWith(&g.buf, baseData)
+	WriteCallableResponseStruct(&g.buf, baseData)
+	WriteCallableResponseTypeMethod(&g.buf, baseData)
+	WriteCallableAsReturnMethod(&g.buf, extData)
+	WriteCallableGetResponseMethod(&g.buf, extData.callableTemplateData)
 }
 
 // numReturns returns the total number of return values.
@@ -194,13 +205,18 @@ func (g *callableGenerator) returnsString() string {
 }
 
 // templateData returns the base template data for this generator.
+// The result is cached after the first call to avoid redundant struct construction.
 func (g *callableGenerator) templateData() callableTemplateData {
+	if g.cachedTemplateData != nil {
+		return *g.cachedTemplateData
+	}
+
 	numReturns := 0
 	if hasResults(g.funcDecl.Type) {
 		numReturns = g.numReturns()
 	}
 
-	return callableTemplateData{
+	data := callableTemplateData{
 		baseTemplateData: baseTemplateData{
 			PkgName:        g.pkgName,
 			ImpName:        g.impName,
@@ -218,6 +234,10 @@ func (g *callableGenerator) templateData() callableTemplateData {
 		ReturnType: g.returnTypeName(),
 		NumReturns: numReturns,
 	}
+
+	g.cachedTemplateData = &data
+
+	return data
 }
 
 // writeParamsWithQualifiersTo writes function parameters with package qualifiers to a buffer.

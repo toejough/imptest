@@ -193,6 +193,9 @@ func Deadcode(c context.Context) error {
 	excludePatterns := []string{
 		"impgen/reorder/reorder.go:.*: unreachable func: AnalyzeSectionOrder",
 		"impgen/reorder/reorder.go:.*: unreachable func: identifySection",
+		// Quicktemplate generates both Write* and string-returning functions
+		// We use the Write* versions, so the string-returning ones appear dead
+		"impgen/run/.*\\.qtpl:.*: unreachable func:",
 	}
 
 	lines := strings.Split(out, "\n")

@@ -32,6 +32,7 @@ type codeGenerator struct {
 	pkgImportPath       string
 	pkgLoader           PackageLoader
 	methodNames         []string
+	cachedTemplateData  *templateData // Cache to avoid redundant templateData() calls
 }
 
 // callStructTemplateData returns template data for generating the call struct.
@@ -229,7 +230,7 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 
 // generateCallStruct generates the union call struct that can hold any method call.
 func (gen *codeGenerator) generateCallStruct() {
-	gen.execTemplate(callStructTemplate, gen.callStructData())
+	WriteCallStruct(&gen.buf, gen.callStructData())
 }
 
 // generateCallStructParamFields generates the parameter fields for a call struct.
@@ -250,7 +251,7 @@ func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
 
 // generateConstructor generates the New{ImpName} constructor function.
 func (gen *codeGenerator) generateConstructor() {
-	gen.execTemplate(constructorTemplate, gen.templateData())
+	WriteConstructor(&gen.buf, gen.templateData())
 }
 
 // generateExpectArgsAre generates the type-safe ExpectArgsAre method on the builder.
@@ -324,22 +325,22 @@ func (gen *codeGenerator) generateExpectArgsShould(
 
 // generateExpectCallIsStruct generates the struct for expecting specific method calls.
 func (gen *codeGenerator) generateExpectCallIsStruct() {
-	gen.execTemplate(expectCallIsStructTemplate, gen.templateData())
+	WriteExpectCallIsStruct(&gen.buf, gen.templateData())
 }
 
 // generateGetCurrentCallMethod generates the GetCurrentCall method that returns the current or next call.
 func (gen *codeGenerator) generateGetCurrentCallMethod() {
-	gen.execTemplate(getCurrentCallMethodTemplate, gen.templateData())
+	WriteGetCurrentCallMethod(&gen.buf, gen.templateData())
 }
 
 // generateHeader writes the package declaration and imports for the generated file.
 func (gen *codeGenerator) generateHeader() {
-	gen.execTemplate(headerTemplate, gen.templateData())
+	WriteHeader(&gen.buf, gen.templateData())
 }
 
 // generateInjectPanicMethod generates the InjectPanic method for simulating panics.
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
-	gen.execTemplate(injectPanicMethodTemplate, gen.methodTemplateData(methodCallName))
+	WriteInjectPanic(&gen.buf, gen.methodTemplateData(methodCallName))
 }
 
 // generateInjectResultMethod generates the InjectResult method for methods with a single return value.
@@ -385,12 +386,12 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 
 // generateInterfaceVerification generates a compile-time check that the mock implements the interface.
 func (gen *codeGenerator) generateInterfaceVerification() {
-	gen.execTemplate(interfaceVerificationTemplate, gen.templateData())
+	WriteInterfaceVerification(&gen.buf, gen.templateData())
 }
 
 // generateMainStruct generates the main implementation struct that handles test call tracking.
 func (gen *codeGenerator) generateMainStruct() {
-	gen.execTemplate(mainStructTemplate, gen.templateData())
+	WriteMainStruct(&gen.buf, gen.templateData())
 }
 
 // generateMethodBuilder generates the builder struct and all its methods for a single interface method.
@@ -522,12 +523,12 @@ func (gen *codeGenerator) generateMockMethods() {
 
 // generateMockStruct generates the mock struct that wraps the implementation.
 func (gen *codeGenerator) generateMockStruct() {
-	gen.execTemplate(mockStructTemplate, gen.templateData())
+	WriteMockStruct(&gen.buf, gen.templateData())
 }
 
 // generateResolveMethod generates the Resolve method for methods with no return values.
 func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
-	gen.execTemplate(resolveMethodTemplate, gen.methodTemplateData(methodCallName))
+	WriteResolve(&gen.buf, gen.methodTemplateData(methodCallName))
 }
 
 // generateResponseStructResultFields generates the result fields for a response struct.
@@ -539,7 +540,7 @@ func (gen *codeGenerator) generateResponseStructResultFields(ftype *ast.FuncType
 
 // generateTimedStruct generates the struct and method for timed call expectations.
 func (gen *codeGenerator) generateTimedStruct() {
-	gen.execTemplate(timedStructTemplate, gen.templateData())
+	WriteTimedStruct(&gen.buf, gen.templateData())
 }
 
 // imptestPkg returns the package name to use for imptest, with alias if needed.
@@ -616,8 +617,13 @@ func (gen *codeGenerator) renderFieldList(fieldList *ast.FieldList) string {
 }
 
 // templateData returns common template data for this generator.
+// The result is cached after the first call to avoid redundant struct construction.
 func (gen *codeGenerator) templateData() templateData {
-	return templateData{
+	if gen.cachedTemplateData != nil {
+		return *gen.cachedTemplateData
+	}
+
+	data := templateData{
 		baseTemplateData: baseTemplateData{
 			PkgName:        gen.pkgName,
 			ImpName:        gen.impName,
@@ -640,6 +646,10 @@ func (gen *codeGenerator) templateData() templateData {
 		NeedsReflect:     gen.needsReflect,
 		NeedsImptest:     gen.needsImptest,
 	}
+
+	gen.cachedTemplateData = &data
+
+	return data
 }
 
 // timePkg returns the package name to use for time, with alias if needed.

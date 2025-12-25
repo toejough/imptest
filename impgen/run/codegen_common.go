@@ -9,7 +9,6 @@ import (
 	"go/token"
 	go_types "go/types"
 	"strings"
-	"text/template"
 	"unicode"
 )
 
@@ -166,11 +165,6 @@ func (baseGen *baseGenerator) checkIfValidForExternalUsage(funcType *ast.FuncTyp
 	return nil
 }
 
-// execTemplate executes a template and writes the result to the buffer.
-func (baseGen *baseGenerator) execTemplate(tmpl *template.Template, data any) {
-	baseGen.ps(executeTemplate(tmpl, data))
-}
-
 // formatTypeParamsDecl formats type parameters for declaration.
 func (baseGen *baseGenerator) formatTypeParamsDecl() string {
 	return formatTypeParamsDecl(baseGen.fset, baseGen.typeParams)
@@ -212,11 +206,6 @@ func (w *codeWriter) bytes() []byte {
 // pf writes a formatted string to the buffer.
 func (w *codeWriter) pf(format string, args ...any) {
 	fmt.Fprintf(&w.buf, format, args...)
-}
-
-// ps writes a string to the buffer.
-func (w *codeWriter) ps(s string) {
-	w.buf.WriteString(s)
 }
 
 // fieldInfo represents extracted information about a single field entry.
