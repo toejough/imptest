@@ -227,6 +227,7 @@ func (g *callableGenerator) templateData() callableTemplateData {
 			TypeParamsDecl: g.formatTypeParamsDecl(),
 			TypeParamsUse:  g.formatTypeParamsUse(),
 			TimeAlias:      getStdlibAlias(g.qualifier, "time"),
+			TimePath:       getTimePath(g.qualifier, g.pkgPath),
 			TestingAlias:   getStdlibAlias(g.qualifier, "testing"),
 			ReflectAlias:   getStdlibAlias(g.qualifier, "reflect"),
 			ImptestAlias:   getStdlibAlias(g.qualifier, "imptest"),

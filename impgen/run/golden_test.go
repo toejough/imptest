@@ -135,7 +135,10 @@ func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSe
 		loadPath = cwd
 	}
 
-	cacheKey := fmt.Sprintf("%s|%s", pl.ProjectRoot, loadPath)
+	// Include current working directory in cache key for simple package names,
+	// since local package prioritization depends on the working directory
+	cwd, _ := os.Getwd()
+	cacheKey := fmt.Sprintf("%s|%s|%s", pl.ProjectRoot, cwd, loadPath)
 
 	globalLoadMu.RLock()
 
@@ -193,7 +196,32 @@ func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSe
 	return dstFiles, resFset, resInfo, nil
 }
 
+//nolint:cyclop // Package resolution requires multiple conditional checks
 func (pl *testPackageLoader) loadWithThrottle(loadPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
+	// For simple package names (no slashes), check if there's a local subdirectory first.
+	// This handles cases where local packages shadow stdlib packages.
+	// Only do a lightweight filesystem check - don't load the package yet.
+	actualLoadPath := loadPath
+	//nolint:nestif // Nested checks are necessary for local package detection
+	if loadPath != "." && !strings.HasPrefix(loadPath, "/") && !strings.Contains(loadPath, "/") {
+		srcDir, err := os.Getwd()
+		if err == nil {
+			localDir := filepath.Join(srcDir, loadPath)
+
+			info, err := os.Stat(localDir)
+			if err == nil && info.IsDir() {
+				// Check if it contains .go files
+				entries, _ := os.ReadDir(localDir)
+				for _, e := range entries {
+					if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
+						actualLoadPath = localDir
+						break
+					}
+				}
+			}
+		}
+	}
+
 	cfg := &packages.Config{
 		Mode: packages.NeedName |
 			packages.NeedFiles |
@@ -209,7 +237,7 @@ func (pl *testPackageLoader) loadWithThrottle(loadPath string) ([]*ast.File, *to
 	// Acquire semaphore
 	loadSemaphore <- struct{}{}
 
-	pkgs, err := packages.Load(cfg, loadPath)
+	pkgs, err := packages.Load(cfg, actualLoadPath)
 	// Release semaphore
 	<-loadSemaphore
 
@@ -268,10 +296,11 @@ func (pl *testPackageLoader) processPackages(
 }
 
 type uatTestCase struct {
-	name    string
-	args    []string
-	pkgName string
-	dir     string
+	name       string
+	args       []string
+	pkgName    string
+	dir        string
+	sourceFile string
 }
 
 type verifyingFileSystem struct {
@@ -326,7 +355,7 @@ func (v *verifyingFileSystem) WriteFile(name string, data []byte, _ os.FileMode)
 	return nil
 }
 
-func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
+func parseGenerateComment(text, pkgName, dir, sourceFile string) (uatTestCase, bool) {
 	if !strings.HasPrefix(text, "//go:generate") {
 		return uatTestCase{}, false
 	}
@@ -355,10 +384,11 @@ func parseGenerateComment(text, pkgName, dir string) (uatTestCase, bool) {
 
 	// Use the interface/function name as the test case name
 	return uatTestCase{
-		name:    args[0],
-		args:    args,
-		pkgName: pkgName,
-		dir:     dir,
+		name:       args[0],
+		args:       args,
+		pkgName:    pkgName,
+		dir:        dir,
+		sourceFile: sourceFile,
 	}, true
 }
 
@@ -383,7 +413,7 @@ func scanUATDirectives(dir string) ([]uatTestCase, error) {
 
 		for _, cg := range fileAst.Comments {
 			for _, c := range cg.List {
-				if tc, ok := parseGenerateComment(c.Text, fileAst.Name.Name, filepath.Dir(path)); ok {
+				if tc, ok := parseGenerateComment(c.Text, fileAst.Name.Name, filepath.Dir(path), filepath.Base(path)); ok {
 					testCases = append(testCases, tc)
 				}
 			}
@@ -459,6 +489,10 @@ func verifyUATFile(
 	getEnv := func(key string) string {
 		if key == "GOPACKAGE" { //nolint:goconst // Test file can't access unexported constant from run package
 			return testCase.pkgName
+		}
+
+		if key == "GOFILE" {
+			return testCase.sourceFile
 		}
 
 		return ""

@@ -17,6 +17,7 @@ type baseTemplateData struct {
 	// Aliases for stdlib packages when they conflict with the user's package qualifier.
 	// Empty string means no alias needed (no conflict).
 	TimeAlias    string // "_time" if qualifier conflicts with "time"
+	TimePath     string // Import path for time package (stdlib "time" or local package)
 	TestingAlias string // "_testing" if qualifier conflicts with "testing"
 	ReflectAlias string // "_reflect" if qualifier conflicts with "reflect"
 	ImptestAlias string // "_imptest" if qualifier conflicts with "imptest"

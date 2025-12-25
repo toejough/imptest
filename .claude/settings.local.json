@@ -59,7 +59,13 @@
       "Bash(GOPACKAGE=timeconflict_test /Users/joe/repos/personal/imptest/impgen/run/impgen:*)",
       "Bash(rm:*)",
       "Bash(GOPACKAGE=timeconflict_test ../../bin/impgen:*)",
-      "Bash(gofmt:*)"
+      "Bash(gofmt:*)",
+      "Bash(GOPACKAGE=timeconflict_test /Users/joe/repos/personal/imptest/bin/impgen:*)",
+      "Bash(/Users/joe/repos/personal/imptest/bin/impgen:*)",
+      "Bash(git -C /Users/joe/repos/personal/imptest/UAT/07-generics status)",
+      "Bash(timeout 15 go test:*)",
+      "Bash(GOPACKAGE=test_check go env:*)",
+      "Bash(GOPACKAGE=whitebox ../../bin/impgen:*)"
     ],
     "deny": [],
     "ask": []

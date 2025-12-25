@@ -2,10 +2,14 @@
 package run
 
 import (
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 )
 
 func TestExtractPackageName(t *testing.T) {
@@ -96,4 +100,78 @@ func TestGetFullImportPath(t *testing.T) {
 			}
 		})
 	}
+}
+
+//nolint:paralleltest // Can't use t.Parallel with t.Chdir
+func TestGetImportPathFromFiles(t *testing.T) {
+	// Note: Cannot use t.Parallel() because t.Chdir() changes process-wide state
+	_, fset, dstFile := setupTestPackage(t)
+
+	tests := []struct {
+		name        string
+		wantContain string
+		wantErr     bool
+	}{
+		{
+			name:        "valid package with parsed files",
+			wantContain: "example.com/test/testpkg",
+			wantErr:     false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := getImportPathFromFiles([]*dst.File{dstFile}, fset, "testpkg")
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("getImportPathFromFiles() error = %v, wantErr %v", err, testCase.wantErr)
+				return
+			}
+
+			if !testCase.wantErr && testCase.wantContain != "" {
+				if !strings.Contains(got, testCase.wantContain) {
+					t.Errorf("getImportPathFromFiles() = %q, want to contain %q", got, testCase.wantContain)
+				}
+			}
+		})
+	}
+}
+
+func setupTestPackage(t *testing.T) (string, *token.FileSet, *dst.File) {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	testPkg := filepath.Join(tmpDir, "testpkg")
+
+	err := os.Mkdir(testPkg, 0o755)
+	if err != nil {
+		t.Fatalf("Failed to create test package directory: %v", err)
+	}
+
+	goFile := filepath.Join(testPkg, "test.go")
+	goCode := []byte("package testpkg\n\nfunc Hello() string { return \"hello\" }\n")
+
+	err = os.WriteFile(goFile, goCode, 0o600)
+	if err != nil {
+		t.Fatalf("Failed to create test go file: %v", err)
+	}
+
+	goMod := filepath.Join(tmpDir, "go.mod")
+	goModContent := []byte("module example.com/test\n\ngo 1.21\n")
+
+	err = os.WriteFile(goMod, goModContent, 0o600)
+	if err != nil {
+		t.Fatalf("Failed to create go.mod: %v", err)
+	}
+
+	fset := token.NewFileSet()
+	dec := decorator.NewDecorator(fset)
+
+	dstFile, err := dec.ParseFile(goFile, nil, 0)
+	if err != nil {
+		t.Fatalf("Failed to parse test file: %v", err)
+	}
+
+	t.Chdir(tmpDir)
+
+	return tmpDir, fset, dstFile
 }

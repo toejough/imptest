@@ -3,29 +3,29 @@
 
 // Constructor generates the New{ImpName} constructor function for creating test controllers.
 
-//line interface_templates.qtpl:2
+//line impgen/run/interface_templates.qtpl:2
 package run
 
-//line interface_templates.qtpl:2
+//line impgen/run/interface_templates.qtpl:2
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line interface_templates.qtpl:2
+//line impgen/run/interface_templates.qtpl:2
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line interface_templates.qtpl:2
+//line impgen/run/interface_templates.qtpl:2
 func StreamConstructor(qw422016 *qt422016.Writer, data templateData) {
-//line interface_templates.qtpl:2
+//line impgen/run/interface_templates.qtpl:2
 	qw422016.N().S(`// New`)
-//line interface_templates.qtpl:2
+//line impgen/run/interface_templates.qtpl:2
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:2
+//line impgen/run/interface_templates.qtpl:2
 	qw422016.N().S(` creates a new test controller for mocking the interface.
 // The returned controller manages mock expectations and response injection.
 // Pass t to enable automatic test failure on unexpected calls or timeouts.
@@ -33,702 +33,702 @@ func StreamConstructor(qw422016 *qt422016.Writer, data templateData) {
 // Example:
 //
 //	imp := New`)
-//line interface_templates.qtpl:8
+//line impgen/run/interface_templates.qtpl:8
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:8
+//line impgen/run/interface_templates.qtpl:8
 	qw422016.N().S(`(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
 func New`)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	qw422016.E().S(data.TypeParamsDecl)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	qw422016.N().S(`(t *`)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	if data.TestingAlias != "" {
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 		qw422016.E().S(data.TestingAlias)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	} else {
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 		qw422016.N().S(`testing`)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	}
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	qw422016.N().S(`.T) *`)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:11
+//line impgen/run/interface_templates.qtpl:11
 	qw422016.N().S(` {
 	imp := &`)
-//line interface_templates.qtpl:12
+//line impgen/run/interface_templates.qtpl:12
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:12
+//line impgen/run/interface_templates.qtpl:12
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:12
+//line impgen/run/interface_templates.qtpl:12
 	qw422016.N().S(`{
 		Controller: `)
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 	if data.ImptestAlias != "" {
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 		qw422016.E().S(data.ImptestAlias)
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 	} else {
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 		qw422016.N().S(`imptest`)
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 	}
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 	qw422016.N().S(`.NewController[*`)
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 	qw422016.E().S(data.CallName)
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:13
+//line impgen/run/interface_templates.qtpl:13
 	qw422016.N().S(`](t),
 	}
 	imp.Mock = &`)
-//line interface_templates.qtpl:15
+//line impgen/run/interface_templates.qtpl:15
 	qw422016.E().S(data.MockName)
-//line interface_templates.qtpl:15
+//line impgen/run/interface_templates.qtpl:15
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:15
+//line impgen/run/interface_templates.qtpl:15
 	qw422016.N().S(`{imp: imp}
 	imp.ExpectCallIs = &`)
-//line interface_templates.qtpl:16
+//line impgen/run/interface_templates.qtpl:16
 	qw422016.E().S(data.ExpectCallIsName)
-//line interface_templates.qtpl:16
+//line impgen/run/interface_templates.qtpl:16
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:16
+//line impgen/run/interface_templates.qtpl:16
 	qw422016.N().S(`{imp: imp}
 	return imp
 }
 
 `)
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 }
 
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 func WriteConstructor(qq422016 qtio422016.Writer, data templateData) {
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	StreamConstructor(qw422016, data)
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 }
 
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 func Constructor(data templateData) string {
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	WriteConstructor(qb422016, data)
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 	return qs422016
-//line interface_templates.qtpl:20
+//line impgen/run/interface_templates.qtpl:20
 }
 
 // ExpectCallIsStruct generates the ExpectCallIs struct definition.
 
-//line interface_templates.qtpl:23
+//line impgen/run/interface_templates.qtpl:23
 func StreamExpectCallIsStruct(qw422016 *qt422016.Writer, data templateData) {
-//line interface_templates.qtpl:23
+//line impgen/run/interface_templates.qtpl:23
 	qw422016.N().S(`// `)
-//line interface_templates.qtpl:23
+//line impgen/run/interface_templates.qtpl:23
 	qw422016.E().S(data.ExpectCallIsName)
-//line interface_templates.qtpl:23
+//line impgen/run/interface_templates.qtpl:23
 	qw422016.N().S(` provides methods to set expectations for specific method calls.
 // Each method returns a builder for fluent expectation configuration.
 // Use Within() on the parent `)
-//line interface_templates.qtpl:25
+//line impgen/run/interface_templates.qtpl:25
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:25
+//line impgen/run/interface_templates.qtpl:25
 	qw422016.N().S(` to configure timeouts.
 type `)
-//line interface_templates.qtpl:26
+//line impgen/run/interface_templates.qtpl:26
 	qw422016.E().S(data.ExpectCallIsName)
-//line interface_templates.qtpl:26
+//line impgen/run/interface_templates.qtpl:26
 	qw422016.E().S(data.TypeParamsDecl)
-//line interface_templates.qtpl:26
+//line impgen/run/interface_templates.qtpl:26
 	qw422016.N().S(` struct {
 	imp *`)
-//line interface_templates.qtpl:27
+//line impgen/run/interface_templates.qtpl:27
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:27
+//line impgen/run/interface_templates.qtpl:27
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:27
+//line impgen/run/interface_templates.qtpl:27
 	qw422016.N().S(`
 	timeout `)
-//line interface_templates.qtpl:28
+//line impgen/run/interface_templates.qtpl:28
 	if data.TimeAlias != "" {
-//line interface_templates.qtpl:28
+//line impgen/run/interface_templates.qtpl:28
 		qw422016.E().S(data.TimeAlias)
-//line interface_templates.qtpl:28
+//line impgen/run/interface_templates.qtpl:28
 	} else {
-//line interface_templates.qtpl:28
+//line impgen/run/interface_templates.qtpl:28
 		qw422016.N().S(`time`)
-//line interface_templates.qtpl:28
+//line impgen/run/interface_templates.qtpl:28
 	}
-//line interface_templates.qtpl:28
+//line impgen/run/interface_templates.qtpl:28
 	qw422016.N().S(`.Duration
 }
 
 `)
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 }
 
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 func WriteExpectCallIsStruct(qq422016 qtio422016.Writer, data templateData) {
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	StreamExpectCallIsStruct(qw422016, data)
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 }
 
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 func ExpectCallIsStruct(data templateData) string {
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	WriteExpectCallIsStruct(qb422016, data)
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 	return qs422016
-//line interface_templates.qtpl:31
+//line impgen/run/interface_templates.qtpl:31
 }
 
 // GetCurrentCallMethod generates the GetCurrentCall method.
 
-//line interface_templates.qtpl:34
+//line impgen/run/interface_templates.qtpl:34
 func StreamGetCurrentCallMethod(qw422016 *qt422016.Writer, data templateData) {
-//line interface_templates.qtpl:34
+//line impgen/run/interface_templates.qtpl:34
 	qw422016.N().S(`// GetCurrentCall returns the current call being processed.
 // If no call is pending, waits indefinitely for the next call.
 // Returns the existing current call if it hasn't been completed yet.
 func (i *`)
-//line interface_templates.qtpl:37
+//line impgen/run/interface_templates.qtpl:37
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:37
+//line impgen/run/interface_templates.qtpl:37
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:37
+//line impgen/run/interface_templates.qtpl:37
 	qw422016.N().S(`) GetCurrentCall() *`)
-//line interface_templates.qtpl:37
+//line impgen/run/interface_templates.qtpl:37
 	qw422016.E().S(data.CallName)
-//line interface_templates.qtpl:37
+//line impgen/run/interface_templates.qtpl:37
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:37
+//line impgen/run/interface_templates.qtpl:37
 	qw422016.N().S(` {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
 	}
 	i.currentCall = i.GetCall(0, func(c *`)
-//line interface_templates.qtpl:41
+//line impgen/run/interface_templates.qtpl:41
 	qw422016.E().S(data.CallName)
-//line interface_templates.qtpl:41
+//line impgen/run/interface_templates.qtpl:41
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:41
+//line impgen/run/interface_templates.qtpl:41
 	qw422016.N().S(`) bool { return true })
 	return i.currentCall
 }
 
 `)
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 }
 
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 func WriteGetCurrentCallMethod(qq422016 qtio422016.Writer, data templateData) {
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	StreamGetCurrentCallMethod(qw422016, data)
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 }
 
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 func GetCurrentCallMethod(data templateData) string {
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	WriteGetCurrentCallMethod(qb422016, data)
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 	return qs422016
-//line interface_templates.qtpl:45
+//line impgen/run/interface_templates.qtpl:45
 }
 
 // InterfaceVerification generates the compile-time verification that Mock implements the interface.
 
-//line interface_templates.qtpl:48
+//line impgen/run/interface_templates.qtpl:48
 func StreamInterfaceVerification(qw422016 *qt422016.Writer, data templateData) {
-//line interface_templates.qtpl:48
+//line impgen/run/interface_templates.qtpl:48
 	qw422016.N().S(`var (
 	// Compile-time verification that `)
-//line interface_templates.qtpl:49
+//line impgen/run/interface_templates.qtpl:49
 	qw422016.E().S(data.MockName)
-//line interface_templates.qtpl:49
+//line impgen/run/interface_templates.qtpl:49
 	qw422016.N().S(` implements `)
-//line interface_templates.qtpl:49
+//line impgen/run/interface_templates.qtpl:49
 	qw422016.E().S(data.InterfaceName)
-//line interface_templates.qtpl:49
+//line impgen/run/interface_templates.qtpl:49
 	qw422016.N().S(`.
 	_ `)
-//line interface_templates.qtpl:50
+//line impgen/run/interface_templates.qtpl:50
 	qw422016.E().S(data.InterfaceName)
-//line interface_templates.qtpl:50
+//line impgen/run/interface_templates.qtpl:50
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:50
+//line impgen/run/interface_templates.qtpl:50
 	qw422016.N().S(` = (*`)
-//line interface_templates.qtpl:50
+//line impgen/run/interface_templates.qtpl:50
 	qw422016.E().S(data.MockName)
-//line interface_templates.qtpl:50
+//line impgen/run/interface_templates.qtpl:50
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:50
+//line impgen/run/interface_templates.qtpl:50
 	qw422016.N().S(`)(nil)
 )
 
 `)
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 }
 
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 func WriteInterfaceVerification(qq422016 qtio422016.Writer, data templateData) {
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	StreamInterfaceVerification(qw422016, data)
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 }
 
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 func InterfaceVerification(data templateData) string {
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	WriteInterfaceVerification(qb422016, data)
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 	return qs422016
-//line interface_templates.qtpl:53
+//line impgen/run/interface_templates.qtpl:53
 }
 
 // MainStruct generates the main Imp struct definition.
 
-//line interface_templates.qtpl:56
+//line impgen/run/interface_templates.qtpl:56
 func StreamMainStruct(qw422016 *qt422016.Writer, data templateData) {
-//line interface_templates.qtpl:56
+//line impgen/run/interface_templates.qtpl:56
 	qw422016.N().S(`// `)
-//line interface_templates.qtpl:56
+//line impgen/run/interface_templates.qtpl:56
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:56
+//line impgen/run/interface_templates.qtpl:56
 	qw422016.N().S(` is the test controller for mocking the interface.
 // Create with New`)
-//line interface_templates.qtpl:57
+//line impgen/run/interface_templates.qtpl:57
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:57
+//line impgen/run/interface_templates.qtpl:57
 	qw422016.N().S(`(t), then use Mock field to get the mock implementation
 // and ExpectCallIs field to set expectations for method calls.
 //
 // Example:
 //
 //	imp := New`)
-//line interface_templates.qtpl:62
+//line impgen/run/interface_templates.qtpl:62
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:62
+//line impgen/run/interface_templates.qtpl:62
 	qw422016.N().S(`(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type `)
-//line interface_templates.qtpl:65
+//line impgen/run/interface_templates.qtpl:65
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:65
+//line impgen/run/interface_templates.qtpl:65
 	qw422016.E().S(data.TypeParamsDecl)
-//line interface_templates.qtpl:65
+//line impgen/run/interface_templates.qtpl:65
 	qw422016.N().S(` struct {
 	*imptest.Controller[*`)
-//line interface_templates.qtpl:66
+//line impgen/run/interface_templates.qtpl:66
 	qw422016.E().S(data.CallName)
-//line interface_templates.qtpl:66
+//line impgen/run/interface_templates.qtpl:66
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:66
+//line impgen/run/interface_templates.qtpl:66
 	qw422016.N().S(`]
 	Mock *`)
-//line interface_templates.qtpl:67
+//line impgen/run/interface_templates.qtpl:67
 	qw422016.E().S(data.MockName)
-//line interface_templates.qtpl:67
+//line impgen/run/interface_templates.qtpl:67
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:67
+//line impgen/run/interface_templates.qtpl:67
 	qw422016.N().S(`
 	ExpectCallIs *`)
-//line interface_templates.qtpl:68
+//line impgen/run/interface_templates.qtpl:68
 	qw422016.E().S(data.ExpectCallIsName)
-//line interface_templates.qtpl:68
+//line impgen/run/interface_templates.qtpl:68
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:68
+//line impgen/run/interface_templates.qtpl:68
 	qw422016.N().S(`
 	currentCall *`)
-//line interface_templates.qtpl:69
+//line impgen/run/interface_templates.qtpl:69
 	qw422016.E().S(data.CallName)
-//line interface_templates.qtpl:69
+//line impgen/run/interface_templates.qtpl:69
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:69
+//line impgen/run/interface_templates.qtpl:69
 	qw422016.N().S(`
 }
 
 `)
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 }
 
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 func WriteMainStruct(qq422016 qtio422016.Writer, data templateData) {
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	StreamMainStruct(qw422016, data)
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 }
 
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 func MainStruct(data templateData) string {
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	WriteMainStruct(qb422016, data)
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 	return qs422016
-//line interface_templates.qtpl:72
+//line impgen/run/interface_templates.qtpl:72
 }
 
 // MockStruct generates the Mock struct definition.
 
-//line interface_templates.qtpl:75
+//line impgen/run/interface_templates.qtpl:75
 func StreamMockStruct(qw422016 *qt422016.Writer, data templateData) {
-//line interface_templates.qtpl:75
+//line impgen/run/interface_templates.qtpl:75
 	qw422016.N().S(`// `)
-//line interface_templates.qtpl:75
+//line impgen/run/interface_templates.qtpl:75
 	qw422016.E().S(data.MockName)
-//line interface_templates.qtpl:75
+//line impgen/run/interface_templates.qtpl:75
 	qw422016.N().S(` provides the mock implementation of the interface.
 // Pass `)
-//line interface_templates.qtpl:76
+//line impgen/run/interface_templates.qtpl:76
 	qw422016.E().S(data.MockName)
-//line interface_templates.qtpl:76
+//line impgen/run/interface_templates.qtpl:76
 	qw422016.N().S(` to code under test that expects the interface implementation.
 // Use the parent `)
-//line interface_templates.qtpl:77
+//line impgen/run/interface_templates.qtpl:77
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:77
+//line impgen/run/interface_templates.qtpl:77
 	qw422016.N().S(` controller to set expectations and inject responses.
 type `)
-//line interface_templates.qtpl:78
+//line impgen/run/interface_templates.qtpl:78
 	qw422016.E().S(data.MockName)
-//line interface_templates.qtpl:78
+//line impgen/run/interface_templates.qtpl:78
 	qw422016.E().S(data.TypeParamsDecl)
-//line interface_templates.qtpl:78
+//line impgen/run/interface_templates.qtpl:78
 	qw422016.N().S(` struct {
 	imp *`)
-//line interface_templates.qtpl:79
+//line impgen/run/interface_templates.qtpl:79
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:79
+//line impgen/run/interface_templates.qtpl:79
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:79
+//line impgen/run/interface_templates.qtpl:79
 	qw422016.N().S(`
 }
 
 `)
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 }
 
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 func WriteMockStruct(qq422016 qtio422016.Writer, data templateData) {
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	StreamMockStruct(qw422016, data)
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 }
 
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 func MockStruct(data templateData) string {
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	WriteMockStruct(qb422016, data)
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 	return qs422016
-//line interface_templates.qtpl:82
+//line impgen/run/interface_templates.qtpl:82
 }
 
 // TimedStruct generates the Timed struct definition and Within method.
 
-//line interface_templates.qtpl:85
+//line impgen/run/interface_templates.qtpl:85
 func StreamTimedStruct(qw422016 *qt422016.Writer, data templateData) {
-//line interface_templates.qtpl:85
+//line impgen/run/interface_templates.qtpl:85
 	qw422016.N().S(`// `)
-//line interface_templates.qtpl:85
+//line impgen/run/interface_templates.qtpl:85
 	qw422016.E().S(data.TimedName)
-//line interface_templates.qtpl:85
+//line impgen/run/interface_templates.qtpl:85
 	qw422016.N().S(` provides timeout-configured expectation methods.
 // Access via `)
-//line interface_templates.qtpl:86
+//line impgen/run/interface_templates.qtpl:86
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:86
+//line impgen/run/interface_templates.qtpl:86
 	qw422016.N().S(`.Within(duration) to set a timeout for expectations.
 type `)
-//line interface_templates.qtpl:87
+//line impgen/run/interface_templates.qtpl:87
 	qw422016.E().S(data.TimedName)
-//line interface_templates.qtpl:87
+//line impgen/run/interface_templates.qtpl:87
 	qw422016.E().S(data.TypeParamsDecl)
-//line interface_templates.qtpl:87
+//line impgen/run/interface_templates.qtpl:87
 	qw422016.N().S(` struct {
 	ExpectCallIs *`)
-//line interface_templates.qtpl:88
+//line impgen/run/interface_templates.qtpl:88
 	qw422016.E().S(data.ExpectCallIsName)
-//line interface_templates.qtpl:88
+//line impgen/run/interface_templates.qtpl:88
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:88
+//line impgen/run/interface_templates.qtpl:88
 	qw422016.N().S(`
 }
 
 // Within configures a timeout for expectations and returns a `)
-//line interface_templates.qtpl:91
+//line impgen/run/interface_templates.qtpl:91
 	qw422016.E().S(data.TimedName)
-//line interface_templates.qtpl:91
+//line impgen/run/interface_templates.qtpl:91
 	qw422016.N().S(` for method chaining.
 // The timeout applies to subsequent expectation calls.
 //
 // Example:
 //
 //	imp.Within(100*`)
-//line interface_templates.qtpl:96
+//line impgen/run/interface_templates.qtpl:96
 	if data.TimeAlias != "" {
-//line interface_templates.qtpl:96
+//line impgen/run/interface_templates.qtpl:96
 		qw422016.E().S(data.TimeAlias)
-//line interface_templates.qtpl:96
+//line impgen/run/interface_templates.qtpl:96
 	} else {
-//line interface_templates.qtpl:96
+//line impgen/run/interface_templates.qtpl:96
 		qw422016.N().S(`time`)
-//line interface_templates.qtpl:96
+//line impgen/run/interface_templates.qtpl:96
 	}
-//line interface_templates.qtpl:96
+//line impgen/run/interface_templates.qtpl:96
 	qw422016.N().S(`.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
 func (i *`)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	qw422016.E().S(data.ImpName)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	qw422016.N().S(`) Within(d `)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	if data.TimeAlias != "" {
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 		qw422016.E().S(data.TimeAlias)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	} else {
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 		qw422016.N().S(`time`)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	}
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	qw422016.N().S(`.Duration) *`)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	qw422016.E().S(data.TimedName)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:97
+//line impgen/run/interface_templates.qtpl:97
 	qw422016.N().S(` {
 	return &`)
-//line interface_templates.qtpl:98
+//line impgen/run/interface_templates.qtpl:98
 	qw422016.E().S(data.TimedName)
-//line interface_templates.qtpl:98
+//line impgen/run/interface_templates.qtpl:98
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:98
+//line impgen/run/interface_templates.qtpl:98
 	qw422016.N().S(`{
 		ExpectCallIs: &`)
-//line interface_templates.qtpl:99
+//line impgen/run/interface_templates.qtpl:99
 	qw422016.E().S(data.ExpectCallIsName)
-//line interface_templates.qtpl:99
+//line impgen/run/interface_templates.qtpl:99
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:99
+//line impgen/run/interface_templates.qtpl:99
 	qw422016.N().S(`{imp: i, timeout: d},
 	}
 }
 
 `)
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 }
 
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 func WriteTimedStruct(qq422016 qtio422016.Writer, data templateData) {
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	StreamTimedStruct(qw422016, data)
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 }
 
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 func TimedStruct(data templateData) string {
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	WriteTimedStruct(qb422016, data)
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 	return qs422016
-//line interface_templates.qtpl:103
+//line impgen/run/interface_templates.qtpl:103
 }
 
 // InjectPanic generates the InjectPanic method for a method call.
 
-//line interface_templates.qtpl:106
+//line impgen/run/interface_templates.qtpl:106
 func StreamInjectPanic(qw422016 *qt422016.Writer, data methodTemplateData) {
-//line interface_templates.qtpl:106
+//line impgen/run/interface_templates.qtpl:106
 	qw422016.N().S(`// InjectPanic causes the mocked method to panic with the given value.
 // Use this to test panic handling in code under test.
 // The panic occurs in the goroutine where the mock was called.
 func (c *`)
-//line interface_templates.qtpl:109
+//line impgen/run/interface_templates.qtpl:109
 	qw422016.E().S(data.MethodCallName)
-//line interface_templates.qtpl:109
+//line impgen/run/interface_templates.qtpl:109
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:109
+//line impgen/run/interface_templates.qtpl:109
 	qw422016.N().S(`) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- `)
-//line interface_templates.qtpl:111
+//line impgen/run/interface_templates.qtpl:111
 	qw422016.E().S(data.MethodCallName)
-//line interface_templates.qtpl:111
+//line impgen/run/interface_templates.qtpl:111
 	qw422016.N().S(`Response`)
-//line interface_templates.qtpl:111
+//line impgen/run/interface_templates.qtpl:111
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:111
+//line impgen/run/interface_templates.qtpl:111
 	qw422016.N().S(`{Type: "panic", PanicValue: msg}
 }
 `)
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 }
 
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 func WriteInjectPanic(qq422016 qtio422016.Writer, data methodTemplateData) {
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	StreamInjectPanic(qw422016, data)
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 }
 
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 func InjectPanic(data methodTemplateData) string {
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	WriteInjectPanic(qb422016, data)
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 	return qs422016
-//line interface_templates.qtpl:113
+//line impgen/run/interface_templates.qtpl:113
 }
 
 // Resolve generates the Resolve method for a void method call.
 
-//line interface_templates.qtpl:116
+//line impgen/run/interface_templates.qtpl:116
 func StreamResolve(qw422016 *qt422016.Writer, data methodTemplateData) {
-//line interface_templates.qtpl:116
+//line impgen/run/interface_templates.qtpl:116
 	qw422016.N().S(`// Resolve completes a void method call without error.
 // Use this to unblock the mock method and allow execution to continue.
 // Only applicable to methods with no return values.
 func (c *`)
-//line interface_templates.qtpl:119
+//line impgen/run/interface_templates.qtpl:119
 	qw422016.E().S(data.MethodCallName)
-//line interface_templates.qtpl:119
+//line impgen/run/interface_templates.qtpl:119
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:119
+//line impgen/run/interface_templates.qtpl:119
 	qw422016.N().S(`) Resolve() {
 	c.done = true
 	c.responseChan <- `)
-//line interface_templates.qtpl:121
+//line impgen/run/interface_templates.qtpl:121
 	qw422016.E().S(data.MethodCallName)
-//line interface_templates.qtpl:121
+//line impgen/run/interface_templates.qtpl:121
 	qw422016.N().S(`Response`)
-//line interface_templates.qtpl:121
+//line impgen/run/interface_templates.qtpl:121
 	qw422016.E().S(data.TypeParamsUse)
-//line interface_templates.qtpl:121
+//line impgen/run/interface_templates.qtpl:121
 	qw422016.N().S(`{Type: "resolve"}
 }
 `)
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 }
 
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 func WriteResolve(qq422016 qtio422016.Writer, data methodTemplateData) {
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	StreamResolve(qw422016, data)
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	qt422016.ReleaseWriter(qw422016)
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 }
 
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 func Resolve(data methodTemplateData) string {
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	qb422016 := qt422016.AcquireByteBuffer()
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	WriteResolve(qb422016, data)
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	qs422016 := string(qb422016.B)
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	qt422016.ReleaseByteBuffer(qb422016)
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 	return qs422016
-//line interface_templates.qtpl:123
+//line impgen/run/interface_templates.qtpl:123
 }

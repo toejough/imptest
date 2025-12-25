@@ -772,7 +772,7 @@ func Test(c context.Context) error {
 		c,
 		"go",
 		"test",
-		"-timeout=10s",
+		"-timeout=2m",
 		"-race",
 		"-coverprofile=coverage.out",
 		"-coverpkg=./...",

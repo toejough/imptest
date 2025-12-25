@@ -12,7 +12,6 @@ import (
 	"go/build"
 	"go/token"
 	"go/types"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +27,8 @@ func main() {
 		return
 	}
 
-	err := run.WithCache(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{}, &realCacheFileSystem{}, os.Stdout)
+	// Caching disabled per user request - do not re-enable without explicit approval
+	err := run.Run(os.Args, os.Getenv, &realFileSystem{}, &realPackageLoader{}, os.Stdout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -39,59 +39,6 @@ func main() {
 var (
 	errNoPackagesFound = errors.New("no packages found")
 )
-
-// realCacheFileSystem implements CacheFileSystem using os package.
-type realCacheFileSystem struct{}
-
-// Create creates the named file for writing.
-func (cfs *realCacheFileSystem) Create(path string) (io.WriteCloser, error) {
-	file, err := os.Create(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create %s: %w", path, err)
-	}
-
-	return file, nil
-}
-
-// Getwd returns the current working directory.
-func (cfs *realCacheFileSystem) Getwd() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	return dir, nil
-}
-
-// MkdirAll creates a directory path and all parents.
-func (cfs *realCacheFileSystem) MkdirAll(path string, perm os.FileMode) error {
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		return fmt.Errorf("failed to create directory %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// Open opens the named file for reading.
-func (cfs *realCacheFileSystem) Open(path string) (io.ReadCloser, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open %s: %w", path, err)
-	}
-
-	return file, nil
-}
-
-// Stat returns file info for the named file.
-func (cfs *realCacheFileSystem) Stat(path string) (os.FileInfo, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to stat %s: %w", path, err)
-	}
-
-	return info, nil
-}
 
 // realFileSystem implements FileSystem using os package.
 type realFileSystem struct{}
@@ -221,14 +168,8 @@ func (pl *realPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSe
 	allFiles := make([]*dst.File, 0, len(goFiles))
 
 	for _, goFile := range goFiles {
-		// Read file content
-		content, err := os.ReadFile(goFile)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to read %s: %w", goFile, err)
-		}
-
-		// Parse using DST (fast, no type checking)
-		dstFile, err := dec.Parse(string(content))
+		// Parse using DST with filename for proper FileSet registration
+		dstFile, err := dec.ParseFile(goFile, nil, 0)
 		if err != nil {
 			// Skip files with parse errors
 			continue

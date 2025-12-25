@@ -624,6 +624,9 @@ func (gen *codeGenerator) templateData() templateData {
 		return *gen.cachedTemplateData
 	}
 
+	timeAlias := getStdlibAlias(gen.qualifier, "time")
+	timePath := getTimePath(gen.qualifier, gen.pkgPath)
+
 	data := templateData{
 		baseTemplateData: baseTemplateData{
 			PkgName:        gen.pkgName,
@@ -633,7 +636,8 @@ func (gen *codeGenerator) templateData() templateData {
 			NeedsQualifier: gen.needsQualifier,
 			TypeParamsDecl: gen.formatTypeParamsDecl(),
 			TypeParamsUse:  gen.formatTypeParamsUse(),
-			TimeAlias:      getStdlibAlias(gen.qualifier, "time"),
+			TimeAlias:      timeAlias,
+			TimePath:       timePath,
 			TestingAlias:   getStdlibAlias(gen.qualifier, "testing"),
 			ReflectAlias:   getStdlibAlias(gen.qualifier, "reflect"),
 			ImptestAlias:   getStdlibAlias(gen.qualifier, "imptest"),
@@ -1145,6 +1149,8 @@ func interfaceProcessFieldMethods(
 }
 
 // newCodeGenerator initializes a codeGenerator with common properties and performs initial setup.
+//
+//nolint:funlen // Constructor with necessary initialization logic
 func newCodeGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
@@ -1173,9 +1179,21 @@ func newCodeGenerator(
 	}
 
 	// Construct the full interface name for compile-time verification
+	// When there's a package name conflict (e.g., local "time" package shadowing stdlib "time"),
+	// we need to use the aliased stdlib package name in the type assertion.
 	var interfaceName string
+
 	if qualifier != "" {
-		interfaceName = qualifier + "." + info.localInterfaceName
+		// Check if this is a stdlib package that needs aliasing due to a name conflict
+		// A stdlib package has a simple import path (no slashes), and if the qualifier matches
+		// the package path, it means there's a local package with the same name.
+		qualifierToUse := qualifier
+		if pkgPath != "" && !strings.Contains(pkgPath, "/") && pkgPath == qualifier {
+			// This is a stdlib package with a name conflict - use the alias
+			qualifierToUse = "_" + qualifier
+		}
+
+		interfaceName = qualifierToUse + "." + info.localInterfaceName
 	} else {
 		interfaceName = info.localInterfaceName
 	}

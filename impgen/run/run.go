@@ -67,7 +67,7 @@ func Run(
 		return err
 	}
 
-	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, fileWriter, output)
+	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, getEnv, fileWriter, output)
 	if err != nil {
 		return err
 	}
@@ -296,14 +296,14 @@ func parseArgs(args []string) (cliArgs, error) {
 
 // writeGeneratedCodeToFile writes the generated code to generated_<impName>.go.
 func writeGeneratedCodeToFile(
-	code string, impName string, pkgName string, fileWriter FileWriter, output io.Writer,
+	code string, impName string, pkgName string, getEnv func(string) string, fileWriter FileWriter, output io.Writer,
 ) error {
 	const generatedFilePermissions = 0o600
 
 	filename := "generated_" + impName
 	// If we're in a test package OR the source file is a test file, append _test to the filename
 	// This handles both blackbox testing (package xxx_test) and whitebox testing (package xxx in xxx_test.go)
-	goFile := os.Getenv("GOFILE")
+	goFile := getEnv("GOFILE")
 
 	isTestFile := strings.HasSuffix(pkgName, "_test") || strings.HasSuffix(goFile, "_test.go")
 	if isTestFile && !strings.HasSuffix(impName, "_test") {

@@ -700,6 +700,14 @@ func generateResultVarNames(count int, prefix string) []string {
 	return names
 }
 
+// getTimePath returns the import path for the stdlib time package used by Within() method.
+// This is always "time" (stdlib) since the NeedsQualifier section handles local "time" packages separately.
+func getTimePath(_, _ string) string {
+	// Always return stdlib "time" - it's needed for time.Duration in Within() method
+	// The local "time" package (if any) is handled by NeedsQualifier import
+	return "time"
+}
+
 // getStdlibAlias returns the alias to use for a stdlib package if there's a conflict
 // with the user's package qualifier. Returns empty string if no conflict.
 // For example, if the user has a package named "time", we alias the stdlib time as "_time".

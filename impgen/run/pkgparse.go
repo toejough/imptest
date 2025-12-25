@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"go/types"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/dave/dst"
@@ -33,7 +34,33 @@ var (
 	errInterfaceNotFound = errors.New("interface not found")
 	errPackageNotFound   = errors.New("package not found in imports or as a loadable package")
 	errSymbolNotFound    = errors.New("symbol (interface or function) not found")
+	// stdlibPackages contains common stdlib packages that might be shadowed by local packages.
+	// This list doesn't need to be exhaustive - just common cases.
+	//nolint:gochecknoglobals // Global constant map for stdlib package detection
+	stdlibPackages = map[string]bool{
+		"archive": true, "bufio": true, "bytes": true, "compress": true,
+		"container": true, "context": true, "crypto": true, "database": true,
+		"debug": true, "embed": true, "encoding": true, "errors": true,
+		"expvar": true, "flag": true, "fmt": true, "go": true,
+		"hash": true, "html": true, "image": true, "index": true,
+		"io": true, "log": true, "math": true, "mime": true,
+		"net": true, "os": true, "path": true, "plugin": true,
+		"reflect": true, "regexp": true, "runtime": true, "sort": true,
+		"strconv": true, "strings": true, "sync": true, "syscall": true,
+		"testing": true, "text": true, "time": true, "unicode": true,
+		"unsafe": true,
+	}
 )
+
+// isStdlibPackage checks if a package name is a standard library package.
+func isStdlibPackage(pkgName string) bool {
+	// Simple packages without slashes that are in our stdlib list
+	if !strings.Contains(pkgName, "/") {
+		return stdlibPackages[pkgName]
+	}
+
+	return false
+}
 
 // ifaceWithDetails is a helper struct to return both the interface and its type parameters.
 type ifaceWithDetails struct {
@@ -145,10 +172,38 @@ func findFunctionInAST(
 }
 
 // findImportPath finds the import path for a given package name by parsing the provided AST files.
-
+//
+//nolint:cyclop // Import path resolution requires checking multiple sources
 func findImportPath(
 	astFiles []*dst.File, pkgName string, pkgLoader PackageLoader,
 ) (string, error) {
+	// For stdlib package names, check if there's a local package shadowing it first.
+	// This ensures local packages shadow stdlib packages with the same name (e.g., local "time" vs stdlib "time").
+	// Only do this for actual stdlib packages to avoid expensive loads for module packages.
+	if isStdlibPackage(pkgName) {
+		files, fset, _, err := pkgLoader.Load(pkgName)
+		if err == nil && len(files) > 0 {
+			// Try to get the full import path from the loaded package directory.
+			// For stdlib packages loaded from their actual location, getImportPathFromFiles will fail
+			// (because stdlib packages are typically in GOROOT). That's expected - we just want
+			// to detect LOCAL packages that shadow stdlib packages.
+			fullPath, err := getImportPathFromFiles(files, fset, pkgName)
+
+			isLocalPackage := err == nil && fullPath != pkgName &&
+				(strings.HasSuffix(fullPath, "/"+pkgName) || strings.Contains(fullPath, "/"+pkgName+"/"))
+			if isLocalPackage {
+				// Got a different path that's valid for this package - this means a local package is shadowing the stdlib package
+				return fullPath, nil
+			}
+
+			// Either getImportPathFromFiles failed (normal for stdlib) or returned an invalid path.
+			// In both cases, use the package name as-is (it's the stdlib package).
+			return pkgName, nil
+		}
+	}
+
+	// Check existing imports in the current package.
+	// This covers cases where the package is already imported or has an alias.
 	for _, file := range astFiles {
 		for _, imp := range file.Imports {
 			path, err := checkImport(imp, pkgName, pkgLoader)
@@ -159,25 +214,17 @@ func findImportPath(
 	}
 
 	// As a last resort, try loading the package by name.
-
-	// This covers cases where the package is implicitly imported (e.g., "builtin").
-
-	// This is also important for when the package under test is the one being referenced,
-
-	// and therefore will not appear in the imports (e.g., "mytypes.MyStruct").
-
-	// For local packages, we need to get the full import path, not just the short name.
-
-	files, _, _, err := pkgLoader.Load(pkgName)
-
+	// This covers cases where the package is implicitly imported (e.g., "builtin")
+	// or when the package under test is the one being referenced.
+	files, fset, _, err := pkgLoader.Load(pkgName)
 	if err == nil && len(files) > 0 {
-		// Try to get the full import path using go list
-		fullPath, err := getFullImportPath(pkgName)
+		// Try to get the full import path from the loaded package directory
+		fullPath, err := getImportPathFromFiles(files, fset, pkgName)
 		if err == nil {
 			return fullPath, nil
 		}
 
-		// Fall back to the short name if go list fails
+		// Fall back to the short name if import path resolution fails
 		return pkgName, nil
 	}
 
@@ -278,6 +325,47 @@ func getFullImportPath(pkgName string) (string, error) {
 	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("failed to get import path for %s: %w", pkgName, err)
+	}
+
+	importPath := strings.TrimSpace(out.String())
+
+	return importPath, nil
+}
+
+// getImportPathFromFiles determines the import path of a package by examining its loaded files.
+// It gets the directory from the FileSet and runs `go list` on that directory.
+func getImportPathFromFiles(files []*dst.File, fset *token.FileSet, _ string) (string, error) {
+	if len(files) == 0 {
+		return "", fmt.Errorf("%w: no files provided", errPackageNotFound)
+	}
+
+	// Iterate through the FileSet to find a file path
+	var filePath string
+
+	fset.Iterate(func(f *token.File) bool {
+		filePath = f.Name()
+		return false // Stop after first file
+	})
+
+	if filePath == "" {
+		return "", fmt.Errorf("%w: cannot determine file path from FileSet", errPackageNotFound)
+	}
+
+	// Get the directory containing the file
+	dir := filepath.Dir(filePath)
+
+	// Run `go list` on the directory to get its import path
+	//nolint:noctx // context not needed for simple command
+	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", dir)
+
+	var out bytes.Buffer
+
+	cmd.Stdout = &out
+	cmd.Stderr = nil
+
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("failed to get import path for directory %s: %w", dir, err)
 	}
 
 	importPath := strings.TrimSpace(out.String())
