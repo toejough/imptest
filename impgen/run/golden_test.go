@@ -52,39 +52,7 @@ func TestUATConsistency(t *testing.T) {
 	}
 }
 
-// verifyingFileSystem implements FileSystem.
-// It reads the file from disk that *would* be overwritten and compares content.
-// realTestFileSystem implements FileSystem using os package for golden tests.
-type realTestFileSystem struct{}
-
-func (fs *realTestFileSystem) Glob(pattern string) ([]string, error) {
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("glob failed: %w", err)
-	}
-
-	return matches, nil
-}
-
-func (fs *realTestFileSystem) ReadFile(name string) ([]byte, error) {
-	data, err := os.ReadFile(name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", name, err)
-	}
-
-	return data, nil
-}
-
-func (fs *realTestFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	err := os.WriteFile(name, data, perm)
-	if err != nil {
-		return fmt.Errorf("failed to write file %s: %w", name, err)
-	}
-
-	return nil
-}
-
-// testPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
+// testPackageLoader implements PackageLoader using direct DST parsing.
 type testPackageLoader struct {
 	ProjectRoot string
 	ScenarioDir string
@@ -235,47 +203,6 @@ func scanUATDirectives(dir string) ([]uatTestCase, error) {
 	return testCases, nil
 }
 
-func tryDiskCache(t *testing.T, projectRoot, scenarioDir string, fullArgs []string) bool {
-	t.Helper()
-
-	// Change to scenario dir for signature calculation (it globs for files)
-	t.Chdir(scenarioDir)
-
-	// Use real filesystem for signature calculation in tests
-	fs := &realTestFileSystem{}
-
-	sig, err := run.CalculatePackageSignature(fullArgs, fs)
-	if err != nil {
-		return false
-	}
-
-	cfs := realCacheFS{}
-	cachePath := filepath.Join(projectRoot, run.CacheDirName, "cache.json")
-	cache := run.LoadDiskCache(cachePath, cfs)
-	key := strings.Join(fullArgs[1:], " ")
-
-	entry, ok := cache.Entries[key]
-	if !ok || entry.Signature != sig {
-		return false
-	}
-
-	// Cache hit! Verify content matches disk.
-	path := filepath.Join(scenarioDir, entry.Filename)
-
-	actualData, err := os.ReadFile(path)
-	if err != nil {
-		// If file is missing, we can't verify consistency via cache hit.
-		// Return false to fall back to full Run().
-		return false
-	}
-
-	if string(actualData) != entry.Content {
-		t.Errorf("Cached content for %s differs from disk file", path)
-	}
-
-	return true
-}
-
 func verifyUATFile(
 	t *testing.T,
 	loader *testPackageLoader,
@@ -283,12 +210,7 @@ func verifyUATFile(
 ) {
 	t.Helper()
 
-	// 1. Check disk cache if possible
 	fullArgs := append([]string{"impgen"}, testCase.args...)
-
-	if tryDiskCache(t, loader.ProjectRoot, testCase.dir, fullArgs) {
-		return
-	}
 
 	// Change directory to the scenario dir to run matching how CLI is used
 	t.Chdir(testCase.dir)
@@ -311,10 +233,7 @@ func verifyUATFile(
 		baseDir: ".",
 	}
 
-	// Use WithCache to enable cache writing for faster subsequent runs
-	cfs := realCacheFS{}
-
-	err := run.WithCache(fullArgs, getEnv, fileSystem, loader, cfs, io.Discard)
+	err := run.Run(fullArgs, getEnv, fileSystem, loader, io.Discard)
 	if err != nil {
 		t.Errorf("Run failed for %v: %v", testCase.name, err)
 	}
