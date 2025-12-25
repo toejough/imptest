@@ -2,11 +2,12 @@ package run
 
 import (
 	"fmt"
-	"go/ast"
 	"go/format"
 	"go/token"
 	go_types "go/types"
 	"strings"
+
+	"github.com/dave/dst"
 )
 
 // callableExtendedTemplateData extends callableTemplateData with dynamic signature info.
@@ -31,7 +32,7 @@ type callableExtendedTemplateData struct {
 type callableGenerator struct {
 	baseGenerator
 
-	funcDecl                   *ast.FuncDecl
+	funcDecl                   *dst.FuncDecl
 	cachedTemplateData         *callableTemplateData         // Cache to avoid redundant templateData() calls
 	cachedExtendedTemplateData *callableExtendedTemplateData // Cache to avoid redundant extendedTemplateData() calls
 }
@@ -229,6 +230,8 @@ func (g *callableGenerator) templateData() callableTemplateData {
 			TestingAlias:   getStdlibAlias(g.qualifier, "testing"),
 			ReflectAlias:   getStdlibAlias(g.qualifier, "reflect"),
 			ImptestAlias:   getStdlibAlias(g.qualifier, "imptest"),
+			NeedsReflect:   g.needsReflect,
+			NeedsImptest:   g.needsImptest,
 		},
 		HasReturns: hasResults(g.funcDecl.Type),
 		ReturnType: g.returnTypeName(),
@@ -253,11 +256,27 @@ func (g *callableGenerator) writeParamsWithQualifiersTo(buf *strings.Builder) {
 		}
 
 		if hasFieldNames(field) {
-			buf.WriteString(joinWith(field.Names, func(n *ast.Ident) string { return n.Name }, ", "))
+			buf.WriteString(joinWith(field.Names, func(n *dst.Ident) string { return n.Name }, ", "))
 			buf.WriteString(" ")
 		}
 
 		buf.WriteString(g.typeWithQualifier(field.Type))
+	}
+}
+
+// checkIfReflectNeeded scans return types and sets needsReflect if any are non-comparable.
+// This must be called before generating templates to ensure the reflect import is included.
+func (g *callableGenerator) checkIfReflectNeeded(funcType *dst.FuncType) {
+	if !hasResults(funcType) {
+		return
+	}
+
+	results := extractResults(g.fset, funcType)
+	for _, result := range results {
+		if !isComparableExpr(result.Field.Type, g.typesInfo) {
+			g.needsReflect = true
+			return
+		}
 	}
 }
 
@@ -287,6 +306,8 @@ func (g *callableGenerator) writeResultChecks(varName string, useMatcher bool) s
 			if isComparable {
 				fmt.Fprintf(&buf, "\t\tif %s != %s {\n", actualExpr, expectedName)
 			} else {
+				g.needsReflect = true
+
 				fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(%s, %s) {\n", actualExpr, expectedName)
 			}
 
@@ -326,7 +347,7 @@ type returnFieldData struct {
 
 // generateCallableWrapperCode generates a type-safe wrapper for a callable function.
 func generateCallableWrapperCode(
-	astFiles []*ast.File,
+	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
 	typesInfo *go_types.Info,
@@ -360,6 +381,7 @@ func generateCallableWrapperCode(
 	}
 
 	gen.checkIfQualifierNeeded(gen.funcDecl.Type)
+	gen.checkIfReflectNeeded(gen.funcDecl.Type)
 
 	err = gen.checkIfValidForExternalUsage(gen.funcDecl.Type)
 	if err != nil {

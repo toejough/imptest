@@ -14,6 +14,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
 	"golang.org/x/tools/go/packages"
 )
@@ -117,9 +119,11 @@ type testPackageLoader struct {
 	ScenarioDir string
 }
 
-// Load loads a package by import path and returns its AST files, FileSet, and type information.
+// Load loads a package by import path and returns its DST files, FileSet, and type information.
 // It uses a shared cache to avoid redundant work across different test cases.
-func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
+//
+//nolint:funlen // Test helper function with necessary setup and error handling
+func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
 	// For ".", use the current working directory to support per-test-case scenarios
 	loadPath := importPath
 	if importPath == "." {
@@ -140,7 +144,22 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 	globalLoadMu.RUnlock()
 
 	if ok {
-		return res.files, res.fset, res.info, res.err
+		// Convert cached AST files to DST files
+		if res.err != nil {
+			return nil, nil, nil, res.err
+		}
+
+		dstFiles := make([]*dst.File, len(res.files))
+		for idx, astFile := range res.files {
+			dstFile, err := decorator.DecorateFile(res.fset, astFile)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("failed to decorate AST file: %w", err)
+			}
+
+			dstFiles[idx] = dstFile
+		}
+
+		return dstFiles, res.fset, res.info, nil
 	}
 
 	resFiles, resFset, resInfo, resErr := pl.loadWithThrottle(loadPath)
@@ -156,7 +175,22 @@ func (pl *testPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSe
 
 	globalLoadMu.Unlock()
 
-	return resFiles, resFset, resInfo, resErr
+	if resErr != nil {
+		return nil, nil, nil, resErr
+	}
+
+	// Convert AST files to DST files
+	dstFiles := make([]*dst.File, len(resFiles))
+	for idx, astFile := range resFiles {
+		dstFile, err := decorator.DecorateFile(resFset, astFile)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to decorate AST file: %w", err)
+		}
+
+		dstFiles[idx] = dstFile
+	}
+
+	return dstFiles, resFset, resInfo, nil
 }
 
 func (pl *testPackageLoader) loadWithThrottle(loadPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
@@ -423,7 +457,7 @@ func verifyUATFile(
 	t.Chdir(testCase.dir)
 
 	getEnv := func(key string) string {
-		if key == "GOPACKAGE" {
+		if key == "GOPACKAGE" { //nolint:goconst // Test file can't access unexported constant from run package
 			return testCase.pkgName
 		}
 

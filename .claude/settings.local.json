@@ -50,7 +50,16 @@
       "Bash(time /usr/bin/time -p go test:*)",
       "Bash(go tool pprof:*)",
       "Bash(qtc:*)",
-      "Bash(go run:*)"
+      "Bash(go run:*)",
+      "Bash(tee:*)",
+      "Bash(GOPACKAGE=timeconflict_test go run:*)",
+      "Bash(go install:*)",
+      "Bash(~/go/bin/qtc:*)",
+      "Bash(git restore:*)",
+      "Bash(GOPACKAGE=timeconflict_test /Users/joe/repos/personal/imptest/impgen/run/impgen:*)",
+      "Bash(rm:*)",
+      "Bash(GOPACKAGE=timeconflict_test ../../bin/impgen:*)",
+      "Bash(gofmt:*)"
     ],
     "deny": [],
     "ask": []

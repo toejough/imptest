@@ -37,11 +37,7 @@ func mustGetCwd(b *testing.B) string {
 
 func mustChdir(b *testing.B, dir string) {
 	b.Helper()
-
-	err := os.Chdir(dir)
-	if err != nil {
-		b.Fatalf("failed to change directory to %s: %v", dir, err)
-	}
+	b.Chdir(dir)
 }
 
 // BenchmarkInterfaceGeneration measures the performance of generating a simple interface.
@@ -56,7 +52,7 @@ func BenchmarkInterfaceGeneration(b *testing.B) {
 	}
 
 	// Warm up the package loader cache
-	_, _, _, err := loader.Load(scenarioDir)
+	_, _, _, err := loader.Load(scenarioDir) //nolint:dogsled // Only checking for error during warmup
 	if err != nil {
 		b.Fatalf("failed to load package: %v", err)
 	}
@@ -74,13 +70,13 @@ func BenchmarkInterfaceGeneration(b *testing.B) {
 			return ""
 		}
 
-		fs := &discardFileSystem{}
+		fileSystem := &discardFileSystem{}
 
 		// Change to scenario dir (using SetCwd instead of Chdir for benchmarks)
 		oldCwd := mustGetCwd(b)
 		mustChdir(b, scenarioDir)
 
-		err := run.Run(args, getEnv, fs, loader, &buf)
+		err := run.Run(args, getEnv, fileSystem, loader, &buf)
 		if err != nil {
 			b.Fatalf("Run failed: %v", err)
 		}
@@ -101,7 +97,7 @@ func BenchmarkCallableGeneration(b *testing.B) {
 	}
 
 	// Warm up the package loader cache
-	_, _, _, err := loader.Load(scenarioDir)
+	_, _, _, err := loader.Load(scenarioDir) //nolint:dogsled // Only checking for error during warmup
 	if err != nil {
 		b.Fatalf("failed to load package: %v", err)
 	}
@@ -119,13 +115,13 @@ func BenchmarkCallableGeneration(b *testing.B) {
 			return ""
 		}
 
-		fs := &discardFileSystem{}
+		fileSystem := &discardFileSystem{}
 
 		// Change to scenario dir
 		oldCwd := mustGetCwd(b)
 		mustChdir(b, scenarioDir)
 
-		err := run.Run(args, getEnv, fs, loader, &buf)
+		err := run.Run(args, getEnv, fileSystem, loader, &buf)
 		if err != nil {
 			b.Fatalf("Run failed: %v", err)
 		}
@@ -137,15 +133,15 @@ func BenchmarkCallableGeneration(b *testing.B) {
 // discardFileSystem implements run.FileSystem, discarding all writes.
 type discardFileSystem struct{}
 
-func (d *discardFileSystem) Glob(pattern string) ([]string, error) {
+func (d *discardFileSystem) Glob(_ string) ([]string, error) {
 	return nil, nil
 }
 
-func (d *discardFileSystem) ReadFile(name string) ([]byte, error) {
+func (d *discardFileSystem) ReadFile(_ string) ([]byte, error) {
 	return nil, io.EOF
 }
 
-func (d *discardFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
+func (d *discardFileSystem) WriteFile(_ string, _ []byte, _ os.FileMode) error {
 	// Discard the write
 	return nil
 }

@@ -1,10 +1,11 @@
 package run_test
 
 import (
-	"go/ast"
 	"go/parser"
 	"testing"
 
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
 )
 
@@ -31,7 +32,7 @@ func TestIsExportedIdent(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			ident := &ast.Ident{Name: testCase.ident}
+			ident := &dst.Ident{Name: testCase.ident}
 			if got := run.IsExportedIdent(ident, isTypeParam); got != testCase.want {
 				t.Errorf("IsExportedIdent() = %v, want %v", got, testCase.want)
 			}
@@ -78,12 +79,23 @@ func TestValidateExportedTypes(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			expr, err := parser.ParseExpr(testCase.expr)
+			astExpr, err := parser.ParseExpr(testCase.expr)
 			if err != nil {
 				t.Fatalf("failed to parse expr: %v", err)
 			}
 
-			err = run.ValidateExportedTypes(expr, isTypeParam)
+			// Convert AST expression to DST expression
+			dstExpr, err := decorator.Decorate(nil, astExpr)
+			if err != nil {
+				t.Fatalf("failed to decorate expr: %v", err)
+			}
+
+			dstExprTyped, ok := dstExpr.(dst.Expr)
+			if !ok {
+				t.Fatalf("decorate returned non-dst.Expr: %T", dstExpr)
+			}
+
+			err = run.ValidateExportedTypes(dstExprTyped, isTypeParam)
 			if (err != nil) != testCase.wantErr {
 				t.Errorf("ValidateExportedTypes() error = %v, wantErr %v", err, testCase.wantErr)
 			}

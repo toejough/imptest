@@ -1,18 +1,21 @@
 package run
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/token"
 	"go/types"
+	"os/exec"
 	"strings"
+
+	"github.com/dave/dst"
 )
 
 // PackageLoader defines an interface for loading Go packages.
 
 type PackageLoader interface {
-	Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error)
+	Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error)
 }
 
 // symbolType identifies the kind of symbol found.
@@ -34,8 +37,8 @@ var (
 
 // ifaceWithDetails is a helper struct to return both the interface and its type parameters.
 type ifaceWithDetails struct {
-	iface      *ast.InterfaceType
-	typeParams *ast.FieldList
+	iface      *dst.InterfaceType
+	typeParams *dst.FieldList
 }
 
 // symbolDetails holds information about the detected symbol.
@@ -48,7 +51,7 @@ type symbolDetails struct {
 
 // checkImport checks if an import matches the target package name.
 
-func checkImport(imp *ast.ImportSpec, pkgName string, pkgLoader PackageLoader) (string, error) {
+func checkImport(imp *dst.ImportSpec, pkgName string, pkgLoader PackageLoader) (string, error) {
 	path := strings.Trim(imp.Path.Value, `"`)
 
 	if imp.Name != nil && imp.Name.Name == pkgName {
@@ -90,8 +93,8 @@ func extractPackageName(qualifiedName string) string {
 // funcName can be "MyFunc", "MyType.MyMethod", or "*MyType.MyMethod".
 
 func findFunctionInAST(
-	astFiles []*ast.File, fset *token.FileSet, funcName string, pkgImportPath string,
-) (*ast.FuncDecl, error) {
+	astFiles []*dst.File, fset *token.FileSet, funcName string, pkgImportPath string,
+) (*dst.FuncDecl, error) {
 	parts := strings.Split(funcName, ".")
 
 	methodName := parts[len(parts)-1]
@@ -104,7 +107,7 @@ func findFunctionInAST(
 
 	for _, file := range astFiles {
 		for _, decl := range file.Decls {
-			funcDecl, ok := decl.(*ast.FuncDecl)
+			funcDecl, ok := decl.(*dst.FuncDecl)
 
 			if !ok {
 				continue
@@ -144,7 +147,7 @@ func findFunctionInAST(
 // findImportPath finds the import path for a given package name by parsing the provided AST files.
 
 func findImportPath(
-	astFiles []*ast.File, pkgName string, pkgLoader PackageLoader,
+	astFiles []*dst.File, pkgName string, pkgLoader PackageLoader,
 ) (string, error) {
 	for _, file := range astFiles {
 		for _, imp := range file.Imports {
@@ -163,9 +166,18 @@ func findImportPath(
 
 	// and therefore will not appear in the imports (e.g., "mytypes.MyStruct").
 
+	// For local packages, we need to get the full import path, not just the short name.
+
 	files, _, _, err := pkgLoader.Load(pkgName)
 
 	if err == nil && len(files) > 0 {
+		// Try to get the full import path using go list
+		fullPath, err := getFullImportPath(pkgName)
+		if err == nil {
+			return fullPath, nil
+		}
+
+		// Fall back to the short name if go list fails
 		return pkgName, nil
 	}
 
@@ -174,7 +186,7 @@ func findImportPath(
 
 // findSymbol looks for either an interface or a function/method in the given AST files.
 func findSymbol(
-	astFiles []*ast.File, fset *token.FileSet, symbolName string, pkgImportPath string,
+	astFiles []*dst.File, fset *token.FileSet, symbolName string, pkgImportPath string,
 ) (symbolDetails, error) {
 	// 1. Try finding it as an interface first
 	iface, err := getMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
@@ -199,30 +211,30 @@ func findSymbol(
 // getMatchingInterfaceFromAST extracts the target interface declaration and its type parameters from AST files.
 
 func getMatchingInterfaceFromAST(
-	astFiles []*ast.File, interfaceName string, pkgImportPath string,
+	astFiles []*dst.File, interfaceName string, pkgImportPath string,
 ) (ifaceWithDetails, error) {
 	var (
-		targetIface *ast.InterfaceType
+		targetIface *dst.InterfaceType
 
-		typeParams *ast.FieldList
+		typeParams *dst.FieldList
 	)
 
 	for _, file := range astFiles {
-		ast.Inspect(file, func(node ast.Node) bool {
-			genDecl, ok := node.(*ast.GenDecl)
+		dst.Inspect(file, func(node dst.Node) bool {
+			genDecl, ok := node.(*dst.GenDecl)
 
 			if !ok || genDecl.Tok != token.TYPE {
 				return true // Not a type declaration
 			}
 
 			for _, spec := range genDecl.Specs {
-				typeSpec, isTypeSpec := spec.(*ast.TypeSpec)
+				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
 
 				if !isTypeSpec || typeSpec.Name.Name != interfaceName {
 					continue // Not the interface we're looking for
 				}
 
-				iface, isInterfaceType := typeSpec.Type.(*ast.InterfaceType)
+				iface, isInterfaceType := typeSpec.Type.(*dst.InterfaceType)
 
 				if !isInterfaceType {
 					continue // Not an interface type
@@ -250,4 +262,25 @@ func getMatchingInterfaceFromAST(
 	}
 
 	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
+}
+
+// getFullImportPath uses 'go list' to get the full import path for a package.
+// This is needed to handle local packages that might shadow stdlib packages.
+func getFullImportPath(pkgName string) (string, error) {
+	//nolint:gosec,noctx // pkgName comes from parsed Go code, not user input; context not needed for simple command
+	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", "./"+pkgName)
+
+	var out bytes.Buffer
+
+	cmd.Stdout = &out
+	cmd.Stderr = nil
+
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("failed to get import path for %s: %w", pkgName, err)
+	}
+
+	importPath := strings.TrimSpace(out.String())
+
+	return importPath, nil
 }

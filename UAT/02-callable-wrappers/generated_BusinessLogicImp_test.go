@@ -5,6 +5,7 @@ package callable_test
 import (
 	callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
 	"github.com/toejough/imptest/imptest"
+	"reflect"
 	"testing"
 )
 
@@ -59,7 +60,7 @@ func (s *BusinessLogicImp) ExpectReturnedValuesAre(v1 string, v2 error) {
 		if s.Returned.Result0 != v1 {
 			s.T.Fatalf("expected return value 0 to be %v, got %v", v1, s.Returned.Result0)
 		}
-		if s.Returned.Result1 != v2 {
+		if !reflect.DeepEqual(s.Returned.Result1, v2) {
 			s.T.Fatalf("expected return value 1 to be %v, got %v", v2, s.Returned.Result1)
 		}
 		return

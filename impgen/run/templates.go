@@ -20,6 +20,9 @@ type baseTemplateData struct {
 	TestingAlias string // "_testing" if qualifier conflicts with "testing"
 	ReflectAlias string // "_reflect" if qualifier conflicts with "reflect"
 	ImptestAlias string // "_imptest" if qualifier conflicts with "imptest"
+
+	NeedsReflect bool // Whether reflect import is needed for DeepEqual
+	NeedsImptest bool // Whether imptest import is needed for matchers
 }
 
 // callStructMethodData holds data for generating call struct methods with method field info.
@@ -65,6 +68,4 @@ type templateData struct {
 	TimedName        string
 	InterfaceName    string // Full interface name for compile-time verification
 	MethodNames      []string
-	NeedsReflect     bool // Whether reflect import is needed for DeepEqual
-	NeedsImptest     bool // Whether imptest import is needed for matchers
 }

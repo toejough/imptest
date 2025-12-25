@@ -3,7 +3,6 @@ package run
 
 import (
 	"fmt"
-	"go/ast"
 	"go/token"
 	go_types "go/types" // Aliased import
 	"io"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/alexflint/go-arg"
+	"github.com/dave/dst"
 	"github.com/toejough/imptest/impgen/reorder"
 )
 
@@ -178,7 +178,7 @@ type generatorInfo struct {
 
 func generateCode(
 	info generatorInfo,
-	astFiles []*ast.File,
+	astFiles []*dst.File,
 	fset *token.FileSet,
 	typesInfo *go_types.Info,
 	pkgImportPath string,
@@ -201,7 +201,7 @@ func generateCode(
 
 // getGeneratorCallInfo returns basic information about the current call to the generator.
 func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorInfo, error) {
-	pkgName := getEnv("GOPACKAGE")
+	pkgName := getEnv(goPackageEnvVarName)
 	if pkgName == "" {
 		return generatorInfo{}, errGOPACKAGENotSet
 	}
@@ -263,7 +263,7 @@ func getLocalInterfaceName(interfaceName string) string {
 }
 
 // loadPackage loads the AST and type info for the package at the given path.
-func loadPackage(pkgPath string, pkgLoader PackageLoader) ([]*ast.File, *token.FileSet, *go_types.Info, error) {
+func loadPackage(pkgPath string, pkgLoader PackageLoader) ([]*dst.File, *token.FileSet, *go_types.Info, error) {
 	astFiles, fset, typesInfo, err := pkgLoader.Load(pkgPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to load package %s: %w", pkgPath, err)

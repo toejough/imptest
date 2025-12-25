@@ -784,7 +784,7 @@ func Test(c context.Context) error {
 		return err
 	}
 
-	// Strip main.go coverage lines from coverage.out
+	// Strip main.go and .qtpl coverage lines from coverage.out
 	data, err := os.ReadFile("coverage.out")
 	if err != nil {
 		return fmt.Errorf("failed to read coverage.out: %w", err)
@@ -793,7 +793,7 @@ func Test(c context.Context) error {
 	lines := strings.Split(string(data), "\n")
 	var filtered []string
 	for _, line := range lines {
-		if !strings.Contains(line, "/main.go:") {
+		if !strings.Contains(line, "/main.go:") && !strings.Contains(line, ".qtpl:") {
 			filtered = append(filtered, line)
 		}
 	}

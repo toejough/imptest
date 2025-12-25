@@ -9,15 +9,17 @@ package main
 import (
 	"errors"
 	"fmt"
-	"go/ast"
+	"go/build"
 	"go/token"
 	"go/types"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
-	"golang.org/x/tools/go/packages"
 )
 
 // main is the entry point of the impgen tool.
@@ -36,7 +38,6 @@ func main() {
 // unexported variables.
 var (
 	errNoPackagesFound = errors.New("no packages found")
-	errPackageErrors   = errors.New("package errors")
 )
 
 // realCacheFileSystem implements CacheFileSystem using os package.
@@ -128,59 +129,118 @@ func (fs *realFileSystem) WriteFile(name string, data []byte, perm os.FileMode) 
 // realPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
 type realPackageLoader struct{}
 
-// Load loads a package by import path and returns its AST files, FileSet, and type information.
-func (pl *realPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
-	cfg := &packages.Config{
-		Mode: packages.NeedName |
-			packages.NeedFiles |
-			packages.NeedCompiledGoFiles |
-			packages.NeedImports |
-			packages.NeedTypes |
-			packages.NeedTypesInfo |
-			packages.NeedSyntax,
-		Tests: true,
+// Load loads a package by import path and returns its DST files and FileSet.
+// Uses fast DST parsing with no type checking for better performance.
+//
+//nolint:cyclop,funlen,gocognit,nestif // Package resolution requires checking multiple paths and conditions
+func (pl *realPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
+	// Resolve import path to directory
+	var dir string
+
+	if importPath == "." {
+		// Current directory
+		var err error
+
+		dir, err = os.Getwd()
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to get working directory: %w", err)
+		}
+	} else {
+		// First check if it's a local subdirectory (e.g., "./time" when import path is "time")
+		// This is needed to handle cases where a local package shadows a stdlib package
+		srcDir, _ := os.Getwd()
+
+		localDir := filepath.Join(srcDir, importPath)
+
+		info, err := os.Stat(localDir)
+		if err == nil && info.IsDir() {
+			// It's a local subdirectory - check if it contains .go files to confirm it's a package
+			entries, _ := os.ReadDir(localDir)
+			hasGoFiles := false
+
+			for _, e := range entries {
+				if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
+					hasGoFiles = true
+					break
+				}
+			}
+
+			if hasGoFiles {
+				dir = localDir
+			}
+		}
+
+		// If not found as local directory, use go/build to resolve
+		if dir == "" {
+			pkg, err := build.Import(importPath, srcDir, build.FindOnly)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("failed to find package %q: %w", importPath, err)
+			}
+
+			dir = pkg.Dir
+		}
 	}
 
-	pkgs, err := packages.Load(cfg, importPath)
+	// Find all .go files
+	// For local packages (importPath == "."), include test files
+	// For external/stdlib packages, exclude test files to avoid parse errors
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to load package: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to read directory %s: %w", dir, err)
 	}
 
-	if len(pkgs) == 0 {
-		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
-	}
+	includeTests := (importPath == ".")
 
-	// Collect all AST files from all packages (including test packages)
-	var (
-		allFiles  []*ast.File
-		fset      *token.FileSet
-		typesInfo *types.Info
-	)
+	goFiles := make([]string, 0, len(entries))
 
-	for _, pkg := range pkgs {
-		if len(pkg.Errors) > 0 {
+	for _, entry := range entries {
+		if entry.IsDir() {
 			continue
 		}
 
-		if fset == nil {
-			fset = pkg.Fset
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".go") {
+			continue
+		}
+		// Skip test files for non-local packages
+		if !includeTests && strings.HasSuffix(name, "_test.go") {
+			continue
 		}
 
-		// Use type info from the first valid package
-		if typesInfo == nil && pkg.TypesInfo != nil {
-			typesInfo = pkg.TypesInfo
+		goFiles = append(goFiles, filepath.Join(dir, name))
+	}
+
+	if len(goFiles) == 0 {
+		return nil, nil, nil, fmt.Errorf("%w: no .go files in %s", errNoPackagesFound, dir)
+	}
+
+	// Parse all files using DST (no conversion needed)
+	fset := token.NewFileSet()
+	dec := decorator.NewDecorator(fset)
+
+	allFiles := make([]*dst.File, 0, len(goFiles))
+
+	for _, goFile := range goFiles {
+		// Read file content
+		content, err := os.ReadFile(goFile)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to read %s: %w", goFile, err)
 		}
 
-		allFiles = append(allFiles, pkg.Syntax...)
+		// Parse using DST (fast, no type checking)
+		dstFile, err := dec.Parse(string(content))
+		if err != nil {
+			// Skip files with parse errors
+			continue
+		}
+
+		allFiles = append(allFiles, dstFile)
 	}
 
 	if len(allFiles) == 0 {
-		if len(pkgs[0].Errors) > 0 {
-			return nil, nil, nil, fmt.Errorf("%w: %v", errPackageErrors, pkgs[0].Errors)
-		}
-
-		return nil, nil, nil, fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
+		return nil, nil, nil, fmt.Errorf("%w: failed to parse any .go files in %s", errNoPackagesFound, dir)
 	}
 
-	return allFiles, fset, typesInfo, nil
+	// Return nil for typesInfo - we use syntax-based type detection instead
+	return allFiles, fset, nil, nil
 }

@@ -5,7 +5,8 @@ package {%s data.PkgName %}
 
 import (
 	{% if data.ImptestAlias != "" %}{%s data.ImptestAlias %} {% endif %}"github.com/toejough/imptest/imptest"
-	{% if data.TestingAlias != "" %}{%s data.TestingAlias %} {% endif %}"testing"
+{% if data.NeedsReflect %}	{% if data.ReflectAlias != "" %}{%s data.ReflectAlias %} {% endif %}"reflect"
+{% endif %}	{% if data.TestingAlias != "" %}{%s data.TestingAlias %} {% endif %}"testing"
 {% if data.NeedsQualifier %}	{%s data.Qualifier %} "{%s data.PkgPath %}"
 {% endif %})
 

@@ -3,6 +3,7 @@
 package matching_test
 
 import "github.com/toejough/imptest/imptest"
+import "reflect"
 import "testing"
 import "time"
 import matching "github.com/toejough/imptest/UAT/05-advanced-matching"
@@ -157,7 +158,7 @@ func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsAre(d matching.Data) *Com
 			return false
 		}
 		methodCall := callToCheck.AsProcess()
-		if methodCall.d != d {
+		if !reflect.DeepEqual(methodCall.d, d) {
 			return false
 		}
 		return true

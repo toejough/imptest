@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
 )
 
@@ -191,13 +193,39 @@ func (m *MockPackageLoader) AddPackageFromSource(importPath, source string) {
 }
 
 // Load returns the mocked package AST, FileSet, and type info.
-func (m *MockPackageLoader) Load(importPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
+func (m *MockPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
 	if err, ok := m.errors[importPath]; ok {
 		return nil, nil, nil, err
 	}
 
 	if pkg, ok := m.packages[importPath]; ok {
-		return pkg.files, pkg.fset, pkg.typesInfo, nil
+		// Convert AST files to DST files
+		dstFiles := make([]*dst.File, len(pkg.files))
+		for idx, astFile := range pkg.files {
+			// Handle panic from decorator (e.g., when AST is malformed)
+			var (
+				dstFile *dst.File
+				err     error
+			)
+
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						err = fmt.Errorf("decorator panic: %v", r)
+					}
+				}()
+
+				dstFile, err = decorator.DecorateFile(pkg.fset, astFile)
+			}()
+
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("failed to decorate AST file: %w", err)
+			}
+
+			dstFiles[idx] = dstFile
+		}
+
+		return dstFiles, pkg.fset, pkg.typesInfo, nil
 	}
 
 	return nil, nil, nil, fmt.Errorf("%w: %s", errPackageNotFound, importPath)

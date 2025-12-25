@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"go/ast"
-	"go/printer"
 	"go/token"
 	go_types "go/types"
 	"strings"
 	"unicode"
+
+	"github.com/dave/dst"
 )
 
 // GetPackageInfo extracts package info for a given target name (e.g., "pkg.Interface").
@@ -55,7 +55,7 @@ func GetPackageInfo(
 }
 
 // IsExportedIdent checks if an identifier is exported and not a builtin or type parameter.
-func IsExportedIdent(ident *ast.Ident, isTypeParam func(string) bool) bool {
+func IsExportedIdent(ident *dst.Ident, isTypeParam func(string) bool) bool {
 	if len(ident.Name) == 0 {
 		return true
 	}
@@ -69,16 +69,16 @@ func IsExportedIdent(ident *ast.Ident, isTypeParam func(string) bool) bool {
 
 // ValidateExportedTypes checks if an expression contains any unexported identifiers that would be inaccessible
 // from another package. Returns an error if found.
-func ValidateExportedTypes(expr ast.Expr, isTypeParam func(string) bool) error {
+func ValidateExportedTypes(expr dst.Expr, isTypeParam func(string) bool) error {
 	walker := &typeExprWalker[error]{
-		visitIdent: func(ident *ast.Ident) error {
+		visitIdent: func(ident *dst.Ident) error {
 			if !IsExportedIdent(ident, isTypeParam) {
 				return fmt.Errorf("type '%s': %w", ident.Name, errUnexportedType)
 			}
 
 			return nil
 		},
-		visitSelector: func(sel *ast.SelectorExpr) error {
+		visitSelector: func(sel *dst.SelectorExpr) error {
 			if !unicode.IsUpper(rune(sel.Sel.Name[0])) {
 				return fmt.Errorf("type '%s': %w", sel.Sel.Name, errUnexportedType)
 			}
@@ -100,12 +100,13 @@ func ValidateExportedTypes(expr ast.Expr, isTypeParam func(string) bool) error {
 
 // unexported constants.
 const (
-	anyTypeString = "any"
+	anyTypeString       = "any"
+	goPackageEnvVarName = "GOPACKAGE"
 )
 
 // unexported variables.
 var (
-	errGOPACKAGENotSet = errors.New("GOPACKAGE environment variable not set")
+	errGOPACKAGENotSet = errors.New(goPackageEnvVarName + " environment variable not set")
 	errUnexportedType  = errors.New("unexported type is not accessible from external packages")
 )
 
@@ -118,7 +119,7 @@ type baseGenerator struct {
 	impName        string
 	pkgPath        string
 	qualifier      string
-	typeParams     *ast.FieldList
+	typeParams     *dst.FieldList
 	typesInfo      *go_types.Info
 	needsImptest   bool
 	needsReflect   bool
@@ -126,7 +127,7 @@ type baseGenerator struct {
 }
 
 // checkIfQualifierNeeded pre-scans to determine if the package qualifier is needed.
-func (baseGen *baseGenerator) checkIfQualifierNeeded(expr ast.Expr) {
+func (baseGen *baseGenerator) checkIfQualifierNeeded(expr dst.Expr) {
 	if baseGen.qualifier == "" {
 		return
 	}
@@ -137,7 +138,7 @@ func (baseGen *baseGenerator) checkIfQualifierNeeded(expr ast.Expr) {
 }
 
 // checkIfValidForExternalUsage checks if the symbol can be used from an external package.
-func (baseGen *baseGenerator) checkIfValidForExternalUsage(funcType *ast.FuncType) error {
+func (baseGen *baseGenerator) checkIfValidForExternalUsage(funcType *dst.FuncType) error {
 	if baseGen.qualifier == "" {
 		return nil
 	}
@@ -213,13 +214,13 @@ type fieldInfo struct {
 	Name  string     // The name (explicit or generated)
 	Type  string     // The type as a string
 	Index int        // The overall index across all fields
-	Field *ast.Field // The original AST field
+	Field *dst.Field // The original AST field
 }
 
 // paramVisitor is called for each parameter during iteration.
 // Returns the next (paramNameIndex, unnamedIndex).
 type paramVisitor func(
-	param *ast.Field,
+	param *dst.Field,
 	paramType string,
 	paramNameIndex, unnamedIndex, totalParams int,
 ) (nextParamNameIndex, nextUnnamedIndex int)
@@ -228,8 +229,8 @@ type paramVisitor func(
 // It provides a unified way to walk type expressions, handling all AST node types
 // while allowing custom logic for leaf nodes (Ident, SelectorExpr) and result combining.
 type typeExprWalker[T any] struct {
-	visitIdent    func(*ast.Ident) T
-	visitSelector func(*ast.SelectorExpr) T
+	visitIdent    func(*dst.Ident) T
+	visitSelector func(*dst.SelectorExpr) T
 	combine       func(T, T) T
 	zero          T
 }
@@ -237,27 +238,27 @@ type typeExprWalker[T any] struct {
 // walk traverses an AST expression and returns the combined result.
 //
 //nolint:cyclop // Type-switch dispatcher handling all AST node types; complexity is inherent
-func (w *typeExprWalker[T]) walk(expr ast.Expr) T {
+func (w *typeExprWalker[T]) walk(expr dst.Expr) T {
 	switch typeExpr := expr.(type) {
-	case *ast.Ident:
+	case *dst.Ident:
 		return w.visitIdent(typeExpr)
-	case *ast.SelectorExpr:
+	case *dst.SelectorExpr:
 		return w.visitSelector(typeExpr)
-	case *ast.StarExpr:
+	case *dst.StarExpr:
 		return w.walk(typeExpr.X)
-	case *ast.ArrayType:
+	case *dst.ArrayType:
 		return w.walk(typeExpr.Elt)
-	case *ast.MapType:
+	case *dst.MapType:
 		return w.combine(w.walk(typeExpr.Key), w.walk(typeExpr.Value))
-	case *ast.ChanType:
+	case *dst.ChanType:
 		return w.walk(typeExpr.Value)
-	case *ast.FuncType:
+	case *dst.FuncType:
 		return w.walkFieldList(typeExpr.Params, typeExpr.Results)
-	case *ast.StructType:
+	case *dst.StructType:
 		return w.walkFieldList(typeExpr.Fields)
-	case *ast.IndexExpr:
+	case *dst.IndexExpr:
 		return w.combine(w.walk(typeExpr.X), w.walk(typeExpr.Index))
-	case *ast.IndexListExpr:
+	case *dst.IndexListExpr:
 		result := w.walk(typeExpr.X)
 		for _, idx := range typeExpr.Indices {
 			result = w.combine(result, w.walk(idx))
@@ -270,7 +271,7 @@ func (w *typeExprWalker[T]) walk(expr ast.Expr) T {
 }
 
 // walkFieldList traverses field lists (for FuncType params/results or StructType fields).
-func (w *typeExprWalker[T]) walkFieldList(lists ...*ast.FieldList) T {
+func (w *typeExprWalker[T]) walkFieldList(lists ...*dst.FieldList) T {
 	result := w.zero
 
 	for _, list := range lists {
@@ -292,13 +293,13 @@ type typeFormatter struct {
 }
 
 // typeWithQualifier returns a type expression as a string with package qualifier if needed.
-func (tf *typeFormatter) typeWithQualifier(expr ast.Expr) string {
+func (tf *typeFormatter) typeWithQualifier(expr dst.Expr) string {
 	switch typeExpr := expr.(type) {
-	case *ast.Ident:
+	case *dst.Ident:
 		return tf.typeWithQualifierIdent(typeExpr)
-	case *ast.StarExpr:
+	case *dst.StarExpr:
 		return tf.typeWithQualifierStar(typeExpr)
-	case *ast.SelectorExpr:
+	case *dst.SelectorExpr:
 		return exprToString(tf.fset, typeExpr)
 	default:
 		return tf.typeWithQualifierComposite(expr)
@@ -306,7 +307,7 @@ func (tf *typeFormatter) typeWithQualifier(expr ast.Expr) string {
 }
 
 // typeWithQualifierArray handles array/slice types.
-func (tf *typeFormatter) typeWithQualifierArray(arrType *ast.ArrayType) string {
+func (tf *typeFormatter) typeWithQualifierArray(arrType *dst.ArrayType) string {
 	var buf strings.Builder
 	buf.WriteString("[")
 
@@ -321,13 +322,13 @@ func (tf *typeFormatter) typeWithQualifierArray(arrType *ast.ArrayType) string {
 }
 
 // typeWithQualifierChan handles channel types.
-func (tf *typeFormatter) typeWithQualifierChan(chanType *ast.ChanType) string {
+func (tf *typeFormatter) typeWithQualifierChan(chanType *dst.ChanType) string {
 	var buf strings.Builder
 
 	switch chanType.Dir {
-	case ast.SEND:
+	case dst.SEND:
 		buf.WriteString("chan<- ")
-	case ast.RECV:
+	case dst.RECV:
 		buf.WriteString("<-chan ")
 	default:
 		buf.WriteString("chan ")
@@ -339,19 +340,19 @@ func (tf *typeFormatter) typeWithQualifierChan(chanType *ast.ChanType) string {
 }
 
 // typeWithQualifierComposite handles composite types like arrays, maps, and funcs.
-func (tf *typeFormatter) typeWithQualifierComposite(expr ast.Expr) string {
+func (tf *typeFormatter) typeWithQualifierComposite(expr dst.Expr) string {
 	switch typeExpr := expr.(type) {
-	case *ast.ArrayType:
+	case *dst.ArrayType:
 		return tf.typeWithQualifierArray(typeExpr)
-	case *ast.MapType:
+	case *dst.MapType:
 		return tf.typeWithQualifierMap(typeExpr)
-	case *ast.ChanType:
+	case *dst.ChanType:
 		return tf.typeWithQualifierChan(typeExpr)
-	case *ast.FuncType:
+	case *dst.FuncType:
 		return tf.typeWithQualifierFunc(typeExpr)
-	case *ast.IndexExpr:
+	case *dst.IndexExpr:
 		return tf.typeWithQualifierIndex(typeExpr)
-	case *ast.IndexListExpr:
+	case *dst.IndexListExpr:
 		return tf.typeWithQualifierIndexList(typeExpr)
 	default:
 		return exprToString(tf.fset, expr)
@@ -359,12 +360,12 @@ func (tf *typeFormatter) typeWithQualifierComposite(expr ast.Expr) string {
 }
 
 // typeWithQualifierFunc handles function types.
-func (tf *typeFormatter) typeWithQualifierFunc(funcType *ast.FuncType) string {
+func (tf *typeFormatter) typeWithQualifierFunc(funcType *dst.FuncType) string {
 	return typeWithQualifierFunc(tf.fset, funcType, tf.typeWithQualifier)
 }
 
 // typeWithQualifierIdent handles simple identifier types.
-func (tf *typeFormatter) typeWithQualifierIdent(ident *ast.Ident) string {
+func (tf *typeFormatter) typeWithQualifierIdent(ident *dst.Ident) string {
 	var buf strings.Builder
 
 	// Don't qualify type parameters
@@ -380,7 +381,7 @@ func (tf *typeFormatter) typeWithQualifierIdent(ident *ast.Ident) string {
 }
 
 // typeWithQualifierIndex handles generic type instantiation with single type parameter.
-func (tf *typeFormatter) typeWithQualifierIndex(indexExpr *ast.IndexExpr) string {
+func (tf *typeFormatter) typeWithQualifierIndex(indexExpr *dst.IndexExpr) string {
 	var buf strings.Builder
 
 	buf.WriteString(tf.typeWithQualifier(indexExpr.X))
@@ -392,7 +393,7 @@ func (tf *typeFormatter) typeWithQualifierIndex(indexExpr *ast.IndexExpr) string
 }
 
 // typeWithQualifierIndexList handles generic type instantiation with multiple type parameters.
-func (tf *typeFormatter) typeWithQualifierIndexList(indexListExpr *ast.IndexListExpr) string {
+func (tf *typeFormatter) typeWithQualifierIndexList(indexListExpr *dst.IndexListExpr) string {
 	var buf strings.Builder
 
 	buf.WriteString(tf.typeWithQualifier(indexListExpr.X))
@@ -404,7 +405,7 @@ func (tf *typeFormatter) typeWithQualifierIndexList(indexListExpr *ast.IndexList
 }
 
 // typeWithQualifierMap handles map types.
-func (tf *typeFormatter) typeWithQualifierMap(mapType *ast.MapType) string {
+func (tf *typeFormatter) typeWithQualifierMap(mapType *dst.MapType) string {
 	var buf strings.Builder
 
 	buf.WriteString("map[")
@@ -416,7 +417,7 @@ func (tf *typeFormatter) typeWithQualifierMap(mapType *ast.MapType) string {
 }
 
 // typeWithQualifierStar handles pointer types.
-func (tf *typeFormatter) typeWithQualifierStar(t *ast.StarExpr) string {
+func (tf *typeFormatter) typeWithQualifierStar(t *dst.StarExpr) string {
 	var buf strings.Builder
 
 	buf.WriteString("*")
@@ -426,7 +427,7 @@ func (tf *typeFormatter) typeWithQualifierStar(t *ast.StarExpr) string {
 }
 
 // countFields counts the total number of individual fields in a field list.
-func countFields(fields *ast.FieldList) int {
+func countFields(fields *dst.FieldList) int {
 	if fields == nil {
 		return 0
 	}
@@ -440,18 +441,115 @@ func countFields(fields *ast.FieldList) int {
 	return total
 }
 
-// exprToString renders an ast.Expr to Go code.
-func exprToString(fset *token.FileSet, expr ast.Expr) string {
-	var buf bytes.Buffer
-	printer.Fprint(&buf, fset, expr)
+// exprToString renders a dst.Expr to Go code.
+// This function converts DST expressions back to their string representation.
+func exprToString(_ *token.FileSet, expr dst.Expr) string {
+	// We use a custom stringify function since decorator.Restorer.Fprint
+	// only works with *dst.File, not individual expressions.
+	return stringifyDSTExpr(expr)
+}
+
+// stringifyDSTExpr converts a DST expression to its string representation.
+//
+//nolint:cyclop,funlen // Type-switch dispatcher handling all DST expression types; complexity is inherent
+func stringifyDSTExpr(expr dst.Expr) string {
+	if expr == nil {
+		return ""
+	}
+
+	switch typedExpr := expr.(type) {
+	case *dst.Ident:
+		return typedExpr.Name
+	case *dst.BasicLit:
+		return typedExpr.Value
+	case *dst.SelectorExpr:
+		return stringifyDSTExpr(typedExpr.X) + "." + typedExpr.Sel.Name
+	case *dst.StarExpr:
+		return "*" + stringifyDSTExpr(typedExpr.X)
+	case *dst.ArrayType:
+		if typedExpr.Len != nil {
+			return "[" + stringifyDSTExpr(typedExpr.Len) + "]" + stringifyDSTExpr(typedExpr.Elt)
+		}
+
+		return "[]" + stringifyDSTExpr(typedExpr.Elt)
+	case *dst.MapType:
+		return "map[" + stringifyDSTExpr(typedExpr.Key) + "]" + stringifyDSTExpr(typedExpr.Value)
+	case *dst.ChanType:
+		switch typedExpr.Dir {
+		case dst.SEND:
+			return "chan<- " + stringifyDSTExpr(typedExpr.Value)
+		case dst.RECV:
+			return "<-chan " + stringifyDSTExpr(typedExpr.Value)
+		default:
+			return "chan " + stringifyDSTExpr(typedExpr.Value)
+		}
+	case *dst.FuncType:
+		return stringifyFuncType(typedExpr)
+	case *dst.InterfaceType:
+		return "interface{}"
+	case *dst.StructType:
+		return "struct{}"
+	case *dst.Ellipsis:
+		return "..." + stringifyDSTExpr(typedExpr.Elt)
+	case *dst.IndexExpr:
+		return stringifyDSTExpr(typedExpr.X) + "[" + stringifyDSTExpr(typedExpr.Index) + "]"
+	case *dst.IndexListExpr:
+		indices := make([]string, len(typedExpr.Indices))
+		for i, idx := range typedExpr.Indices {
+			indices[i] = stringifyDSTExpr(idx)
+		}
+
+		return stringifyDSTExpr(typedExpr.X) + "[" + strings.Join(indices, ", ") + "]"
+	case *dst.ParenExpr:
+		return "(" + stringifyDSTExpr(typedExpr.X) + ")"
+	default:
+		return fmt.Sprintf("%T", expr)
+	}
+}
+
+// stringifyFuncType converts a function type to string.
+func stringifyFuncType(funcType *dst.FuncType) string {
+	var buf strings.Builder
+	buf.WriteString("func")
+
+	if funcType.Params != nil {
+		buf.WriteString("(")
+		buf.WriteString(stringifyFieldList(funcType.Params))
+		buf.WriteString(")")
+	}
+
+	if funcType.Results != nil {
+		if len(funcType.Results.List) > 1 {
+			buf.WriteString(" (")
+			buf.WriteString(stringifyFieldList(funcType.Results))
+			buf.WriteString(")")
+		} else if len(funcType.Results.List) == 1 {
+			buf.WriteString(" ")
+			buf.WriteString(stringifyFieldList(funcType.Results))
+		}
+	}
 
 	return buf.String()
+}
+
+// stringifyFieldList converts a field list to string.
+func stringifyFieldList(fieldList *dst.FieldList) string {
+	if fieldList == nil || len(fieldList.List) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(fieldList.List))
+	for _, field := range fieldList.List {
+		parts = append(parts, stringifyDSTExpr(field.Type))
+	}
+
+	return strings.Join(parts, ", ")
 }
 
 // extractFields extracts all individual fields from a field list.
 // For unnamed fields, generates names using the provided prefix and index.
 // For named fields with multiple names, creates separate entries for each.
-func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []fieldInfo {
+func extractFields(fset *token.FileSet, fields *dst.FieldList, prefix string) []fieldInfo {
 	if fields == nil {
 		return nil
 	}
@@ -491,17 +589,17 @@ func extractFields(fset *token.FileSet, fields *ast.FieldList, prefix string) []
 }
 
 // extractParams extracts parameter info from a function type.
-func extractParams(fset *token.FileSet, ftype *ast.FuncType) []fieldInfo {
+func extractParams(fset *token.FileSet, ftype *dst.FuncType) []fieldInfo {
 	return extractFields(fset, ftype.Params, "param")
 }
 
 // extractResults extracts result info from a function type.
-func extractResults(fset *token.FileSet, ftype *ast.FuncType) []fieldInfo {
+func extractResults(fset *token.FileSet, ftype *dst.FuncType) []fieldInfo {
 	return extractFields(fset, ftype.Results, "Result")
 }
 
 // fieldNameCount returns the number of names in a field (at least 1 for unnamed fields).
-func fieldNameCount(field *ast.Field) int {
+func fieldNameCount(field *dst.Field) int {
 	if len(field.Names) > 0 {
 		return len(field.Names)
 	}
@@ -529,7 +627,7 @@ func formatResultParameters(
 
 // formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
 // Returns empty string if there are no type parameters.
-func formatTypeParamsDecl(fset *token.FileSet, typeParams *ast.FieldList) string {
+func formatTypeParamsDecl(fset *token.FileSet, typeParams *dst.FieldList) string {
 	if typeParams == nil || len(typeParams.List) == 0 {
 		return ""
 	}
@@ -565,7 +663,7 @@ func formatTypeParamsDecl(fset *token.FileSet, typeParams *ast.FieldList) string
 
 // formatTypeParamsUse formats type parameters for instantiation (e.g., "[T, U]").
 // Returns empty string if there are no type parameters.
-func formatTypeParamsUse(typeParams *ast.FieldList) string {
+func formatTypeParamsUse(typeParams *dst.FieldList) string {
 	if typeParams == nil || len(typeParams.List) == 0 {
 		return ""
 	}
@@ -614,15 +712,15 @@ func getStdlibAlias(qualifier, stdlibPkgName string) string {
 }
 
 // hasExportedIdent checks if an expression contains an exported identifier.
-func hasExportedIdent(expr ast.Expr, isTypeParam func(string) bool) bool {
+func hasExportedIdent(expr dst.Expr, isTypeParam func(string) bool) bool {
 	walker := &typeExprWalker[bool]{
-		visitIdent: func(ident *ast.Ident) bool {
+		visitIdent: func(ident *dst.Ident) bool {
 			return len(ident.Name) > 0 &&
 				unicode.IsUpper(rune(ident.Name[0])) &&
 				!isBuiltinType(ident.Name) &&
 				!isTypeParam(ident.Name)
 		},
-		visitSelector: func(*ast.SelectorExpr) bool {
+		visitSelector: func(*dst.SelectorExpr) bool {
 			return true
 		},
 		combine: func(a, b bool) bool {
@@ -636,21 +734,23 @@ func hasExportedIdent(expr ast.Expr, isTypeParam func(string) bool) bool {
 
 // hasFieldNames returns true if the field has explicitly named parameters/results.
 // Returns false for unnamed/anonymous fields (e.g., embedded interfaces).
-func hasFieldNames(field *ast.Field) bool {
+func hasFieldNames(field *dst.Field) bool {
 	return len(field.Names) > 0
 }
 
 // hasParams returns true if the function type has parameters.
-func hasParams(ftype *ast.FuncType) bool {
+func hasParams(ftype *dst.FuncType) bool {
 	return ftype.Params != nil && len(ftype.Params.List) > 0
 }
 
 // hasResults returns true if the function type has return values.
-func hasResults(ftype *ast.FuncType) bool {
+func hasResults(ftype *dst.FuncType) bool {
 	return ftype.Results != nil && len(ftype.Results.List) > 0
 }
 
 // isBuiltinType checks if a type name is a Go builtin.
+//
+//nolint:goconst // Using literal type names for clarity in type checking
 func isBuiltinType(name string) bool {
 	switch name {
 	case "bool", "byte", "complex64", "complex128",
@@ -666,17 +766,56 @@ func isBuiltinType(name string) bool {
 }
 
 // isComparableExpr checks if an expression represents a comparable type.
-func isComparableExpr(expr ast.Expr, typesInfo *go_types.Info) bool {
-	if typesInfo == nil {
-		return false // Conservatively assume not comparable if type info is unavailable
-	}
+func isComparableExpr(expr dst.Expr, _ *go_types.Info) bool {
+	// For DST, we need to convert to AST to look up in types.Info
+	// Since we don't have access to the original AST, we use syntax-based detection
+	return isBasicComparableType(expr)
+}
 
-	t := typesInfo.Types[expr].Type
-	if t == nil {
-		return false // Type not found, assume not comparable
-	}
+// isBasicComparableType determines if an expression is a basic type that supports == comparison.
+// This works from syntax alone without requiring full type checking.
+// Returns true for: bool, int*, uint*, float*, complex*, string, and pointers.
+// Returns false for everything else (slices, maps, funcs, custom types) which should use reflect.DeepEqual.
+//
 
-	return go_types.Comparable(t)
+func isBasicComparableType(expr dst.Expr) bool {
+	switch t := expr.(type) {
+	case *dst.Ident:
+		// Basic built-in types
+		switch t.Name {
+		case "bool",
+			"int", "int8", "int16", "int32", "int64",
+			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
+			"float32", "float64",
+			"complex64", "complex128",
+			"string",
+			"byte", "rune": // Aliases for uint8 and int32
+			return true
+		}
+		// Everything else: custom types, interfaces, etc. → use DeepEqual
+		return false
+
+	case *dst.StarExpr:
+		// Pointers are always comparable
+		return true
+
+	case *dst.SelectorExpr:
+		// Qualified types (e.g., pkg.Type) → conservatively use DeepEqual
+		return false
+
+	case *dst.ArrayType:
+		// Arrays are comparable if their elements are comparable
+		// But we'd need to recursively check, so conservatively return false
+		return false
+
+	case *dst.SliceExpr, *dst.MapType, *dst.FuncType, *dst.InterfaceType, *dst.StructType:
+		// Definitely not comparable with ==
+		return false
+
+	default:
+		// Unknown type → use DeepEqual to be safe
+		return false
+	}
 }
 
 // joinWith joins a slice of items into a string using a format function and separator.
@@ -694,7 +833,7 @@ func joinWith[T any](items []T, format func(T) string, sep string) string {
 func newBaseGenerator(
 	fset *token.FileSet,
 	pkgName, impName, pkgPath, qualifier string,
-	typeParams *ast.FieldList,
+	typeParams *dst.FieldList,
 	typesInfo *go_types.Info,
 ) baseGenerator {
 	baseGen := baseGenerator{
@@ -738,13 +877,13 @@ func paramNamesToString(params []fieldInfo) string {
 }
 
 // typeWithQualifierFunc handles function types.
-func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatter func(ast.Expr) string) string {
+func typeWithQualifierFunc(_ *token.FileSet, funcType *dst.FuncType, typeFormatter func(dst.Expr) string) string {
 	var buf strings.Builder
 	buf.WriteString("func")
 
 	if funcType.Params != nil {
 		buf.WriteString("(")
-		buf.WriteString(joinWith(funcType.Params.List, func(f *ast.Field) string {
+		buf.WriteString(joinWith(funcType.Params.List, func(f *dst.Field) string {
 			return typeFormatter(f.Type)
 		}, ", "))
 		buf.WriteString(")")
@@ -757,7 +896,7 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatt
 			buf.WriteString(" ")
 		}
 
-		buf.WriteString(joinWith(funcType.Results.List, func(f *ast.Field) string {
+		buf.WriteString(joinWith(funcType.Results.List, func(f *dst.Field) string {
 			return typeFormatter(f.Type)
 		}, ", "))
 
@@ -772,7 +911,7 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *ast.FuncType, typeFormatt
 // visitParams iterates over function parameters and calls the visitor for each.
 // The visitor receives each parameter with its type string and current indices,
 // and returns the updated indices for the next iteration.
-func visitParams(ftype *ast.FuncType, typeFormatter func(ast.Expr) string, visit paramVisitor) {
+func visitParams(ftype *dst.FuncType, typeFormatter func(dst.Expr) string, visit paramVisitor) {
 	if !hasParams(ftype) {
 		return
 	}

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/format"
 	"go/token"
 	go_types "go/types"
 	"strings"
+
+	"github.com/dave/dst"
 )
 
 // unexported variables.
@@ -27,8 +28,8 @@ type codeGenerator struct {
 	expectCallIsName    string
 	timedName           string
 	interfaceName       string // Full interface name for compile-time verification
-	identifiedInterface *ast.InterfaceType
-	astFiles            []*ast.File
+	identifiedInterface *dst.InterfaceType
+	astFiles            []*dst.File
 	pkgImportPath       string
 	pkgLoader           PackageLoader
 	methodNames         []string
@@ -55,7 +56,7 @@ func (gen *codeGenerator) callStructData() callStructTemplateData {
 // checkIfImptestNeeded pre-scans all interface methods to determine if imptest import is needed.
 // imptest is needed when any method has parameters (for ExpectArgsShould).
 func (gen *codeGenerator) checkIfImptestNeeded() {
-	gen.forEachMethod(func(_ string, ftype *ast.FuncType) {
+	gen.forEachMethod(func(_ string, ftype *dst.FuncType) {
 		if ftype.Params != nil && len(ftype.Params.List) > 0 {
 			gen.needsImptest = true
 			return // Early exit once we know imptest is needed
@@ -65,7 +66,7 @@ func (gen *codeGenerator) checkIfImptestNeeded() {
 
 // checkIfQualifierNeeded pre-scans to determine if the package qualifier is needed.
 func (gen *codeGenerator) checkIfQualifierNeeded() {
-	gen.forEachMethod(func(_ string, ftype *ast.FuncType) {
+	gen.forEachMethod(func(_ string, ftype *dst.FuncType) {
 		gen.baseGenerator.checkIfQualifierNeeded(ftype)
 	})
 }
@@ -74,7 +75,7 @@ func (gen *codeGenerator) checkIfQualifierNeeded() {
 
 // checkIfReflectNeeded pre-scans all interface methods to determine if reflect import is needed.
 func (gen *codeGenerator) checkIfReflectNeeded() {
-	gen.forEachMethod(func(_ string, ftype *ast.FuncType) {
+	gen.forEachMethod(func(_ string, ftype *dst.FuncType) {
 		if ftype.Params == nil {
 			return
 		}
@@ -92,7 +93,7 @@ func (gen *codeGenerator) checkIfReflectNeeded() {
 func (gen *codeGenerator) checkIfValidForExternalUsage() error {
 	var validationErr error
 
-	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
+	gen.forEachMethod(func(methodName string, ftype *dst.FuncType) {
 		if validationErr != nil {
 			return
 		}
@@ -110,7 +111,7 @@ func (gen *codeGenerator) checkIfValidForExternalUsage() error {
 // This is safe to call without error checking because we already validated the interface
 // structure during method name collection in generateImplementationCode. If an error occurs
 // here, it indicates a programming error and will cause a panic in the underlying function.
-func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *ast.FuncType)) {
+func (gen *codeGenerator) forEachMethod(callback func(methodName string, ftype *dst.FuncType)) {
 	// Ignore error - interface was already validated during method name collection
 	_ = forEachInterfaceMethod(
 		gen.identifiedInterface,
@@ -164,7 +165,7 @@ func (gen *codeGenerator) generate() (string, error) {
 
 // generateBuilderShortcuts generates InjectResult/InjectPanic/Resolve shortcut methods on the builder.
 func (gen *codeGenerator) generateBuilderShortcuts(
-	methodName string, ftype *ast.FuncType, builderName, callName string,
+	methodName string, ftype *dst.FuncType, builderName, callName string,
 ) {
 	// Validator that only checks method name
 	validatorCode := fmt.Sprintf(`validator := func(callToCheck *%s%s) bool {
@@ -234,9 +235,9 @@ func (gen *codeGenerator) generateCallStruct() {
 }
 
 // generateCallStructParamFields generates the parameter fields for a call struct.
-func (gen *codeGenerator) generateCallStructParamFields(ftype *ast.FuncType) {
+func (gen *codeGenerator) generateCallStructParamFields(ftype *dst.FuncType) {
 	visitParams(ftype, gen.typeWithQualifier, func(
-		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
+		param *dst.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
 	) (int, int) {
 		if len(param.Names) > 0 {
 			gen.writeNamedParamFields(param, paramType, unnamedIndex, totalParams)
@@ -255,7 +256,7 @@ func (gen *codeGenerator) generateConstructor() {
 }
 
 // generateExpectArgsAre generates the type-safe ExpectArgsAre method on the builder.
-func (gen *codeGenerator) generateExpectArgsAre(methodName string, ftype *ast.FuncType, builderName, callName string) {
+func (gen *codeGenerator) generateExpectArgsAre(methodName string, ftype *dst.FuncType, builderName, callName string) {
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
 	// Method signature
@@ -289,7 +290,7 @@ func (gen *codeGenerator) generateExpectArgsAre(methodName string, ftype *ast.Fu
 
 // generateExpectArgsShould generates the matcher-based ExpectArgsShould method on the builder.
 func (gen *codeGenerator) generateExpectArgsShould(
-	methodName string, ftype *ast.FuncType, builderName, callName string,
+	methodName string, ftype *dst.FuncType, builderName, callName string,
 ) {
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
@@ -344,7 +345,7 @@ func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
 }
 
 // generateInjectResultMethod generates the InjectResult method for methods with a single return value.
-func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftype *ast.FuncType) {
+func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftype *dst.FuncType) {
 	resultType := gen.typeWithQualifier(ftype.Results.List[0].Type)
 	gen.pf("// InjectResult sets the return value for this method call and unblocks the caller.\n")
 	gen.pf("// The mocked method will return the provided result value.\n")
@@ -365,7 +366,7 @@ func (gen *codeGenerator) generateInjectResultMethod(methodCallName string, ftyp
 }
 
 // generateInjectResultsMethod generates the InjectResults method for methods with multiple return values.
-func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, ftype *ast.FuncType) {
+func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, ftype *dst.FuncType) {
 	gen.pf("// InjectResults sets the return values for this method call and unblocks the caller.\n")
 	gen.pf("// The mocked method will return the provided result values in order.\n")
 	gen.pf("func (c *%s%s) InjectResults(", methodCallName, gen.formatTypeParamsUse())
@@ -395,7 +396,7 @@ func (gen *codeGenerator) generateMainStruct() {
 }
 
 // generateMethodBuilder generates the builder struct and all its methods for a single interface method.
-func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *ast.FuncType) {
+func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *dst.FuncType) {
 	builderName := gen.methodBuilderName(methodName)
 	callName := gen.methodCallName(methodName)
 
@@ -430,13 +431,13 @@ func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *ast.Fu
 
 // generateMethodBuilders generates builder structs and methods for each interface method.
 func (gen *codeGenerator) generateMethodBuilders() {
-	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
+	gen.forEachMethod(func(methodName string, ftype *dst.FuncType) {
 		gen.generateMethodBuilder(methodName, ftype)
 	})
 }
 
 // generateMethodCallStruct generates the call struct for a specific method, which tracks the method call parameters.
-func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast.FuncType) {
+func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *dst.FuncType) {
 	callName := gen.methodCallName(methodName)
 	gen.pf("// %s%s represents a captured call to the %s method.\n", callName, gen.formatTypeParamsDecl(), methodName)
 	gen.pf("// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.\n")
@@ -454,7 +455,7 @@ func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *ast
 
 // generateMethodResponseMethods generates the InjectResult, InjectResults, InjectPanic, and Resolve methods
 // for a call struct.
-func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype *ast.FuncType) {
+func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype *dst.FuncType) {
 	callName := gen.methodCallName(methodName)
 
 	if hasResults(ftype) {
@@ -476,7 +477,7 @@ func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype
 }
 
 // generateMethodResponseStruct generates the response struct for a method, which holds return values or panic data.
-func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype *ast.FuncType) {
+func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype *dst.FuncType) {
 	callName := gen.methodCallName(methodName)
 	gen.pf("// %sResponse%s holds the response configuration for the %s method.\n",
 		callName, gen.formatTypeParamsDecl(), methodName)
@@ -494,7 +495,7 @@ func (gen *codeGenerator) generateMethodResponseStruct(methodName string, ftype 
 
 // generateMethodStructs generates the call and response structs for each interface method.
 func (gen *codeGenerator) generateMethodStructs() {
-	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
+	gen.forEachMethod(func(methodName string, ftype *dst.FuncType) {
 		gen.generateMethodCallStruct(methodName, ftype)
 		gen.generateMethodResponseStruct(methodName, ftype)
 		gen.generateMethodResponseMethods(methodName, ftype)
@@ -502,7 +503,7 @@ func (gen *codeGenerator) generateMethodStructs() {
 }
 
 // generateMockMethod generates a single mock method that creates a call, sends it to the imp, and handles the response.
-func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncType) {
+func (gen *codeGenerator) generateMockMethod(methodName string, ftype *dst.FuncType) {
 	callName := gen.methodCallName(methodName)
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
 
@@ -516,7 +517,7 @@ func (gen *codeGenerator) generateMockMethod(methodName string, ftype *ast.FuncT
 
 // generateMockMethods generates the mock methods that implement the interface on the mock struct.
 func (gen *codeGenerator) generateMockMethods() {
-	gen.forEachMethod(func(methodName string, ftype *ast.FuncType) {
+	gen.forEachMethod(func(methodName string, ftype *dst.FuncType) {
 		gen.generateMockMethod(methodName, ftype)
 	})
 }
@@ -532,7 +533,7 @@ func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
 }
 
 // generateResponseStructResultFields generates the result fields for a response struct.
-func (gen *codeGenerator) generateResponseStructResultFields(ftype *ast.FuncType) {
+func (gen *codeGenerator) generateResponseStructResultFields(ftype *dst.FuncType) {
 	for _, r := range extractResults(gen.fset, ftype) {
 		gen.pf("\t%s %s\n", r.Name, r.Type)
 	}
@@ -582,9 +583,9 @@ func (gen *codeGenerator) reflectPkg() string {
 }
 
 // renderField renders a single field with its name and type.
-func (gen *codeGenerator) renderField(field *ast.Field, buf *bytes.Buffer) {
+func (gen *codeGenerator) renderField(field *dst.Field, buf *bytes.Buffer) {
 	// Names
-	buf.WriteString(joinWith(field.Names, func(n *ast.Ident) string { return n.Name }, ", "))
+	buf.WriteString(joinWith(field.Names, func(n *dst.Ident) string { return n.Name }, ", "))
 
 	// Type
 	if hasFieldNames(field) {
@@ -594,8 +595,8 @@ func (gen *codeGenerator) renderField(field *ast.Field, buf *bytes.Buffer) {
 	buf.WriteString(gen.typeWithQualifier(field.Type))
 }
 
-// renderFieldList renders a *ast.FieldList as Go code for return types.
-func (gen *codeGenerator) renderFieldList(fieldList *ast.FieldList) string {
+// renderFieldList renders a *dst.FieldList as Go code for return types.
+func (gen *codeGenerator) renderFieldList(fieldList *dst.FieldList) string {
 	if fieldList == nil || len(fieldList.List) == 0 {
 		return ""
 	}
@@ -636,6 +637,8 @@ func (gen *codeGenerator) templateData() templateData {
 			TestingAlias:   getStdlibAlias(gen.qualifier, "testing"),
 			ReflectAlias:   getStdlibAlias(gen.qualifier, "reflect"),
 			ImptestAlias:   getStdlibAlias(gen.qualifier, "imptest"),
+			NeedsReflect:   gen.needsReflect,
+			NeedsImptest:   gen.needsImptest,
 		},
 		MockName:         gen.mockName,
 		CallName:         gen.callName,
@@ -643,8 +646,6 @@ func (gen *codeGenerator) templateData() templateData {
 		TimedName:        gen.timedName,
 		InterfaceName:    gen.interfaceName,
 		MethodNames:      gen.methodNames,
-		NeedsReflect:     gen.needsReflect,
-		NeedsImptest:     gen.needsImptest,
 	}
 
 	gen.cachedTemplateData = &data
@@ -664,7 +665,7 @@ func (gen *codeGenerator) timePkg() string {
 
 // writeCallStructField writes a single field assignment for a call struct initialization.
 func (gen *codeGenerator) writeCallStructField(
-	param *ast.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
+	param *dst.Field, paramType string, paramNames []string, paramNameIndex, unnamedIndex, totalParams int,
 ) (int, int) {
 	return forEachParamField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams,
 		func(fieldName, paramName string) {
@@ -673,9 +674,9 @@ func (gen *codeGenerator) writeCallStructField(
 }
 
 // writeCallStructFields writes the field assignments for initializing a call struct.
-func (gen *codeGenerator) writeCallStructFields(ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeCallStructFields(ftype *dst.FuncType, paramNames []string) {
 	visitParams(ftype, gen.typeWithQualifier, func(
-		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
+		param *dst.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
 	) (int, int) {
 		return gen.writeCallStructField(param, paramType, paramNames, paramNameIndex, unnamedIndex, totalParams)
 	})
@@ -701,17 +702,17 @@ func (gen *codeGenerator) writeComparisonCheck(fieldName, expectedName string, i
 }
 
 // writeExpectArgsAreChecks writes parameter equality checks for ExpectArgsAre.
-func (gen *codeGenerator) writeExpectArgsAreChecks(ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeExpectArgsAreChecks(ftype *dst.FuncType, paramNames []string) {
 	gen.writeParamChecks(ftype, paramNames, false)
 }
 
 // writeExpectArgsShouldChecks writes matcher-based checks for ExpectArgsShould.
-func (gen *codeGenerator) writeExpectArgsShouldChecks(ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeExpectArgsShouldChecks(ftype *dst.FuncType, paramNames []string) {
 	gen.writeParamChecks(ftype, paramNames, true)
 }
 
 // writeInjectResultsArgs writes the argument list for InjectResults call.
-func (gen *codeGenerator) writeInjectResultsArgs(ftype *ast.FuncType) {
+func (gen *codeGenerator) writeInjectResultsArgs(ftype *dst.FuncType) {
 	results := extractResults(gen.fset, ftype)
 	for resultIndex := range results {
 		if resultIndex > 0 {
@@ -723,7 +724,7 @@ func (gen *codeGenerator) writeInjectResultsArgs(ftype *ast.FuncType) {
 }
 
 // writeInjectResultsParams writes the parameter list for InjectResults method and returns the result names.
-func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string {
+func (gen *codeGenerator) writeInjectResultsParams(ftype *dst.FuncType) []string {
 	results := extractResults(gen.fset, ftype)
 
 	// Write parameters using shared formatter
@@ -736,19 +737,19 @@ func (gen *codeGenerator) writeInjectResultsParams(ftype *ast.FuncType) []string
 }
 
 // writeInjectResultsResponseFields writes the response struct field assignments for InjectResults.
-func (gen *codeGenerator) writeInjectResultsResponseFields(ftype *ast.FuncType, returnParamNames []string) {
+func (gen *codeGenerator) writeInjectResultsResponseFields(ftype *dst.FuncType, returnParamNames []string) {
 	for resultIdx, result := range extractResults(gen.fset, ftype) {
 		gen.pf(", %s: %s", result.Name, returnParamNames[resultIdx])
 	}
 }
 
 // writeMethodParams writes the method parameters in the form "name type, name2 type2".
-func (gen *codeGenerator) writeMethodParams(ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeMethodParams(ftype *dst.FuncType, paramNames []string) {
 	gen.writeMethodParamsWithFormatter(ftype, paramNames, func(t string) string { return t })
 }
 
 // writeMethodParamsAsAny writes method parameters with all types as 'any'.
-func (gen *codeGenerator) writeMethodParamsAsAny(ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeMethodParamsAsAny(ftype *dst.FuncType, paramNames []string) {
 	gen.writeMethodParamsWithFormatter(ftype, paramNames, func(_ string) string { return anyTypeString })
 }
 
@@ -756,7 +757,7 @@ func (gen *codeGenerator) writeMethodParamsAsAny(ftype *ast.FuncType, paramNames
 // The typeFormatter function receives the qualified type string and returns the formatted type to use.
 // This allows writing params as "name actualType" or "name any" with the same iteration logic.
 func (gen *codeGenerator) writeMethodParamsWithFormatter(
-	ftype *ast.FuncType,
+	ftype *dst.FuncType,
 	paramNames []string,
 	typeFormatter func(qualifiedType string) string,
 ) {
@@ -768,7 +769,7 @@ func (gen *codeGenerator) writeMethodParamsWithFormatter(
 	paramNameIndex := 0
 
 	visitParams(ftype, gen.typeWithQualifier, func(
-		param *ast.Field, paramType string, _, _, _ int,
+		param *dst.Field, paramType string, _, _, _ int,
 	) (int, int) {
 		if hasFieldNames(param) {
 			for _, name := range param.Names {
@@ -798,14 +799,14 @@ func (gen *codeGenerator) writeMethodParamsWithFormatter(
 }
 
 // writeMethodSignature writes the method name and parameters (e.g., "MethodName(a int, b string)").
-func (gen *codeGenerator) writeMethodSignature(methodName string, ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeMethodSignature(methodName string, ftype *dst.FuncType, paramNames []string) {
 	gen.pf("%s(", methodName)
 	gen.writeMethodParams(ftype, paramNames)
 	gen.pf(")")
 }
 
 // writeMockMethodCallCreation writes the response channel and call struct creation.
-func (gen *codeGenerator) writeMockMethodCallCreation(callName string, ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeMockMethodCallCreation(callName string, ftype *dst.FuncType, paramNames []string) {
 	gen.pf("\tresponseChan := make(chan %sResponse%s, 1)\n\n", callName, gen.formatTypeParamsUse())
 	gen.pf("\tcall := &%s%s{\n", callName, gen.formatTypeParamsUse())
 	gen.pf("\t\tresponseChan: responseChan,\n")
@@ -830,7 +831,7 @@ func (gen *codeGenerator) writeMockMethodResponseHandling() {
 }
 
 // writeMockMethodSignature writes the mock method signature and opening brace.
-func (gen *codeGenerator) writeMockMethodSignature(methodName string, ftype *ast.FuncType, paramNames []string) {
+func (gen *codeGenerator) writeMockMethodSignature(methodName string, ftype *dst.FuncType, paramNames []string) {
 	gen.pf("// %s implements the interface method and records the call for testing.\n", methodName)
 	gen.pf("// The method blocks until a response is injected via the test controller.\n")
 	gen.pf("func (m *%s%s) ", gen.mockName, gen.formatTypeParamsUse())
@@ -840,7 +841,7 @@ func (gen *codeGenerator) writeMockMethodSignature(methodName string, ftype *ast
 }
 
 // writeNamedParamFields writes fields for named parameters.
-func (gen *codeGenerator) writeNamedParamFields(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
+func (gen *codeGenerator) writeNamedParamFields(param *dst.Field, paramType string, unnamedIndex, totalParams int) {
 	structType := normalizeVariadicType(paramType)
 
 	for i := range param.Names {
@@ -852,9 +853,9 @@ func (gen *codeGenerator) writeNamedParamFields(param *ast.Field, paramType stri
 // writeParamChecks writes parameter comparison checks.
 // When useMatcher is true, uses imptest.MatchValue for flexible matching.
 // When useMatcher is false, uses == or reflect.DeepEqual for equality checks.
-func (gen *codeGenerator) writeParamChecks(ftype *ast.FuncType, paramNames []string, useMatcher bool) {
+func (gen *codeGenerator) writeParamChecks(ftype *dst.FuncType, paramNames []string, useMatcher bool) {
 	visitParams(ftype, gen.typeWithQualifier, func(
-		param *ast.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
+		param *dst.Field, paramType string, paramNameIndex, unnamedIndex, totalParams int,
 	) (int, int) {
 		isComparable := isComparableExpr(param.Type, gen.typesInfo)
 
@@ -866,7 +867,7 @@ func (gen *codeGenerator) writeParamChecks(ftype *ast.FuncType, paramNames []str
 }
 
 // writeReturnStatement writes the return statement for a mock method.
-func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
+func (gen *codeGenerator) writeReturnStatement(ftype *dst.FuncType) {
 	if !hasResults(ftype) {
 		gen.pf("\treturn\n")
 		return
@@ -878,7 +879,7 @@ func (gen *codeGenerator) writeReturnStatement(ftype *ast.FuncType) {
 }
 
 // writeReturnValues writes all return values from the response struct.
-func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
+func (gen *codeGenerator) writeReturnValues(ftype *dst.FuncType) {
 	for i, r := range extractResults(gen.fset, ftype) {
 		if i > 0 {
 			gen.pf(",")
@@ -889,7 +890,7 @@ func (gen *codeGenerator) writeReturnValues(ftype *ast.FuncType) {
 }
 
 // writeUnnamedParamField writes a field for an unnamed parameter.
-func (gen *codeGenerator) writeUnnamedParamField(param *ast.Field, paramType string, unnamedIndex, totalParams int) {
+func (gen *codeGenerator) writeUnnamedParamField(param *dst.Field, paramType string, unnamedIndex, totalParams int) {
 	structType := normalizeVariadicType(paramType)
 
 	fieldName := interfaceGetParamFieldName(param, 0, unnamedIndex, structType, totalParams)
@@ -899,12 +900,12 @@ func (gen *codeGenerator) writeUnnamedParamField(param *ast.Field, paramType str
 // forEachInterfaceMethod iterates over interface methods and calls the callback for each,
 // expanding embedded interfaces.
 func forEachInterfaceMethod(
-	iface *ast.InterfaceType,
-	astFiles []*ast.File,
+	iface *dst.InterfaceType,
+	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
-	callback func(methodName string, ftype *ast.FuncType),
+	callback func(methodName string, ftype *dst.FuncType),
 ) error {
 	for _, field := range iface.Methods.List {
 		err := interfaceProcessFieldMethods(field, astFiles, fset, pkgImportPath, pkgLoader, callback)
@@ -919,7 +920,7 @@ func forEachInterfaceMethod(
 // forEachParamField iterates over parameter fields, handling both named and unnamed parameters.
 // It calls the action callback for each field with the computed field name and parameter name.
 func forEachParamField(
-	param *ast.Field,
+	param *dst.Field,
 	paramType string,
 	paramNames []string,
 	paramNameIndex, unnamedIndex, totalParams int,
@@ -946,7 +947,7 @@ func forEachParamField(
 
 // generateImplementationCode generates the complete mock implementation code for an interface.
 func generateImplementationCode(
-	astFiles []*ast.File,
+	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
 	typesInfo *go_types.Info,
@@ -971,13 +972,13 @@ func generateImplementationCode(
 
 // interfaceCollectMethodNames collects all method names from an interface, including embedded ones.
 func interfaceCollectMethodNames(
-	iface *ast.InterfaceType, astFiles []*ast.File, fset *token.FileSet, pkgImportPath string, pkgLoader PackageLoader,
+	iface *dst.InterfaceType, astFiles []*dst.File, fset *token.FileSet, pkgImportPath string, pkgLoader PackageLoader,
 ) ([]string, error) {
 	var methodNames []string
 
 	err := forEachInterfaceMethod(
 		iface, astFiles, fset, pkgImportPath, pkgLoader,
-		func(methodName string, _ *ast.FuncType) {
+		func(methodName string, _ *dst.FuncType) {
 			methodNames = append(methodNames, methodName)
 		},
 	)
@@ -990,12 +991,12 @@ func interfaceCollectMethodNames(
 
 // interfaceExpandEmbedded expands an embedded interface by loading its definition and recursively processing methods.
 func interfaceExpandEmbedded(
-	embeddedType ast.Expr,
-	astFiles []*ast.File,
+	embeddedType dst.Expr,
+	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
-	callback func(methodName string, ftype *ast.FuncType),
+	callback func(methodName string, ftype *dst.FuncType),
 ) error {
 	var (
 		embeddedInterfaceName string
@@ -1005,13 +1006,13 @@ func interfaceExpandEmbedded(
 	// Determine if it's a local interface or external
 
 	switch typ := embeddedType.(type) {
-	case *ast.Ident:
+	case *dst.Ident:
 		// Local interface (e.g., "Reader")
 		embeddedInterfaceName = typ.Name
 		embeddedPkgPath = pkgImportPath
-	case *ast.SelectorExpr:
+	case *dst.SelectorExpr:
 		// External interface (e.g., "io.Reader")
-		pkgIdent, ok := typ.X.(*ast.Ident)
+		pkgIdent, ok := typ.X.(*dst.Ident)
 		if !ok {
 			return fmt.Errorf("%w: %T", errUnsupportedEmbeddedType, typ.X)
 		}
@@ -1030,7 +1031,7 @@ func interfaceExpandEmbedded(
 
 	// Load the embedded interface definition
 	var (
-		embeddedAstFiles []*ast.File
+		embeddedAstFiles []*dst.File
 		embeddedFset     *token.FileSet
 		err              error
 	)
@@ -1063,7 +1064,7 @@ func interfaceExpandEmbedded(
 }
 
 // interfaceExtractParamNames extracts or generates parameter names from a function type.
-func interfaceExtractParamNames(fset *token.FileSet, ftype *ast.FuncType) []string {
+func interfaceExtractParamNames(fset *token.FileSet, ftype *dst.FuncType) []string {
 	params := extractParams(fset, ftype)
 	names := make([]string, len(params))
 
@@ -1076,6 +1077,8 @@ func interfaceExtractParamNames(fset *token.FileSet, ftype *ast.FuncType) []stri
 
 // interfaceGenerateParamName generates a field name for an unnamed parameter
 // Uses common conventions: single string -> "S", single int -> "Input", multiple -> "A", "B", "C", etc.
+//
+
 func interfaceGenerateParamName(index int, paramType string, totalParams int) string {
 	// Remove common prefixes/suffixes for comparison
 	normalized := strings.TrimSpace(paramType)
@@ -1104,7 +1107,7 @@ func interfaceGenerateParamName(index int, paramType string, totalParams int) st
 // interfaceGetParamFieldName returns the struct field name for a parameter.
 // For named params, returns the name. For unnamed params, generates a name based on type/index.
 func interfaceGetParamFieldName(
-	param *ast.Field, nameIdx int, unnamedIdx int, paramType string, totalParams int,
+	param *dst.Field, nameIdx int, unnamedIdx int, paramType string, totalParams int,
 ) string {
 	if hasFieldNames(param) {
 		return param.Names[nameIdx].Name
@@ -1115,12 +1118,12 @@ func interfaceGetParamFieldName(
 
 // interfaceProcessFieldMethods handles a single field in an interface's method list.
 func interfaceProcessFieldMethods(
-	field *ast.Field,
-	astFiles []*ast.File,
+	field *dst.Field,
+	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
-	callback func(methodName string, ftype *ast.FuncType),
+	callback func(methodName string, ftype *dst.FuncType),
 ) error {
 	// Handle embedded interfaces (they have no names)
 	if !hasFieldNames(field) {
@@ -1128,7 +1131,7 @@ func interfaceProcessFieldMethods(
 	}
 
 	// Skip non-function types (shouldn't happen in a valid interface, but be safe)
-	ftype, ok := field.Type.(*ast.FuncType)
+	ftype, ok := field.Type.(*dst.FuncType)
 	if !ok {
 		return nil
 	}
@@ -1143,7 +1146,7 @@ func interfaceProcessFieldMethods(
 
 // newCodeGenerator initializes a codeGenerator with common properties and performs initial setup.
 func newCodeGenerator(
-	astFiles []*ast.File,
+	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
 	typesInfo *go_types.Info,

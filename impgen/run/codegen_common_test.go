@@ -2,9 +2,10 @@
 package run
 
 import (
-	"go/ast"
 	"go/token"
 	"testing"
+
+	"github.com/dave/dst"
 )
 
 func TestBaseGenerator(t *testing.T) {
@@ -39,7 +40,7 @@ func TestBaseGenerator(t *testing.T) {
 	t.Run("checkIfQualifierNeeded", func(t *testing.T) {
 		t.Parallel()
 
-		expr := &ast.Ident{Name: "Exported"}
+		expr := &dst.Ident{Name: "Exported"}
 		baseGen.checkIfQualifierNeeded(expr)
 
 		if !baseGen.needsQualifier {
@@ -50,10 +51,10 @@ func TestBaseGenerator(t *testing.T) {
 	t.Run("checkIfValidForExternalUsage", func(t *testing.T) {
 		t.Parallel()
 
-		ftype := &ast.FuncType{
-			Params: &ast.FieldList{
-				List: []*ast.Field{
-					{Type: &ast.Ident{Name: "unexported"}},
+		ftype := &dst.FuncType{
+			Params: &dst.FieldList{
+				List: []*dst.Field{
+					{Type: &dst.Ident{Name: "unexported"}},
 				},
 			},
 		}
@@ -69,15 +70,15 @@ func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
 	t.Parallel()
 
 	fset := token.NewFileSet()
-	typeParams := &ast.FieldList{
-		List: []*ast.Field{
+	typeParams := &dst.FieldList{
+		List: []*dst.Field{
 			{
-				Names: []*ast.Ident{{Name: "T"}, {Name: "U"}},
-				Type:  &ast.Ident{Name: "any"},
+				Names: []*dst.Ident{{Name: "T"}, {Name: "U"}},
+				Type:  &dst.Ident{Name: "any"},
 			},
 			{
-				Names: []*ast.Ident{{Name: "V"}},
-				Type:  &ast.Ident{Name: "comparable"},
+				Names: []*dst.Ident{{Name: "V"}},
+				Type:  &dst.Ident{Name: "comparable"},
 			},
 		},
 	}
@@ -127,7 +128,7 @@ func TestCountFields_mutant(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		fields   *ast.FieldList
+		fields   *dst.FieldList
 		expected int
 	}{
 		{
@@ -137,25 +138,25 @@ func TestCountFields_mutant(t *testing.T) {
 		},
 		{
 			name:     "empty field list",
-			fields:   &ast.FieldList{List: []*ast.Field{}},
+			fields:   &dst.FieldList{List: []*dst.Field{}},
 			expected: 0,
 		},
 		{
 			name: "single named field",
-			fields: &ast.FieldList{
-				List: []*ast.Field{
-					{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+			fields: &dst.FieldList{
+				List: []*dst.Field{
+					{Names: []*dst.Ident{{Name: "x"}}, Type: &dst.Ident{Name: "int"}},
 				},
 			},
 			expected: 1,
 		},
 		{
 			name: "multiple names in one field",
-			fields: &ast.FieldList{
-				List: []*ast.Field{
+			fields: &dst.FieldList{
+				List: []*dst.Field{
 					{
-						Names: []*ast.Ident{{Name: "x"}, {Name: "y"}, {Name: "z"}},
-						Type:  &ast.Ident{Name: "int"},
+						Names: []*dst.Ident{{Name: "x"}, {Name: "y"}, {Name: "z"}},
+						Type:  &dst.Ident{Name: "int"},
 					},
 				},
 			},
@@ -163,20 +164,20 @@ func TestCountFields_mutant(t *testing.T) {
 		},
 		{
 			name: "unnamed field",
-			fields: &ast.FieldList{
-				List: []*ast.Field{
-					{Names: nil, Type: &ast.Ident{Name: "int"}},
+			fields: &dst.FieldList{
+				List: []*dst.Field{
+					{Names: nil, Type: &dst.Ident{Name: "int"}},
 				},
 			},
 			expected: 1,
 		},
 		{
 			name: "mixed named and unnamed fields",
-			fields: &ast.FieldList{
-				List: []*ast.Field{
-					{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
-					{Names: nil, Type: &ast.Ident{Name: "string"}},
-					{Names: []*ast.Ident{{Name: "a"}, {Name: "b"}}, Type: &ast.Ident{Name: "bool"}},
+			fields: &dst.FieldList{
+				List: []*dst.Field{
+					{Names: []*dst.Ident{{Name: "x"}}, Type: &dst.Ident{Name: "int"}},
+					{Names: nil, Type: &dst.Ident{Name: "string"}},
+					{Names: []*dst.Ident{{Name: "a"}, {Name: "b"}}, Type: &dst.Ident{Name: "bool"}},
 				},
 			},
 			expected: 4,
@@ -200,32 +201,32 @@ func TestFieldNameCount_mutant(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		field    *ast.Field
+		field    *dst.Field
 		expected int
 	}{
 		{
 			name:     "unnamed field",
-			field:    &ast.Field{Names: nil, Type: &ast.Ident{Name: "int"}},
+			field:    &dst.Field{Names: nil, Type: &dst.Ident{Name: "int"}},
 			expected: 1,
 		},
 		{
 			name:     "empty names",
-			field:    &ast.Field{Names: []*ast.Ident{}, Type: &ast.Ident{Name: "int"}},
+			field:    &dst.Field{Names: []*dst.Ident{}, Type: &dst.Ident{Name: "int"}},
 			expected: 1,
 		},
 		{
 			name: "single named field",
-			field: &ast.Field{
-				Names: []*ast.Ident{{Name: "x"}},
-				Type:  &ast.Ident{Name: "int"},
+			field: &dst.Field{
+				Names: []*dst.Ident{{Name: "x"}},
+				Type:  &dst.Ident{Name: "int"},
 			},
 			expected: 1,
 		},
 		{
 			name: "multiple names",
-			field: &ast.Field{
-				Names: []*ast.Ident{{Name: "x"}, {Name: "y"}, {Name: "z"}},
-				Type:  &ast.Ident{Name: "int"},
+			field: &dst.Field{
+				Names: []*dst.Ident{{Name: "x"}, {Name: "y"}, {Name: "z"}},
+				Type:  &dst.Ident{Name: "int"},
 			},
 			expected: 3,
 		},
@@ -246,12 +247,12 @@ func TestFieldNameCount_mutant(t *testing.T) {
 func TestHasExportedIdent_Func(t *testing.T) {
 	t.Parallel()
 
-	expr1 := &ast.FuncType{Params: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
+	expr1 := &dst.FuncType{Params: &dst.FieldList{List: []*dst.Field{{Type: &dst.Ident{Name: "MyType"}}}}}
 	if !hasExportedIdent(expr1, func(string) bool { return false }) {
 		t.Error("expected true for FuncType with exported param")
 	}
 
-	expr2 := &ast.FuncType{Results: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
+	expr2 := &dst.FuncType{Results: &dst.FieldList{List: []*dst.Field{{Type: &dst.Ident{Name: "MyType"}}}}}
 	if !hasExportedIdent(expr2, func(string) bool { return false }) {
 		t.Error("expected true for FuncType with exported result")
 	}
@@ -260,7 +261,7 @@ func TestHasExportedIdent_Func(t *testing.T) {
 func TestHasExportedIdent_Struct(t *testing.T) {
 	t.Parallel()
 
-	expr := &ast.StructType{Fields: &ast.FieldList{List: []*ast.Field{{Type: &ast.Ident{Name: "MyType"}}}}}
+	expr := &dst.StructType{Fields: &dst.FieldList{List: []*dst.Field{{Type: &dst.Ident{Name: "MyType"}}}}}
 	if !hasExportedIdent(expr, func(string) bool { return false }) {
 		t.Error("expected true for StructType with exported field")
 	}
@@ -271,25 +272,25 @@ func TestHasParams_mutant(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		ftype    *ast.FuncType
+		ftype    *dst.FuncType
 		expected bool
 	}{
 		{
 			name:     "nil params",
-			ftype:    &ast.FuncType{Params: nil},
+			ftype:    &dst.FuncType{Params: nil},
 			expected: false,
 		},
 		{
 			name:     "empty params list",
-			ftype:    &ast.FuncType{Params: &ast.FieldList{List: []*ast.Field{}}},
+			ftype:    &dst.FuncType{Params: &dst.FieldList{List: []*dst.Field{}}},
 			expected: false,
 		},
 		{
 			name: "single param",
-			ftype: &ast.FuncType{
-				Params: &ast.FieldList{
-					List: []*ast.Field{
-						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
+			ftype: &dst.FuncType{
+				Params: &dst.FieldList{
+					List: []*dst.Field{
+						{Names: []*dst.Ident{{Name: "x"}}, Type: &dst.Ident{Name: "int"}},
 					},
 				},
 			},
@@ -297,11 +298,11 @@ func TestHasParams_mutant(t *testing.T) {
 		},
 		{
 			name: "multiple params",
-			ftype: &ast.FuncType{
-				Params: &ast.FieldList{
-					List: []*ast.Field{
-						{Names: []*ast.Ident{{Name: "x"}}, Type: &ast.Ident{Name: "int"}},
-						{Names: []*ast.Ident{{Name: "y"}}, Type: &ast.Ident{Name: "string"}},
+			ftype: &dst.FuncType{
+				Params: &dst.FieldList{
+					List: []*dst.Field{
+						{Names: []*dst.Ident{{Name: "x"}}, Type: &dst.Ident{Name: "int"}},
+						{Names: []*dst.Ident{{Name: "y"}}, Type: &dst.Ident{Name: "string"}},
 					},
 				},
 			},
@@ -326,25 +327,25 @@ func TestHasResults_mutant(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		ftype    *ast.FuncType
+		ftype    *dst.FuncType
 		expected bool
 	}{
 		{
 			name:     "nil results",
-			ftype:    &ast.FuncType{Results: nil},
+			ftype:    &dst.FuncType{Results: nil},
 			expected: false,
 		},
 		{
 			name:     "empty results list",
-			ftype:    &ast.FuncType{Results: &ast.FieldList{List: []*ast.Field{}}},
+			ftype:    &dst.FuncType{Results: &dst.FieldList{List: []*dst.Field{}}},
 			expected: false,
 		},
 		{
 			name: "single result",
-			ftype: &ast.FuncType{
-				Results: &ast.FieldList{
-					List: []*ast.Field{
-						{Type: &ast.Ident{Name: "int"}},
+			ftype: &dst.FuncType{
+				Results: &dst.FieldList{
+					List: []*dst.Field{
+						{Type: &dst.Ident{Name: "int"}},
 					},
 				},
 			},
@@ -352,11 +353,11 @@ func TestHasResults_mutant(t *testing.T) {
 		},
 		{
 			name: "multiple results",
-			ftype: &ast.FuncType{
-				Results: &ast.FieldList{
-					List: []*ast.Field{
-						{Type: &ast.Ident{Name: "int"}},
-						{Type: &ast.Ident{Name: "error"}},
+			ftype: &dst.FuncType{
+				Results: &dst.FieldList{
+					List: []*dst.Field{
+						{Type: &dst.Ident{Name: "int"}},
+						{Type: &dst.Ident{Name: "error"}},
 					},
 				},
 			},
@@ -489,11 +490,11 @@ func TestParamNamesToString_mutant(t *testing.T) {
 // newTestBaseGenerator creates a baseGenerator for testing.
 func newTestBaseGenerator() baseGenerator {
 	fset := token.NewFileSet()
-	typeParams := &ast.FieldList{
-		List: []*ast.Field{
+	typeParams := &dst.FieldList{
+		List: []*dst.Field{
 			{
-				Names: []*ast.Ident{{Name: "T"}},
-				Type:  &ast.Ident{Name: "any"},
+				Names: []*dst.Ident{{Name: "T"}},
+				Type:  &dst.Ident{Name: "any"},
 			},
 		},
 	}

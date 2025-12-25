@@ -740,7 +740,7 @@ func (bldr *CustomOpsImpStoreBuilder) ExpectArgsAre(key string, value any) *Cust
 		if methodCall.key != key {
 			return false
 		}
-		if methodCall.value != value {
+		if !reflect.DeepEqual(methodCall.value, value) {
 			return false
 		}
 		return true

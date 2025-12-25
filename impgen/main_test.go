@@ -68,7 +68,8 @@ func TestRealPackageLoader_mutant(t *testing.T) {
 	loader := &realPackageLoader{}
 
 	// Test loading a simple package - this exercises the Load method
-	// and verifies that the Mode flags are correctly combined
+	// and verifies that the Mode flags are correctly combined.
+	// TypesInfo is intentionally nil for performance (we use syntax-based type detection).
 	_, fset, typesInfo, err := loader.Load(".")
 	if err != nil {
 		t.Fatalf("Load failed: %v", err)
@@ -78,7 +79,7 @@ func TestRealPackageLoader_mutant(t *testing.T) {
 		t.Error("Expected non-nil FileSet")
 	}
 
-	if typesInfo == nil {
-		t.Error("Expected non-nil TypesInfo")
+	if typesInfo != nil {
+		t.Error("Expected nil TypesInfo (we skip type checking for performance)")
 	}
 }
