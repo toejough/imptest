@@ -504,7 +504,10 @@ func verifyUATFile(
 		baseDir: ".",
 	}
 
-	err := run.Run(fullArgs, getEnv, fileSystem, loader, io.Discard)
+	// Use WithCache to enable cache writing for faster subsequent runs
+	cfs := realCacheFS{}
+
+	err := run.WithCache(fullArgs, getEnv, fileSystem, loader, cfs, io.Discard)
 	if err != nil {
 		t.Errorf("Run failed for %v: %v", testCase.name, err)
 	}
