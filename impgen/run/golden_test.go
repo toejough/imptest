@@ -1,9 +1,7 @@
 package run_test
 
 import (
-	"errors"
 	"fmt"
-	"go/ast"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -11,13 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/dave/dst"
-	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
-	"golang.org/x/tools/go/packages"
 )
 
 // TestUATConsistency ensures that the generated files in the UAT directory
@@ -55,30 +50,6 @@ func TestUATConsistency(t *testing.T) {
 			verifyUATFile(t, loader, tc)
 		})
 	}
-}
-
-// unexported variables.
-var (
-	errNoPackagesFound = errors.New("no packages found")
-	errPackageErrors   = errors.New("package errors")
-	// globalLoadCache persists across all test runs in this process to minimize expensive go/packages.Load calls.
-	//
-	//nolint:gochecknoglobals // This global cache is intentional to speed up tests across the entire package.
-	globalLoadCache = make(map[string]loadResult)
-	//nolint:gochecknoglobals // Global mutex to protect the global cache.
-	globalLoadMu sync.RWMutex
-	// loadSemaphore limits concurrent packages.Load calls to prevent GC thrashing.
-	// We limit to 2 concurrent loads as they are extremely memory intensive.
-	//
-	//nolint:gochecknoglobals
-	loadSemaphore = make(chan struct{}, 2)
-)
-
-type loadResult struct {
-	files []*ast.File
-	fset  *token.FileSet
-	info  *types.Info
-	err   error
 }
 
 // verifyingFileSystem implements FileSystem.
@@ -119,180 +90,16 @@ type testPackageLoader struct {
 	ScenarioDir string
 }
 
-// Load loads a package by import path and returns its DST files, FileSet, and type information.
-// It uses a shared cache to avoid redundant work across different test cases.
-//
-//nolint:funlen // Test helper function with necessary setup and error handling
+// Load loads a package by import path and returns its DST files and FileSet.
+// Uses the shared LoadPackageDST function for direct DST parsing.
 func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
-	// For ".", use the current working directory to support per-test-case scenarios
-	loadPath := importPath
-	if importPath == "." {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to get working directory: %w", err)
-		}
-
-		loadPath = cwd
+	files, fset, err := run.LoadPackageDST(importPath)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to load package %q: %w", importPath, err)
 	}
 
-	// Include current working directory in cache key for simple package names,
-	// since local package prioritization depends on the working directory
-	cwd, _ := os.Getwd()
-	cacheKey := fmt.Sprintf("%s|%s|%s", pl.ProjectRoot, cwd, loadPath)
-
-	globalLoadMu.RLock()
-
-	res, ok := globalLoadCache[cacheKey]
-
-	globalLoadMu.RUnlock()
-
-	if ok {
-		// Convert cached AST files to DST files
-		if res.err != nil {
-			return nil, nil, nil, res.err
-		}
-
-		dstFiles := make([]*dst.File, len(res.files))
-		for idx, astFile := range res.files {
-			dstFile, err := decorator.DecorateFile(res.fset, astFile)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to decorate AST file: %w", err)
-			}
-
-			dstFiles[idx] = dstFile
-		}
-
-		return dstFiles, res.fset, res.info, nil
-	}
-
-	resFiles, resFset, resInfo, resErr := pl.loadWithThrottle(loadPath)
-
-	globalLoadMu.Lock()
-
-	globalLoadCache[cacheKey] = loadResult{
-		files: resFiles,
-		fset:  resFset,
-		info:  resInfo,
-		err:   resErr,
-	}
-
-	globalLoadMu.Unlock()
-
-	if resErr != nil {
-		return nil, nil, nil, resErr
-	}
-
-	// Convert AST files to DST files
-	dstFiles := make([]*dst.File, len(resFiles))
-	for idx, astFile := range resFiles {
-		dstFile, err := decorator.DecorateFile(resFset, astFile)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to decorate AST file: %w", err)
-		}
-
-		dstFiles[idx] = dstFile
-	}
-
-	return dstFiles, resFset, resInfo, nil
-}
-
-//nolint:cyclop // Package resolution requires multiple conditional checks
-func (pl *testPackageLoader) loadWithThrottle(loadPath string) ([]*ast.File, *token.FileSet, *types.Info, error) {
-	// For simple package names (no slashes), check if there's a local subdirectory first.
-	// This handles cases where local packages shadow stdlib packages.
-	// Only do a lightweight filesystem check - don't load the package yet.
-	actualLoadPath := loadPath
-	//nolint:nestif // Nested checks are necessary for local package detection
-	if loadPath != "." && !strings.HasPrefix(loadPath, "/") && !strings.Contains(loadPath, "/") {
-		srcDir, err := os.Getwd()
-		if err == nil {
-			localDir := filepath.Join(srcDir, loadPath)
-
-			info, err := os.Stat(localDir)
-			if err == nil && info.IsDir() {
-				// Check if it contains .go files
-				entries, _ := os.ReadDir(localDir)
-				for _, e := range entries {
-					if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
-						actualLoadPath = localDir
-						break
-					}
-				}
-			}
-		}
-	}
-
-	cfg := &packages.Config{
-		Mode: packages.NeedName |
-			packages.NeedFiles |
-			packages.NeedCompiledGoFiles |
-			packages.NeedImports |
-			packages.NeedTypes |
-			packages.NeedTypesInfo |
-			packages.NeedSyntax,
-		Tests: true,
-		Dir:   pl.ProjectRoot,
-	}
-
-	// Acquire semaphore
-	loadSemaphore <- struct{}{}
-
-	pkgs, err := packages.Load(cfg, actualLoadPath)
-	// Release semaphore
-	<-loadSemaphore
-
-	var (
-		resFiles []*ast.File
-		resFset  *token.FileSet
-		resInfo  *types.Info
-		resErr   error
-	)
-
-	switch {
-	case err != nil:
-		resErr = fmt.Errorf("failed to load package: %w", err)
-	case len(pkgs) == 0:
-		resErr = fmt.Errorf("%w: %q", errNoPackagesFound, loadPath)
-	default:
-		resFiles, resFset, resInfo, resErr = pl.processPackages(pkgs, loadPath)
-	}
-
-	return resFiles, resFset, resInfo, resErr
-}
-
-func (pl *testPackageLoader) processPackages(
-	pkgs []*packages.Package, importPath string,
-) ([]*ast.File, *token.FileSet, *types.Info, error) {
-	var (
-		allFiles  []*ast.File
-		fset      *token.FileSet
-		typesInfo *types.Info
-	)
-
-	for _, pkg := range pkgs {
-		if fset == nil {
-			fset = pkg.Fset
-		}
-
-		if typesInfo == nil && pkg.TypesInfo != nil {
-			typesInfo = pkg.TypesInfo
-		}
-
-		allFiles = append(allFiles, pkg.Syntax...)
-	}
-
-	if len(allFiles) == 0 {
-		var err error
-		if len(pkgs[0].Errors) > 0 {
-			err = fmt.Errorf("%w: %v", errPackageErrors, pkgs[0].Errors)
-		} else {
-			err = fmt.Errorf("%w: %q", errNoPackagesFound, importPath)
-		}
-
-		return nil, nil, nil, err
-	}
-
-	return allFiles, fset, typesInfo, nil
+	// Return nil for typesInfo - we use syntax-based type detection
+	return files, fset, nil, nil
 }
 
 type uatTestCase struct {

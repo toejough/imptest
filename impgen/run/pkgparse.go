@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,49 @@ import (
 
 type PackageLoader interface {
 	Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error)
+}
+
+// ResolveLocalPackagePath checks if importPath refers to a local subdirectory package.
+// For simple package names (no slashes), it checks if there's a local subdirectory
+// with that name containing .go files. This handles cases where local packages
+// shadow stdlib packages (e.g., a local "time" package shadowing stdlib "time").
+//
+// Returns the absolute path to the local package directory if found, or the
+// original importPath if it should be resolved normally.
+//
+//nolint:cyclop // Early returns for different resolution paths
+func ResolveLocalPackagePath(importPath string) string {
+	// Only check for simple package names (no slashes, not ".", not absolute paths)
+	if importPath == "." || strings.HasPrefix(importPath, "/") || strings.Contains(importPath, "/") {
+		return importPath
+	}
+
+	srcDir, err := os.Getwd()
+	if err != nil {
+		return importPath
+	}
+
+	localDir := filepath.Join(srcDir, importPath)
+
+	info, err := os.Stat(localDir)
+	if err != nil || !info.IsDir() {
+		return importPath
+	}
+
+	// Check if it contains .go files
+	entries, err := os.ReadDir(localDir)
+	if err != nil {
+		return importPath
+	}
+
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
+			// Found a local package - return the absolute path
+			return localDir
+		}
+	}
+
+	return importPath
 }
 
 // symbolType identifies the kind of symbol found.

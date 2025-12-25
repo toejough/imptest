@@ -7,17 +7,13 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"go/build"
 	"go/token"
 	"go/types"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/dave/dst"
-	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
 )
 
@@ -34,11 +30,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-
-// unexported variables.
-var (
-	errNoPackagesFound = errors.New("no packages found")
-)
 
 // realFileSystem implements FileSystem using os package.
 type realFileSystem struct{}
@@ -73,115 +64,17 @@ func (fs *realFileSystem) WriteFile(name string, data []byte, perm os.FileMode) 
 	return nil
 }
 
-// realPackageLoader implements PackageLoader using golang.org/x/tools/go/packages.
+// realPackageLoader implements PackageLoader using direct DST parsing.
 type realPackageLoader struct{}
 
 // Load loads a package by import path and returns its DST files and FileSet.
-// Uses fast DST parsing with no type checking for better performance.
-//
-//nolint:cyclop,funlen,gocognit,nestif // Package resolution requires checking multiple paths and conditions
+// Uses the shared LoadPackageDST function for direct DST parsing with no type checking.
 func (pl *realPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
-	// Resolve import path to directory
-	var dir string
-
-	if importPath == "." {
-		// Current directory
-		var err error
-
-		dir, err = os.Getwd()
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to get working directory: %w", err)
-		}
-	} else {
-		// First check if it's a local subdirectory (e.g., "./time" when import path is "time")
-		// This is needed to handle cases where a local package shadows a stdlib package
-		srcDir, _ := os.Getwd()
-
-		localDir := filepath.Join(srcDir, importPath)
-
-		info, err := os.Stat(localDir)
-		if err == nil && info.IsDir() {
-			// It's a local subdirectory - check if it contains .go files to confirm it's a package
-			entries, _ := os.ReadDir(localDir)
-			hasGoFiles := false
-
-			for _, e := range entries {
-				if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
-					hasGoFiles = true
-					break
-				}
-			}
-
-			if hasGoFiles {
-				dir = localDir
-			}
-		}
-
-		// If not found as local directory, use go/build to resolve
-		if dir == "" {
-			pkg, err := build.Import(importPath, srcDir, build.FindOnly)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to find package %q: %w", importPath, err)
-			}
-
-			dir = pkg.Dir
-		}
-	}
-
-	// Find all .go files
-	// For local packages (importPath == "."), include test files
-	// For external/stdlib packages, exclude test files to avoid parse errors
-	entries, err := os.ReadDir(dir)
+	files, fset, err := run.LoadPackageDST(importPath)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to read directory %s: %w", dir, err)
-	}
-
-	includeTests := (importPath == ".")
-
-	goFiles := make([]string, 0, len(entries))
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".go") {
-			continue
-		}
-		// Skip test files for non-local packages
-		if !includeTests && strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-
-		goFiles = append(goFiles, filepath.Join(dir, name))
-	}
-
-	if len(goFiles) == 0 {
-		return nil, nil, nil, fmt.Errorf("%w: no .go files in %s", errNoPackagesFound, dir)
-	}
-
-	// Parse all files using DST (no conversion needed)
-	fset := token.NewFileSet()
-	dec := decorator.NewDecorator(fset)
-
-	allFiles := make([]*dst.File, 0, len(goFiles))
-
-	for _, goFile := range goFiles {
-		// Parse using DST with filename for proper FileSet registration
-		dstFile, err := dec.ParseFile(goFile, nil, 0)
-		if err != nil {
-			// Skip files with parse errors
-			continue
-		}
-
-		allFiles = append(allFiles, dstFile)
-	}
-
-	if len(allFiles) == 0 {
-		return nil, nil, nil, fmt.Errorf("%w: failed to parse any .go files in %s", errNoPackagesFound, dir)
+		return nil, nil, nil, fmt.Errorf("failed to load package %q: %w", importPath, err)
 	}
 
 	// Return nil for typesInfo - we use syntax-based type detection instead
-	return allFiles, fset, nil, nil
+	return files, fset, nil, nil
 }
