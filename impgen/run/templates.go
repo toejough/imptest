@@ -35,7 +35,7 @@ type callStructMethodData struct {
 
 // callStructTemplateData holds data for generating the call struct and its methods.
 type callStructTemplateData struct {
-	templateData
+	templateData //nolint:unused // Embedded fields accessed via promotion
 
 	Methods []callStructMethodData
 }
@@ -51,7 +51,7 @@ type callableTemplateData struct {
 
 // methodTemplateData holds data for method-specific templates.
 type methodTemplateData struct {
-	templateData
+	templateData //nolint:unused // Embedded fields accessed via promotion
 
 	MethodName     string
 	MethodCallName string
@@ -61,7 +61,7 @@ type methodTemplateData struct {
 
 // templateData holds common data passed to templates.
 type templateData struct {
-	baseTemplateData
+	baseTemplateData //nolint:unused // Embedded fields accessed via promotion
 
 	MockName         string
 	CallName         string

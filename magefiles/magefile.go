@@ -61,7 +61,6 @@ func Check(c context.Context) error {
 
 	for _, cmd := range []func(context.Context) error{
 		Tidy,          // clean up the module dependencies
-		CompileQtpl,   // compile quicktemplate files
 		Generate,      // generate code
 		Test,          // verify the stuff you explicitly care about works
 		Deadcode,      // verify there's no dead code
@@ -158,7 +157,7 @@ func CheckCoverage(c context.Context) error {
 func CheckForFail(c context.Context) error {
 	fmt.Println("Checking...")
 
-	mg.SerialCtxDeps(c, LintForFail, Build, CompileQtpl, Generate, TestForFail, CheckNils)
+	mg.SerialCtxDeps(c, LintForFail, Build, Generate, TestForFail, CheckNils)
 
 	// for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
 	// 	err := cmd(c)
@@ -180,12 +179,6 @@ func CheckNils(c context.Context) error {
 func Clean() {
 	fmt.Println("Cleaning...")
 	os.Remove("coverage.out")
-}
-
-// CompileQtpl compiles quicktemplate files to Go code.
-func CompileQtpl(c context.Context) error {
-	fmt.Println("Compiling quicktemplate files...")
-	return run(c, "qtc", "-dir=impgen/run")
 }
 
 // Deadcode checks that there's no dead code in codebase.

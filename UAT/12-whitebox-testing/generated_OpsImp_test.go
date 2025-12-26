@@ -65,7 +65,7 @@ func (i *OpsImp) Within(d time.Duration) *OpsImpTimed {
 
 // OpsImpCall represents a captured call to any method.
 // Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
+// Use Name() to identify the method and As{{Method}() to access typed call details.
 type OpsImpCall struct {
 	internalMethod *OpsImpinternalMethodCall
 	PublicMethod   *OpsImpPublicMethodCall

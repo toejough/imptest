@@ -75,7 +75,12 @@
       "Bash(for:*)",
       "Bash(do if head -1 \"$f\")",
       "Bash(fi:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(hyperfine:*)",
+      "Bash(do mv \"$f\" \"$f.bak\")",
+      "Bash(while read line)",
+      "Bash(do sed -n \"$linep\" text_templates.go)",
+      "Bash(do mv \"$f\" \"$f.disabled\")"
     ],
     "deny": [],
     "ask": []

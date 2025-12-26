@@ -183,7 +183,7 @@ type OpsImpAddCallResponse struct {
 
 // OpsImpCall represents a captured call to any method.
 // Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
+// Use Name() to identify the method and As{{Method}() to access typed call details.
 type OpsImpCall struct {
 	Add    *OpsImpAddCall
 	Store  *OpsImpStoreCall
@@ -447,7 +447,6 @@ type OpsImpLogCall struct {
 	message      string
 }
 
-// InjectPanic causes the mocked method to panic with the given value.
 // Use this to test panic handling in code under test.
 // The panic occurs in the goroutine where the mock was called.
 func (c *OpsImpLogCall) InjectPanic(msg any) {
@@ -461,7 +460,7 @@ func (c *OpsImpLogCall) InjectPanic(msg any) {
 func (c *OpsImpLogCall) Resolve() {
 	c.done = true
 	c.responseChan <- OpsImpLogCallResponse{Type: "resolve"}
-}
+} // InjectPanic causes the mocked method to panic with the given value.
 
 // OpsImpLogCallResponse holds the response configuration for the Log method.
 // Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.

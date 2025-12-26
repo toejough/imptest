@@ -9,7 +9,6 @@ require (
 	github.com/gtramontina/ooze v0.2.0
 	github.com/magefile/mage v1.15.0
 	github.com/onsi/gomega v1.38.3
-	github.com/valyala/quicktemplate v1.8.0
 	golang.org/x/tools v0.39.0
 )
 
@@ -20,7 +19,6 @@ require (
 	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.30.0 // indirect
 	golang.org/x/net v0.47.0 // indirect

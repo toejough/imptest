@@ -66,7 +66,7 @@ func (i *CriticalDependencyImp) Within(d time.Duration) *CriticalDependencyImpTi
 
 // CriticalDependencyImpCall represents a captured call to any method.
 // Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
+// Use Name() to identify the method and As{{Method}() to access typed call details.
 type CriticalDependencyImpCall struct {
 	DoWork *CriticalDependencyImpDoWorkCall
 }
@@ -137,7 +137,6 @@ type CriticalDependencyImpDoWorkCall struct {
 	done         bool
 }
 
-// InjectPanic causes the mocked method to panic with the given value.
 // Use this to test panic handling in code under test.
 // The panic occurs in the goroutine where the mock was called.
 func (c *CriticalDependencyImpDoWorkCall) InjectPanic(msg any) {
@@ -151,7 +150,7 @@ func (c *CriticalDependencyImpDoWorkCall) InjectPanic(msg any) {
 func (c *CriticalDependencyImpDoWorkCall) Resolve() {
 	c.done = true
 	c.responseChan <- CriticalDependencyImpDoWorkCallResponse{Type: "resolve"}
-}
+} // InjectPanic causes the mocked method to panic with the given value.
 
 // CriticalDependencyImpDoWorkCallResponse holds the response configuration for the DoWork method.
 // Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.

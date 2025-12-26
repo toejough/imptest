@@ -66,7 +66,7 @@ func (i *TimerImp) Within(d _time.Duration) *TimerImpTimed {
 
 // TimerImpCall represents a captured call to any method.
 // Only one method field is non-nil at a time, indicating which method was called.
-// Use Name() to identify the method and As{Method}() to access typed call details.
+// Use Name() to identify the method and As{{Method}() to access typed call details.
 type TimerImpCall struct {
 	Wait       *TimerImpWaitCall
 	GetElapsed *TimerImpGetElapsedCall
