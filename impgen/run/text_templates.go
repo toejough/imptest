@@ -10,12 +10,10 @@ import (
 // Create a registry using NewTemplateRegistry() to initialize all templates.
 type TemplateRegistry struct {
 	callStructTmpl                         *template.Template
-	callableAsReturnMethodTmpl             *template.Template
 	callableConstructorTmpl                *template.Template
 	callableExpectPanicWithTmpl            *template.Template
 	callableExpectReturnedValuesAreTmpl    *template.Template
 	callableExpectReturnedValuesShouldTmpl *template.Template
-	callableGetResponseMethodTmpl          *template.Template
 	callableHeaderTmpl                     *template.Template
 	callableMainStructTmpl                 *template.Template
 	callableResponseStructTmpl             *template.Template
@@ -430,7 +428,7 @@ func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectPanicWith(expected any) {
 	//nolint:lll,nolintlint
 	registry.callableResponseStructTmpl, err = parseTemplate("callableResponseStruct", `// {{.ImpName}}Response represents the response from the callable (either return or panic).
 // Check EventType to determine if the callable returned normally or panicked.
-// Use AsReturn() to get return values as a slice, or access PanicVal directly.
+// Access ReturnVal for return values or PanicVal for panic information.
 type {{.ImpName}}Response{{.TypeParamsDecl}} struct {
 	EventType string // "return" or "panic"
 {{if .HasReturns}}	ReturnVal *{{.ImpName}}Return{{.TypeParamsUse}}
@@ -454,49 +452,6 @@ func (r *{{.ImpName}}Response{{.TypeParamsUse}}) Type() string {
 		return nil, err
 	}
 
-	// CallableAsReturnMethod template
-	//nolint:lll,nolintlint
-	registry.callableAsReturnMethodTmpl, err = parseTemplate("callableAsReturnMethod", `// AsReturn converts the return values to a slice of any for generic processing.
-// Returns nil if the response was a panic or if there are no return values.
-func (r *{{.ImpName}}Response{{.TypeParamsUse}}) AsReturn() []any {
-{{if .HasReturns}}	if r.ReturnVal == nil {
-		return nil
-	}
-	return []any{ {{range $i, $field := .ReturnFields}}{{if $i}}, {{end}}r.ReturnVal.Result{{$i}}{{end}} }
-{{else}}	return nil
-{{end}}}
-
-`)
-	if err != nil {
-		return nil, err
-	}
-
-	// CallableGetResponseMethod template
-	//nolint:lll,nolintlint
-	registry.callableGetResponseMethodTmpl, err = parseTemplate("callableGetResponseMethod", `// GetResponse waits for and returns the callable's response.
-// Use this when you need to inspect the response without asserting specific values.
-// The response indicates whether the callable returned or panicked.
-func (s *{{.ImpName}}{{.TypeParamsUse}}) GetResponse() *{{.ImpName}}Response{{.TypeParamsUse}} {
-	s.WaitForResponse()
-
-	if s.Returned != nil {
-		return &{{.ImpName}}Response{{.TypeParamsUse}}{
-			EventType: "ReturnEvent",
-{{if .HasReturns}}			ReturnVal: s.Returned,
-{{end}}		}
-	}
-
-	return &{{.ImpName}}Response{{.TypeParamsUse}}{
-		EventType: "PanicEvent",
-		PanicVal:  s.Panicked,
-	}
-}
-
-`)
-	if err != nil {
-		return nil, err
-	}
-
 	return registry, nil
 }
 
@@ -505,14 +460,6 @@ func (r *TemplateRegistry) WriteCallStruct(buf *bytes.Buffer, data callStructTem
 	err := r.callStructTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute callStruct template: %v", err))
-	}
-}
-
-// WriteCallableAsReturnMethod generates the AsReturn method for response structs.
-func (r *TemplateRegistry) WriteCallableAsReturnMethod(buf *bytes.Buffer, data callableExtendedTemplateData) {
-	err := r.callableAsReturnMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableAsReturnMethod template: %v", err))
 	}
 }
 
@@ -547,14 +494,6 @@ func (r *TemplateRegistry) WriteCallableExpectReturnedValuesShould(
 	err := r.callableExpectReturnedValuesShouldTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute callableExpectReturnedValuesShould template: %v", err))
-	}
-}
-
-// WriteCallableGetResponseMethod generates the GetResponse method for callable wrappers.
-func (r *TemplateRegistry) WriteCallableGetResponseMethod(buf *bytes.Buffer, data callableTemplateData) {
-	err := r.callableGetResponseMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableGetResponseMethod template: %v", err))
 	}
 }
 

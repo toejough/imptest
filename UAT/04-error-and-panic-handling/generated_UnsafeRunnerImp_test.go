@@ -76,24 +76,6 @@ func (s *UnsafeRunnerImp) ExpectReturnedValuesShould() {
 	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
-// GetResponse waits for and returns the callable's response.
-// Use this when you need to inspect the response without asserting specific values.
-// The response indicates whether the callable returned or panicked.
-func (s *UnsafeRunnerImp) GetResponse() *UnsafeRunnerImpResponse {
-	s.WaitForResponse()
-
-	if s.Returned != nil {
-		return &UnsafeRunnerImpResponse{
-			EventType: "ReturnEvent",
-		}
-	}
-
-	return &UnsafeRunnerImpResponse{
-		EventType: "PanicEvent",
-		PanicVal:  s.Panicked,
-	}
-}
-
 // Start begins execution of the callable in a goroutine with the provided arguments.
 // Returns the wrapper for method chaining with expectation methods.
 // Captures both normal returns and panics for verification.
@@ -117,16 +99,10 @@ func (s *UnsafeRunnerImp) Start(dep safety.CriticalDependency) *UnsafeRunnerImp 
 
 // UnsafeRunnerImpResponse represents the response from the callable (either return or panic).
 // Check EventType to determine if the callable returned normally or panicked.
-// Use AsReturn() to get return values as a slice, or access PanicVal directly.
+// Access ReturnVal for return values or PanicVal for panic information.
 type UnsafeRunnerImpResponse struct {
 	EventType string // "return" or "panic"
 	PanicVal  any
-}
-
-// AsReturn converts the return values to a slice of any for generic processing.
-// Returns nil if the response was a panic or if there are no return values.
-func (r *UnsafeRunnerImpResponse) AsReturn() []any {
-	return nil
 }
 
 // Type returns the event type: "return" for normal returns, "panic" for panics.

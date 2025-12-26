@@ -669,7 +669,6 @@ func isBasicComparableType(expr dst.Expr) bool {
 	switch t := expr.(type) {
 	case *dst.Ident:
 		// Basic built-in types
-		//nolint:goconst // Type name literals for clarity
 		switch t.Name {
 		case "bool",
 			"int", "int8", "int16", "int32", "int64",

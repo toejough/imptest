@@ -93,25 +93,6 @@ func (s *BusinessLogicImp) ExpectReturnedValuesShould(v1 any, v2 any) {
 	s.T.Fatalf("expected function to return, but it panicked with: %v", s.Panicked)
 }
 
-// GetResponse waits for and returns the callable's response.
-// Use this when you need to inspect the response without asserting specific values.
-// The response indicates whether the callable returned or panicked.
-func (s *BusinessLogicImp) GetResponse() *BusinessLogicImpResponse {
-	s.WaitForResponse()
-
-	if s.Returned != nil {
-		return &BusinessLogicImpResponse{
-			EventType: "ReturnEvent",
-			ReturnVal: s.Returned,
-		}
-	}
-
-	return &BusinessLogicImpResponse{
-		EventType: "PanicEvent",
-		PanicVal:  s.Panicked,
-	}
-}
-
 // Start begins execution of the callable in a goroutine with the provided arguments.
 // Returns the wrapper for method chaining with expectation methods.
 // Captures both normal returns and panics for verification.
@@ -138,20 +119,11 @@ func (s *BusinessLogicImp) Start(svc callable.ExternalService, id int) *Business
 
 // BusinessLogicImpResponse represents the response from the callable (either return or panic).
 // Check EventType to determine if the callable returned normally or panicked.
-// Use AsReturn() to get return values as a slice, or access PanicVal directly.
+// Access ReturnVal for return values or PanicVal for panic information.
 type BusinessLogicImpResponse struct {
 	EventType string // "return" or "panic"
 	ReturnVal *BusinessLogicImpReturn
 	PanicVal  any
-}
-
-// AsReturn converts the return values to a slice of any for generic processing.
-// Returns nil if the response was a panic or if there are no return values.
-func (r *BusinessLogicImpResponse) AsReturn() []any {
-	if r.ReturnVal == nil {
-		return nil
-	}
-	return []any{r.ReturnVal.Result0, r.ReturnVal.Result1}
 }
 
 // Type returns the event type: "return" for normal returns, "panic" for panics.

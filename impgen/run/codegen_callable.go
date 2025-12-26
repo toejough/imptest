@@ -12,7 +12,7 @@ import (
 
 // callableExtendedTemplateData extends callableTemplateData with dynamic signature info.
 type callableExtendedTemplateData struct {
-	callableTemplateData
+	callableTemplateData //nolint:unused // Embedded fields accessed via promotion
 
 	CallableSignature string
 	CallableReturns   string
@@ -129,8 +129,6 @@ func (g *callableGenerator) generateCallableTemplates() {
 	g.templates.WriteCallableExpectPanicWith(&g.buf, baseData)
 	g.templates.WriteCallableResponseStruct(&g.buf, baseData)
 	g.templates.WriteCallableResponseTypeMethod(&g.buf, baseData)
-	g.templates.WriteCallableAsReturnMethod(&g.buf, extData)
-	g.templates.WriteCallableGetResponseMethod(&g.buf, extData.callableTemplateData)
 }
 
 // numReturns returns the total number of return values.
