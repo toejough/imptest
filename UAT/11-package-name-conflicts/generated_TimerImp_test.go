@@ -2,8 +2,8 @@
 
 package timeconflict_test
 
-import "github.com/toejough/imptest/imptest"
-import "testing"
+import _imptest "github.com/toejough/imptest/imptest"
+import _testing "testing"
 import _time "time"
 import time "github.com/toejough/imptest/UAT/11-package-name-conflicts/time"
 
@@ -17,7 +17,7 @@ import time "github.com/toejough/imptest/UAT/11-package-name-conflicts/time"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type TimerImp struct {
-	*imptest.Controller[*TimerImpCall]
+	*_imptest.Controller[*TimerImpCall]
 	Mock         *TimerImpMock
 	ExpectCallIs *TimerImpExpectCallIs
 	currentCall  *TimerImpCall
@@ -32,9 +32,9 @@ type TimerImp struct {
 //	imp := NewTimerImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewTimerImp(t *testing.T) *TimerImp {
+func NewTimerImp(t *_testing.T) *TimerImp {
 	imp := &TimerImp{
-		Controller: imptest.NewController[*TimerImpCall](t),
+		Controller: _imptest.NewController[*TimerImpCall](t),
 	}
 	imp.Mock = &TimerImpMock{imp: imp}
 	imp.ExpectCallIs = &TimerImpExpectCallIs{imp: imp}
@@ -291,7 +291,7 @@ func (bldr *TimerImpWaitBuilder) ExpectArgsShould(seconds any) *TimerImpWaitCall
 		}
 		methodCall := callToCheck.AsWait()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.seconds, seconds)
+		ok, _ = _imptest.MatchValue(methodCall.seconds, seconds)
 		if !ok {
 			return false
 		}

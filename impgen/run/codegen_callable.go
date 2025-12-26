@@ -241,11 +241,10 @@ func (g *callableGenerator) templateData() callableTemplateData {
 			NeedsQualifier: g.needsQualifier,
 			TypeParamsDecl: g.formatTypeParamsDecl(),
 			TypeParamsUse:  g.formatTypeParamsUse(),
-			TimeAlias:      getStdlibAlias(g.qualifier, "time"),
-			TimePath:       getTimePath(g.qualifier, g.pkgPath),
-			TestingAlias:   getStdlibAlias(g.qualifier, "testing"),
-			ReflectAlias:   getStdlibAlias(g.qualifier, "reflect"),
-			ImptestAlias:   getStdlibAlias(g.qualifier, "imptest"),
+			PkgTesting:     pkgTesting,
+			PkgImptest:     pkgImptest,
+			PkgTime:        pkgTime,
+			PkgReflect:     pkgReflect,
 			NeedsReflect:   g.needsReflect,
 			NeedsImptest:   g.needsImptest,
 		},
@@ -297,7 +296,7 @@ func (g *callableGenerator) writeResultChecks(varName string, useMatcher bool) s
 		actualExpr := fmt.Sprintf("%s.Result%d", varName, result.Index)
 
 		if useMatcher {
-			fmt.Fprintf(&buf, "\t\tok, msg = imptest.MatchValue(%s, %s)\n", actualExpr, expectedName)
+			fmt.Fprintf(&buf, "\t\tok, msg = %s.MatchValue(%s, %s)\n", pkgImptest, actualExpr, expectedName)
 			fmt.Fprintf(&buf, "\t\tif !ok {\n")
 			fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"return value %d: %%s\", msg)\n", result.Index)
 		} else {
@@ -308,7 +307,7 @@ func (g *callableGenerator) writeResultChecks(varName string, useMatcher bool) s
 			} else {
 				g.needsReflect = true
 
-				fmt.Fprintf(&buf, "\t\tif !reflect.DeepEqual(%s, %s) {\n", actualExpr, expectedName)
+				fmt.Fprintf(&buf, "\t\tif !%s.DeepEqual(%s, %s) {\n", pkgReflect, actualExpr, expectedName)
 			}
 
 			fmt.Fprintf(&buf, "\t\t\ts.T.Fatalf(\"expected return value %d to be %%v, got %%v\", %s, %s)\n",

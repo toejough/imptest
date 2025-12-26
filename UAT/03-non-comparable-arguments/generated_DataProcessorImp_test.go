@@ -2,10 +2,10 @@
 
 package noncomparable_test
 
-import "github.com/toejough/imptest/imptest"
-import "reflect"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _reflect "reflect"
+import _testing "testing"
+import _time "time"
 import noncomparable "github.com/toejough/imptest/UAT/03-non-comparable-arguments"
 
 // DataProcessorImp is the test controller for mocking the interface.
@@ -18,7 +18,7 @@ import noncomparable "github.com/toejough/imptest/UAT/03-non-comparable-argument
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type DataProcessorImp struct {
-	*imptest.Controller[*DataProcessorImpCall]
+	*_imptest.Controller[*DataProcessorImpCall]
 	Mock         *DataProcessorImpMock
 	ExpectCallIs *DataProcessorImpExpectCallIs
 	currentCall  *DataProcessorImpCall
@@ -33,9 +33,9 @@ type DataProcessorImp struct {
 //	imp := NewDataProcessorImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewDataProcessorImp(t *testing.T) *DataProcessorImp {
+func NewDataProcessorImp(t *_testing.T) *DataProcessorImp {
 	imp := &DataProcessorImp{
-		Controller: imptest.NewController[*DataProcessorImpCall](t),
+		Controller: _imptest.NewController[*DataProcessorImpCall](t),
 	}
 	imp.Mock = &DataProcessorImpMock{imp: imp}
 	imp.ExpectCallIs = &DataProcessorImpExpectCallIs{imp: imp}
@@ -58,8 +58,8 @@ func (i *DataProcessorImp) GetCurrentCall() *DataProcessorImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *DataProcessorImp) Within(d time.Duration) *DataProcessorImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *DataProcessorImp) Within(d _time.Duration) *DataProcessorImpTimed {
 	return &DataProcessorImpTimed{
 		ExpectCallIs: &DataProcessorImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -114,7 +114,7 @@ func (c *DataProcessorImpCall) Name() string {
 // Use Within() on the parent DataProcessorImp to configure timeouts.
 type DataProcessorImpExpectCallIs struct {
 	imp     *DataProcessorImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ProcessMap returns a builder for setting expectations on ProcessMap method calls.
@@ -188,7 +188,7 @@ func (m *DataProcessorImpMock) ProcessSlice(data []string) int {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type DataProcessorImpProcessMapBuilder struct {
 	imp     *DataProcessorImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a ProcessMap call with exactly the specified argument values.
@@ -201,7 +201,7 @@ func (bldr *DataProcessorImpProcessMapBuilder) ExpectArgsAre(config map[string]i
 			return false
 		}
 		methodCall := callToCheck.AsProcessMap()
-		if !reflect.DeepEqual(methodCall.config, config) {
+		if !_reflect.DeepEqual(methodCall.config, config) {
 			return false
 		}
 		return true
@@ -222,7 +222,7 @@ func (bldr *DataProcessorImpProcessMapBuilder) ExpectArgsShould(config any) *Dat
 		}
 		methodCall := callToCheck.AsProcessMap()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.config, config)
+		ok, _ = _imptest.MatchValue(methodCall.config, config)
 		if !ok {
 			return false
 		}
@@ -296,7 +296,7 @@ type DataProcessorImpProcessMapCallResponse struct {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type DataProcessorImpProcessSliceBuilder struct {
 	imp     *DataProcessorImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a ProcessSlice call with exactly the specified argument values.
@@ -309,7 +309,7 @@ func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsAre(data []string) *D
 			return false
 		}
 		methodCall := callToCheck.AsProcessSlice()
-		if !reflect.DeepEqual(methodCall.data, data) {
+		if !_reflect.DeepEqual(methodCall.data, data) {
 			return false
 		}
 		return true
@@ -330,7 +330,7 @@ func (bldr *DataProcessorImpProcessSliceBuilder) ExpectArgsShould(data any) *Dat
 		}
 		methodCall := callToCheck.AsProcessSlice()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.data, data)
+		ok, _ = _imptest.MatchValue(methodCall.data, data)
 		if !ok {
 			return false
 		}

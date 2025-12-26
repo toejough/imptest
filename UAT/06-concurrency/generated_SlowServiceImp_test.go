@@ -2,9 +2,9 @@
 
 package concurrency_test
 
-import "github.com/toejough/imptest/imptest"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _testing "testing"
+import _time "time"
 import concurrency "github.com/toejough/imptest/UAT/06-concurrency"
 
 // SlowServiceImp is the test controller for mocking the interface.
@@ -17,7 +17,7 @@ import concurrency "github.com/toejough/imptest/UAT/06-concurrency"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type SlowServiceImp struct {
-	*imptest.Controller[*SlowServiceImpCall]
+	*_imptest.Controller[*SlowServiceImpCall]
 	Mock         *SlowServiceImpMock
 	ExpectCallIs *SlowServiceImpExpectCallIs
 	currentCall  *SlowServiceImpCall
@@ -32,9 +32,9 @@ type SlowServiceImp struct {
 //	imp := NewSlowServiceImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewSlowServiceImp(t *testing.T) *SlowServiceImp {
+func NewSlowServiceImp(t *_testing.T) *SlowServiceImp {
 	imp := &SlowServiceImp{
-		Controller: imptest.NewController[*SlowServiceImpCall](t),
+		Controller: _imptest.NewController[*SlowServiceImpCall](t),
 	}
 	imp.Mock = &SlowServiceImpMock{imp: imp}
 	imp.ExpectCallIs = &SlowServiceImpExpectCallIs{imp: imp}
@@ -57,8 +57,8 @@ func (i *SlowServiceImp) GetCurrentCall() *SlowServiceImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *SlowServiceImp) Within(d time.Duration) *SlowServiceImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *SlowServiceImp) Within(d _time.Duration) *SlowServiceImpTimed {
 	return &SlowServiceImpTimed{
 		ExpectCallIs: &SlowServiceImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -112,7 +112,7 @@ func (c *SlowServiceImpCall) Name() string {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type SlowServiceImpDoABuilder struct {
 	imp     *SlowServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a DoA call with exactly the specified argument values.
@@ -146,7 +146,7 @@ func (bldr *SlowServiceImpDoABuilder) ExpectArgsShould(id any) *SlowServiceImpDo
 		}
 		methodCall := callToCheck.AsDoA()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.id, id)
+		ok, _ = _imptest.MatchValue(methodCall.id, id)
 		if !ok {
 			return false
 		}
@@ -220,7 +220,7 @@ type SlowServiceImpDoACallResponse struct {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type SlowServiceImpDoBBuilder struct {
 	imp     *SlowServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a DoB call with exactly the specified argument values.
@@ -254,7 +254,7 @@ func (bldr *SlowServiceImpDoBBuilder) ExpectArgsShould(id any) *SlowServiceImpDo
 		}
 		methodCall := callToCheck.AsDoB()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.id, id)
+		ok, _ = _imptest.MatchValue(methodCall.id, id)
 		if !ok {
 			return false
 		}
@@ -329,7 +329,7 @@ type SlowServiceImpDoBCallResponse struct {
 // Use Within() on the parent SlowServiceImp to configure timeouts.
 type SlowServiceImpExpectCallIs struct {
 	imp     *SlowServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // DoA returns a builder for setting expectations on DoA method calls.

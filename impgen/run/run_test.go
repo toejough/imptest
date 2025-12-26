@@ -1225,7 +1225,7 @@ type GenericInterface[T any, U comparable] interface {
 	assertGeneratedContains(t, mockFS, "generated_GenericImp.go", []string{
 		"type GenericImp[T any, U comparable] struct",
 		"type GenericImpMock[T any, U comparable] struct",
-		"func NewGenericImp[T any, U comparable](t *testing.T) *GenericImp[T, U]",
+		"func NewGenericImp[T any, U comparable](t *_testing.T) *GenericImp[T, U]",
 		"func (m *GenericImpMock[T, U]) Process(item T) U",
 		"func (m *GenericImpMock[T, U]) Compare(a U, b U) bool",
 	})
@@ -1401,17 +1401,17 @@ type DataProcessor interface {
 	contentStr := string(content)
 
 	// Should include reflect import for non-comparable types
-	if !strings.Contains(contentStr, `import "reflect"`) {
+	if !strings.Contains(contentStr, `import _reflect "reflect"`) {
 		t.Error("Expected reflect import for non-comparable types")
 	}
 
 	// Should use reflect.DeepEqual for slice parameter
-	if !strings.Contains(contentStr, "reflect.DeepEqual(methodCall.data, data)") {
+	if !strings.Contains(contentStr, "_reflect.DeepEqual(methodCall.data, data)") {
 		t.Error("Expected reflect.DeepEqual for slice parameter")
 	}
 
 	// Should use reflect.DeepEqual for map parameter
-	if !strings.Contains(contentStr, "reflect.DeepEqual(methodCall.m, m)") {
+	if !strings.Contains(contentStr, "_reflect.DeepEqual(methodCall.m, m)") {
 		t.Error("Expected reflect.DeepEqual for map parameter")
 	}
 

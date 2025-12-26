@@ -2,9 +2,9 @@
 
 package whitebox
 
-import "github.com/toejough/imptest/imptest"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _testing "testing"
+import _time "time"
 
 // OpsImp is the test controller for mocking the interface.
 // Create with NewOpsImp(t), then use Mock field to get the mock implementation
@@ -16,7 +16,7 @@ import "time"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type OpsImp struct {
-	*imptest.Controller[*OpsImpCall]
+	*_imptest.Controller[*OpsImpCall]
 	Mock         *OpsImpMock
 	ExpectCallIs *OpsImpExpectCallIs
 	currentCall  *OpsImpCall
@@ -31,9 +31,9 @@ type OpsImp struct {
 //	imp := NewOpsImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewOpsImp(t *testing.T) *OpsImp {
+func NewOpsImp(t *_testing.T) *OpsImp {
 	imp := &OpsImp{
-		Controller: imptest.NewController[*OpsImpCall](t),
+		Controller: _imptest.NewController[*OpsImpCall](t),
 	}
 	imp.Mock = &OpsImpMock{imp: imp}
 	imp.ExpectCallIs = &OpsImpExpectCallIs{imp: imp}
@@ -56,8 +56,8 @@ func (i *OpsImp) GetCurrentCall() *OpsImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *OpsImp) Within(d time.Duration) *OpsImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *OpsImp) Within(d _time.Duration) *OpsImpTimed {
 	return &OpsImpTimed{
 		ExpectCallIs: &OpsImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -112,7 +112,7 @@ func (c *OpsImpCall) Name() string {
 // Use Within() on the parent OpsImp to configure timeouts.
 type OpsImpExpectCallIs struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // PublicMethod returns a builder for setting expectations on PublicMethod method calls.
@@ -186,7 +186,7 @@ func (m *OpsImpMock) internalMethod(x int) int {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpPublicMethodBuilder struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a PublicMethod call with exactly the specified argument values.
@@ -220,7 +220,7 @@ func (bldr *OpsImpPublicMethodBuilder) ExpectArgsShould(x any) *OpsImpPublicMeth
 		}
 		methodCall := callToCheck.AsPublicMethod()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.x, x)
+		ok, _ = _imptest.MatchValue(methodCall.x, x)
 		if !ok {
 			return false
 		}
@@ -300,7 +300,7 @@ type OpsImpTimed struct {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpinternalMethodBuilder struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a internalMethod call with exactly the specified argument values.
@@ -334,7 +334,7 @@ func (bldr *OpsImpinternalMethodBuilder) ExpectArgsShould(x any) *OpsImpinternal
 		}
 		methodCall := callToCheck.AsinternalMethod()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.x, x)
+		ok, _ = _imptest.MatchValue(methodCall.x, x)
 		if !ok {
 			return false
 		}

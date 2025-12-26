@@ -9,7 +9,7 @@ import (
 //go:generate impgen ProcessData
 
 // TestProcessData_MultipleArgs_mutant tests with various argument combinations.
-func TestProcessData_MultipleArgs_mutant(t *testing.T) {
+func TestProcessData_MultipleArgs_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	testCases := []struct {
@@ -36,7 +36,7 @@ func TestProcessData_MultipleArgs_mutant(t *testing.T) {
 }
 
 // TestProcessData_Panic_mutant tests that panics are captured.
-func TestProcessData_Panic_mutant(t *testing.T) {
+func TestProcessData_Panic_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	// Define a function that panics
@@ -54,7 +54,7 @@ func TestProcessData_Panic_mutant(t *testing.T) {
 
 // TestProcessData_mutant verifies that callable wrappers work correctly for functions with zero returns.
 // This catches mutations in return value counting and nil result list handling.
-func TestProcessData_mutant(t *testing.T) {
+func TestProcessData_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	// Start the callable wrapper

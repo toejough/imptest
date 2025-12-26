@@ -407,7 +407,7 @@ func (gen *codeGenerator) generateMethodBuilder(methodName string, ftype *dst.Fu
 	gen.pf("// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.\n")
 	gen.pf("type %s%s struct {\n", builderName, gen.formatTypeParamsDecl())
 	gen.pf("\timp     *%s%s\n", gen.impName, gen.formatTypeParamsUse())
-	gen.pf("\ttimeout %s.Duration\n", gen.timePkg())
+	gen.pf("\ttimeout %s.Duration\n", "_time")
 	gen.pf("}\n\n")
 
 	// Generate ExpectCallIs.MethodName() -> returns builder
@@ -545,16 +545,6 @@ func (gen *codeGenerator) generateTimedStruct() {
 	gen.templates.WriteTimedStruct(&gen.buf, gen.templateData())
 }
 
-// imptestPkg returns the package name to use for imptest, with alias if needed.
-func (gen *codeGenerator) imptestPkg() string {
-	alias := getStdlibAlias(gen.qualifier, "imptest")
-	if alias != "" {
-		return alias
-	}
-
-	return "imptest"
-}
-
 // methodBuilderName returns the builder struct name for a method (e.g. "MyImpAddBuilder").
 func (gen *codeGenerator) methodBuilderName(methodName string) string {
 	return gen.impName + methodName + "Builder"
@@ -571,16 +561,6 @@ func (gen *codeGenerator) methodTemplateData(methodCallName string) methodTempla
 		templateData:   gen.templateData(),
 		MethodCallName: methodCallName,
 	}
-}
-
-// reflectPkg returns the package name to use for reflect, with alias if needed.
-func (gen *codeGenerator) reflectPkg() string {
-	alias := getStdlibAlias(gen.qualifier, "reflect")
-	if alias != "" {
-		return alias
-	}
-
-	return "reflect"
 }
 
 // renderField renders a single field with its name and type.
@@ -625,9 +605,6 @@ func (gen *codeGenerator) templateData() templateData {
 		return *gen.cachedTemplateData
 	}
 
-	timeAlias := getStdlibAlias(gen.qualifier, "time")
-	timePath := getTimePath(gen.qualifier, gen.pkgPath)
-
 	data := templateData{
 		baseTemplateData: baseTemplateData{
 			PkgName:        gen.pkgName,
@@ -637,11 +614,10 @@ func (gen *codeGenerator) templateData() templateData {
 			NeedsQualifier: gen.needsQualifier,
 			TypeParamsDecl: gen.formatTypeParamsDecl(),
 			TypeParamsUse:  gen.formatTypeParamsUse(),
-			TimeAlias:      timeAlias,
-			TimePath:       timePath,
-			TestingAlias:   getStdlibAlias(gen.qualifier, "testing"),
-			ReflectAlias:   getStdlibAlias(gen.qualifier, "reflect"),
-			ImptestAlias:   getStdlibAlias(gen.qualifier, "imptest"),
+			PkgTesting:     pkgTesting,
+			PkgImptest:     pkgImptest,
+			PkgTime:        pkgTime,
+			PkgReflect:     pkgReflect,
 			NeedsReflect:   gen.needsReflect,
 			NeedsImptest:   gen.needsImptest,
 		},
@@ -656,16 +632,6 @@ func (gen *codeGenerator) templateData() templateData {
 	gen.cachedTemplateData = &data
 
 	return data
-}
-
-// timePkg returns the package name to use for time, with alias if needed.
-func (gen *codeGenerator) timePkg() string {
-	alias := getStdlibAlias(gen.qualifier, "time")
-	if alias != "" {
-		return alias
-	}
-
-	return "time"
 }
 
 // writeCallStructField writes a single field assignment for a call struct initialization.
@@ -693,13 +659,13 @@ func (gen *codeGenerator) writeCallStructFields(ftype *dst.FuncType, paramNames 
 func (gen *codeGenerator) writeComparisonCheck(fieldName, expectedName string, isComparable, useMatcher bool) {
 	switch {
 	case useMatcher:
-		gen.pf("\tok, _ = %s.MatchValue(methodCall.%s, %s)\n", gen.imptestPkg(), fieldName, expectedName)
+		gen.pf("\tok, _ = %s.MatchValue(methodCall.%s, %s)\n", "_imptest", fieldName, expectedName)
 		gen.pf("\t\tif !ok {\n")
 	case isComparable:
 		gen.pf("\t\tif methodCall.%s != %s {\n", fieldName, expectedName)
 	default:
 		gen.needsReflect = true
-		gen.pf("\t\tif !%s.DeepEqual(methodCall.%s, %s) {\n", gen.reflectPkg(), fieldName, expectedName)
+		gen.pf("\t\tif !%s.DeepEqual(methodCall.%s, %s) {\n", "_reflect", fieldName, expectedName)
 	}
 
 	gen.pf("\t\t\treturn false\n")

@@ -2,9 +2,9 @@
 
 package many_params_test
 
-import "github.com/toejough/imptest/imptest"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _testing "testing"
+import _time "time"
 import many_params "github.com/toejough/imptest/UAT/10-edge-many-params"
 
 // ManyParamsImp is the test controller for mocking the interface.
@@ -17,7 +17,7 @@ import many_params "github.com/toejough/imptest/UAT/10-edge-many-params"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type ManyParamsImp struct {
-	*imptest.Controller[*ManyParamsImpCall]
+	*_imptest.Controller[*ManyParamsImpCall]
 	Mock         *ManyParamsImpMock
 	ExpectCallIs *ManyParamsImpExpectCallIs
 	currentCall  *ManyParamsImpCall
@@ -32,9 +32,9 @@ type ManyParamsImp struct {
 //	imp := NewManyParamsImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewManyParamsImp(t *testing.T) *ManyParamsImp {
+func NewManyParamsImp(t *_testing.T) *ManyParamsImp {
 	imp := &ManyParamsImp{
-		Controller: imptest.NewController[*ManyParamsImpCall](t),
+		Controller: _imptest.NewController[*ManyParamsImpCall](t),
 	}
 	imp.Mock = &ManyParamsImpMock{imp: imp}
 	imp.ExpectCallIs = &ManyParamsImpExpectCallIs{imp: imp}
@@ -57,8 +57,8 @@ func (i *ManyParamsImp) GetCurrentCall() *ManyParamsImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *ManyParamsImp) Within(d time.Duration) *ManyParamsImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *ManyParamsImp) Within(d _time.Duration) *ManyParamsImpTimed {
 	return &ManyParamsImpTimed{
 		ExpectCallIs: &ManyParamsImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -100,7 +100,7 @@ func (c *ManyParamsImpCall) Name() string {
 // Use Within() on the parent ManyParamsImp to configure timeouts.
 type ManyParamsImpExpectCallIs struct {
 	imp     *ManyParamsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // Process returns a builder for setting expectations on Process method calls.
@@ -153,7 +153,7 @@ func (m *ManyParamsImpMock) Process(a int, b int, c int, d int, e int, f int, g 
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ManyParamsImpProcessBuilder struct {
 	imp     *ManyParamsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Process call with exactly the specified argument values.
@@ -214,43 +214,43 @@ func (bldr *ManyParamsImpProcessBuilder) ExpectArgsShould(a any, b any, c any, d
 		}
 		methodCall := callToCheck.AsProcess()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.a, a)
+		ok, _ = _imptest.MatchValue(methodCall.a, a)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.b, b)
+		ok, _ = _imptest.MatchValue(methodCall.b, b)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.c, c)
+		ok, _ = _imptest.MatchValue(methodCall.c, c)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.d, d)
+		ok, _ = _imptest.MatchValue(methodCall.d, d)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.e, e)
+		ok, _ = _imptest.MatchValue(methodCall.e, e)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.f, f)
+		ok, _ = _imptest.MatchValue(methodCall.f, f)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.g, g)
+		ok, _ = _imptest.MatchValue(methodCall.g, g)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.h, h)
+		ok, _ = _imptest.MatchValue(methodCall.h, h)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.i, i)
+		ok, _ = _imptest.MatchValue(methodCall.i, i)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.j, j)
+		ok, _ = _imptest.MatchValue(methodCall.j, j)
 		if !ok {
 			return false
 		}

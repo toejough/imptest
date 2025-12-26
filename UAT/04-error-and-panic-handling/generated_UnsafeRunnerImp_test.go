@@ -4,15 +4,15 @@ package safety_test
 
 import (
 	safety "github.com/toejough/imptest/UAT/04-error-and-panic-handling"
-	"github.com/toejough/imptest/imptest"
-	"testing"
+	_imptest "github.com/toejough/imptest/imptest"
+	_testing "testing"
 )
 
 // UnsafeRunnerImp wraps a callable function for testing.
 // Create with NewUnsafeRunnerImp(t, yourFunction), call Start() to execute,
 // then use ExpectReturnedValuesAre/Should() or ExpectPanicWith() to verify behavior.
 type UnsafeRunnerImp struct {
-	*imptest.CallableController[struct{}]
+	*_imptest.CallableController[struct{}]
 	callable func(dep safety.CriticalDependency)
 }
 
@@ -23,9 +23,9 @@ type UnsafeRunnerImp struct {
 //
 //	wrapper := NewUnsafeRunnerImp(t, myFunction)
 //	wrapper.Start(args...).ExpectReturnedValuesAre(expectedVals...)
-func NewUnsafeRunnerImp(t testing.TB, callable func(dep safety.CriticalDependency)) *UnsafeRunnerImp {
+func NewUnsafeRunnerImp(t _testing.TB, callable func(dep safety.CriticalDependency)) *UnsafeRunnerImp {
 	return &UnsafeRunnerImp{
-		CallableController: imptest.NewCallableController[struct{}](t),
+		CallableController: _imptest.NewCallableController[struct{}](t),
 		callable:           callable,
 	}
 }
@@ -38,7 +38,7 @@ func (s *UnsafeRunnerImp) ExpectPanicWith(expected any) {
 	s.WaitForResponse()
 
 	if s.Panicked != nil {
-		ok, msg := imptest.MatchValue(s.Panicked, expected)
+		ok, msg := _imptest.MatchValue(s.Panicked, expected)
 		if !ok {
 			s.T.Fatalf("panic value: %s", msg)
 		}

@@ -77,7 +77,7 @@ func TestBusinessLogicError(t *testing.T) {
 }
 
 // TestCalculatorAdd demonstrates wrapping a simple method with multiple parameters.
-func TestCalculatorAdd(t *testing.T) {
+func TestCalculatorAdd(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	calc := callable.NewCalculator(2)
@@ -90,7 +90,7 @@ func TestCalculatorAdd(t *testing.T) {
 }
 
 // TestCalculatorDivide demonstrates wrapping a method with multiple return values.
-func TestCalculatorDivide(t *testing.T) {
+func TestCalculatorDivide(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	calc := callable.NewCalculator(1)
@@ -103,7 +103,7 @@ func TestCalculatorDivide(t *testing.T) {
 }
 
 // TestCalculatorDivideByZero demonstrates testing error conditions.
-func TestCalculatorDivideByZero(t *testing.T) {
+func TestCalculatorDivideByZero(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	calc := callable.NewCalculator(1)
@@ -116,7 +116,7 @@ func TestCalculatorDivideByZero(t *testing.T) {
 }
 
 // TestCalculatorMultiply demonstrates wrapping a method that uses receiver state.
-func TestCalculatorMultiply(t *testing.T) {
+func TestCalculatorMultiply(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	// Create calculator with multiplier=3
@@ -130,7 +130,7 @@ func TestCalculatorMultiply(t *testing.T) {
 }
 
 // TestCalculatorProcessValuePanic demonstrates testing panic behavior.
-func TestCalculatorProcessValuePanic(t *testing.T) {
+func TestCalculatorProcessValuePanic(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	calc := callable.NewCalculator(5)
@@ -143,7 +143,7 @@ func TestCalculatorProcessValuePanic(t *testing.T) {
 }
 
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.
-func TestCalculatorProcessValueSuccess(t *testing.T) {
+func TestCalculatorProcessValueSuccess(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	calc := callable.NewCalculator(5)

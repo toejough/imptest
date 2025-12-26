@@ -14,14 +14,14 @@ type baseTemplateData struct {
 	TypeParamsDecl string // Type parameters with constraints, e.g., "[T any, U comparable]"
 	TypeParamsUse  string // Type parameters for instantiation, e.g., "[T, U]"
 
-	// Aliases for stdlib packages when they conflict with the user's package qualifier.
-	// Empty string means no alias needed (no conflict).
-	TimeAlias    string // "_time" if qualifier conflicts with "time"
-	TimePath     string // Import path for time package (stdlib "time" or local package)
-	TestingAlias string // "_testing" if qualifier conflicts with "testing"
-	ReflectAlias string // "_reflect" if qualifier conflicts with "reflect"
-	ImptestAlias string // "_imptest" if qualifier conflicts with "imptest"
+	// Framework package names (always use these constants instead of hardcoding)
+	PkgTesting string // "_testing"
+	PkgImptest string // "_imptest"
+	PkgTime    string // "_time"
+	PkgReflect string // "_reflect"
 
+	// Framework packages are always imported with underscore prefix to avoid conflicts.
+	// User's package (Qualifier/PkgPath) is imported without alias.
 	NeedsReflect bool // Whether reflect import is needed for DeepEqual
 	NeedsImptest bool // Whether imptest import is needed for matchers
 }

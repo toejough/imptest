@@ -4,16 +4,16 @@ package callable_test
 
 import (
 	callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
-	"github.com/toejough/imptest/imptest"
-	"reflect"
-	"testing"
+	_imptest "github.com/toejough/imptest/imptest"
+	_reflect "reflect"
+	_testing "testing"
 )
 
 // BusinessLogicImp wraps a callable function for testing.
 // Create with NewBusinessLogicImp(t, yourFunction), call Start() to execute,
 // then use ExpectReturnedValuesAre/Should() or ExpectPanicWith() to verify behavior.
 type BusinessLogicImp struct {
-	*imptest.CallableController[BusinessLogicImpReturn]
+	*_imptest.CallableController[BusinessLogicImpReturn]
 	callable func(svc callable.ExternalService, id int) (string, error)
 }
 
@@ -24,9 +24,9 @@ type BusinessLogicImp struct {
 //
 //	wrapper := NewBusinessLogicImp(t, myFunction)
 //	wrapper.Start(args...).ExpectReturnedValuesAre(expectedVals...)
-func NewBusinessLogicImp(t testing.TB, callable func(svc callable.ExternalService, id int) (string, error)) *BusinessLogicImp {
+func NewBusinessLogicImp(t _testing.TB, callable func(svc callable.ExternalService, id int) (string, error)) *BusinessLogicImp {
 	return &BusinessLogicImp{
-		CallableController: imptest.NewCallableController[BusinessLogicImpReturn](t),
+		CallableController: _imptest.NewCallableController[BusinessLogicImpReturn](t),
 		callable:           callable,
 	}
 }
@@ -39,7 +39,7 @@ func (s *BusinessLogicImp) ExpectPanicWith(expected any) {
 	s.WaitForResponse()
 
 	if s.Panicked != nil {
-		ok, msg := imptest.MatchValue(s.Panicked, expected)
+		ok, msg := _imptest.MatchValue(s.Panicked, expected)
 		if !ok {
 			s.T.Fatalf("panic value: %s", msg)
 		}
@@ -60,7 +60,7 @@ func (s *BusinessLogicImp) ExpectReturnedValuesAre(v1 string, v2 error) {
 		if s.Returned.Result0 != v1 {
 			s.T.Fatalf("expected return value 0 to be %v, got %v", v1, s.Returned.Result0)
 		}
-		if !reflect.DeepEqual(s.Returned.Result1, v2) {
+		if !_reflect.DeepEqual(s.Returned.Result1, v2) {
 			s.T.Fatalf("expected return value 1 to be %v, got %v", v2, s.Returned.Result1)
 		}
 		return
@@ -79,11 +79,11 @@ func (s *BusinessLogicImp) ExpectReturnedValuesShould(v1 any, v2 any) {
 	if s.Returned != nil {
 		var ok bool
 		var msg string
-		ok, msg = imptest.MatchValue(s.Returned.Result0, v1)
+		ok, msg = _imptest.MatchValue(s.Returned.Result0, v1)
 		if !ok {
 			s.T.Fatalf("return value 0: %s", msg)
 		}
-		ok, msg = imptest.MatchValue(s.Returned.Result1, v2)
+		ok, msg = _imptest.MatchValue(s.Returned.Result1, v2)
 		if !ok {
 			s.T.Fatalf("return value 1: %s", msg)
 		}

@@ -46,12 +46,11 @@ func NewTemplateRegistry() (*TemplateRegistry, error) {
 
 package {{.PkgName}}
 
-{{if .ImptestAlias}}import {{.ImptestAlias}} "github.com/toejough/imptest/imptest"{{else -}}
-import "github.com/toejough/imptest/imptest"{{end}}
-{{if .NeedsReflect}}{{if .ReflectAlias}}import {{.ReflectAlias}} "reflect"{{else}}import "reflect"{{end}}
-{{end}}{{if .TestingAlias}}import {{.TestingAlias}} "testing"{{else}}import "testing"{{end}}
-{{if .TimePath}}{{if .TimeAlias}}import {{.TimeAlias}} "{{.TimePath}}"{{else}}import "{{.TimePath}}"{{end}}
-{{end}}{{if .NeedsQualifier}}import {{.Qualifier}} "{{.PkgPath}}"
+import {{.PkgImptest}} "github.com/toejough/imptest/imptest"
+{{if .NeedsReflect}}import {{.PkgReflect}} "reflect"
+{{end}}import {{.PkgTesting}} "testing"
+import {{.PkgTime}} "time"
+{{if .NeedsQualifier}}import {{.Qualifier}} "{{.PkgPath}}"
 {{end}}`)
 	if err != nil {
 		return nil, err
@@ -69,9 +68,9 @@ import "github.com/toejough/imptest/imptest"{{end}}
 //	imp := New{{.ImpName}}(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func New{{.ImpName}}{{.TypeParamsDecl}}(t *{{if .TestingAlias}}{{.TestingAlias}}{{else}}testing{{end}}.T) *{{.ImpName}}{{.TypeParamsUse}} {
+func New{{.ImpName}}{{.TypeParamsDecl}}(t *{{.PkgTesting}}.T) *{{.ImpName}}{{.TypeParamsUse}} {
 	imp := &{{.ImpName}}{{.TypeParamsUse}}{
-		Controller: {{if .ImptestAlias}}{{.ImptestAlias}}{{else}}imptest{{end}}.NewController[*{{.CallName}}{{.TypeParamsUse}}](t),
+		Controller: {{.PkgImptest}}.NewController[*{{.CallName}}{{.TypeParamsUse}}](t),
 	}
 	imp.Mock = &{{.MockName}}{{.TypeParamsUse}}{imp: imp}
 	imp.ExpectCallIs = &{{.ExpectCallIsName}}{{.TypeParamsUse}}{imp: imp}
@@ -91,7 +90,7 @@ func New{{.ImpName}}{{.TypeParamsDecl}}(t *{{if .TestingAlias}}{{.TestingAlias}}
 // Use Within() on the parent {{.ImpName}} to configure timeouts.
 type {{.ExpectCallIsName}}{{.TypeParamsDecl}} struct {
 	imp *{{.ImpName}}{{.TypeParamsUse}}
-	timeout {{if .TimeAlias}}{{.TimeAlias}}{{else}}time{{end}}.Duration
+	timeout {{.PkgTime}}.Duration
 }
 
 `)
@@ -142,7 +141,7 @@ func (i *{{.ImpName}}{{.TypeParamsUse}}) GetCurrentCall() *{{.CallName}}{{.TypeP
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type {{.ImpName}}{{.TypeParamsDecl}} struct {
-	*imptest.Controller[*{{.CallName}}{{.TypeParamsUse}}]
+	*{{.PkgImptest}}.Controller[*{{.CallName}}{{.TypeParamsUse}}]
 	Mock *{{.MockName}}{{.TypeParamsUse}}
 	ExpectCallIs *{{.ExpectCallIsName}}{{.TypeParamsUse}}
 	currentCall *{{.CallName}}{{.TypeParamsUse}}
@@ -180,8 +179,8 @@ type {{.TimedName}}{{.TypeParamsDecl}} struct {
 //
 // Example:
 //
-//	imp.Within(100*{{if .TimeAlias}}{{.TimeAlias}}{{else}}time{{end}}.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d {{if .TimeAlias}}{{.TimeAlias}}{{else}}time{{end}}.Duration) *{{.TimedName}}{{.TypeParamsUse}} {
+//	imp.Within(100*{{.PkgTime}}.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *{{.ImpName}}{{.TypeParamsUse}}) Within(d {{.PkgTime}}.Duration) *{{.TimedName}}{{.TypeParamsUse}} {
 	return &{{.TimedName}}{{.TypeParamsUse}}{
 		ExpectCallIs: &{{.ExpectCallIsName}}{{.TypeParamsUse}}{imp: i, timeout: d},
 	}
@@ -263,9 +262,9 @@ func (c *{{$.CallName}}{{$.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeP
 package {{.PkgName}}
 
 import (
-	{{if .ImptestAlias}}{{.ImptestAlias}} {{end}}"github.com/toejough/imptest/imptest"
-{{if .NeedsReflect}}	{{if .ReflectAlias}}{{.ReflectAlias}} {{end}}"reflect"
-{{end}}	{{if .TestingAlias}}{{.TestingAlias}} {{end}}"testing"
+	{{.PkgImptest}} "github.com/toejough/imptest/imptest"
+{{if .NeedsReflect}}	{{.PkgReflect}} "reflect"
+{{end}}	{{.PkgTesting}} "testing"
 {{if .NeedsQualifier}}	{{.Qualifier}} "{{.PkgPath}}"
 {{end}})
 
@@ -293,7 +292,7 @@ type {{.ImpName}}Return{{.TypeParamsDecl}} struct {
 // Create with New{{.ImpName}}(t, yourFunction), call Start() to execute,
 // then use ExpectReturnedValuesAre/Should() or ExpectPanicWith() to verify behavior.
 type {{.ImpName}}{{.TypeParamsDecl}} struct {
-	*imptest.CallableController[{{.ReturnType}}]
+	*{{.PkgImptest}}.CallableController[{{.ReturnType}}]
 	callable func({{.CallableSignature}}){{.CallableReturns}}
 }
 
@@ -311,9 +310,9 @@ type {{.ImpName}}{{.TypeParamsDecl}} struct {
 //
 //	wrapper := New{{.ImpName}}(t, myFunction)
 //	wrapper.Start(args...).ExpectReturnedValuesAre(expectedVals...)
-func New{{.ImpName}}{{.TypeParamsDecl}}(t {{if .TestingAlias}}{{.TestingAlias}}{{else}}testing{{end}}.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
+func New{{.ImpName}}{{.TypeParamsDecl}}(t {{.PkgTesting}}.TB, callable func({{.CallableSignature}}){{.CallableReturns}}) *{{.ImpName}}{{.TypeParamsUse}} {
 	return &{{.ImpName}}{{.TypeParamsUse}}{
-		CallableController: {{if .ImptestAlias}}{{.ImptestAlias}}{{else}}imptest{{end}}.NewCallableController[{{.ReturnType}}](t),
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnType}}](t),
 		callable:           callable,
 	}
 }
@@ -409,7 +408,7 @@ func (s *{{.ImpName}}{{.TypeParamsUse}}) ExpectPanicWith(expected any) {
 	s.WaitForResponse()
 
 	if s.Panicked != nil {
-		ok, msg := imptest.MatchValue(s.Panicked, expected)
+		ok, msg := {{.PkgImptest}}.MatchValue(s.Panicked, expected)
 		if !ok {
 			s.T.Fatalf("panic value: %s", msg)
 		}

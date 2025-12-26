@@ -3,15 +3,15 @@
 package zero_returns_test
 
 import (
-	"github.com/toejough/imptest/imptest"
-	"testing"
+	_imptest "github.com/toejough/imptest/imptest"
+	_testing "testing"
 )
 
 // ProcessDataImp wraps a callable function for testing.
 // Create with NewProcessDataImp(t, yourFunction), call Start() to execute,
 // then use ExpectReturnedValuesAre/Should() or ExpectPanicWith() to verify behavior.
 type ProcessDataImp struct {
-	*imptest.CallableController[struct{}]
+	*_imptest.CallableController[struct{}]
 	callable func(data string, count int)
 }
 
@@ -22,9 +22,9 @@ type ProcessDataImp struct {
 //
 //	wrapper := NewProcessDataImp(t, myFunction)
 //	wrapper.Start(args...).ExpectReturnedValuesAre(expectedVals...)
-func NewProcessDataImp(t testing.TB, callable func(data string, count int)) *ProcessDataImp {
+func NewProcessDataImp(t _testing.TB, callable func(data string, count int)) *ProcessDataImp {
 	return &ProcessDataImp{
-		CallableController: imptest.NewCallableController[struct{}](t),
+		CallableController: _imptest.NewCallableController[struct{}](t),
 		callable:           callable,
 	}
 }
@@ -37,7 +37,7 @@ func (s *ProcessDataImp) ExpectPanicWith(expected any) {
 	s.WaitForResponse()
 
 	if s.Panicked != nil {
-		ok, msg := imptest.MatchValue(s.Panicked, expected)
+		ok, msg := _imptest.MatchValue(s.Panicked, expected)
 		if !ok {
 			s.T.Fatalf("panic value: %s", msg)
 		}

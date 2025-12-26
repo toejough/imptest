@@ -102,6 +102,10 @@ func ValidateExportedTypes(expr dst.Expr, isTypeParam func(string) bool) error {
 const (
 	anyTypeString       = "any"
 	goPackageEnvVarName = "GOPACKAGE"
+	pkgImptest          = "_imptest"
+	pkgReflect          = "_reflect"
+	pkgTesting          = "_testing"
+	pkgTime             = "_time"
 )
 
 // unexported variables.
@@ -603,25 +607,6 @@ func generateResultVarNames(count int, prefix string) []string {
 	return names
 }
 
-// getStdlibAlias returns the alias to use for a stdlib package if there's a conflict
-// with the user's package qualifier. Returns empty string if no conflict.
-// For example, if the user has a package named "time", we alias the stdlib time as "_time".
-func getStdlibAlias(qualifier, stdlibPkgName string) string {
-	if qualifier == stdlibPkgName {
-		return "_" + stdlibPkgName
-	}
-
-	return ""
-}
-
-// getTimePath returns the import path for the stdlib time package used by Within() method.
-// This is always "time" (stdlib) since the NeedsQualifier section handles local "time" packages separately.
-func getTimePath(_, _ string) string {
-	// Always return stdlib "time" - it's needed for time.Duration in Within() method
-	// The local "time" package (if any) is handled by NeedsQualifier import
-	return "time"
-}
-
 // hasExportedIdent checks if an expression contains an exported identifier.
 func hasExportedIdent(expr dst.Expr, isTypeParam func(string) bool) bool {
 	walker := &typeExprWalker[bool]{
@@ -675,8 +660,7 @@ func isBasicComparableType(expr dst.Expr) bool {
 			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
 			"float32", "float64",
 			"complex64", "complex128",
-			"string",       //nolint:goconst // Go type keyword
-			"byte", "rune": // Aliases for uint8 and int32
+			"string", "byte", "rune": //nolint:goconst // Go type keywords and aliases
 			return true
 		}
 		// Everything else: custom types, interfaces, etc. → use DeepEqual

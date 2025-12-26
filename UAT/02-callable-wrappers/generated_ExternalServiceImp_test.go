@@ -2,9 +2,9 @@
 
 package callable_test
 
-import "github.com/toejough/imptest/imptest"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _testing "testing"
+import _time "time"
 import callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
 
 // ExternalServiceImp is the test controller for mocking the interface.
@@ -17,7 +17,7 @@ import callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type ExternalServiceImp struct {
-	*imptest.Controller[*ExternalServiceImpCall]
+	*_imptest.Controller[*ExternalServiceImpCall]
 	Mock         *ExternalServiceImpMock
 	ExpectCallIs *ExternalServiceImpExpectCallIs
 	currentCall  *ExternalServiceImpCall
@@ -32,9 +32,9 @@ type ExternalServiceImp struct {
 //	imp := NewExternalServiceImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewExternalServiceImp(t *testing.T) *ExternalServiceImp {
+func NewExternalServiceImp(t *_testing.T) *ExternalServiceImp {
 	imp := &ExternalServiceImp{
-		Controller: imptest.NewController[*ExternalServiceImpCall](t),
+		Controller: _imptest.NewController[*ExternalServiceImpCall](t),
 	}
 	imp.Mock = &ExternalServiceImpMock{imp: imp}
 	imp.ExpectCallIs = &ExternalServiceImpExpectCallIs{imp: imp}
@@ -57,8 +57,8 @@ func (i *ExternalServiceImp) GetCurrentCall() *ExternalServiceImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *ExternalServiceImp) Within(d time.Duration) *ExternalServiceImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *ExternalServiceImp) Within(d _time.Duration) *ExternalServiceImpTimed {
 	return &ExternalServiceImpTimed{
 		ExpectCallIs: &ExternalServiceImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -113,7 +113,7 @@ func (c *ExternalServiceImpCall) Name() string {
 // Use Within() on the parent ExternalServiceImp to configure timeouts.
 type ExternalServiceImpExpectCallIs struct {
 	imp     *ExternalServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // FetchData returns a builder for setting expectations on FetchData method calls.
@@ -130,7 +130,7 @@ func (e *ExternalServiceImpExpectCallIs) Process() *ExternalServiceImpProcessBui
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ExternalServiceImpFetchDataBuilder struct {
 	imp     *ExternalServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a FetchData call with exactly the specified argument values.
@@ -164,7 +164,7 @@ func (bldr *ExternalServiceImpFetchDataBuilder) ExpectArgsShould(id any) *Extern
 		}
 		methodCall := callToCheck.AsFetchData()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.id, id)
+		ok, _ = _imptest.MatchValue(methodCall.id, id)
 		if !ok {
 			return false
 		}
@@ -297,7 +297,7 @@ func (m *ExternalServiceImpMock) Process(data string) string {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ExternalServiceImpProcessBuilder struct {
 	imp     *ExternalServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Process call with exactly the specified argument values.
@@ -331,7 +331,7 @@ func (bldr *ExternalServiceImpProcessBuilder) ExpectArgsShould(data any) *Extern
 		}
 		methodCall := callToCheck.AsProcess()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.data, data)
+		ok, _ = _imptest.MatchValue(methodCall.data, data)
 		if !ok {
 			return false
 		}

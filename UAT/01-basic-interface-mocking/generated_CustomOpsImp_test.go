@@ -2,10 +2,10 @@
 
 package basic_test
 
-import "github.com/toejough/imptest/imptest"
-import "reflect"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _reflect "reflect"
+import _testing "testing"
+import _time "time"
 import basic "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
 
 // CustomOpsImp is the test controller for mocking the interface.
@@ -18,7 +18,7 @@ import basic "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type CustomOpsImp struct {
-	*imptest.Controller[*CustomOpsImpCall]
+	*_imptest.Controller[*CustomOpsImpCall]
 	Mock         *CustomOpsImpMock
 	ExpectCallIs *CustomOpsImpExpectCallIs
 	currentCall  *CustomOpsImpCall
@@ -33,9 +33,9 @@ type CustomOpsImp struct {
 //	imp := NewCustomOpsImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewCustomOpsImp(t *testing.T) *CustomOpsImp {
+func NewCustomOpsImp(t *_testing.T) *CustomOpsImp {
 	imp := &CustomOpsImp{
-		Controller: imptest.NewController[*CustomOpsImpCall](t),
+		Controller: _imptest.NewController[*CustomOpsImpCall](t),
 	}
 	imp.Mock = &CustomOpsImpMock{imp: imp}
 	imp.ExpectCallIs = &CustomOpsImpExpectCallIs{imp: imp}
@@ -58,8 +58,8 @@ func (i *CustomOpsImp) GetCurrentCall() *CustomOpsImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *CustomOpsImp) Within(d time.Duration) *CustomOpsImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *CustomOpsImp) Within(d _time.Duration) *CustomOpsImpTimed {
 	return &CustomOpsImpTimed{
 		ExpectCallIs: &CustomOpsImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -69,7 +69,7 @@ func (i *CustomOpsImp) Within(d time.Duration) *CustomOpsImpTimed {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type CustomOpsImpAddBuilder struct {
 	imp     *CustomOpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Add call with exactly the specified argument values.
@@ -106,11 +106,11 @@ func (bldr *CustomOpsImpAddBuilder) ExpectArgsShould(a any, b any) *CustomOpsImp
 		}
 		methodCall := callToCheck.AsAdd()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.a, a)
+		ok, _ = _imptest.MatchValue(methodCall.a, a)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.b, b)
+		ok, _ = _imptest.MatchValue(methodCall.b, b)
 		if !ok {
 			return false
 		}
@@ -269,7 +269,7 @@ func (c *CustomOpsImpCall) Name() string {
 // Use Within() on the parent CustomOpsImp to configure timeouts.
 type CustomOpsImpExpectCallIs struct {
 	imp     *CustomOpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // Add returns a builder for setting expectations on Add method calls.
@@ -301,7 +301,7 @@ func (e *CustomOpsImpExpectCallIs) Store() *CustomOpsImpStoreBuilder {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type CustomOpsImpFinishBuilder struct {
 	imp     *CustomOpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // InjectPanic waits for a Finish call and causes it to panic with the given value.
@@ -366,7 +366,7 @@ type CustomOpsImpFinishCallResponse struct {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type CustomOpsImpLogBuilder struct {
 	imp     *CustomOpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Log call with exactly the specified argument values.
@@ -400,7 +400,7 @@ func (bldr *CustomOpsImpLogBuilder) ExpectArgsShould(message any) *CustomOpsImpL
 		}
 		methodCall := callToCheck.AsLog()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.message, message)
+		ok, _ = _imptest.MatchValue(methodCall.message, message)
 		if !ok {
 			return false
 		}
@@ -607,7 +607,7 @@ func (m *CustomOpsImpMock) Store(key string, value any) (int, error) {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type CustomOpsImpNotifyBuilder struct {
 	imp     *CustomOpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Notify call with exactly the specified argument values.
@@ -623,7 +623,7 @@ func (bldr *CustomOpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int)
 		if methodCall.message != message {
 			return false
 		}
-		if !reflect.DeepEqual(methodCall.ids, ids) {
+		if !_reflect.DeepEqual(methodCall.ids, ids) {
 			return false
 		}
 		return true
@@ -644,11 +644,11 @@ func (bldr *CustomOpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *C
 		}
 		methodCall := callToCheck.AsNotify()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.message, message)
+		ok, _ = _imptest.MatchValue(methodCall.message, message)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.ids, ids)
+		ok, _ = _imptest.MatchValue(methodCall.ids, ids)
 		if !ok {
 			return false
 		}
@@ -723,7 +723,7 @@ type CustomOpsImpNotifyCallResponse struct {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type CustomOpsImpStoreBuilder struct {
 	imp     *CustomOpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Store call with exactly the specified argument values.
@@ -739,7 +739,7 @@ func (bldr *CustomOpsImpStoreBuilder) ExpectArgsAre(key string, value any) *Cust
 		if methodCall.key != key {
 			return false
 		}
-		if !reflect.DeepEqual(methodCall.value, value) {
+		if !_reflect.DeepEqual(methodCall.value, value) {
 			return false
 		}
 		return true
@@ -760,11 +760,11 @@ func (bldr *CustomOpsImpStoreBuilder) ExpectArgsShould(key any, value any) *Cust
 		}
 		methodCall := callToCheck.AsStore()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.key, key)
+		ok, _ = _imptest.MatchValue(methodCall.key, key)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.value, value)
+		ok, _ = _imptest.MatchValue(methodCall.value, value)
 		if !ok {
 			return false
 		}

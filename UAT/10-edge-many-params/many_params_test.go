@@ -11,7 +11,7 @@ import (
 
 // TestManyParams_DifferentValues_mutant tests with different parameter values.
 // This ensures index arithmetic is correct even when values differ.
-func TestManyParams_DifferentValues_mutant(t *testing.T) {
+func TestManyParams_DifferentValues_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	testCases := []struct {
@@ -37,7 +37,7 @@ func TestManyParams_DifferentValues_mutant(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
+		t.Run(testCase.name, func(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 			t.Parallel()
 
 			// Create a new mock for each test case
@@ -69,7 +69,7 @@ func TestManyParams_DifferentValues_mutant(t *testing.T) {
 }
 
 // TestManyParams_UnnamedParams_mutant tests interfaces with unnamed parameters.
-func TestManyParams_UnnamedParams_mutant(t *testing.T) {
+func TestManyParams_UnnamedParams_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	// Note: This would test an interface with unnamed params which exercises different code paths
@@ -89,7 +89,7 @@ func TestManyParams_UnnamedParams_mutant(t *testing.T) {
 
 // TestManyParams_VerifyArgs_mutant tests that all 10 arguments are captured correctly.
 // This is critical for catching off-by-one errors in parameter indexing.
-func TestManyParams_VerifyArgs_mutant(t *testing.T) {
+func TestManyParams_VerifyArgs_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	mock := mp.NewManyParamsImp(t)
@@ -125,7 +125,7 @@ func TestManyParams_VerifyArgs_mutant(t *testing.T) {
 // - Parameter index arithmetic (index + 1, index + 0, index + 2)
 // - Parameter naming beyond A-H (should use param8, param9, etc)
 // - Array bounds checking (index < len(names) vs index <= len(names)).
-func TestManyParams_mutant(t *testing.T) {
+func TestManyParams_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	mock := mp.NewManyParamsImp(t)

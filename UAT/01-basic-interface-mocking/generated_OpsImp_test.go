@@ -2,10 +2,10 @@
 
 package basic_test
 
-import "github.com/toejough/imptest/imptest"
-import "reflect"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _reflect "reflect"
+import _testing "testing"
+import _time "time"
 import basic "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
 
 // OpsImp is the test controller for mocking the interface.
@@ -18,7 +18,7 @@ import basic "github.com/toejough/imptest/UAT/01-basic-interface-mocking"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type OpsImp struct {
-	*imptest.Controller[*OpsImpCall]
+	*_imptest.Controller[*OpsImpCall]
 	Mock         *OpsImpMock
 	ExpectCallIs *OpsImpExpectCallIs
 	currentCall  *OpsImpCall
@@ -33,9 +33,9 @@ type OpsImp struct {
 //	imp := NewOpsImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewOpsImp(t *testing.T) *OpsImp {
+func NewOpsImp(t *_testing.T) *OpsImp {
 	imp := &OpsImp{
-		Controller: imptest.NewController[*OpsImpCall](t),
+		Controller: _imptest.NewController[*OpsImpCall](t),
 	}
 	imp.Mock = &OpsImpMock{imp: imp}
 	imp.ExpectCallIs = &OpsImpExpectCallIs{imp: imp}
@@ -58,8 +58,8 @@ func (i *OpsImp) GetCurrentCall() *OpsImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *OpsImp) Within(d time.Duration) *OpsImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *OpsImp) Within(d _time.Duration) *OpsImpTimed {
 	return &OpsImpTimed{
 		ExpectCallIs: &OpsImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -69,7 +69,7 @@ func (i *OpsImp) Within(d time.Duration) *OpsImpTimed {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpAddBuilder struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Add call with exactly the specified argument values.
@@ -106,11 +106,11 @@ func (bldr *OpsImpAddBuilder) ExpectArgsShould(a any, b any) *OpsImpAddCall {
 		}
 		methodCall := callToCheck.AsAdd()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.a, a)
+		ok, _ = _imptest.MatchValue(methodCall.a, a)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.b, b)
+		ok, _ = _imptest.MatchValue(methodCall.b, b)
 		if !ok {
 			return false
 		}
@@ -269,7 +269,7 @@ func (c *OpsImpCall) Name() string {
 // Use Within() on the parent OpsImp to configure timeouts.
 type OpsImpExpectCallIs struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // Add returns a builder for setting expectations on Add method calls.
@@ -301,7 +301,7 @@ func (e *OpsImpExpectCallIs) Store() *OpsImpStoreBuilder {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpFinishBuilder struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // InjectPanic waits for a Finish call and causes it to panic with the given value.
@@ -366,7 +366,7 @@ type OpsImpFinishCallResponse struct {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpLogBuilder struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Log call with exactly the specified argument values.
@@ -400,7 +400,7 @@ func (bldr *OpsImpLogBuilder) ExpectArgsShould(message any) *OpsImpLogCall {
 		}
 		methodCall := callToCheck.AsLog()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.message, message)
+		ok, _ = _imptest.MatchValue(methodCall.message, message)
 		if !ok {
 			return false
 		}
@@ -607,7 +607,7 @@ func (m *OpsImpMock) Store(key string, value any) (int, error) {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpNotifyBuilder struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Notify call with exactly the specified argument values.
@@ -623,7 +623,7 @@ func (bldr *OpsImpNotifyBuilder) ExpectArgsAre(message string, ids ...int) *OpsI
 		if methodCall.message != message {
 			return false
 		}
-		if !reflect.DeepEqual(methodCall.ids, ids) {
+		if !_reflect.DeepEqual(methodCall.ids, ids) {
 			return false
 		}
 		return true
@@ -644,11 +644,11 @@ func (bldr *OpsImpNotifyBuilder) ExpectArgsShould(message any, ids any) *OpsImpN
 		}
 		methodCall := callToCheck.AsNotify()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.message, message)
+		ok, _ = _imptest.MatchValue(methodCall.message, message)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.ids, ids)
+		ok, _ = _imptest.MatchValue(methodCall.ids, ids)
 		if !ok {
 			return false
 		}
@@ -723,7 +723,7 @@ type OpsImpNotifyCallResponse struct {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type OpsImpStoreBuilder struct {
 	imp     *OpsImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Store call with exactly the specified argument values.
@@ -739,7 +739,7 @@ func (bldr *OpsImpStoreBuilder) ExpectArgsAre(key string, value any) *OpsImpStor
 		if methodCall.key != key {
 			return false
 		}
-		if !reflect.DeepEqual(methodCall.value, value) {
+		if !_reflect.DeepEqual(methodCall.value, value) {
 			return false
 		}
 		return true
@@ -760,11 +760,11 @@ func (bldr *OpsImpStoreBuilder) ExpectArgsShould(key any, value any) *OpsImpStor
 		}
 		methodCall := callToCheck.AsStore()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.key, key)
+		ok, _ = _imptest.MatchValue(methodCall.key, key)
 		if !ok {
 			return false
 		}
-		ok, _ = imptest.MatchValue(methodCall.value, value)
+		ok, _ = _imptest.MatchValue(methodCall.value, value)
 		if !ok {
 			return false
 		}

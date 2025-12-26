@@ -2,9 +2,9 @@
 
 package safety_test
 
-import "github.com/toejough/imptest/imptest"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _testing "testing"
+import _time "time"
 import safety "github.com/toejough/imptest/UAT/04-error-and-panic-handling"
 
 // CriticalDependencyImp is the test controller for mocking the interface.
@@ -17,7 +17,7 @@ import safety "github.com/toejough/imptest/UAT/04-error-and-panic-handling"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type CriticalDependencyImp struct {
-	*imptest.Controller[*CriticalDependencyImpCall]
+	*_imptest.Controller[*CriticalDependencyImpCall]
 	Mock         *CriticalDependencyImpMock
 	ExpectCallIs *CriticalDependencyImpExpectCallIs
 	currentCall  *CriticalDependencyImpCall
@@ -32,9 +32,9 @@ type CriticalDependencyImp struct {
 //	imp := NewCriticalDependencyImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewCriticalDependencyImp(t *testing.T) *CriticalDependencyImp {
+func NewCriticalDependencyImp(t *_testing.T) *CriticalDependencyImp {
 	imp := &CriticalDependencyImp{
-		Controller: imptest.NewController[*CriticalDependencyImpCall](t),
+		Controller: _imptest.NewController[*CriticalDependencyImpCall](t),
 	}
 	imp.Mock = &CriticalDependencyImpMock{imp: imp}
 	imp.ExpectCallIs = &CriticalDependencyImpExpectCallIs{imp: imp}
@@ -57,8 +57,8 @@ func (i *CriticalDependencyImp) GetCurrentCall() *CriticalDependencyImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *CriticalDependencyImp) Within(d time.Duration) *CriticalDependencyImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *CriticalDependencyImp) Within(d _time.Duration) *CriticalDependencyImpTimed {
 	return &CriticalDependencyImpTimed{
 		ExpectCallIs: &CriticalDependencyImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -99,7 +99,7 @@ func (c *CriticalDependencyImpCall) Name() string {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type CriticalDependencyImpDoWorkBuilder struct {
 	imp     *CriticalDependencyImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // InjectPanic waits for a DoWork call and causes it to panic with the given value.
@@ -164,7 +164,7 @@ type CriticalDependencyImpDoWorkCallResponse struct {
 // Use Within() on the parent CriticalDependencyImp to configure timeouts.
 type CriticalDependencyImpExpectCallIs struct {
 	imp     *CriticalDependencyImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // DoWork returns a builder for setting expectations on DoWork method calls.

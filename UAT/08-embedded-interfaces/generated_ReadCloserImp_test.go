@@ -2,10 +2,10 @@
 
 package embedded_test
 
-import "github.com/toejough/imptest/imptest"
-import "reflect"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _reflect "reflect"
+import _testing "testing"
+import _time "time"
 import embedded "github.com/toejough/imptest/UAT/08-embedded-interfaces"
 
 // ReadCloserImp is the test controller for mocking the interface.
@@ -18,7 +18,7 @@ import embedded "github.com/toejough/imptest/UAT/08-embedded-interfaces"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type ReadCloserImp struct {
-	*imptest.Controller[*ReadCloserImpCall]
+	*_imptest.Controller[*ReadCloserImpCall]
 	Mock         *ReadCloserImpMock
 	ExpectCallIs *ReadCloserImpExpectCallIs
 	currentCall  *ReadCloserImpCall
@@ -33,9 +33,9 @@ type ReadCloserImp struct {
 //	imp := NewReadCloserImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewReadCloserImp(t *testing.T) *ReadCloserImp {
+func NewReadCloserImp(t *_testing.T) *ReadCloserImp {
 	imp := &ReadCloserImp{
-		Controller: imptest.NewController[*ReadCloserImpCall](t),
+		Controller: _imptest.NewController[*ReadCloserImpCall](t),
 	}
 	imp.Mock = &ReadCloserImpMock{imp: imp}
 	imp.ExpectCallIs = &ReadCloserImpExpectCallIs{imp: imp}
@@ -58,8 +58,8 @@ func (i *ReadCloserImp) GetCurrentCall() *ReadCloserImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *ReadCloserImp) Within(d time.Duration) *ReadCloserImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *ReadCloserImp) Within(d _time.Duration) *ReadCloserImpTimed {
 	return &ReadCloserImpTimed{
 		ExpectCallIs: &ReadCloserImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -113,7 +113,7 @@ func (c *ReadCloserImpCall) Name() string {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ReadCloserImpCloseBuilder struct {
 	imp     *ReadCloserImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // InjectPanic waits for a Close call and causes it to panic with the given value.
@@ -179,7 +179,7 @@ type ReadCloserImpCloseCallResponse struct {
 // Use Within() on the parent ReadCloserImp to configure timeouts.
 type ReadCloserImpExpectCallIs struct {
 	imp     *ReadCloserImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // Close returns a builder for setting expectations on Close method calls.
@@ -252,7 +252,7 @@ func (m *ReadCloserImpMock) Read(p []byte) (n int, err error) {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ReadCloserImpReadBuilder struct {
 	imp     *ReadCloserImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Read call with exactly the specified argument values.
@@ -265,7 +265,7 @@ func (bldr *ReadCloserImpReadBuilder) ExpectArgsAre(p []byte) *ReadCloserImpRead
 			return false
 		}
 		methodCall := callToCheck.AsRead()
-		if !reflect.DeepEqual(methodCall.p, p) {
+		if !_reflect.DeepEqual(methodCall.p, p) {
 			return false
 		}
 		return true
@@ -286,7 +286,7 @@ func (bldr *ReadCloserImpReadBuilder) ExpectArgsShould(p any) *ReadCloserImpRead
 		}
 		methodCall := callToCheck.AsRead()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.p, p)
+		ok, _ = _imptest.MatchValue(methodCall.p, p)
 		if !ok {
 			return false
 		}

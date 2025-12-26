@@ -2,10 +2,10 @@
 
 package matching_test
 
-import "github.com/toejough/imptest/imptest"
-import "reflect"
-import "testing"
-import "time"
+import _imptest "github.com/toejough/imptest/imptest"
+import _reflect "reflect"
+import _testing "testing"
+import _time "time"
 import matching "github.com/toejough/imptest/UAT/05-advanced-matching"
 
 // ComplexServiceImp is the test controller for mocking the interface.
@@ -18,7 +18,7 @@ import matching "github.com/toejough/imptest/UAT/05-advanced-matching"
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.MethodName().ExpectArgsAre(...).InjectResult(...)
 type ComplexServiceImp struct {
-	*imptest.Controller[*ComplexServiceImpCall]
+	*_imptest.Controller[*ComplexServiceImpCall]
 	Mock         *ComplexServiceImpMock
 	ExpectCallIs *ComplexServiceImpExpectCallIs
 	currentCall  *ComplexServiceImpCall
@@ -33,9 +33,9 @@ type ComplexServiceImp struct {
 //	imp := NewComplexServiceImp(t)
 //	go codeUnderTest(imp.Mock)
 //	imp.ExpectCallIs.Method().ExpectArgsAre(...).InjectResult(...)
-func NewComplexServiceImp(t *testing.T) *ComplexServiceImp {
+func NewComplexServiceImp(t *_testing.T) *ComplexServiceImp {
 	imp := &ComplexServiceImp{
-		Controller: imptest.NewController[*ComplexServiceImpCall](t),
+		Controller: _imptest.NewController[*ComplexServiceImpCall](t),
 	}
 	imp.Mock = &ComplexServiceImpMock{imp: imp}
 	imp.ExpectCallIs = &ComplexServiceImpExpectCallIs{imp: imp}
@@ -58,8 +58,8 @@ func (i *ComplexServiceImp) GetCurrentCall() *ComplexServiceImpCall {
 //
 // Example:
 //
-//	imp.Within(100*time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
-func (i *ComplexServiceImp) Within(d time.Duration) *ComplexServiceImpTimed {
+//	imp.Within(100*_time.Millisecond).ExpectCallIs.Method().ExpectArgsAre(...)
+func (i *ComplexServiceImp) Within(d _time.Duration) *ComplexServiceImpTimed {
 	return &ComplexServiceImpTimed{
 		ExpectCallIs: &ComplexServiceImpExpectCallIs{imp: i, timeout: d},
 	}
@@ -101,7 +101,7 @@ func (c *ComplexServiceImpCall) Name() string {
 // Use Within() on the parent ComplexServiceImp to configure timeouts.
 type ComplexServiceImpExpectCallIs struct {
 	imp     *ComplexServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // Process returns a builder for setting expectations on Process method calls.
@@ -145,7 +145,7 @@ func (m *ComplexServiceImpMock) Process(d matching.Data) bool {
 // Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
 type ComplexServiceImpProcessBuilder struct {
 	imp     *ComplexServiceImp
-	timeout time.Duration
+	timeout _time.Duration
 }
 
 // ExpectArgsAre waits for a Process call with exactly the specified argument values.
@@ -158,7 +158,7 @@ func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsAre(d matching.Data) *Com
 			return false
 		}
 		methodCall := callToCheck.AsProcess()
-		if !reflect.DeepEqual(methodCall.d, d) {
+		if !_reflect.DeepEqual(methodCall.d, d) {
 			return false
 		}
 		return true
@@ -179,7 +179,7 @@ func (bldr *ComplexServiceImpProcessBuilder) ExpectArgsShould(d any) *ComplexSer
 		}
 		methodCall := callToCheck.AsProcess()
 		var ok bool
-		ok, _ = imptest.MatchValue(methodCall.d, d)
+		ok, _ = _imptest.MatchValue(methodCall.d, d)
 		if !ok {
 			return false
 		}
