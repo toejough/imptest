@@ -671,11 +671,11 @@ func isBasicComparableType(expr dst.Expr) bool {
 		// Basic built-in types
 		switch t.Name {
 		case "bool",
-			"int", "int8", "int16", "int32", "int64",
+			"int", "int8", "int16", "int32", "int64", //nolint:goconst // Go type keywords
 			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
 			"float32", "float64",
 			"complex64", "complex128",
-			"string",
+			"string",       //nolint:goconst // Go type keyword
 			"byte", "rune": // Aliases for uint8 and int32
 			return true
 		}

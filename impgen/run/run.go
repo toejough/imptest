@@ -217,7 +217,16 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 
 	// set impname if not provided
 	if impName == "" {
-		impName = localInterfaceName + "Imp" // default implementation name
+		// Remove dots from localInterfaceName to create valid Go type names
+		// e.g., "Calculator.Add" -> "CalculatorAdd", "MyInterface" -> "MyInterfaceImp"
+		typeName := strings.ReplaceAll(localInterfaceName, ".", "")
+		// For methods (contains dots in original), use name as-is
+		// For interfaces, append "Imp" suffix
+		if strings.Contains(localInterfaceName, ".") {
+			impName = typeName // methods: TypeMethod
+		} else {
+			impName = typeName + "Imp" // interfaces: InterfaceImp
+		}
 	}
 
 	return generatorInfo{

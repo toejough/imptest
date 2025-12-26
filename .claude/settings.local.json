@@ -82,7 +82,11 @@
       "Bash(do sed -n \"$linep\" text_templates.go)",
       "Bash(do mv \"$f\" \"$f.disabled\")",
       "Bash(go mod tidy:*)",
-      "Bash(timeout 60 mage:*)"
+      "Bash(timeout 60 mage:*)",
+      "Bash(impgen:*)",
+      "Bash(GOPACKAGE=methods_test impgen:*)",
+      "Bash(git stash:*)",
+      "Bash(golangci-lint run:*)"
     ],
     "deny": [],
     "ask": []
