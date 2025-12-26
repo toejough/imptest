@@ -1089,11 +1089,11 @@ func interfaceGenerateParamName(index int, paramType string, totalParams int) st
 
 	// Single parameter cases
 	if totalParams == 1 {
-		if normalized == "string" {
+		if normalized == "string" { //nolint:goconst,nolintlint // Type name comparison
 			return "S"
 		}
 
-		if normalized == "int" {
+		if normalized == "int" { //nolint:goconst,nolintlint // Type name comparison
 			return "I"
 		}
 	}

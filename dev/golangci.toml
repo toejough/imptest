@@ -5,6 +5,7 @@ default = 'all'
 disable = [
 	'exhaustruct',    # too noisy for zero value structs
 	'forbidigo',      # I print output on purpose sometimes
+	'godot',          # has a bug that causes panics on some files
 	'godox',          # saving todos till another validation step
 	'ireturn',        # I like generic return types
 	'nonamedreturns', # I like named returns
@@ -60,13 +61,11 @@ generated = 'lax'
 presets = ['comments', 'common-false-positives', 'legacy', 'std-error-handling']
 paths = ['third_party$', 'builtin$', 'examples$']
 
-[issues]
 fix = true
-
 [[linters.exclusions.rules]]
 # Dynamic errors are acceptable and often clearer in test code/predicates.
 path = "_test.go"
-linters = ['err113']
+linters = ['err113', 'goconst']
 
 [[linters.exclusions.rules]]
 # UAT/11 intentionally uses a package name that conflicts with stdlib to test aliasing.

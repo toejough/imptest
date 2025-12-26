@@ -61,6 +61,7 @@ func Check(c context.Context) error {
 
 	for _, cmd := range []func(context.Context) error{
 		Tidy,          // clean up the module dependencies
+		CompileQtpl,   // compile quicktemplate files
 		Generate,      // generate code
 		Test,          // verify the stuff you explicitly care about works
 		Deadcode,      // verify there's no dead code
@@ -179,6 +180,12 @@ func Clean() {
 	os.Remove("coverage.out")
 }
 
+// CompileQtpl compiles quicktemplate files to Go code.
+func CompileQtpl(c context.Context) error {
+	fmt.Println("Compiling quicktemplate files...")
+	return run(c, "qtc", "-dir=impgen/run")
+}
+
 // Deadcode checks that there's no dead code in codebase.
 func Deadcode(c context.Context) error {
 	fmt.Println("Checking for dead code...")
@@ -287,7 +294,12 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	fmt.Printf("Step %d: Merging baseline coverage files...\n", mergeStep)
 	baselineFile := "baseline.out"
 	if len(coverageFiles) == 1 {
-		os.Rename(coverageFiles[0], baselineFile)
+		// Filter .qtpl files even from single coverage file
+		err := filterQtplFromCoverage(coverageFiles[0], baselineFile)
+		if err != nil {
+			return fmt.Errorf("failed to filter coverage: %w", err)
+		}
+		os.Remove(coverageFiles[0])
 	} else {
 		err := mergeMultipleCoverageFiles(coverageFiles, baselineFile)
 		if err != nil {
@@ -344,10 +356,18 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	allWithUnitStep := listStep + 1
 	fmt.Printf("Step %d: Getting coverage with all unit tests...\n", allWithUnitStep)
 	allTestsOut := "all_with_unit_tests.out"
-	err = runQuiet(c, "go", "test", "-coverprofile="+allTestsOut, "-coverpkg=./...", config.PackageToAnalyze)
+	allTestsOutRaw := "all_with_unit_tests_raw.out"
+	err = runQuiet(c, "go", "test", "-coverprofile="+allTestsOutRaw, "-coverpkg=./...", config.PackageToAnalyze)
 	if err != nil {
 		return fmt.Errorf("failed to run all unit tests: %w", err)
 	}
+
+	// Filter .qtpl files from coverage
+	err = filterQtplFromCoverage(allTestsOutRaw, allTestsOut)
+	if err != nil {
+		return fmt.Errorf("failed to filter coverage: %w", err)
+	}
+	os.Remove(allTestsOutRaw)
 
 	allWithUnitFuncs, err := getFunctionsAboveThreshold(allTestsOut, config.CoverageThreshold)
 	if err != nil {
@@ -399,6 +419,17 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 			fmt.Printf("FAILED (test error)\n")
 			continue
 		}
+
+		// Filter .qtpl files from coverage
+		testOutFiltered := testOut + ".filtered"
+		err := filterQtplFromCoverage(testOut, testOutFiltered)
+		if err != nil {
+			fmt.Printf("FAILED (filter error)\n")
+			os.Remove(testOut)
+			continue
+		}
+		os.Remove(testOut)
+		os.Rename(testOutFiltered, testOut)
 
 		// Get functions covered without this test
 		withoutTestFuncs, err := getFunctionsAboveThreshold(testOut, config.CoverageThreshold)
@@ -611,7 +642,7 @@ func ReorderDecls(c context.Context) error {
 
 	reorderedCount := 0
 	for _, file := range files {
-		// Skip generated files
+		// Skip generated files by name pattern
 		if strings.Contains(file, "generated_") {
 			continue
 		}
@@ -621,6 +652,15 @@ func ReorderDecls(c context.Context) error {
 		}
 		// Skip hidden directories
 		if strings.Contains(file, "/.") {
+			continue
+		}
+
+		// Skip files with generated markers (e.g., .qtpl.go files)
+		isGenerated, err := isGeneratedFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to check if %s is generated: %w", file, err)
+		}
+		if isGenerated {
 			continue
 		}
 
@@ -666,7 +706,7 @@ func ReorderDeclsCheck(c context.Context) error {
 	outOfOrderFiles := 0
 	filesProcessed := 0
 	for _, file := range files {
-		// Skip generated files
+		// Skip generated files by name pattern
 		if strings.Contains(file, "generated_") {
 			continue
 		}
@@ -676,6 +716,15 @@ func ReorderDeclsCheck(c context.Context) error {
 		}
 		// Skip hidden directories
 		if strings.Contains(file, "/.") {
+			continue
+		}
+
+		// Skip files with generated markers (e.g., .qtpl.go files)
+		isGenerated, err := isGeneratedFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to check if %s is generated: %w", file, err)
+		}
+		if isGenerated {
 			continue
 		}
 
@@ -982,6 +1031,38 @@ func calculateFileHashes(dir string, extensions []string) (map[string]string, er
 	return hashes, nil
 }
 
+// Private Functions
+
+// filterQtplFromCoverage removes .qtpl template file entries from a coverage file.
+func filterQtplFromCoverage(inputFile, outputFile string) error {
+	data, err := os.ReadFile(inputFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", inputFile, err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) == 0 {
+		return fmt.Errorf("empty coverage file: %s", inputFile)
+	}
+
+	// Keep mode line, filter out .qtpl entries
+	filtered := []string{lines[0]} // mode line
+	for _, line := range lines[1:] {
+		if line == "" || strings.Contains(line, ".qtpl:") {
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+
+	result := strings.Join(filtered, "\n")
+	err = os.WriteFile(outputFile, []byte(result), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", outputFile, err)
+	}
+
+	return nil
+}
+
 // findTestFile finds which file contains the given test function in the package.
 func findTestFile(c context.Context, pkg, testName string) (string, error) {
 	var searchDir string
@@ -1118,6 +1199,26 @@ func hashFile(path string) (string, error) {
 	}
 
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// isGeneratedFile checks if a file is generated by looking for the standard marker.
+func isGeneratedFile(path string) (bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to open %s: %w", path, err)
+	}
+	defer file.Close()
+
+	// Read first 200 bytes to check for generated marker
+	buf := make([]byte, 200)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return false, fmt.Errorf("failed to read %s: %w", path, err)
+	}
+
+	content := string(buf[:n])
+	// Standard generated file marker per https://golang.org/s/generatedcode
+	return strings.Contains(content, "Code generated") || strings.Contains(content, "DO NOT EDIT"), nil
 }
 
 // listTestFunctions lists all test functions in the given package.
@@ -1355,8 +1456,6 @@ func mergeCoverageBlocksFile(filename string) error {
 	return os.WriteFile(filename, []byte(strings.Join(merged, "\n")+"\n"), 0o600)
 }
 
-// Private Functions
-
 // mergeMultipleCoverageFiles merges multiple coverage files into a single output file.
 func mergeMultipleCoverageFiles(files []string, output string) error {
 	if len(files) == 0 {
@@ -1382,8 +1481,14 @@ func mergeMultipleCoverageFiles(files []string, output string) error {
 			mode = lines[0]
 		}
 
-		// Append blocks from this file (skip mode line)
-		allBlocks = append(allBlocks, lines[1:]...)
+		// Append blocks from this file (skip mode line and .qtpl files)
+		for _, line := range lines[1:] {
+			// Skip empty lines and lines referencing .qtpl template files
+			if line == "" || strings.Contains(line, ".qtpl:") {
+				continue
+			}
+			allBlocks = append(allBlocks, line)
+		}
 	}
 
 	// Write combined file

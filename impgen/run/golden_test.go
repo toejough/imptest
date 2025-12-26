@@ -57,7 +57,9 @@ func TestUATConsistency(t *testing.T) {
 
 // unexported variables.
 var (
-	packageCache   = make(map[string]cachedPackage)
+	//nolint:gochecknoglobals // Test-only cache that lives for duration of test run
+	packageCache = make(map[string]cachedPackage)
+	//nolint:gochecknoglobals // Mutex for packageCache
 	packageCacheMu sync.RWMutex
 )
 
@@ -383,7 +385,7 @@ func verifyUATFile(
 	}
 
 	getEnv := func(key string) string {
-		if key == "GOPACKAGE" { //nolint:goconst // Test file can't access unexported constant from run package
+		if key == "GOPACKAGE" {
 			return testCase.pkgName
 		}
 

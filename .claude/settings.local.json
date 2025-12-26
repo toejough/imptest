@@ -69,7 +69,13 @@
       "Bash(time go test:*)",
       "Bash(for i in 1 2 3)",
       "Bash(do go clean -testcache)",
-      "Bash(for i in 1 2 3 4 5)"
+      "Bash(for i in 1 2 3 4 5)",
+      "Bash(1)",
+      "Bash(timeout 30 mage:*)",
+      "Bash(for:*)",
+      "Bash(do if head -1 \"$f\")",
+      "Bash(fi:*)",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "ask": []

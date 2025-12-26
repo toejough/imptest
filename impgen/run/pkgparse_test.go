@@ -1,5 +1,4 @@
-//nolint:testpackage // Need same package to test unexported isComparableExpr
-package run
+package run //nolint:testpackage
 
 import (
 	"go/token"

@@ -1,5 +1,4 @@
-//nolint:testpackage
-package run
+package run //nolint:testpackage
 
 import (
 	"go/token"
