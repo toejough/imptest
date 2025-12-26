@@ -593,6 +593,7 @@ func LintForFail(c context.Context) error {
 		"--fix=false",
 		"--max-issues-per-linter=1",
 		"--max-same-issues=1",
+		"--allow-parallel-runners",
 	)
 }
 
