@@ -80,7 +80,8 @@
       "Bash(do mv \"$f\" \"$f.bak\")",
       "Bash(while read line)",
       "Bash(do sed -n \"$linep\" text_templates.go)",
-      "Bash(do mv \"$f\" \"$f.disabled\")"
+      "Bash(do mv \"$f\" \"$f.disabled\")",
+      "Bash(go mod tidy:*)"
     ],
     "deny": [],
     "ask": []

@@ -12,7 +12,7 @@ import (
 
 	"github.com/alexflint/go-arg"
 	"github.com/dave/dst"
-	"github.com/toejough/imptest/impgen/reorder"
+	"github.com/toejough/go-reorder"
 )
 
 // Interfaces - Public

@@ -28,7 +28,7 @@ allow = [
 	'golang.org/x/tools/go/packages',
 	'github.com/toejough/imptest/UAT/run',
 	'github.com/toejough/imptest/impgen/run',
-	'github.com/toejough/imptest/impgen/reorder',
+	'github.com/toejough/go-reorder',
 ]
 
 [linters.settings.depguard.rules.test]
@@ -44,7 +44,7 @@ allow = [
 	'github.com/toejough/imptest/imptest',
 	'github.com/toejough/imptest/UAT/run',
 	'github.com/toejough/imptest/impgen/run',
-	'github.com/toejough/imptest/impgen/reorder',
+	'github.com/toejough/go-reorder',
 	'golang.org/x/tools/go/packages',
 ]
 

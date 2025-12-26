@@ -23,7 +23,7 @@ import (
 
 	"github.com/akedrou/textdiff"
 	"github.com/magefile/mage/mg"
-	"github.com/toejough/imptest/impgen/reorder"
+	"github.com/toejough/go-reorder"
 )
 
 // BaselineTestSpec specifies a test or set of tests to include in the baseline coverage.
