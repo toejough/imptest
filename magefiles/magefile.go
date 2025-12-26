@@ -55,27 +55,19 @@ func Build(c context.Context) error {
 
 // Public Functions (Mage Targets)
 
-// Run all checks on the code.
+// Run all checks & fixes on the code, in order of correctness.
 func Check(c context.Context) error {
 	fmt.Println("Checking...")
 
-	for _, cmd := range []func(context.Context) error{
-		Tidy,          // clean up the module dependencies
-		Generate,      // generate code
-		Test,          // verify the stuff you explicitly care about works
-		Deadcode,      // verify there's no dead code
-		Lint,          // make it follow the standards you care about
-		CheckNils,     // suss out nils
-		CheckCoverage, // verify desired coverage
-		// Mutate,        // check for untested code
-		// Fuzz,          // suss out unsafe assumptions about your function inputs
-		// TodoCheck,     // look for any fixme's or todos
-	} {
-		err := cmd(c)
-		if err != nil {
-			return fmt.Errorf("unable to finish checking: %w", err)
-		}
-	}
+	mg.SerialCtxDeps(c,
+		Tidy, // clean up the module dependencies
+		CheckCoverage,
+		CheckNils,
+		Deadcode,
+		Lint,
+		Modernize,
+		ReorderDecls,
+	)
 
 	return nil
 }
@@ -83,6 +75,7 @@ func Check(c context.Context) error {
 // CheckCoverage checks that function coverage meets the minimum threshold.
 func CheckCoverage(c context.Context) error {
 	fmt.Println("Checking coverage...")
+	mg.SerialCtxDeps(c, Test) // Ensure tests have run to generate coverage.out
 
 	// Merge duplicate coverage blocks from cross-package testing
 	err := mergeCoverageBlocks()
@@ -157,7 +150,15 @@ func CheckCoverage(c context.Context) error {
 func CheckForFail(c context.Context) error {
 	fmt.Println("Checking...")
 
-	mg.SerialCtxDeps(c, LintForFail, Build, Generate, TestForFail, CheckNils)
+	// Checks from fastest to slowest
+	mg.SerialCtxDeps(c,
+		ReorderDeclsCheck,
+		LintForFail,
+		Deadcode,
+		TestForFail,
+		CheckNilsForFail,
+		CheckCoverage,
+	)
 
 	// for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
 	// 	err := cmd(c)
@@ -169,8 +170,14 @@ func CheckForFail(c context.Context) error {
 	return nil
 }
 
-// Check for nils.
+// Check for nils and fix what you can
 func CheckNils(c context.Context) error {
+	fmt.Println("Running check for nils...")
+	return run(c, "nilaway", "-fix", "./...")
+}
+
+// Check for nils, just for failure
+func CheckNilsForFail(c context.Context) error {
 	fmt.Println("Running check for nils...")
 	return run(c, "nilaway", "./...")
 }
@@ -533,7 +540,7 @@ func Generate(c context.Context) error {
 	fmt.Println("Generating...")
 
 	// Build local impgen first
-	mg.Deps(Build)
+	mg.SerialCtxDeps(c, Build)
 
 	// Get current PATH and prepend our bin directory
 	currentPath := os.Getenv("PATH")
@@ -812,6 +819,9 @@ func ReorderDeclsCheck(c context.Context) error {
 // Run the unit tests.
 func Test(c context.Context) error {
 	fmt.Println("Running unit tests...")
+
+	mg.SerialCtxDeps(c, Generate)
+
 	err := run(
 		c,
 		"go",
@@ -854,6 +864,8 @@ func Test(c context.Context) error {
 func TestForFail(c context.Context) error {
 	fmt.Println("Running unit tests for overall pass/fail...")
 
+	mg.SerialCtxDeps(c, Generate)
+
 	return run(
 		c,
 		"go",
@@ -862,8 +874,6 @@ func TestForFail(c context.Context) error {
 		"./...",
 		// "-rapid.nofailfile",
 		"-failfast",
-		"-shuffle=on",
-		"-race",
 	)
 }
 
