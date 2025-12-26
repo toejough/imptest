@@ -158,7 +158,7 @@ func CheckCoverage(c context.Context) error {
 func CheckForFail(c context.Context) error {
 	fmt.Println("Checking...")
 
-	mg.SerialCtxDeps(c, LintForFail, Build, CompileQtpl, Generate, TestForFail)
+	mg.SerialCtxDeps(c, LintForFail, Build, CompileQtpl, Generate, TestForFail, CheckNils)
 
 	// for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
 	// 	err := cmd(c)
