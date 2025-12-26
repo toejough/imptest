@@ -32,6 +32,7 @@ type callableExtendedTemplateData struct {
 type callableGenerator struct {
 	baseGenerator
 
+	templates                  *TemplateRegistry
 	funcDecl                   *dst.FuncDecl
 	cachedTemplateData         *callableTemplateData         // Cache to avoid redundant templateData() calls
 	cachedExtendedTemplateData *callableExtendedTemplateData // Cache to avoid redundant extendedTemplateData() calls
@@ -111,25 +112,25 @@ func (g *callableGenerator) extendedTemplateData() callableExtendedTemplateData 
 func (g *callableGenerator) generateCallableTemplates() {
 	// Generate header
 	baseData := g.templateData()
-	WriteCallableHeader(&g.buf, baseData.baseTemplateData)
+	g.templates.WriteCallableHeader(&g.buf, baseData.baseTemplateData)
 
 	// Generate structs and methods
 	extData := g.extendedTemplateData()
-	WriteCallableReturnStruct(&g.buf, extData)
-	WriteCallableMainStruct(&g.buf, extData)
-	WriteCallableConstructor(&g.buf, extData)
-	WriteCallableStartMethod(&g.buf, extData)
+	g.templates.WriteCallableReturnStruct(&g.buf, extData)
+	g.templates.WriteCallableMainStruct(&g.buf, extData)
+	g.templates.WriteCallableConstructor(&g.buf, extData)
+	g.templates.WriteCallableStartMethod(&g.buf, extData)
 
 	// Generate ExpectReturnedValues methods
-	WriteCallableExpectReturnedValuesAre(&g.buf, extData)
-	WriteCallableExpectReturnedValuesShould(&g.buf, extData)
+	g.templates.WriteCallableExpectReturnedValuesAre(&g.buf, extData)
+	g.templates.WriteCallableExpectReturnedValuesShould(&g.buf, extData)
 
 	// Generate panic and response methods
-	WriteCallableExpectPanicWith(&g.buf, baseData)
-	WriteCallableResponseStruct(&g.buf, baseData)
-	WriteCallableResponseTypeMethod(&g.buf, baseData)
-	WriteCallableAsReturnMethod(&g.buf, extData)
-	WriteCallableGetResponseMethod(&g.buf, extData.callableTemplateData)
+	g.templates.WriteCallableExpectPanicWith(&g.buf, baseData)
+	g.templates.WriteCallableResponseStruct(&g.buf, baseData)
+	g.templates.WriteCallableResponseTypeMethod(&g.buf, baseData)
+	g.templates.WriteCallableAsReturnMethod(&g.buf, extData)
+	g.templates.WriteCallableGetResponseMethod(&g.buf, extData.callableTemplateData)
 }
 
 // numReturns returns the total number of return values.
@@ -387,6 +388,12 @@ func generateCallableWrapperCode(
 	err = gen.checkIfValidForExternalUsage(gen.funcDecl.Type)
 	if err != nil {
 		return "", err
+	}
+
+	// Initialize template registry
+	gen.templates, err = NewTemplateRegistry()
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize template registry: %w", err)
 	}
 
 	gen.generateCallableTemplates()

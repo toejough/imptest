@@ -23,6 +23,7 @@ var (
 type codeGenerator struct {
 	baseGenerator
 
+	templates           *TemplateRegistry
 	mockName            string
 	callName            string
 	expectCallIsName    string
@@ -231,7 +232,7 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 
 // generateCallStruct generates the union call struct that can hold any method call.
 func (gen *codeGenerator) generateCallStruct() {
-	WriteCallStruct(&gen.buf, gen.callStructData())
+	gen.templates.WriteCallStruct(&gen.buf, gen.callStructData())
 }
 
 // generateCallStructParamFields generates the parameter fields for a call struct.
@@ -252,7 +253,7 @@ func (gen *codeGenerator) generateCallStructParamFields(ftype *dst.FuncType) {
 
 // generateConstructor generates the New{ImpName} constructor function.
 func (gen *codeGenerator) generateConstructor() {
-	WriteConstructor(&gen.buf, gen.templateData())
+	gen.templates.WriteConstructor(&gen.buf, gen.templateData())
 }
 
 // generateExpectArgsAre generates the type-safe ExpectArgsAre method on the builder.
@@ -326,22 +327,22 @@ func (gen *codeGenerator) generateExpectArgsShould(
 
 // generateExpectCallIsStruct generates the struct for expecting specific method calls.
 func (gen *codeGenerator) generateExpectCallIsStruct() {
-	WriteExpectCallIsStruct(&gen.buf, gen.templateData())
+	gen.templates.WriteExpectCallIsStruct(&gen.buf, gen.templateData())
 }
 
 // generateGetCurrentCallMethod generates the GetCurrentCall method that returns the current or next call.
 func (gen *codeGenerator) generateGetCurrentCallMethod() {
-	WriteGetCurrentCallMethod(&gen.buf, gen.templateData())
+	gen.templates.WriteGetCurrentCallMethod(&gen.buf, gen.templateData())
 }
 
 // generateHeader writes the package declaration and imports for the generated file.
 func (gen *codeGenerator) generateHeader() {
-	WriteHeader(&gen.buf, gen.templateData())
+	gen.templates.WriteHeader(&gen.buf, gen.templateData())
 }
 
 // generateInjectPanicMethod generates the InjectPanic method for simulating panics.
 func (gen *codeGenerator) generateInjectPanicMethod(methodCallName string) {
-	WriteInjectPanic(&gen.buf, gen.methodTemplateData(methodCallName))
+	gen.templates.WriteInjectPanic(&gen.buf, gen.methodTemplateData(methodCallName))
 }
 
 // generateInjectResultMethod generates the InjectResult method for methods with a single return value.
@@ -387,12 +388,12 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 
 // generateInterfaceVerification generates a compile-time check that the mock implements the interface.
 func (gen *codeGenerator) generateInterfaceVerification() {
-	WriteInterfaceVerification(&gen.buf, gen.templateData())
+	gen.templates.WriteInterfaceVerification(&gen.buf, gen.templateData())
 }
 
 // generateMainStruct generates the main implementation struct that handles test call tracking.
 func (gen *codeGenerator) generateMainStruct() {
-	WriteMainStruct(&gen.buf, gen.templateData())
+	gen.templates.WriteMainStruct(&gen.buf, gen.templateData())
 }
 
 // generateMethodBuilder generates the builder struct and all its methods for a single interface method.
@@ -524,12 +525,12 @@ func (gen *codeGenerator) generateMockMethods() {
 
 // generateMockStruct generates the mock struct that wraps the implementation.
 func (gen *codeGenerator) generateMockStruct() {
-	WriteMockStruct(&gen.buf, gen.templateData())
+	gen.templates.WriteMockStruct(&gen.buf, gen.templateData())
 }
 
 // generateResolveMethod generates the Resolve method for methods with no return values.
 func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
-	WriteResolve(&gen.buf, gen.methodTemplateData(methodCallName))
+	gen.templates.WriteResolve(&gen.buf, gen.methodTemplateData(methodCallName))
 }
 
 // generateResponseStructResultFields generates the result fields for a response struct.
@@ -541,7 +542,7 @@ func (gen *codeGenerator) generateResponseStructResultFields(ftype *dst.FuncType
 
 // generateTimedStruct generates the struct and method for timed call expectations.
 func (gen *codeGenerator) generateTimedStruct() {
-	WriteTimedStruct(&gen.buf, gen.templateData())
+	gen.templates.WriteTimedStruct(&gen.buf, gen.templateData())
 }
 
 // imptestPkg returns the package name to use for imptest, with alias if needed.
@@ -1221,6 +1222,12 @@ func newCodeGenerator(
 	}
 
 	gen.methodNames = methodNames
+
+	// Initialize template registry
+	gen.templates, err = NewTemplateRegistry()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize template registry: %w", err)
+	}
 
 	return gen, nil
 }

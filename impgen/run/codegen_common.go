@@ -18,12 +18,12 @@ func GetPackageInfo(
 	pkgLoader PackageLoader,
 	currentPkgName string,
 ) (pkgPath, pkgName string, err error) {
-	dotIdx := strings.Index(targetName, ".")
-	if dotIdx == -1 {
+	before, _, ok := strings.Cut(targetName, ".")
+	if !ok {
 		return "", "", nil
 	}
 
-	pkgName = targetName[:dotIdx]
+	pkgName = before
 	if pkgName == "" || pkgName == "." {
 		return "", "", nil
 	}
