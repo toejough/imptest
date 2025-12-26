@@ -158,12 +158,14 @@ func CheckCoverage(c context.Context) error {
 func CheckForFail(c context.Context) error {
 	fmt.Println("Checking...")
 
-	for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
-		err := cmd(c)
-		if err != nil {
-			return fmt.Errorf("unable to finish checking: %w", err)
-		}
-	}
+	mg.SerialCtxDeps(c, LintForFail, Build, CompileQtpl, Generate, TestForFail)
+
+	// for _, cmd := range []func(context.Context) error{LintForFail, TestForFail} {
+	// 	err := cmd(c)
+	// 	if err != nil {
+	// 		return fmt.Errorf("unable to finish checking: %w", err)
+	// 	}
+	// }
 
 	return nil
 }
