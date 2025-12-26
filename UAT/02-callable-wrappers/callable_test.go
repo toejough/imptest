@@ -15,6 +15,12 @@ import (
 // Generate a wrapper for the function under test.
 //go:generate impgen callable.BusinessLogic --name BusinessLogicImp
 
+// Generate wrappers for Calculator methods to demonstrate method wrapping.
+//go:generate impgen callable.Calculator.Add
+//go:generate impgen callable.Calculator.Multiply
+//go:generate impgen callable.Calculator.Divide
+//go:generate impgen callable.Calculator.ProcessValue
+
 // TestBusinessLogic demonstrates how to use type-safe wrappers for functions.
 //
 // Key Requirements Met:
@@ -68,6 +74,85 @@ func TestBusinessLogicError(t *testing.T) {
 
 		return nil
 	}))
+}
+
+// TestCalculatorAdd demonstrates wrapping a simple method with multiple parameters.
+func TestCalculatorAdd(t *testing.T) {
+	t.Parallel()
+
+	calc := callable.NewCalculator(2)
+
+	// Wrap the Add method for testing
+	addImp := NewCalculatorAdd(t, calc.Add)
+
+	// Start the method with test arguments
+	addImp.Start(5, 3).ExpectReturnedValuesAre(8)
+}
+
+// TestCalculatorDivide demonstrates wrapping a method with multiple return values.
+func TestCalculatorDivide(t *testing.T) {
+	t.Parallel()
+
+	calc := callable.NewCalculator(1)
+
+	// Wrap the Divide method
+	divideImp := NewCalculatorDivide(t, calc.Divide)
+
+	// Test successful division
+	divideImp.Start(10, 2).ExpectReturnedValuesAre(5, true)
+}
+
+// TestCalculatorDivideByZero demonstrates testing error conditions.
+func TestCalculatorDivideByZero(t *testing.T) {
+	t.Parallel()
+
+	calc := callable.NewCalculator(1)
+
+	// Wrap the Divide method
+	divideImp := NewCalculatorDivide(t, calc.Divide)
+
+	// Test division by zero returns false
+	divideImp.Start(10, 0).ExpectReturnedValuesAre(0, false)
+}
+
+// TestCalculatorMultiply demonstrates wrapping a method that uses receiver state.
+func TestCalculatorMultiply(t *testing.T) {
+	t.Parallel()
+
+	// Create calculator with multiplier=3
+	calc := callable.NewCalculator(3)
+
+	// Wrap the Multiply method
+	multiplyImp := NewCalculatorMultiply(t, calc.Multiply)
+
+	// Test that it correctly applies the multiplier
+	multiplyImp.Start(7).ExpectReturnedValuesAre(21)
+}
+
+// TestCalculatorProcessValuePanic demonstrates testing panic behavior.
+func TestCalculatorProcessValuePanic(t *testing.T) {
+	t.Parallel()
+
+	calc := callable.NewCalculator(5)
+
+	// Wrap the ProcessValue method
+	processImp := NewCalculatorProcessValue(t, calc.ProcessValue)
+
+	// Test that negative values cause a panic
+	processImp.Start(-1).ExpectPanicWith("negative values not supported")
+}
+
+// TestCalculatorProcessValueSuccess demonstrates normal execution path.
+func TestCalculatorProcessValueSuccess(t *testing.T) {
+	t.Parallel()
+
+	calc := callable.NewCalculator(5)
+
+	// Wrap the ProcessValue method
+	processImp := NewCalculatorProcessValue(t, calc.ProcessValue)
+
+	// Test normal case: (3 * 5) + 10 = 25
+	processImp.Start(3).ExpectReturnedValuesAre(25)
 }
 
 // unexported variables.
