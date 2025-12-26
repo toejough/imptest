@@ -319,26 +319,13 @@ func ProcessKeyValue(kv *KeyValue[string, int]) string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ProcessKeyValueImp.go"]
-	if !ok {
-		t.Fatal("Expected ProcessKeyValueImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify generic type with multiple parameters is handled correctly
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ProcessKeyValueImp.go", []string{
 		"type ProcessKeyValueImp struct",
 		"func NewProcessKeyValueImp",
 		"func (s *ProcessKeyValueImp) Start",
 		"*run.KeyValue[string, int]", // Generic type with multiple params and qualifier
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRunCallable_GenericTypeParameter(t *testing.T) {
@@ -368,26 +355,13 @@ func ProcessContainer(c *Container[int]) int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ProcessContainerImp.go"]
-	if !ok {
-		t.Fatal("Expected ProcessContainerImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify generic type instantiation is handled correctly
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ProcessContainerImp.go", []string{
 		"type ProcessContainerImp struct",
 		"func NewProcessContainerImp",
 		"func (s *ProcessContainerImp) Start",
 		"*run.Container[int]", // Generic type with qualifier
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRunCallable_ImportPathNotFound(t *testing.T) {
@@ -453,26 +427,13 @@ func ProcessStruct(data struct{ Name string; Age int }) string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ProcessStructImp.go"]
-	if !ok {
-		t.Fatal("Expected ProcessStructImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify inline struct type is handled
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ProcessStructImp.go", []string{
 		"type ProcessStructImp struct",
 		"func NewProcessStructImp",
 		"func (s *ProcessStructImp) Start",
 		"struct",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRunCallable_LocalFunction(t *testing.T) {
@@ -498,27 +459,16 @@ func SimpleAdd(a, b int) int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_SimpleAddImp.go"]
-	if !ok {
-		t.Fatal("Expected SimpleAddImp.go to be created")
-	}
-
-	contentStr := string(content)
+	contentStr := getGeneratedContent(t, mockFS, "generated_SimpleAddImp.go")
 
 	// Verify structure for local function
-	expected := []string{
+	assertContainsAll(t, contentStr, []string{
 		"type SimpleAddImp struct",
 		"type SimpleAddImpReturn struct",
 		"func NewSimpleAddImp",
 		"func (s *SimpleAddImp) Start(a, b int)",
 		"func (s *SimpleAddImp) ExpectReturnedValuesAre(v1 int)",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 
 	// Verify no package import is added for local function
 	if strings.Contains(contentStr, `import`) {
@@ -558,15 +508,8 @@ var _ = run.Divide
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_DivideImp.go"]
-	if !ok {
-		t.Fatal("Expected DivideImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify structure for named returns
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_DivideImp.go", []string{
 		"type DivideImp struct",
 		"type DivideImpReturn struct",
 		"func NewDivideImp",
@@ -574,13 +517,7 @@ var _ = run.Divide
 		"func (s *DivideImp) ExpectReturnedValuesAre(v1 int, v2 int)",
 		"Result0 int",
 		"Result1 int",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRunCallable_PackageLoadErrorForExportedTypes(t *testing.T) {
@@ -643,26 +580,13 @@ func ProcessTime(t time.Time) string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ProcessTimeImp.go"]
-	if !ok {
-		t.Fatal("Expected ProcessTimeImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify selector expression (time.Time) is handled
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ProcessTimeImp.go", []string{
 		"type ProcessTimeImp struct",
 		"func NewProcessTimeImp",
 		"func (s *ProcessTimeImp) Start",
 		"time.Time", // Selector expression type
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRunCallable_SliceReturnType(t *testing.T) {
@@ -688,12 +612,7 @@ func GetNames() []string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_GetNamesImp.go"]
-	if !ok {
-		t.Fatal("Expected GetNamesImp.go to be created")
-	}
-
-	contentStr := string(content)
+	contentStr := getGeneratedContent(t, mockFS, "generated_GetNamesImp.go")
 
 	// Callable wrapper imports imptest for matcher support
 	if !strings.Contains(contentStr, `"github.com/toejough/imptest/imptest"`) {
@@ -734,12 +653,8 @@ func MyFunc(a int) string { return "" }
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_MyFuncImp.go"]
-	if !ok {
-		t.Fatal("Expected MyFuncImp.go to be created")
-	}
-
-	if !strings.Contains(string(content), "type MyFuncImpReturn struct") {
+	contentStr := getGeneratedContent(t, mockFS, "generated_MyFuncImp.go")
+	if !strings.Contains(contentStr, "type MyFuncImpReturn struct") {
 		t.Error("Expected callable wrapper to be generated")
 	}
 }
@@ -765,12 +680,8 @@ type MyInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_MyImp.go"]
-	if !ok {
-		t.Fatal("Expected MyImp.go to be created")
-	}
-
-	if !strings.Contains(string(content), "type MyImpMock struct") {
+	contentStr := getGeneratedContent(t, mockFS, "generated_MyImp.go")
+	if !strings.Contains(contentStr, "type MyImpMock struct") {
 		t.Error("Expected interface mock to be generated")
 	}
 }
@@ -795,12 +706,8 @@ func (m *MyType) MyMethod(a int) {}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_MyMethodImp.go"]
-	if !ok {
-		t.Fatal("Expected MyMethodImp.go to be created")
-	}
-
-	if !strings.Contains(string(content), "func (s *MyMethodImp) Start(a int)") {
+	contentStr := getGeneratedContent(t, mockFS, "generated_MyMethodImp.go")
+	if !strings.Contains(contentStr, "func (s *MyMethodImp) Start(a int)") {
 		t.Error("Expected callable wrapper to be generated for method")
 	}
 }
@@ -834,15 +741,8 @@ func ProcessData(data []string, callback func(string) error) (*MyType, error) {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ProcessDataImp.go"]
-	if !ok {
-		t.Fatal("Expected ProcessDataImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify complex types are handled correctly
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ProcessDataImp.go", []string{
 		"type ProcessDataImp struct",
 		"type ProcessDataImpReturn struct",
 		"func NewProcessDataImp",
@@ -851,13 +751,7 @@ func ProcessData(data []string, callback func(string) error) (*MyType, error) {
 		"[]string",           // slice type
 		"func(string) error", // function type
 		"*run.MyType",        // pointer to custom type (with qualifier since it's from different package)
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRun_CallableWrapper_MapAndChannelTypes(t *testing.T) {
@@ -885,15 +779,8 @@ func ProcessMap(data map[string]int, ch chan<- string) map[int][]string {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ProcessMapImp.go"]
-	if !ok {
-		t.Fatal("Expected ProcessMapImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify map and channel types are handled correctly
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ProcessMapImp.go", []string{
 		"type ProcessMapImp struct",
 		"type ProcessMapImpReturn struct",
 		"func NewProcessMapImp",
@@ -902,13 +789,7 @@ func ProcessMap(data map[string]int, ch chan<- string) map[int][]string {
 		"map[string]int",   // map type
 		"chan<- string",    // send-only channel
 		"map[int][]string", // return map type with slice value
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRun_CallableWrapper_Simple(t *testing.T) {
@@ -936,14 +817,7 @@ func PrintSum(a, b int) int {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_PrintSumImp.go"]
-	if !ok {
-		t.Fatal("Expected PrintSumImp.go to be created")
-	}
-
-	contentStr := string(content)
-
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_PrintSumImp.go", []string{
 		"type PrintSumImp struct",
 		"type PrintSumImpReturn struct",
 		"func NewPrintSumImp",
@@ -951,13 +825,7 @@ func PrintSum(a, b int) int {
 		"func (s *PrintSumImp) ExpectReturnedValuesAre(v1 int)",
 		"ReturnChan",
 		"PanicChan",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRun_ComplexInterface(t *testing.T) {
@@ -985,26 +853,14 @@ type ComplexInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ComplexImp.go"]
-	if !ok {
-		t.Error("Expected ComplexImp.go to be created")
-	}
-
 	// Basic check that content contains expected strings
-	contentStr := string(content)
-
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ComplexImp.go", []string{
 		"type ComplexImp struct",
 		"func (m *ComplexImpMock) Method1(a int, b string) (bool, error)",
 		"func (m *ComplexImpMock) Method2(fn func(int) int)",
 		"func (m *ComplexImpMock) Method3(a int, b int)",
 		"func (m *ComplexImpMock) Method4() (x, y int)",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-		}
-	}
+	})
 }
 
 func TestRun_ComplexTypes(t *testing.T) {
@@ -1030,24 +886,12 @@ type ComplexInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ComplexImp.go"]
-	if !ok {
-		t.Fatal("Expected ComplexImp.go to be created")
-	}
-
-	contentStr := string(content)
-
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ComplexImp.go", []string{
 		"<-chan int",
 		"chan<- string",
 		"*os.File",
 		"[5]*int",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-		}
-	}
+	})
 }
 
 func TestRun_EmbeddedInterface(t *testing.T) {
@@ -1377,27 +1221,14 @@ type GenericInterface[T any, U comparable] interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_GenericImp.go"]
-	if !ok {
-		t.Error("Expected GenericImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify generic type parameters are rendered correctly
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_GenericImp.go", []string{
 		"type GenericImp[T any, U comparable] struct",
 		"type GenericImpMock[T any, U comparable] struct",
 		"func NewGenericImp[T any, U comparable](t *testing.T) *GenericImp[T, U]",
 		"func (m *GenericImpMock[T, U]) Process(item T) U",
 		"func (m *GenericImpMock[T, U]) Compare(a U, b U) bool",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 func TestRun_InterfaceWithExportedTypes(t *testing.T) {
@@ -1463,22 +1294,10 @@ type GenericInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_GenericImp.go"]
-	if !ok {
-		t.Fatal("Expected GenericImp.go to be created")
-	}
-
-	contentStr := string(content)
-
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_GenericImp.go", []string{
 		"Container[int]",
 		"Pair[string, bool]",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-		}
-	}
+	})
 }
 
 func TestRun_InterfaceWithMissingTypeInfo(t *testing.T) {
@@ -1881,14 +1700,7 @@ type ValueInterface interface {
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_ValueImp.go"]
-	if !ok {
-		t.Error("Expected ValueImp.go to be created")
-	}
-
-	contentStr := string(content)
-
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_ValueImp.go", []string{
 		// Test single return optimization (InjectResult instead of InjectResults)
 		"func (c *ValueImpSingleReturnCall) InjectResult(result int)",
 
@@ -1913,13 +1725,7 @@ type ValueInterface interface {
 		"func (m *ValueImpMock) OneBool(param0 bool)",
 		// Call struct uses A (fallthrough)
 		"A:            param0",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr) // Debugging
-		}
-	}
+	})
 }
 
 func TestRun_WriteError(t *testing.T) {
@@ -2158,26 +1964,15 @@ var _ = run.Player{}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_PlayerPlayImp.go"]
-	if !ok {
-		t.Fatal("Expected PlayerPlayImp.go to be created")
-	}
-
-	contentStr := string(content)
-
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_PlayerPlayImp.go", []string{
 		"type PlayerPlayImp struct",
 		"func NewPlayerPlayImp",
 		"func (s *PlayerPlayImp) Start",
 		"func (s *PlayerPlayImp) ExpectReturnedValues",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-		}
-	}
+	})
 
 	// Should not import the run package since Play() has no params or returns
+	contentStr := getGeneratedContent(t, mockFS, "generated_PlayerPlayImp.go")
 	if strings.Contains(contentStr, `"github.com/toejough/imptest/UAT/run"`) {
 		t.Error("Should not import run package for method with no params or returns")
 	}
@@ -2214,27 +2009,14 @@ var _ = run.Calculator{}
 		t.Fatalf("Run failed: %v", err)
 	}
 
-	content, ok := mockFS.files["generated_CalculatorAddImp.go"]
-	if !ok {
-		t.Fatal("Expected CalculatorAddImp.go to be created")
-	}
-
-	contentStr := string(content)
-
 	// Verify structure
-	expected := []string{
+	assertGeneratedContains(t, mockFS, "generated_CalculatorAddImp.go", []string{
 		"type CalculatorAddImp struct",
 		"type CalculatorAddImpReturn struct",
 		"func NewCalculatorAddImp",
 		"func (s *CalculatorAddImp) Start(a, b int)",
 		"func (s *CalculatorAddImp) ExpectReturnedValues",
-	}
-	for _, exp := range expected {
-		if !strings.Contains(contentStr, exp) {
-			t.Errorf("Expected generated code to contain %q", exp)
-			t.Logf("Generated code:\n%s", contentStr)
-		}
-	}
+	})
 }
 
 // unexported constants.
