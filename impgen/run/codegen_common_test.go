@@ -451,24 +451,24 @@ func TestParamNamesToString_mutant(t *testing.T) {
 		{
 			name: "single param",
 			params: []fieldInfo{
-				{Name: "x", Type: "int", Index: 0},
+				{Name: "x", Index: 0},
 			},
 			expected: "x",
 		},
 		{
 			name: "multiple params",
 			params: []fieldInfo{
-				{Name: "x", Type: "int", Index: 0},
-				{Name: "y", Type: "string", Index: 1},
-				{Name: "z", Type: "bool", Index: 2},
+				{Name: "x", Index: 0},
+				{Name: "y", Index: 1},
+				{Name: "z", Index: 2},
 			},
 			expected: "x, y, z",
 		},
 		{
 			name: "generated param names",
 			params: []fieldInfo{
-				{Name: "param0", Type: "int", Index: 0},
-				{Name: "param1", Type: "string", Index: 1},
+				{Name: "param0", Index: 0},
+				{Name: "param1", Index: 1},
 			},
 			expected: "param0, param1",
 		},

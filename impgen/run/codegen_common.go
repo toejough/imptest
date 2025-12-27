@@ -216,9 +216,8 @@ func (w *codeWriter) pf(format string, args ...any) {
 // fieldInfo represents extracted information about a single field entry.
 type fieldInfo struct {
 	Name  string     // The name (explicit or generated)
-	Type  string     // The type as a string
 	Index int        // The overall index across all fields
-	Field *dst.Field // The original AST field
+	Field *dst.Field // The original AST field (use Field.Type with typeWithQualifier)
 }
 
 // paramVisitor is called for each parameter during iteration.
@@ -496,7 +495,7 @@ func exprToString(_ *token.FileSet, expr dst.Expr) string {
 // extractFields extracts all individual fields from a field list.
 // For unnamed fields, generates names using the provided prefix and index.
 // For named fields with multiple names, creates separate entries for each.
-func extractFields(fset *token.FileSet, fields *dst.FieldList, prefix string) []fieldInfo {
+func extractFields(fields *dst.FieldList, prefix string) []fieldInfo {
 	if fields == nil {
 		return nil
 	}
@@ -506,14 +505,10 @@ func extractFields(fset *token.FileSet, fields *dst.FieldList, prefix string) []
 	index := 0
 
 	for _, field := range fields.List {
-		typeStr := exprToString(fset, field.Type)
-		structType := normalizeVariadicType(typeStr)
-
 		if hasFieldNames(field) {
 			for _, name := range field.Names {
 				result = append(result, fieldInfo{
 					Name:  name.Name,
-					Type:  structType,
 					Index: index,
 					Field: field,
 				})
@@ -523,7 +518,6 @@ func extractFields(fset *token.FileSet, fields *dst.FieldList, prefix string) []
 		} else {
 			result = append(result, fieldInfo{
 				Name:  fmt.Sprintf("%s%d", prefix, index),
-				Type:  structType,
 				Index: index,
 				Field: field,
 			})
@@ -536,13 +530,13 @@ func extractFields(fset *token.FileSet, fields *dst.FieldList, prefix string) []
 }
 
 // extractParams extracts parameter info from a function type.
-func extractParams(fset *token.FileSet, ftype *dst.FuncType) []fieldInfo {
-	return extractFields(fset, ftype.Params, "param")
+func extractParams(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
+	return extractFields(ftype.Params, "param")
 }
 
 // extractResults extracts result info from a function type.
-func extractResults(fset *token.FileSet, ftype *dst.FuncType) []fieldInfo {
-	return extractFields(fset, ftype.Results, "Result")
+func extractResults(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
+	return extractFields(ftype.Results, "Result")
 }
 
 // fieldNameCount returns the number of names in a field (at least 1 for unnamed fields).
@@ -889,8 +883,6 @@ func stringifyDSTExpr(expr dst.Expr) string {
 		default:
 			return "chan " + stringifyDSTExpr(typedExpr.Value)
 		}
-	case *dst.FuncType:
-		return stringifyFuncType(typedExpr)
 	case *dst.InterfaceType:
 		return "interface{}"
 	case *dst.StructType:
@@ -911,45 +903,6 @@ func stringifyDSTExpr(expr dst.Expr) string {
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
-}
-
-// stringifyFieldList converts a field list to string.
-func stringifyFieldList(fieldList *dst.FieldList) string {
-	if fieldList == nil || len(fieldList.List) == 0 {
-		return ""
-	}
-
-	parts := make([]string, 0, len(fieldList.List))
-	for _, field := range fieldList.List {
-		parts = append(parts, stringifyDSTExpr(field.Type))
-	}
-
-	return strings.Join(parts, ", ")
-}
-
-// stringifyFuncType converts a function type to string.
-func stringifyFuncType(funcType *dst.FuncType) string {
-	var buf strings.Builder
-	buf.WriteString("func")
-
-	if funcType.Params != nil {
-		buf.WriteString("(")
-		buf.WriteString(stringifyFieldList(funcType.Params))
-		buf.WriteString(")")
-	}
-
-	if funcType.Results != nil {
-		if len(funcType.Results.List) > 1 {
-			buf.WriteString(" (")
-			buf.WriteString(stringifyFieldList(funcType.Results))
-			buf.WriteString(")")
-		} else if len(funcType.Results.List) == 1 {
-			buf.WriteString(" ")
-			buf.WriteString(stringifyFieldList(funcType.Results))
-		}
-	}
-
-	return buf.String()
 }
 
 // typeWithQualifierFunc handles function types.

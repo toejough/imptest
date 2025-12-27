@@ -247,7 +247,7 @@ func (gen *codeGenerator) generateBuilderShortcuts(
 	if hasResults(ftype) {
 		// Generate InjectResult shortcut
 		if len(ftype.Results.List) == 1 {
-			resultType := exprToString(gen.fset, ftype.Results.List[0].Type)
+			resultType := gen.typeWithQualifier(ftype.Results.List[0].Type)
 			gen.pf("// InjectResult waits for a %s call and immediately injects the return value.\n", methodName)
 			gen.pf("// This is a shortcut that combines waiting for the call with injecting the result.\n")
 			gen.pf("// Returns the call object for further operations. Fails if no call arrives within the timeout.\n")
