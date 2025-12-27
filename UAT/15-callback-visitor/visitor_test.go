@@ -8,20 +8,9 @@ import (
 	"testing"
 	"time"
 
-	imptest "github.com/toejough/imptest/imptest"
 	visitor "github.com/toejough/imptest/UAT/15-callback-visitor"
+	imptest "github.com/toejough/imptest/imptest"
 )
-
-// mockDirEntry is a simple fs.DirEntry implementation for testing.
-type mockDirEntry struct {
-	name  string
-	isDir bool
-}
-
-func (m mockDirEntry) Name() string               { return m.name }
-func (m mockDirEntry) IsDir() bool                { return m.isDir }
-func (m mockDirEntry) Type() fs.FileMode          { return 0 }
-func (m mockDirEntry) Info() (fs.FileInfo, error) { return nil, nil }
 
 //nolint:varnamelen // Standard Go testing convention
 func TestCountFiles(t *testing.T) {
@@ -47,3 +36,18 @@ func TestCountFiles(t *testing.T) {
 	// Verify the results - should count only the 2 non-directory entries
 	callable.ExpectReturnedValuesAre(2, nil)
 }
+
+// mockDirEntry is a simple fs.DirEntry implementation for testing.
+type mockDirEntry struct {
+	name  string
+	isDir bool
+}
+
+//nolint:nilnil // Test mock implementation - error scenario not tested
+func (m mockDirEntry) Info() (fs.FileInfo, error) { return nil, nil }
+
+func (m mockDirEntry) IsDir() bool { return m.isDir }
+
+func (m mockDirEntry) Name() string { return m.name }
+
+func (m mockDirEntry) Type() fs.FileMode { return 0 }

@@ -1,6 +1,9 @@
 package visitor
 
-import "io/fs"
+import (
+	"fmt"
+	"io/fs"
+)
 
 // TreeWalker walks a directory tree, calling fn for each entry.
 type TreeWalker interface {
@@ -10,14 +13,21 @@ type TreeWalker interface {
 // CountFiles counts regular files using the walker.
 func CountFiles(walker TreeWalker, root string) (int, error) {
 	count := 0
-	err := walker.Walk(root, func(path string, d fs.DirEntry, err error) error {
+
+	err := walker.Walk(root, func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+
 		if !d.IsDir() {
 			count++
 		}
+
 		return nil
 	})
-	return count, err
+	if err != nil {
+		return 0, fmt.Errorf("walking directory tree: %w", err)
+	}
+
+	return count, nil
 }

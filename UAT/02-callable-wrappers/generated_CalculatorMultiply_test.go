@@ -3,7 +3,6 @@
 package callable_test
 
 import (
-	callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
 	_imptest "github.com/toejough/imptest/imptest"
 	_testing "testing"
 )

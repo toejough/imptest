@@ -35,70 +35,9 @@ type callableGenerator struct {
 
 	templates                  *TemplateRegistry
 	funcDecl                   *dst.FuncDecl
-	astFiles                   []*dst.File // Source AST files for import resolution
+	astFiles                   []*dst.File                   // Source AST files for import resolution
 	cachedTemplateData         *callableTemplateData         // Cache to avoid redundant templateData() calls
 	cachedExtendedTemplateData *callableExtendedTemplateData // Cache to avoid redundant extendedTemplateData() calls
-}
-
-// collectAdditionalImports collects all external type imports needed for the callable function signature.
-func (g *callableGenerator) collectAdditionalImports() []importInfo {
-	if len(g.astFiles) == 0 {
-		return nil
-	}
-
-	// Get source imports from the first AST file
-	var sourceImports []*dst.ImportSpec
-	for _, file := range g.astFiles {
-		if len(file.Imports) > 0 {
-			sourceImports = file.Imports
-			break
-		}
-	}
-
-	allImports := make(map[string]importInfo) // Deduplicate by path
-
-	// If we have a qualifier (e.g., "visitor"), we need to import that package
-	// This handles cases where the source package (visitor) contains types that
-	// need to be imported when generating in the test package (visitor_test)
-	if g.qualifier != "" && g.pkgPath != "" {
-		allImports[g.pkgPath] = importInfo{
-			Alias: g.qualifier,
-			Path:  g.pkgPath,
-		}
-	}
-
-	// Collect from parameters
-	if g.funcDecl.Type.Params != nil {
-		for _, field := range g.funcDecl.Type.Params.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Collect from return types
-	if g.funcDecl.Type.Results != nil {
-		for _, field := range g.funcDecl.Type.Results.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Convert map to slice and sort for deterministic output
-	result := make([]importInfo, 0, len(allImports))
-	for _, imp := range allImports {
-		result = append(result, imp)
-	}
-
-	// Sort by import path for consistent ordering
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Path < result[j].Path
-	})
-
-	return result
 }
 
 // buildReturnFieldData builds return field data with types for templates.
@@ -140,6 +79,60 @@ func (g *callableGenerator) checkIfReflectNeeded(funcType *dst.FuncType) {
 			return
 		}
 	}
+}
+
+// collectAdditionalImports collects all external type imports needed for the callable function signature.
+//
+//nolint:cyclop // Import collection requires iteration over parameters and results
+func (g *callableGenerator) collectAdditionalImports() []importInfo {
+	if len(g.astFiles) == 0 {
+		return nil
+	}
+
+	// Get source imports from the first AST file
+	var sourceImports []*dst.ImportSpec
+
+	for _, file := range g.astFiles {
+		if len(file.Imports) > 0 {
+			sourceImports = file.Imports
+			break
+		}
+	}
+
+	allImports := make(map[string]importInfo) // Deduplicate by path
+
+	// Collect from parameters
+	if g.funcDecl.Type.Params != nil {
+		for _, field := range g.funcDecl.Type.Params.List {
+			imports := collectExternalImports(field.Type, sourceImports)
+			for _, imp := range imports {
+				allImports[imp.Path] = imp
+			}
+		}
+	}
+
+	// Collect from return types
+	if g.funcDecl.Type.Results != nil {
+		for _, field := range g.funcDecl.Type.Results.List {
+			imports := collectExternalImports(field.Type, sourceImports)
+			for _, imp := range imports {
+				allImports[imp.Path] = imp
+			}
+		}
+	}
+
+	// Convert map to slice and sort for deterministic output
+	result := make([]importInfo, 0, len(allImports))
+	for _, imp := range allImports {
+		result = append(result, imp)
+	}
+
+	// Sort by import path for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
+
+	return result
 }
 
 // extendedTemplateData returns template data with dynamic signature info.
@@ -411,6 +404,8 @@ type returnFieldData struct {
 // Entry Point
 
 // generateCallableWrapperCode generates a type-safe wrapper for a callable function.
+//
+//nolint:cyclop,funlen,nestif // Code generation requires conditional logic for package resolution
 func generateCallableWrapperCode(
 	astFiles []*dst.File,
 	info generatorInfo,
@@ -425,6 +420,7 @@ func generateCallableWrapperCode(
 	}
 
 	var pkgPath, qualifier string
+
 	if pkgImportPath != "." {
 		// For callables, GetPackageInfo won't work since function names don't have package qualifiers
 		// Instead, if we're in a test package, we need to import the source package

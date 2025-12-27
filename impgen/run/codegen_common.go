@@ -222,6 +222,14 @@ type fieldInfo struct {
 	Field *dst.Field // The original AST field (use Field.Type with typeWithQualifier)
 }
 
+// funcParamInfo holds information about a function-typed parameter.
+type funcParamInfo struct {
+	Name      string        // Parameter name (e.g., "fn")
+	Index     int           // Parameter index
+	FuncType  *dst.FuncType // The function type
+	FieldInfo fieldInfo     // Original field info
+}
+
 // paramVisitor is called for each parameter during iteration.
 // Returns the next (paramNameIndex, unnamedIndex).
 type paramVisitor func(
@@ -678,14 +686,6 @@ func hasParams(ftype *dst.FuncType) bool {
 // hasResults returns true if the function type has return values.
 func hasResults(ftype *dst.FuncType) bool {
 	return ftype.Results != nil && len(ftype.Results.List) > 0
-}
-
-// funcParamInfo holds information about a function-typed parameter.
-type funcParamInfo struct {
-	Name      string        // Parameter name (e.g., "fn")
-	Index     int           // Parameter index
-	FuncType  *dst.FuncType // The function type
-	FieldInfo fieldInfo     // Original field info
 }
 
 // isBasicComparableType determines if an expression is a basic type that supports == comparison.
