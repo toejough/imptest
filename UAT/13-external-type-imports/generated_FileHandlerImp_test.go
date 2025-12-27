@@ -576,6 +576,6 @@ type FileHandlerImpTimed struct {
 
 // unexported variables.
 var (
-	// Compile-time verification that FileHandlerImpMock implements _externalimports.FileHandler.
-	_ _externalimports.FileHandler = (*FileHandlerImpMock)(nil)
+	// Compile-time verification that FileHandlerImpMock implements externalimports.FileHandler.
+	_ externalimports.FileHandler = (*FileHandlerImpMock)(nil)
 )

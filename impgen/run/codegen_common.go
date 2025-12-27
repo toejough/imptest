@@ -430,6 +430,46 @@ func (tf *typeFormatter) typeWithQualifierStar(t *dst.StarExpr) string {
 	return buf.String()
 }
 
+// collectExternalImports walks a type expression and collects package references
+// from SelectorExpr nodes (e.g., "io.Reader", "os.FileMode").
+// It resolves each package reference to its full import path using the source imports.
+func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []importInfo {
+	var imports []importInfo
+
+	seen := make(map[string]bool) // Deduplicate by import path
+
+	walker := &typeExprWalker[struct{}]{
+		visitIdent: func(*dst.Ident) struct{} {
+			return struct{}{}
+		},
+		visitSelector: func(sel *dst.SelectorExpr) struct{} {
+			// Check if X is an identifier (package reference)
+			if ident, ok := sel.X.(*dst.Ident); ok {
+				pkgAlias := ident.Name
+				// Find the import path for this package alias
+				path := resolveImportPath(pkgAlias, sourceImports)
+				if path != "" && !seen[path] {
+					seen[path] = true
+					imports = append(imports, importInfo{
+						Alias: pkgAlias,
+						Path:  path,
+					})
+				}
+			}
+
+			return struct{}{}
+		},
+		combine: func(_, _ struct{}) struct{} {
+			return struct{}{}
+		},
+		zero: struct{}{},
+	}
+
+	walker.walk(expr)
+
+	return imports
+}
+
 // countFields counts the total number of individual fields in a field list.
 func countFields(fields *dst.FieldList) int {
 	if fields == nil {
@@ -654,13 +694,14 @@ func isBasicComparableType(expr dst.Expr) bool {
 	switch t := expr.(type) {
 	case *dst.Ident:
 		// Basic built-in types
+		//nolint:goconst // These are Go type keywords, not magic strings
 		switch t.Name {
 		case "bool",
-			"int", "int8", "int16", "int32", "int64", //nolint:goconst // Go type keywords
+			"int", "int8", "int16", "int32", "int64",
 			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
 			"float32", "float64",
 			"complex64", "complex128",
-			"string", "byte", "rune": //nolint:goconst // Go type keywords
+			"string", "byte", "rune":
 			return true
 		}
 		// Everything else: custom types, interfaces, etc. → use DeepEqual
@@ -782,6 +823,36 @@ func paramNamesToString(params []fieldInfo) string {
 	}
 
 	return strings.Join(names, ", ")
+}
+
+// resolveImportPath finds the full import path for a package alias in the source imports.
+// Returns empty string if the alias is not found.
+func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
+	for _, imp := range imports {
+		var pkgName string
+		if imp.Name != nil {
+			// Aliased import: `foo "github.com/example/bar"`
+			pkgName = imp.Name.Name
+		} else {
+			// Standard import: extract package name from path
+			// "github.com/example/bar" -> "bar"
+			// "io" -> "io"
+			path := strings.Trim(imp.Path.Value, `"`)
+
+			lastSlash := strings.LastIndex(path, "/")
+			if lastSlash >= 0 {
+				pkgName = path[lastSlash+1:]
+			} else {
+				pkgName = path
+			}
+		}
+
+		if pkgName == alias {
+			return strings.Trim(imp.Path.Value, `"`)
+		}
+	}
+
+	return ""
 }
 
 // stringifyDSTExpr converts a DST expression to its string representation.

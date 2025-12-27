@@ -7,6 +7,7 @@ import (
 )
 
 func TestExternalTypesCompile(t *testing.T) {
+	t.Parallel()
 	// If this compiles, the imports are correct
 	_ = NewFileHandlerImp(t)
 }

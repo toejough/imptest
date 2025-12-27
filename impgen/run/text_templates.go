@@ -51,6 +51,7 @@ import {{.PkgImptest}} "github.com/toejough/imptest/imptest"
 {{end}}import {{.PkgTesting}} "testing"
 import {{.PkgTime}} "time"
 {{if .NeedsQualifier}}import {{.Qualifier}} "{{.PkgPath}}"
+{{end}}{{range .AdditionalImports}}import "{{.Path}}"
 {{end}}`)
 	if err != nil {
 		return nil, err
@@ -266,6 +267,7 @@ import (
 {{if .NeedsReflect}}	{{.PkgReflect}} "reflect"
 {{end}}	{{.PkgTesting}} "testing"
 {{if .NeedsQualifier}}	{{.Qualifier}} "{{.PkgPath}}"
+{{end}}{{range .AdditionalImports}}	"{{.Path}}"
 {{end}})
 
 `)

@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/token"
 	go_types "go/types"
+	"sort"
 	"strings"
 
 	"github.com/dave/dst"
@@ -106,6 +107,70 @@ func (gen *codeGenerator) checkIfValidForExternalUsage() error {
 	})
 
 	return validationErr
+}
+
+// collectAdditionalImports collects all external type imports needed for the interface methods.
+// It walks through all method parameters and return types, collecting package references.
+func (gen *codeGenerator) collectAdditionalImports() []importInfo {
+	if gen.identifiedInterface == nil || len(gen.astFiles) == 0 {
+		return nil
+	}
+
+	// Get source imports from the first AST file
+	sourceImports := gen.getSourceImports()
+
+	// Collect imports from all method signatures
+	allImports := gen.collectMethodImports(sourceImports)
+
+	// Convert map to slice and sort for deterministic output
+	result := make([]importInfo, 0, len(allImports))
+	for _, imp := range allImports {
+		result = append(result, imp)
+	}
+
+	// Sort by import path for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
+
+	return result
+}
+
+// collectFieldListImports collects external imports from a field list (params or returns).
+func (gen *codeGenerator) collectFieldListImports(
+	fields *dst.FieldList,
+	sourceImports []*dst.ImportSpec,
+	allImports map[string]importInfo,
+) {
+	if fields == nil {
+		return
+	}
+
+	for _, field := range fields.List {
+		imports := collectExternalImports(field.Type, sourceImports)
+		for _, imp := range imports {
+			allImports[imp.Path] = imp
+		}
+	}
+}
+
+// collectMethodImports walks through all interface methods and collects external imports.
+func (gen *codeGenerator) collectMethodImports(sourceImports []*dst.ImportSpec) map[string]importInfo {
+	allImports := make(map[string]importInfo) // Deduplicate by path
+
+	for _, method := range gen.identifiedInterface.Methods.List {
+		funcType, ok := method.Type.(*dst.FuncType)
+		if !ok {
+			continue
+		}
+
+		// Collect from parameters
+		gen.collectFieldListImports(funcType.Params, sourceImports, allImports)
+		// Collect from return types
+		gen.collectFieldListImports(funcType.Results, sourceImports, allImports)
+	}
+
+	return allImports
 }
 
 // forEachMethod iterates over interface methods and calls the callback for each.
@@ -547,6 +612,17 @@ func (gen *codeGenerator) generateTimedStruct() {
 	gen.templates.WriteTimedStruct(&gen.buf, gen.templateData())
 }
 
+// getSourceImports returns the import specs from the first AST file that has imports.
+func (gen *codeGenerator) getSourceImports() []*dst.ImportSpec {
+	for _, file := range gen.astFiles {
+		if len(file.Imports) > 0 {
+			return file.Imports
+		}
+	}
+
+	return nil
+}
+
 // methodBuilderName returns the builder struct name for a method (e.g. "MyImpAddBuilder").
 func (gen *codeGenerator) methodBuilderName(methodName string) string {
 	return gen.impName + methodName + "Builder"
@@ -609,19 +685,20 @@ func (gen *codeGenerator) templateData() templateData {
 
 	data := templateData{
 		baseTemplateData: baseTemplateData{
-			PkgName:        gen.pkgName,
-			ImpName:        gen.impName,
-			PkgPath:        gen.pkgPath,
-			Qualifier:      gen.qualifier,
-			NeedsQualifier: gen.needsQualifier,
-			TypeParamsDecl: gen.formatTypeParamsDecl(),
-			TypeParamsUse:  gen.formatTypeParamsUse(),
-			PkgTesting:     pkgTesting,
-			PkgImptest:     pkgImptest,
-			PkgTime:        pkgTime,
-			PkgReflect:     pkgReflect,
-			NeedsReflect:   gen.needsReflect,
-			NeedsImptest:   gen.needsImptest,
+			PkgName:           gen.pkgName,
+			ImpName:           gen.impName,
+			PkgPath:           gen.pkgPath,
+			Qualifier:         gen.qualifier,
+			NeedsQualifier:    gen.needsQualifier,
+			TypeParamsDecl:    gen.formatTypeParamsDecl(),
+			TypeParamsUse:     gen.formatTypeParamsUse(),
+			PkgTesting:        pkgTesting,
+			PkgImptest:        pkgImptest,
+			PkgTime:           pkgTime,
+			PkgReflect:        pkgReflect,
+			NeedsReflect:      gen.needsReflect,
+			NeedsImptest:      gen.needsImptest,
+			AdditionalImports: gen.collectAdditionalImports(),
 		},
 		MockName:         gen.mockName,
 		CallName:         gen.callName,
@@ -1119,7 +1196,7 @@ func interfaceProcessFieldMethods(
 
 // newCodeGenerator initializes a codeGenerator with common properties and performs initial setup.
 //
-//nolint:funlen,cyclop // Constructor with necessary initialization logic
+//nolint:funlen // Constructor with necessary initialization logic
 func newCodeGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
@@ -1137,24 +1214,9 @@ func newCodeGenerator(
 	)
 	// Get package info for external interfaces OR when in a _test package (which needs to import the non-test package)
 	if pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test") {
-		pkgPath, qualifier, err = GetPackageInfo(
-			info.interfaceName,
-			pkgLoader,
-			info.pkgName,
-		)
+		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get interface package info: %w", err)
-		}
-
-		// Special case: when in a test package (e.g., "imptest_test") and the interface
-		// has no package qualifier (GetPackageInfo returned empty), the interface is from
-		// the non-test version of this package. We need to use the aliased package name.
-		if qualifier == "" && strings.HasSuffix(info.pkgName, "_test") {
-			// Strip _test suffix to get the base package name
-			basePkgName := strings.TrimSuffix(info.pkgName, "_test")
-			// Use the aliased version (e.g., "_imptest" for "imptest")
-			qualifier = "_" + basePkgName
-			pkgPath = "" // Not needed for local package reference
 		}
 	}
 
@@ -1209,4 +1271,49 @@ func newCodeGenerator(
 	}
 
 	return gen, nil
+}
+
+// resolvePackageInfo resolves the package path and qualifier for an interface.
+// Handles special case of test packages needing to import the non-test version.
+func resolvePackageInfo(info generatorInfo, pkgLoader PackageLoader) (pkgPath, qualifier string, err error) {
+	pkgPath, qualifier, err = GetPackageInfo(
+		info.interfaceName,
+		pkgLoader,
+		info.pkgName,
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Special case: when in a test package (e.g., "imptest_test") and the interface
+	// has no package qualifier (GetPackageInfo returned empty), the interface is from
+	// the non-test version of this package. We need to import it with its full path.
+	if qualifier == "" && strings.HasSuffix(info.pkgName, "_test") {
+		basePkgPath, baseQualifier := resolveTestPackageImport(pkgLoader, info.pkgName)
+		if basePkgPath != "" {
+			return basePkgPath, baseQualifier, nil
+		}
+	}
+
+	return pkgPath, qualifier, nil
+}
+
+// resolveTestPackageImport resolves the import path for the non-test version of a test package.
+func resolveTestPackageImport(pkgLoader PackageLoader, pkgName string) (pkgPath, qualifier string) {
+	// Strip _test suffix to get the base package name
+	basePkgName := strings.TrimSuffix(pkgName, "_test")
+
+	// Load the non-test package to get its import path
+	basePkgFiles, baseFset, _, err := pkgLoader.Load(".")
+	if err != nil || len(basePkgFiles) == 0 {
+		return "", ""
+	}
+
+	// Get the import path from the package's own declaration
+	path, err := getImportPathFromFiles(basePkgFiles, baseFset, "")
+	if err != nil || path == "" {
+		return "", ""
+	}
+
+	return path, basePkgName
 }

@@ -24,6 +24,9 @@ type baseTemplateData struct {
 	// User's package (Qualifier/PkgPath) is imported without alias.
 	NeedsReflect bool // Whether reflect import is needed for DeepEqual
 	NeedsImptest bool // Whether imptest import is needed for matchers
+
+	// Additional imports needed for external types used in method signatures
+	AdditionalImports []importInfo
 }
 
 // callStructMethodData holds data for generating call struct methods with method field info.
@@ -47,6 +50,12 @@ type callableTemplateData struct {
 	HasReturns bool
 	ReturnType string // "{ImpName}Return" or "struct{}"
 	NumReturns int
+}
+
+// importInfo holds information about an additional import needed for external types.
+type importInfo struct {
+	Alias string // Package alias/name (e.g., "io", "os")
+	Path  string // Full import path (e.g., "io", "os", "github.com/dave/dst")
 }
 
 // methodTemplateData holds data for method-specific templates.
