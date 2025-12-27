@@ -161,9 +161,17 @@ func (gen *codeGenerator) collectFieldListImports(
 	}
 
 	for _, field := range fields.List {
+		// Collect direct imports from the field type
 		imports := collectExternalImports(field.Type, sourceImports)
 		for _, imp := range imports {
 			allImports[imp.Path] = imp
+		}
+
+		// If this is a type alias that resolves to a function type,
+		// also collect imports from the underlying function's parameters and returns
+		if funcType := resolveToFuncType(field.Type, gen.astFiles, sourceImports, gen.pkgLoader); funcType != nil {
+			gen.collectFieldListImports(funcType.Params, sourceImports, allImports)
+			gen.collectFieldListImports(funcType.Results, sourceImports, allImports)
 		}
 	}
 }
@@ -188,19 +196,21 @@ func (gen *codeGenerator) collectMethodImports(sourceImports []*dst.ImportSpec) 
 }
 
 // extractFuncParams returns information about function-typed parameters in a function.
-// For now, only detects inline function types (func(...) ...), not named type aliases.
+// Supports inline function types, local type aliases, and external types.
 func (gen *codeGenerator) extractFuncParams(ftype *dst.FuncType) []funcParamInfo {
 	if !hasParams(ftype) {
 		return nil
 	}
 
 	params := extractParams(nil, ftype)
+	sourceImports := gen.getSourceImports()
 
 	var funcParams []funcParamInfo
 
 	for _, param := range params {
-		// Check if it's a direct inline function type
-		if funcType, ok := param.Field.Type.(*dst.FuncType); ok {
+		// Resolve the parameter type to a function type if possible
+		funcType := resolveToFuncType(param.Field.Type, gen.astFiles, sourceImports, gen.pkgLoader)
+		if funcType != nil {
 			funcParams = append(funcParams, funcParamInfo{
 				Name:      param.Name,
 				Index:     param.Index,
@@ -874,15 +884,26 @@ func (gen *codeGenerator) generateTimedStruct() {
 	gen.templates.WriteTimedStruct(&gen.buf, gen.templateData())
 }
 
-// getSourceImports returns the import specs from the first AST file that has imports.
+// getSourceImports returns combined import specs from all AST files.
+// This collects imports from all files including source and generated files
+// to ensure type resolution and import collection work correctly.
 func (gen *codeGenerator) getSourceImports() []*dst.ImportSpec {
+	var allImports []*dst.ImportSpec
+
+	seen := make(map[string]bool)
+
 	for _, file := range gen.astFiles {
-		if len(file.Imports) > 0 {
-			return file.Imports
+		for _, imp := range file.Imports {
+			path := imp.Path.Value
+			if !seen[path] {
+				seen[path] = true
+
+				allImports = append(allImports, imp)
+			}
 		}
 	}
 
-	return nil
+	return allImports
 }
 
 // methodBuilderName returns the builder struct name for a method (e.g. "MyImpAddBuilder").

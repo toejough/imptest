@@ -177,11 +177,13 @@ func (m *TreeWalkerImpMock) Walk(root string, fn func(string, fs.DirEntry, error
 // The method blocks until a response is injected via the test controller.
 func (m *TreeWalkerImpMock) WalkWithNamedType(root string, fn visitor.WalkFunc) error {
 	responseChan := make(chan TreeWalkerImpWalkWithNamedTypeCallResponse, 1)
+	callbackFnChan := make(chan TreeWalkerImpWalkWithNamedTypeCallFnRequest)
 
 	call := &TreeWalkerImpWalkWithNamedTypeCall{
-		responseChan: responseChan,
-		root:         root,
-		fn:           fn,
+		responseChan:   responseChan,
+		callbackFnChan: callbackFnChan,
+		root:           root,
+		fn:             fn,
 	}
 
 	callEvent := &TreeWalkerImpCall{
@@ -190,13 +192,22 @@ func (m *TreeWalkerImpMock) WalkWithNamedType(root string, fn visitor.WalkFunc) 
 
 	m.imp.CallChan <- callEvent
 
-	resp := <-responseChan
-
-	if resp.Type == "panic" {
-		panic(resp.PanicValue)
+	// Handle callback invocations and final response
+	var resp TreeWalkerImpWalkWithNamedTypeCallResponse
+	for {
+		select {
+		case cbReq := <-callbackFnChan:
+			// Direct invocation with typed values - no type assertions needed
+			result0 := fn(cbReq.Path, cbReq.D, cbReq.Err)
+			cbReq.ResultChan <- TreeWalkerImpWalkWithNamedTypeCallFnResponse{Result0: result0}
+		case resp = <-responseChan:
+			// Final response received
+			if resp.Type == "panic" {
+				panic(resp.PanicValue)
+			}
+			return resp.Result0
+		}
 	}
-
-	return resp.Result0
 }
 
 // TreeWalkerImpTimed provides timeout-configured expectation methods.
@@ -452,6 +463,8 @@ type TreeWalkerImpWalkWithNamedTypeCall struct {
 	done         bool
 	root         string
 	fn           visitor.WalkFunc
+	// Callback coordination channels
+	callbackFnChan chan TreeWalkerImpWalkWithNamedTypeCallFnRequest
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -460,13 +473,51 @@ type TreeWalkerImpWalkWithNamedTypeCall struct {
 func (c *TreeWalkerImpWalkWithNamedTypeCall) InjectPanic(msg any) {
 	c.done = true
 	c.responseChan <- TreeWalkerImpWalkWithNamedTypeCallResponse{Type: "panic", PanicValue: msg}
-}
+} // TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult holds the result of invoking the fn callback.
 
 // InjectResult sets the return value for this method call and unblocks the caller.
 // The mocked method will return the provided result value.
 func (c *TreeWalkerImpWalkWithNamedTypeCall) InjectResult(result error) {
 	c.done = true
 	c.responseChan <- TreeWalkerImpWalkWithNamedTypeCallResponse{Type: "return", Result0: result}
+}
+
+// InvokeFn invokes the fn callback with the provided arguments.
+// Returns a result object that can verify the callback's return values.
+func (c *TreeWalkerImpWalkWithNamedTypeCall) InvokeFn(path string, d fs.DirEntry, err error) *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult {
+	resultChan := make(chan TreeWalkerImpWalkWithNamedTypeCallFnResponse)
+	c.callbackFnChan <- TreeWalkerImpWalkWithNamedTypeCallFnRequest{
+		Path:       path,
+		D:          d,
+		Err:        err,
+		ResultChan: resultChan,
+	}
+	resp := <-resultChan
+	return &TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult{result0: resp.Result0}
+}
+
+type TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult struct {
+	result0 error
+}
+
+// ExpectReturned verifies that the callback returned the expected values.
+func (r *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult) ExpectReturned(expected0 error) {
+	if !_reflect.DeepEqual(r.result0, expected0) {
+		panic(_fmt.Sprintf("callback result[0] = %v, expected %v", r.result0, expected0))
+	}
+}
+
+// TreeWalkerImpWalkWithNamedTypeCallFnRequest carries callback invocation data for the fn parameter.
+type TreeWalkerImpWalkWithNamedTypeCallFnRequest struct {
+	Path       string
+	D          fs.DirEntry
+	Err        error
+	ResultChan chan TreeWalkerImpWalkWithNamedTypeCallFnResponse
+}
+
+// TreeWalkerImpWalkWithNamedTypeCallFnResponse carries callback return values for the fn parameter.
+type TreeWalkerImpWalkWithNamedTypeCallFnResponse struct {
+	Result0 error
 }
 
 // TreeWalkerImpWalkWithNamedTypeCallResponse holds the response configuration for the WalkWithNamedType method.

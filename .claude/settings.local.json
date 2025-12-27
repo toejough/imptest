@@ -95,7 +95,10 @@
       "Bash(gofumpt:*)",
       "Bash(git grep:*)",
       "Bash(../../bin/impgen TreeWalker:*)",
-      "Bash(GOPACKAGE=visitor go run:*)"
+      "Bash(GOPACKAGE=visitor go run:*)",
+      "Bash(GOPACKAGE=visitor ../../bin/impgen:*)",
+      "Bash(GOPACKAGE=visitor /Users/joe/repos/personal/imptest/bin/impgen:*)",
+      "Bash(GOPACKAGE=visitor bin/impgen:*)"
     ],
     "deny": [],
     "ask": []

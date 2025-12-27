@@ -558,6 +558,92 @@ func fieldNameCount(field *dst.Field) int {
 	return 1
 }
 
+// findExternalTypeAlias resolves an external type alias like fs.WalkDirFunc.
+//
+//nolint:cyclop // External type resolution requires multiple steps
+func findExternalTypeAlias(
+	selExpr *dst.SelectorExpr,
+	sourceImports []*dst.ImportSpec,
+	pkgLoader PackageLoader,
+) *dst.FuncType {
+	// Get the package identifier (e.g., "fs" in "fs.WalkDirFunc")
+	pkgIdent, ok := selExpr.X.(*dst.Ident)
+	if !ok {
+		return nil
+	}
+
+	pkgName := pkgIdent.Name
+	typeName := selExpr.Sel.Name
+
+	// Find the import path for this package
+	var importPath string
+
+	for _, imp := range sourceImports {
+		if imp.Name != nil && imp.Name.Name == pkgName {
+			// Explicit alias: import foo "bar/baz"
+			importPath = strings.Trim(imp.Path.Value, `"`)
+
+			break
+		} else if imp.Name == nil {
+			// No alias - check if the path ends with this package name
+			path := strings.Trim(imp.Path.Value, `"`)
+			if strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
+				importPath = path
+
+				break
+			}
+		}
+	}
+
+	if importPath == "" {
+		return nil
+	}
+
+	// Load the external package
+	externalFiles, _, _, err := pkgLoader.Load(importPath)
+	if err != nil || len(externalFiles) == 0 {
+		return nil
+	}
+
+	// Search for the type definition in the external package
+	return findLocalTypeAlias(typeName, externalFiles)
+}
+
+// findLocalTypeAlias searches for a type alias definition in the local AST files.
+func findLocalTypeAlias(typeName string, astFiles []*dst.File) *dst.FuncType {
+	for _, file := range astFiles {
+		var result *dst.FuncType
+
+		dst.Inspect(file, func(node dst.Node) bool {
+			genDecl, ok := node.(*dst.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				return true
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
+				if !isTypeSpec || typeSpec.Name.Name != typeName {
+					continue
+				}
+
+				// Check if the underlying type is a function type
+				if funcType, ok := typeSpec.Type.(*dst.FuncType); ok {
+					result = funcType
+					return false // Stop searching
+				}
+			}
+
+			return true
+		})
+
+		if result != nil {
+			return result
+		}
+	}
+
+	return nil
+}
+
 // formatResultParameters formats result parameters as "prefix0 type, prefix1 type, ...".
 // namePrefix: variable name prefix ("v" or "r")
 // startIndex: starting index (0 for r0-based, 1 for v1-based)
@@ -735,8 +821,6 @@ func isBasicComparableType(expr dst.Expr) bool {
 }
 
 // isBuiltinType checks if a type name is a Go builtin.
-//
-
 func isBuiltinType(name string) bool {
 	switch name {
 	case "bool", "byte", "complex64", "complex128",
@@ -857,6 +941,32 @@ func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
 	}
 
 	return ""
+}
+
+// resolveToFuncType resolves a type expression to a function type if possible.
+// Supports inline function types, local type aliases, and external types.
+func resolveToFuncType(
+	expr dst.Expr,
+	astFiles []*dst.File,
+	sourceImports []*dst.ImportSpec,
+	pkgLoader PackageLoader,
+) *dst.FuncType {
+	// Case 1: Already a function type
+	if funcType, ok := expr.(*dst.FuncType); ok {
+		return funcType
+	}
+
+	// Case 2: Local type alias (e.g., WalkFunc)
+	if ident, ok := expr.(*dst.Ident); ok {
+		return findLocalTypeAlias(ident.Name, astFiles)
+	}
+
+	// Case 3: External type (e.g., fs.WalkDirFunc)
+	if selExpr, ok := expr.(*dst.SelectorExpr); ok {
+		return findExternalTypeAlias(selExpr, sourceImports, pkgLoader)
+	}
+
+	return nil
 }
 
 // stringifyDSTExpr converts a DST expression to its string representation.
