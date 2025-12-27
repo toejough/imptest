@@ -418,6 +418,11 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 
 	gen.pf(") {\n")
 
+	// Check if callback panicked instead of returning
+	gen.pf("\tif r.panicked != nil {\n")
+	gen.pf("\t\tpanic(%s.Sprintf(\"expected callback to return, but it panicked with: %%v\", r.panicked))\n", pkgFmt)
+	gen.pf("\t}\n\n")
+
 	// Generate type-safe comparisons
 	if hasResults(fp.FuncType) {
 		results := extractResults(nil, fp.FuncType)
@@ -452,6 +457,11 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 	}
 
 	gen.pf(") {\n")
+
+	// Check if callback panicked instead of returning
+	gen.pf("\tif r.panicked != nil {\n")
+	gen.pf("\t\tpanic(%s.Sprintf(\"expected callback to return, but it panicked with: %%v\", r.panicked))\n", pkgFmt)
+	gen.pf("\t}\n\n")
 
 	if hasResults(fp.FuncType) {
 		results := extractResults(nil, fp.FuncType)
