@@ -5,9 +5,13 @@ import (
 	"io/fs"
 )
 
+// WalkFunc is a function type for walking directory entries.
+type WalkFunc func(path string, d fs.DirEntry, err error) error
+
 // TreeWalker walks a directory tree, calling fn for each entry.
 type TreeWalker interface {
 	Walk(root string, fn func(path string, d fs.DirEntry, err error) error) error
+	WalkWithNamedType(root string, fn WalkFunc) error
 }
 
 // CountFiles counts regular files using the walker.

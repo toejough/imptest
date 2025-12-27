@@ -71,7 +71,8 @@ func (i *TreeWalkerImp) Within(d _time.Duration) *TreeWalkerImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type TreeWalkerImpCall struct {
-	walk *TreeWalkerImpWalkCall
+	walk              *TreeWalkerImpWalkCall
+	walkWithNamedType *TreeWalkerImpWalkWithNamedTypeCall
 }
 
 // AsWalk returns the call cast to TreeWalkerImpWalkCall for accessing call details.
@@ -80,11 +81,20 @@ func (c *TreeWalkerImpCall) AsWalk() *TreeWalkerImpWalkCall {
 	return c.walk
 }
 
+// AsWalkWithNamedType returns the call cast to TreeWalkerImpWalkWithNamedTypeCall for accessing call details.
+// Returns nil if the call was not to WalkWithNamedType.
+func (c *TreeWalkerImpCall) AsWalkWithNamedType() *TreeWalkerImpWalkWithNamedTypeCall {
+	return c.walkWithNamedType
+}
+
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *TreeWalkerImpCall) Done() bool {
 	if c.walk != nil {
 		return c.walk.done
+	}
+	if c.walkWithNamedType != nil {
+		return c.walkWithNamedType.done
 	}
 	return false
 }
@@ -94,6 +104,9 @@ func (c *TreeWalkerImpCall) Done() bool {
 func (c *TreeWalkerImpCall) Name() string {
 	if c.walk != nil {
 		return "Walk"
+	}
+	if c.walkWithNamedType != nil {
+		return "WalkWithNamedType"
 	}
 	return ""
 }
@@ -109,6 +122,11 @@ type TreeWalkerImpExpectCallIs struct {
 // Walk returns a builder for setting expectations on Walk method calls.
 func (e *TreeWalkerImpExpectCallIs) Walk() *TreeWalkerImpWalkBuilder {
 	return &TreeWalkerImpWalkBuilder{imp: e.imp, timeout: e.timeout}
+}
+
+// WalkWithNamedType returns a builder for setting expectations on WalkWithNamedType method calls.
+func (e *TreeWalkerImpExpectCallIs) WalkWithNamedType() *TreeWalkerImpWalkWithNamedTypeBuilder {
+	return &TreeWalkerImpWalkWithNamedTypeBuilder{imp: e.imp, timeout: e.timeout}
 }
 
 // TreeWalkerImpMock provides the mock implementation of the interface.
@@ -153,6 +171,32 @@ func (m *TreeWalkerImpMock) Walk(root string, fn func(string, fs.DirEntry, error
 			return resp.Result0
 		}
 	}
+}
+
+// WalkWithNamedType implements the interface method and records the call for testing.
+// The method blocks until a response is injected via the test controller.
+func (m *TreeWalkerImpMock) WalkWithNamedType(root string, fn visitor.WalkFunc) error {
+	responseChan := make(chan TreeWalkerImpWalkWithNamedTypeCallResponse, 1)
+
+	call := &TreeWalkerImpWalkWithNamedTypeCall{
+		responseChan: responseChan,
+		root:         root,
+		fn:           fn,
+	}
+
+	callEvent := &TreeWalkerImpCall{
+		walkWithNamedType: call,
+	}
+
+	m.imp.CallChan <- callEvent
+
+	resp := <-responseChan
+
+	if resp.Type == "panic" {
+		panic(resp.PanicValue)
+	}
+
+	return resp.Result0
 }
 
 // TreeWalkerImpTimed provides timeout-configured expectation methods.
@@ -312,6 +356,122 @@ type TreeWalkerImpWalkCallFnResponse struct {
 // TreeWalkerImpWalkCallResponse holds the response configuration for the Walk method.
 // Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
 type TreeWalkerImpWalkCallResponse struct {
+	Type       string // "return", "panic", or "resolve"
+	Result0    error
+	PanicValue any
+}
+
+// TreeWalkerImpWalkWithNamedTypeBuilder provides a fluent API for setting expectations on WalkWithNamedType calls.
+// Use ExpectArgsAre for exact matching or ExpectArgsShould for matcher-based matching.
+type TreeWalkerImpWalkWithNamedTypeBuilder struct {
+	imp     *TreeWalkerImp
+	timeout _time.Duration
+}
+
+// ExpectArgsAre waits for a WalkWithNamedType call with exactly the specified argument values.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if arguments don't match exactly.
+// Uses == for comparable types and reflect.DeepEqual for others.
+func (bldr *TreeWalkerImpWalkWithNamedTypeBuilder) ExpectArgsAre(root string, fn visitor.WalkFunc) *TreeWalkerImpWalkWithNamedTypeCall {
+	validator := func(callToCheck *TreeWalkerImpCall) bool {
+		if callToCheck.Name() != "WalkWithNamedType" {
+			return false
+		}
+		methodCall := callToCheck.AsWalkWithNamedType()
+		if methodCall.root != root {
+			return false
+		}
+		if !_reflect.DeepEqual(methodCall.fn, fn) {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsWalkWithNamedType()
+}
+
+// ExpectArgsShould waits for a WalkWithNamedType call with arguments matching the given matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Returns the call object for response injection. Fails the test if the call
+// doesn't arrive within the timeout or if any matcher fails.
+func (bldr *TreeWalkerImpWalkWithNamedTypeBuilder) ExpectArgsShould(root any, fn any) *TreeWalkerImpWalkWithNamedTypeCall {
+	validator := func(callToCheck *TreeWalkerImpCall) bool {
+		if callToCheck.Name() != "WalkWithNamedType" {
+			return false
+		}
+		methodCall := callToCheck.AsWalkWithNamedType()
+		var ok bool
+		ok, _ = _imptest.MatchValue(methodCall.root, root)
+		if !ok {
+			return false
+		}
+		ok, _ = _imptest.MatchValue(methodCall.fn, fn)
+		if !ok {
+			return false
+		}
+		return true
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	return call.AsWalkWithNamedType()
+}
+
+// InjectPanic waits for a WalkWithNamedType call and causes it to panic with the given value.
+// This is a shortcut that combines waiting for the call with injecting a panic.
+// Use this to test panic handling in code under test. Returns the call object for further operations.
+func (bldr *TreeWalkerImpWalkWithNamedTypeBuilder) InjectPanic(msg any) *TreeWalkerImpWalkWithNamedTypeCall {
+	validator := func(callToCheck *TreeWalkerImpCall) bool {
+		return callToCheck.Name() == "WalkWithNamedType"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsWalkWithNamedType()
+	methodCall.InjectPanic(msg)
+	return methodCall
+}
+
+// InjectResult waits for a WalkWithNamedType call and immediately injects the return value.
+// This is a shortcut that combines waiting for the call with injecting the result.
+// Returns the call object for further operations. Fails if no call arrives within the timeout.
+func (bldr *TreeWalkerImpWalkWithNamedTypeBuilder) InjectResult(result error) *TreeWalkerImpWalkWithNamedTypeCall {
+	validator := func(callToCheck *TreeWalkerImpCall) bool {
+		return callToCheck.Name() == "WalkWithNamedType"
+	}
+
+	call := bldr.imp.GetCall(bldr.timeout, validator)
+	methodCall := call.AsWalkWithNamedType()
+	methodCall.InjectResult(result)
+	return methodCall
+}
+
+// TreeWalkerImpWalkWithNamedTypeCall represents a captured call to the WalkWithNamedType method.
+// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.
+type TreeWalkerImpWalkWithNamedTypeCall struct {
+	responseChan chan TreeWalkerImpWalkWithNamedTypeCallResponse
+	done         bool
+	root         string
+	fn           visitor.WalkFunc
+}
+
+// InjectPanic causes the mocked method to panic with the given value.
+// Use this to test panic handling in code under test.
+// The panic occurs in the goroutine where the mock was called.
+func (c *TreeWalkerImpWalkWithNamedTypeCall) InjectPanic(msg any) {
+	c.done = true
+	c.responseChan <- TreeWalkerImpWalkWithNamedTypeCallResponse{Type: "panic", PanicValue: msg}
+}
+
+// InjectResult sets the return value for this method call and unblocks the caller.
+// The mocked method will return the provided result value.
+func (c *TreeWalkerImpWalkWithNamedTypeCall) InjectResult(result error) {
+	c.done = true
+	c.responseChan <- TreeWalkerImpWalkWithNamedTypeCallResponse{Type: "return", Result0: result}
+}
+
+// TreeWalkerImpWalkWithNamedTypeCallResponse holds the response configuration for the WalkWithNamedType method.
+// Set Type to "return" for normal returns, "panic" to cause a panic, or "resolve" for void methods.
+type TreeWalkerImpWalkWithNamedTypeCallResponse struct {
 	Type       string // "return", "panic", or "resolve"
 	Result0    error
 	PanicValue any

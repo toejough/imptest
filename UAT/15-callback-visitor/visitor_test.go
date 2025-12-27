@@ -51,3 +51,19 @@ func (m mockDirEntry) IsDir() bool { return m.isDir }
 func (m mockDirEntry) Name() string { return m.name }
 
 func (m mockDirEntry) Type() fs.FileMode { return 0 }
+
+//nolint:varnamelen // Standard Go testing convention
+func TestWalkWithNamedType(t *testing.T) {
+	t.Parallel()
+
+	walker := NewTreeWalkerImp(t)
+
+	// Test the WalkWithNamedType method which uses a named function type
+	call := walker.Within(time.Second).ExpectCallIs.WalkWithNamedType().ExpectArgsShould("/data", imptest.Any())
+
+	// Invoke the callback with the named type - should work just like inline function types
+	call.InvokeFn("/data/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil).ExpectReturned(nil)
+
+	// Let the method return
+	call.InjectResult(nil)
+}
