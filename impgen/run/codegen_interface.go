@@ -375,7 +375,7 @@ func (gen *codeGenerator) generateCallStructParamFields(ftype *dst.FuncType) {
 //   - InvokeFn(path string, d fs.DirEntry, err error) - type-safe invocation
 //   - ExpectReturned(result0 error) - type-safe result verification
 //
-//nolint:cyclop,funlen,varnamelen,wsl // Code generation logic requires iteration over parameters and results
+//nolint:cyclop,funlen,varnamelen,wsl,gocognit // Code generation logic is inherently complex
 func (gen *codeGenerator) generateCallbackInvocationMethod(
 	_, callName string, fp funcParamInfo, requestTypeName, responseTypeName string,
 ) {
@@ -394,6 +394,9 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 			gen.pf("%s\n", gen.typeWithQualifier(results[i].Field.Type))
 		}
 	}
+
+	// Add panic field to track callback panics
+	gen.pf("\tpanicked any\n")
 
 	gen.pf("}\n\n")
 
@@ -430,6 +433,49 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 		}
 	}
 
+	gen.pf("}\n\n")
+
+	// Generate ExpectReturnedShould with matcher support
+	gen.pf("// ExpectReturnedShould verifies callback return values match matchers.\n")
+	gen.pf("// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.\n")
+	gen.pf("func (r *%s) ExpectReturnedShould(", resultTypeName)
+
+	if hasResults(fp.FuncType) {
+		results := extractResults(nil, fp.FuncType)
+		for i := range results {
+			if i > 0 {
+				gen.pf(", ")
+			}
+
+			gen.pf("expected%d any", i)
+		}
+	}
+
+	gen.pf(") {\n")
+
+	if hasResults(fp.FuncType) {
+		results := extractResults(nil, fp.FuncType)
+		for i := range results {
+			gen.pf("\tok, msg := %s.MatchValue(r.result%d, expected%d)\n", pkgImptest, i, i)
+			gen.pf("\tif !ok { panic(%s.Sprintf(\"callback result[%d]: %%s\", msg)) }\n", pkgFmt, i)
+		}
+	}
+
+	gen.pf("}\n\n")
+
+	// Generate ExpectPanicWith to verify callback panics
+	gen.pf("// ExpectPanicWith verifies that the callback panicked with a value matching the expectation.\n")
+	gen.pf("// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.\n")
+	gen.pf("// Panics if the callback returned normally or panicked with a different value.\n")
+	gen.pf("func (r *%s) ExpectPanicWith(expected any) {\n", resultTypeName)
+	gen.pf("\tif r.panicked != nil {\n")
+	gen.pf("\t\tok, msg := %s.MatchValue(r.panicked, expected)\n", pkgImptest)
+	gen.pf("\t\tif !ok {\n")
+	gen.pf("\t\t\tpanic(%s.Sprintf(\"callback panic value: %%s\", msg))\n", pkgFmt)
+	gen.pf("\t\t}\n")
+	gen.pf("\t\treturn\n")
+	gen.pf("\t}\n")
+	gen.pf("\tpanic(\"expected callback to panic, but it returned\")\n")
 	gen.pf("}\n\n")
 
 	// Generate the type-safe InvokeFn method
@@ -487,13 +533,11 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 	if hasResults(fp.FuncType) {
 		results := extractResults(nil, fp.FuncType)
 		for i := range results {
-			if i > 0 {
-				gen.pf(", ")
-			}
-
-			gen.pf("result%d: resp.Result%d", i, i)
+			gen.pf("result%d: resp.Result%d, ", i, i)
 		}
 	}
+
+	gen.pf("panicked: resp.Panicked")
 
 	gen.pf("}\n")
 
@@ -547,6 +591,9 @@ func (gen *codeGenerator) generateCallbackRequestResponseStructs(
 			gen.pf("\tResult%d %s\n", i, resultType)
 		}
 	}
+
+	// Add panic field to capture callback panics
+	gen.pf("\tPanicked any\n")
 
 	gen.pf("}\n\n")
 
@@ -1201,10 +1248,16 @@ func (gen *codeGenerator) writeMockMethodResponseHandling(callName string, ftype
 		responseTypeName := fmt.Sprintf("%s%sResponse", callName, capitalizedName)
 
 		gen.pf("\t\tcase cbReq := <-callback%sChan:\n", capitalizedName)
-		gen.pf("\t\t\t// Direct invocation with typed values - no type assertions needed\n")
+		gen.pf("\t\t\t// Invoke callback and capture panics\n")
+		gen.pf("\t\t\tfunc() {\n")
+		gen.pf("\t\t\t\tdefer func() {\n")
+		gen.pf("\t\t\t\t\tif r := recover(); r != nil {\n")
+		gen.pf("\t\t\t\t\t\tcbReq.ResultChan <- %s{Panicked: r}\n", responseTypeName)
+		gen.pf("\t\t\t\t\t}\n")
+		gen.pf("\t\t\t\t}()\n\n")
 
 		// Invoke callback directly with typed request fields
-		gen.pf("\t\t\t")
+		gen.pf("\t\t\t\t")
 
 		if hasResults(fp.FuncType) {
 			results := extractResults(nil, fp.FuncType)
@@ -1238,7 +1291,7 @@ func (gen *codeGenerator) writeMockMethodResponseHandling(callName string, ftype
 		gen.pf(")\n")
 
 		// Send typed response back
-		gen.pf("\t\t\tcbReq.ResultChan <- %s{", responseTypeName)
+		gen.pf("\t\t\t\tcbReq.ResultChan <- %s{", responseTypeName)
 
 		if hasResults(fp.FuncType) {
 			results := extractResults(nil, fp.FuncType)
@@ -1252,6 +1305,7 @@ func (gen *codeGenerator) writeMockMethodResponseHandling(callName string, ftype
 		}
 
 		gen.pf("}\n")
+		gen.pf("\t\t\t}()\n")
 	}
 
 	// Generate case for final response

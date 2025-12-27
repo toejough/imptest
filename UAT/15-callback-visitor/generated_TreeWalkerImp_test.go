@@ -160,9 +160,17 @@ func (m *TreeWalkerImpMock) Walk(root string, fn func(string, fs.DirEntry, error
 	for {
 		select {
 		case cbReq := <-callbackFnChan:
-			// Direct invocation with typed values - no type assertions needed
-			result0 := fn(cbReq.Path, cbReq.D, cbReq.Err)
-			cbReq.ResultChan <- TreeWalkerImpWalkCallFnResponse{Result0: result0}
+			// Invoke callback and capture panics
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						cbReq.ResultChan <- TreeWalkerImpWalkCallFnResponse{Panicked: r}
+					}
+				}()
+
+				result0 := fn(cbReq.Path, cbReq.D, cbReq.Err)
+				cbReq.ResultChan <- TreeWalkerImpWalkCallFnResponse{Result0: result0}
+			}()
 		case resp = <-responseChan:
 			// Final response received
 			if resp.Type == "panic" {
@@ -197,9 +205,17 @@ func (m *TreeWalkerImpMock) WalkWithNamedType(root string, fn visitor.WalkFunc) 
 	for {
 		select {
 		case cbReq := <-callbackFnChan:
-			// Direct invocation with typed values - no type assertions needed
-			result0 := fn(cbReq.Path, cbReq.D, cbReq.Err)
-			cbReq.ResultChan <- TreeWalkerImpWalkWithNamedTypeCallFnResponse{Result0: result0}
+			// Invoke callback and capture panics
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						cbReq.ResultChan <- TreeWalkerImpWalkWithNamedTypeCallFnResponse{Panicked: r}
+					}
+				}()
+
+				result0 := fn(cbReq.Path, cbReq.D, cbReq.Err)
+				cbReq.ResultChan <- TreeWalkerImpWalkWithNamedTypeCallFnResponse{Result0: result0}
+			}()
 		case resp = <-responseChan:
 			// Final response received
 			if resp.Type == "panic" {
@@ -337,17 +353,41 @@ func (c *TreeWalkerImpWalkCall) InvokeFn(path string, d fs.DirEntry, err error) 
 		ResultChan: resultChan,
 	}
 	resp := <-resultChan
-	return &TreeWalkerImpWalkCallFnCallbackResult{result0: resp.Result0}
+	return &TreeWalkerImpWalkCallFnCallbackResult{result0: resp.Result0, panicked: resp.Panicked}
 }
 
 type TreeWalkerImpWalkCallFnCallbackResult struct {
-	result0 error
+	result0  error
+	panicked any
+}
+
+// ExpectPanicWith verifies that the callback panicked with a value matching the expectation.
+// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
+// Panics if the callback returned normally or panicked with a different value.
+func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectPanicWith(expected any) {
+	if r.panicked != nil {
+		ok, msg := _imptest.MatchValue(r.panicked, expected)
+		if !ok {
+			panic(_fmt.Sprintf("callback panic value: %s", msg))
+		}
+		return
+	}
+	panic("expected callback to panic, but it returned")
 }
 
 // ExpectReturned verifies that the callback returned the expected values.
 func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectReturned(expected0 error) {
 	if !_reflect.DeepEqual(r.result0, expected0) {
 		panic(_fmt.Sprintf("callback result[0] = %v, expected %v", r.result0, expected0))
+	}
+}
+
+// ExpectReturnedShould verifies callback return values match matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectReturnedShould(expected0 any) {
+	ok, msg := _imptest.MatchValue(r.result0, expected0)
+	if !ok {
+		panic(_fmt.Sprintf("callback result[0]: %s", msg))
 	}
 }
 
@@ -361,7 +401,8 @@ type TreeWalkerImpWalkCallFnRequest struct {
 
 // TreeWalkerImpWalkCallFnResponse carries callback return values for the fn parameter.
 type TreeWalkerImpWalkCallFnResponse struct {
-	Result0 error
+	Result0  error
+	Panicked any
 }
 
 // TreeWalkerImpWalkCallResponse holds the response configuration for the Walk method.
@@ -493,17 +534,41 @@ func (c *TreeWalkerImpWalkWithNamedTypeCall) InvokeFn(path string, d fs.DirEntry
 		ResultChan: resultChan,
 	}
 	resp := <-resultChan
-	return &TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult{result0: resp.Result0}
+	return &TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult{result0: resp.Result0, panicked: resp.Panicked}
 }
 
 type TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult struct {
-	result0 error
+	result0  error
+	panicked any
+}
+
+// ExpectPanicWith verifies that the callback panicked with a value matching the expectation.
+// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
+// Panics if the callback returned normally or panicked with a different value.
+func (r *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult) ExpectPanicWith(expected any) {
+	if r.panicked != nil {
+		ok, msg := _imptest.MatchValue(r.panicked, expected)
+		if !ok {
+			panic(_fmt.Sprintf("callback panic value: %s", msg))
+		}
+		return
+	}
+	panic("expected callback to panic, but it returned")
 }
 
 // ExpectReturned verifies that the callback returned the expected values.
 func (r *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult) ExpectReturned(expected0 error) {
 	if !_reflect.DeepEqual(r.result0, expected0) {
 		panic(_fmt.Sprintf("callback result[0] = %v, expected %v", r.result0, expected0))
+	}
+}
+
+// ExpectReturnedShould verifies callback return values match matchers.
+// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+func (r *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult) ExpectReturnedShould(expected0 any) {
+	ok, msg := _imptest.MatchValue(r.result0, expected0)
+	if !ok {
+		panic(_fmt.Sprintf("callback result[0]: %s", msg))
 	}
 }
 
@@ -517,7 +582,8 @@ type TreeWalkerImpWalkWithNamedTypeCallFnRequest struct {
 
 // TreeWalkerImpWalkWithNamedTypeCallFnResponse carries callback return values for the fn parameter.
 type TreeWalkerImpWalkWithNamedTypeCallFnResponse struct {
-	Result0 error
+	Result0  error
+	Panicked any
 }
 
 // TreeWalkerImpWalkWithNamedTypeCallResponse holds the response configuration for the WalkWithNamedType method.

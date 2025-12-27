@@ -12,6 +12,44 @@ import (
 	imptest "github.com/toejough/imptest/imptest"
 )
 
+func TestCallbackMatcherSupport(t *testing.T) {
+	t.Parallel()
+
+	walker := NewTreeWalkerImp(t)
+
+	go func() {
+		_ = walker.Mock.Walk("/test", func(_ string, _ fs.DirEntry, _ error) error {
+			return nil
+		})
+	}()
+
+	call := walker.Within(time.Second).ExpectCallIs.Walk().ExpectArgsShould("/test", imptest.Any())
+
+	// Use matcher-based verification
+	call.InvokeFn("/test/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil).ExpectReturnedShould(imptest.Any())
+
+	call.InjectResult(nil)
+}
+
+func TestCallbackPanicSupport(t *testing.T) {
+	t.Parallel()
+
+	walker := NewTreeWalkerImp(t)
+
+	go func() {
+		_ = walker.Mock.Walk("/test", func(_ string, _ fs.DirEntry, _ error) error {
+			panic("test panic") // Callback panics on its own
+		})
+	}()
+
+	call := walker.Within(time.Second).ExpectCallIs.Walk().ExpectArgsShould("/test", imptest.Any())
+
+	// Verify that the callback panicked with the expected value
+	call.InvokeFn("/test/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil).ExpectPanicWith("test panic")
+
+	call.InjectResult(nil)
+}
+
 //nolint:varnamelen // Standard Go testing convention
 func TestCountFiles(t *testing.T) {
 	t.Parallel()
