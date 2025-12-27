@@ -68,13 +68,13 @@ func (i *OpsImp) Within(d _time.Duration) *OpsImpTimed {
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type OpsImpCall struct {
 	internalMethod *OpsImpinternalMethodCall
-	PublicMethod   *OpsImpPublicMethodCall
+	publicMethod   *OpsImpPublicMethodCall
 }
 
 // AsPublicMethod returns the call cast to OpsImpPublicMethodCall for accessing call details.
 // Returns nil if the call was not to PublicMethod.
 func (c *OpsImpCall) AsPublicMethod() *OpsImpPublicMethodCall {
-	return c.PublicMethod
+	return c.publicMethod
 }
 
 // AsinternalMethod returns the call cast to OpsImpinternalMethodCall for accessing call details.
@@ -89,8 +89,8 @@ func (c *OpsImpCall) Done() bool {
 	if c.internalMethod != nil {
 		return c.internalMethod.done
 	}
-	if c.PublicMethod != nil {
-		return c.PublicMethod.done
+	if c.publicMethod != nil {
+		return c.publicMethod.done
 	}
 	return false
 }
@@ -101,7 +101,7 @@ func (c *OpsImpCall) Name() string {
 	if c.internalMethod != nil {
 		return "internalMethod"
 	}
-	if c.PublicMethod != nil {
+	if c.publicMethod != nil {
 		return "PublicMethod"
 	}
 	return ""
@@ -143,7 +143,7 @@ func (m *OpsImpMock) PublicMethod(x int) int {
 	}
 
 	callEvent := &OpsImpCall{
-		PublicMethod: call,
+		publicMethod: call,
 	}
 
 	m.imp.CallChan <- callEvent

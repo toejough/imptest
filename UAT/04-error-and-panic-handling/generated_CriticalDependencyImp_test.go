@@ -68,20 +68,20 @@ func (i *CriticalDependencyImp) Within(d _time.Duration) *CriticalDependencyImpT
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type CriticalDependencyImpCall struct {
-	DoWork *CriticalDependencyImpDoWorkCall
+	doWork *CriticalDependencyImpDoWorkCall
 }
 
 // AsDoWork returns the call cast to CriticalDependencyImpDoWorkCall for accessing call details.
 // Returns nil if the call was not to DoWork.
 func (c *CriticalDependencyImpCall) AsDoWork() *CriticalDependencyImpDoWorkCall {
-	return c.DoWork
+	return c.doWork
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *CriticalDependencyImpCall) Done() bool {
-	if c.DoWork != nil {
-		return c.DoWork.done
+	if c.doWork != nil {
+		return c.doWork.done
 	}
 	return false
 }
@@ -89,7 +89,7 @@ func (c *CriticalDependencyImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *CriticalDependencyImpCall) Name() string {
-	if c.DoWork != nil {
+	if c.doWork != nil {
 		return "DoWork"
 	}
 	return ""
@@ -189,7 +189,7 @@ func (m *CriticalDependencyImpMock) DoWork() {
 	}
 
 	callEvent := &CriticalDependencyImpCall{
-		DoWork: call,
+		doWork: call,
 	}
 
 	m.imp.CallChan <- callEvent

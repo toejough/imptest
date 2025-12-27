@@ -185,60 +185,60 @@ type CustomOpsImpAddCallResponse struct {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type CustomOpsImpCall struct {
-	Add    *CustomOpsImpAddCall
-	Store  *CustomOpsImpStoreCall
-	Log    *CustomOpsImpLogCall
-	Notify *CustomOpsImpNotifyCall
-	Finish *CustomOpsImpFinishCall
+	add    *CustomOpsImpAddCall
+	store  *CustomOpsImpStoreCall
+	log    *CustomOpsImpLogCall
+	notify *CustomOpsImpNotifyCall
+	finish *CustomOpsImpFinishCall
 }
 
 // AsAdd returns the call cast to CustomOpsImpAddCall for accessing call details.
 // Returns nil if the call was not to Add.
 func (c *CustomOpsImpCall) AsAdd() *CustomOpsImpAddCall {
-	return c.Add
+	return c.add
 }
 
 // AsFinish returns the call cast to CustomOpsImpFinishCall for accessing call details.
 // Returns nil if the call was not to Finish.
 func (c *CustomOpsImpCall) AsFinish() *CustomOpsImpFinishCall {
-	return c.Finish
+	return c.finish
 }
 
 // AsLog returns the call cast to CustomOpsImpLogCall for accessing call details.
 // Returns nil if the call was not to Log.
 func (c *CustomOpsImpCall) AsLog() *CustomOpsImpLogCall {
-	return c.Log
+	return c.log
 }
 
 // AsNotify returns the call cast to CustomOpsImpNotifyCall for accessing call details.
 // Returns nil if the call was not to Notify.
 func (c *CustomOpsImpCall) AsNotify() *CustomOpsImpNotifyCall {
-	return c.Notify
+	return c.notify
 }
 
 // AsStore returns the call cast to CustomOpsImpStoreCall for accessing call details.
 // Returns nil if the call was not to Store.
 func (c *CustomOpsImpCall) AsStore() *CustomOpsImpStoreCall {
-	return c.Store
+	return c.store
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *CustomOpsImpCall) Done() bool {
-	if c.Add != nil {
-		return c.Add.done
+	if c.add != nil {
+		return c.add.done
 	}
-	if c.Store != nil {
-		return c.Store.done
+	if c.store != nil {
+		return c.store.done
 	}
-	if c.Log != nil {
-		return c.Log.done
+	if c.log != nil {
+		return c.log.done
 	}
-	if c.Notify != nil {
-		return c.Notify.done
+	if c.notify != nil {
+		return c.notify.done
 	}
-	if c.Finish != nil {
-		return c.Finish.done
+	if c.finish != nil {
+		return c.finish.done
 	}
 	return false
 }
@@ -246,19 +246,19 @@ func (c *CustomOpsImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *CustomOpsImpCall) Name() string {
-	if c.Add != nil {
+	if c.add != nil {
 		return "Add"
 	}
-	if c.Store != nil {
+	if c.store != nil {
 		return "Store"
 	}
-	if c.Log != nil {
+	if c.log != nil {
 		return "Log"
 	}
-	if c.Notify != nil {
+	if c.notify != nil {
 		return "Notify"
 	}
-	if c.Finish != nil {
+	if c.finish != nil {
 		return "Finish"
 	}
 	return ""
@@ -488,7 +488,7 @@ func (m *CustomOpsImpMock) Add(a int, b int) int {
 	}
 
 	callEvent := &CustomOpsImpCall{
-		Add: call,
+		add: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -512,7 +512,7 @@ func (m *CustomOpsImpMock) Finish() bool {
 	}
 
 	callEvent := &CustomOpsImpCall{
-		Finish: call,
+		finish: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -537,7 +537,7 @@ func (m *CustomOpsImpMock) Log(message string) {
 	}
 
 	callEvent := &CustomOpsImpCall{
-		Log: call,
+		log: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -563,7 +563,7 @@ func (m *CustomOpsImpMock) Notify(message string, ids ...int) bool {
 	}
 
 	callEvent := &CustomOpsImpCall{
-		Notify: call,
+		notify: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -589,7 +589,7 @@ func (m *CustomOpsImpMock) Store(key string, value any) (int, error) {
 	}
 
 	callEvent := &CustomOpsImpCall{
-		Store: call,
+		store: call,
 	}
 
 	m.imp.CallChan <- callEvent

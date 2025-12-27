@@ -223,13 +223,13 @@ func (c *{{.MethodCallName}}{{.TypeParamsUse}}) Resolve() {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{"{"}}{Method}() to access typed call details.
 type {{.CallName}}{{.TypeParamsDecl}} struct {
-{{range .Methods}}	{{.Name}} *{{.CallName}}{{.TypeParamsUse}}
+{{range .Methods}}	{{lowerFirst .Name}} *{{.CallName}}{{.TypeParamsUse}}
 {{end}}}
 
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *{{.CallName}}{{.TypeParamsUse}}) Name() string {
-{{range .Methods}}	if c.{{.Name}} != nil {
+{{range .Methods}}	if c.{{lowerFirst .Name}} != nil {
 		return "{{.Name}}"
 	}
 {{end}}	return ""
@@ -238,8 +238,8 @@ func (c *{{.CallName}}{{.TypeParamsUse}}) Name() string {
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *{{.CallName}}{{.TypeParamsUse}}) Done() bool {
-{{range .Methods}}	if c.{{.Name}} != nil {
-		return c.{{.Name}}.done
+{{range .Methods}}	if c.{{lowerFirst .Name}} != nil {
+		return c.{{lowerFirst .Name}}.done
 	}
 {{end}}	return false
 }
@@ -247,7 +247,7 @@ func (c *{{.CallName}}{{.TypeParamsUse}}) Done() bool {
 {{range .Methods}}// As{{.Name}} returns the call cast to {{.CallName}} for accessing call details.
 // Returns nil if the call was not to {{.Name}}.
 func (c *{{$.CallName}}{{$.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeParamsUse}} {
-	return c.{{.Name}}
+	return c.{{lowerFirst .Name}}
 }
 
 {{end}}`)
@@ -627,7 +627,11 @@ func (r *TemplateRegistry) WriteTimedStruct(buf *bytes.Buffer, data templateData
 // parseTemplate is a helper function that parses a template with consistent error handling.
 // Returns the parsed template or an error with a descriptive message.
 func parseTemplate(name, content string) (*template.Template, error) {
-	tmpl, err := template.New(name).Parse(content)
+	funcMap := template.FuncMap{
+		"lowerFirst": lowerFirst,
+	}
+
+	tmpl, err := template.New(name).Funcs(funcMap).Parse(content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %s template: %w", name, err)
 	}

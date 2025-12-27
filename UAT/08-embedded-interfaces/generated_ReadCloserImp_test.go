@@ -69,30 +69,30 @@ func (i *ReadCloserImp) Within(d _time.Duration) *ReadCloserImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type ReadCloserImpCall struct {
-	Read  *ReadCloserImpReadCall
-	Close *ReadCloserImpCloseCall
+	read  *ReadCloserImpReadCall
+	close *ReadCloserImpCloseCall
 }
 
 // AsClose returns the call cast to ReadCloserImpCloseCall for accessing call details.
 // Returns nil if the call was not to Close.
 func (c *ReadCloserImpCall) AsClose() *ReadCloserImpCloseCall {
-	return c.Close
+	return c.close
 }
 
 // AsRead returns the call cast to ReadCloserImpReadCall for accessing call details.
 // Returns nil if the call was not to Read.
 func (c *ReadCloserImpCall) AsRead() *ReadCloserImpReadCall {
-	return c.Read
+	return c.read
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *ReadCloserImpCall) Done() bool {
-	if c.Read != nil {
-		return c.Read.done
+	if c.read != nil {
+		return c.read.done
 	}
-	if c.Close != nil {
-		return c.Close.done
+	if c.close != nil {
+		return c.close.done
 	}
 	return false
 }
@@ -100,10 +100,10 @@ func (c *ReadCloserImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *ReadCloserImpCall) Name() string {
-	if c.Read != nil {
+	if c.read != nil {
 		return "Read"
 	}
-	if c.Close != nil {
+	if c.close != nil {
 		return "Close"
 	}
 	return ""
@@ -209,7 +209,7 @@ func (m *ReadCloserImpMock) Close() error {
 	}
 
 	callEvent := &ReadCloserImpCall{
-		Close: call,
+		close: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -234,7 +234,7 @@ func (m *ReadCloserImpMock) Read(p []byte) (n int, err error) {
 	}
 
 	callEvent := &ReadCloserImpCall{
-		Read: call,
+		read: call,
 	}
 
 	m.imp.CallChan <- callEvent

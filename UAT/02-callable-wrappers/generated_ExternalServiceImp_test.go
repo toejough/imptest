@@ -68,30 +68,30 @@ func (i *ExternalServiceImp) Within(d _time.Duration) *ExternalServiceImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type ExternalServiceImpCall struct {
-	FetchData *ExternalServiceImpFetchDataCall
-	Process   *ExternalServiceImpProcessCall
+	fetchData *ExternalServiceImpFetchDataCall
+	process   *ExternalServiceImpProcessCall
 }
 
 // AsFetchData returns the call cast to ExternalServiceImpFetchDataCall for accessing call details.
 // Returns nil if the call was not to FetchData.
 func (c *ExternalServiceImpCall) AsFetchData() *ExternalServiceImpFetchDataCall {
-	return c.FetchData
+	return c.fetchData
 }
 
 // AsProcess returns the call cast to ExternalServiceImpProcessCall for accessing call details.
 // Returns nil if the call was not to Process.
 func (c *ExternalServiceImpCall) AsProcess() *ExternalServiceImpProcessCall {
-	return c.Process
+	return c.process
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *ExternalServiceImpCall) Done() bool {
-	if c.FetchData != nil {
-		return c.FetchData.done
+	if c.fetchData != nil {
+		return c.fetchData.done
 	}
-	if c.Process != nil {
-		return c.Process.done
+	if c.process != nil {
+		return c.process.done
 	}
 	return false
 }
@@ -99,10 +99,10 @@ func (c *ExternalServiceImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *ExternalServiceImpCall) Name() string {
-	if c.FetchData != nil {
+	if c.fetchData != nil {
 		return "FetchData"
 	}
-	if c.Process != nil {
+	if c.process != nil {
 		return "Process"
 	}
 	return ""
@@ -254,7 +254,7 @@ func (m *ExternalServiceImpMock) FetchData(id int) (string, error) {
 	}
 
 	callEvent := &ExternalServiceImpCall{
-		FetchData: call,
+		fetchData: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -279,7 +279,7 @@ func (m *ExternalServiceImpMock) Process(data string) string {
 	}
 
 	callEvent := &ExternalServiceImpCall{
-		Process: call,
+		process: call,
 	}
 
 	m.imp.CallChan <- callEvent

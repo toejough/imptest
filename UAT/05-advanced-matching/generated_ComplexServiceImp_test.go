@@ -69,20 +69,20 @@ func (i *ComplexServiceImp) Within(d _time.Duration) *ComplexServiceImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type ComplexServiceImpCall struct {
-	Process *ComplexServiceImpProcessCall
+	process *ComplexServiceImpProcessCall
 }
 
 // AsProcess returns the call cast to ComplexServiceImpProcessCall for accessing call details.
 // Returns nil if the call was not to Process.
 func (c *ComplexServiceImpCall) AsProcess() *ComplexServiceImpProcessCall {
-	return c.Process
+	return c.process
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *ComplexServiceImpCall) Done() bool {
-	if c.Process != nil {
-		return c.Process.done
+	if c.process != nil {
+		return c.process.done
 	}
 	return false
 }
@@ -90,7 +90,7 @@ func (c *ComplexServiceImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *ComplexServiceImpCall) Name() string {
-	if c.Process != nil {
+	if c.process != nil {
 		return "Process"
 	}
 	return ""
@@ -127,7 +127,7 @@ func (m *ComplexServiceImpMock) Process(d matching.Data) bool {
 	}
 
 	callEvent := &ComplexServiceImpCall{
-		Process: call,
+		process: call,
 	}
 
 	m.imp.CallChan <- callEvent

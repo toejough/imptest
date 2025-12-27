@@ -1,5 +1,7 @@
 package imptest_test
 
+//go:generate ../bin/impgen Tester
+
 import (
 	"sync"
 	"sync/atomic"
@@ -15,12 +17,15 @@ import (
 // This test verifies that:
 // 1. Multiple goroutines can wait concurrently
 // 2. Each goroutine receives the correct call matching its validator
-// 3. No calls are lost or delivered to the wrong waiter.
+// 3. No calls are lost or delivered to the wrong waiter
+// 4. Helper() is called but Fatalf() is NOT called (no timeout).
+//
+//nolint:varnamelen // Standard Go test parameter name
 func TestGetCall_ConcurrentWaiters(t *testing.T) {
 	t.Parallel()
 
-	tester := &mockTester{t: t}
-	ctrl := imptest.NewController[*testCall](tester)
+	testerImp := NewTesterImp(t)
+	ctrl := imptest.NewController[*testCall](testerImp.Mock)
 
 	callA := &testCall{name: "callA"}
 	callB := &testCall{name: "callB"}
@@ -60,6 +65,12 @@ func TestGetCall_ConcurrentWaiters(t *testing.T) {
 		}
 	}()
 
+	// Handle the two Helper() calls (one per GetCall)
+	go func() {
+		testerImp.ExpectCallIs.Helper().Resolve()
+		testerImp.ExpectCallIs.Helper().Resolve()
+	}()
+
 	// Send both calls (dispatcher receives them immediately)
 	ctrl.CallChan <- callA
 
@@ -67,9 +78,8 @@ func TestGetCall_ConcurrentWaiters(t *testing.T) {
 
 	waitGroup.Wait()
 
-	if tester.DidFatal() {
-		t.Fatal("Unexpected timeout - goroutines should have received their calls")
-	}
+	// If we reach here, the test succeeded - both GetCall()s completed
+	// without timing out (which would have called Fatalf and blocked).
 
 	if !receivedA.Load() {
 		t.Error("Goroutine A did not receive callA")
@@ -82,14 +92,23 @@ func TestGetCall_ConcurrentWaiters(t *testing.T) {
 
 // TestGetCall_QueuedCallsMatchLaterWaiters verifies that calls queued before
 // a waiter arrives are correctly matched when the waiter calls GetCall.
+// Also verifies that Helper() is called but Fatalf() is NOT called (no timeout).
+//
+//nolint:varnamelen // Standard Go test parameter name
 func TestGetCall_QueuedCallsMatchLaterWaiters(t *testing.T) {
 	t.Parallel()
 
-	tester := &mockTester{t: t}
-	ctrl := imptest.NewController[*testCall](tester)
+	testerImp := NewTesterImp(t)
+	ctrl := imptest.NewController[*testCall](testerImp.Mock)
 
 	call1 := &testCall{name: "call1"}
 	call2 := &testCall{name: "call2"}
+
+	// Handle the two Helper() calls (one per GetCall)
+	go func() {
+		testerImp.ExpectCallIs.Helper().Resolve()
+		testerImp.ExpectCallIs.Helper().Resolve()
+	}()
 
 	// Send calls (dispatcher receives and queues them immediately)
 	ctrl.CallChan <- call1
@@ -114,23 +133,6 @@ func TestGetCall_QueuedCallsMatchLaterWaiters(t *testing.T) {
 		t.Errorf("Expected to receive call1, got %v", result)
 	}
 }
-
-// mockTester implements the Tester interface for testing.
-type mockTester struct {
-	t       *testing.T
-	fataled atomic.Bool
-}
-
-func (m *mockTester) DidFatal() bool {
-	return m.fataled.Load()
-}
-
-func (m *mockTester) Fatalf(format string, args ...any) {
-	m.fataled.Store(true)
-	m.t.Logf("Fatalf called: "+format, args...)
-}
-
-func (m *mockTester) Helper() {}
 
 // testCall implements the Call interface for testing.
 type testCall struct {

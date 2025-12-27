@@ -133,8 +133,10 @@ func (gen *codeGenerator) generate() (string, error) {
 	// Pre-scan to see if qualifier is needed
 	gen.checkIfQualifierNeeded()
 
-	// If we have an interface name, we need the qualifier for interface verification
-	if gen.interfaceName != "" && gen.qualifier != "" {
+	// If we have an interface name, we need the qualifier for interface verification.
+	// Exception: when pkgPath is empty but qualifier is set (test package case), the import
+	// already exists from baseGenerator, so we don't need to add it.
+	if gen.interfaceName != "" && gen.qualifier != "" && gen.pkgPath != "" {
 		gen.needsQualifier = true
 	}
 
@@ -788,7 +790,7 @@ func (gen *codeGenerator) writeMockMethodCallCreation(callName string, ftype *ds
 // writeMockMethodEventDispatch writes the call event creation and dispatch to the imp.
 func (gen *codeGenerator) writeMockMethodEventDispatch(methodName string) {
 	gen.pf("\tcallEvent := &%s%s{\n", gen.callName, gen.formatTypeParamsUse())
-	gen.pf("\t\t%s: call,\n", methodName)
+	gen.pf("\t\t%s: call,\n", lowerFirst(methodName))
 	gen.pf("\t}\n\n")
 	gen.pf("\tm.imp.CallChan <- callEvent\n\n")
 }
@@ -1117,7 +1119,7 @@ func interfaceProcessFieldMethods(
 
 // newCodeGenerator initializes a codeGenerator with common properties and performs initial setup.
 //
-//nolint:funlen // Constructor with necessary initialization logic
+//nolint:funlen,cyclop // Constructor with necessary initialization logic
 func newCodeGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
@@ -1142,6 +1144,17 @@ func newCodeGenerator(
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get interface package info: %w", err)
+		}
+
+		// Special case: when in a test package (e.g., "imptest_test") and the interface
+		// has no package qualifier (GetPackageInfo returned empty), the interface is from
+		// the non-test version of this package. We need to use the aliased package name.
+		if qualifier == "" && strings.HasSuffix(info.pkgName, "_test") {
+			// Strip _test suffix to get the base package name
+			basePkgName := strings.TrimSuffix(info.pkgName, "_test")
+			// Use the aliased version (e.g., "_imptest" for "imptest")
+			qualifier = "_" + basePkgName
+			pkgPath = "" // Not needed for local package reference
 		}
 	}
 

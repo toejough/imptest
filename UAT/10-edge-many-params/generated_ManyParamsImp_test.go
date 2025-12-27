@@ -68,20 +68,20 @@ func (i *ManyParamsImp) Within(d _time.Duration) *ManyParamsImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type ManyParamsImpCall struct {
-	Process *ManyParamsImpProcessCall
+	process *ManyParamsImpProcessCall
 }
 
 // AsProcess returns the call cast to ManyParamsImpProcessCall for accessing call details.
 // Returns nil if the call was not to Process.
 func (c *ManyParamsImpCall) AsProcess() *ManyParamsImpProcessCall {
-	return c.Process
+	return c.process
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *ManyParamsImpCall) Done() bool {
-	if c.Process != nil {
-		return c.Process.done
+	if c.process != nil {
+		return c.process.done
 	}
 	return false
 }
@@ -89,7 +89,7 @@ func (c *ManyParamsImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *ManyParamsImpCall) Name() string {
-	if c.Process != nil {
+	if c.process != nil {
 		return "Process"
 	}
 	return ""
@@ -135,7 +135,7 @@ func (m *ManyParamsImpMock) Process(a int, b int, c int, d int, e int, f int, g 
 	}
 
 	callEvent := &ManyParamsImpCall{
-		Process: call,
+		process: call,
 	}
 
 	m.imp.CallChan <- callEvent

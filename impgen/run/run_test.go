@@ -2019,6 +2019,8 @@ var _ = run.Calculator{}
 	})
 }
 
+// unexported functions.
+
 // unexported constants.
 const (
 	externalImportSource = `package mypkg

@@ -185,60 +185,60 @@ type OpsImpAddCallResponse struct {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type OpsImpCall struct {
-	Add    *OpsImpAddCall
-	Store  *OpsImpStoreCall
-	Log    *OpsImpLogCall
-	Notify *OpsImpNotifyCall
-	Finish *OpsImpFinishCall
+	add    *OpsImpAddCall
+	store  *OpsImpStoreCall
+	log    *OpsImpLogCall
+	notify *OpsImpNotifyCall
+	finish *OpsImpFinishCall
 }
 
 // AsAdd returns the call cast to OpsImpAddCall for accessing call details.
 // Returns nil if the call was not to Add.
 func (c *OpsImpCall) AsAdd() *OpsImpAddCall {
-	return c.Add
+	return c.add
 }
 
 // AsFinish returns the call cast to OpsImpFinishCall for accessing call details.
 // Returns nil if the call was not to Finish.
 func (c *OpsImpCall) AsFinish() *OpsImpFinishCall {
-	return c.Finish
+	return c.finish
 }
 
 // AsLog returns the call cast to OpsImpLogCall for accessing call details.
 // Returns nil if the call was not to Log.
 func (c *OpsImpCall) AsLog() *OpsImpLogCall {
-	return c.Log
+	return c.log
 }
 
 // AsNotify returns the call cast to OpsImpNotifyCall for accessing call details.
 // Returns nil if the call was not to Notify.
 func (c *OpsImpCall) AsNotify() *OpsImpNotifyCall {
-	return c.Notify
+	return c.notify
 }
 
 // AsStore returns the call cast to OpsImpStoreCall for accessing call details.
 // Returns nil if the call was not to Store.
 func (c *OpsImpCall) AsStore() *OpsImpStoreCall {
-	return c.Store
+	return c.store
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *OpsImpCall) Done() bool {
-	if c.Add != nil {
-		return c.Add.done
+	if c.add != nil {
+		return c.add.done
 	}
-	if c.Store != nil {
-		return c.Store.done
+	if c.store != nil {
+		return c.store.done
 	}
-	if c.Log != nil {
-		return c.Log.done
+	if c.log != nil {
+		return c.log.done
 	}
-	if c.Notify != nil {
-		return c.Notify.done
+	if c.notify != nil {
+		return c.notify.done
 	}
-	if c.Finish != nil {
-		return c.Finish.done
+	if c.finish != nil {
+		return c.finish.done
 	}
 	return false
 }
@@ -246,19 +246,19 @@ func (c *OpsImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *OpsImpCall) Name() string {
-	if c.Add != nil {
+	if c.add != nil {
 		return "Add"
 	}
-	if c.Store != nil {
+	if c.store != nil {
 		return "Store"
 	}
-	if c.Log != nil {
+	if c.log != nil {
 		return "Log"
 	}
-	if c.Notify != nil {
+	if c.notify != nil {
 		return "Notify"
 	}
-	if c.Finish != nil {
+	if c.finish != nil {
 		return "Finish"
 	}
 	return ""
@@ -488,7 +488,7 @@ func (m *OpsImpMock) Add(a int, b int) int {
 	}
 
 	callEvent := &OpsImpCall{
-		Add: call,
+		add: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -512,7 +512,7 @@ func (m *OpsImpMock) Finish() bool {
 	}
 
 	callEvent := &OpsImpCall{
-		Finish: call,
+		finish: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -537,7 +537,7 @@ func (m *OpsImpMock) Log(message string) {
 	}
 
 	callEvent := &OpsImpCall{
-		Log: call,
+		log: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -563,7 +563,7 @@ func (m *OpsImpMock) Notify(message string, ids ...int) bool {
 	}
 
 	callEvent := &OpsImpCall{
-		Notify: call,
+		notify: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -589,7 +589,7 @@ func (m *OpsImpMock) Store(key string, value any) (int, error) {
 	}
 
 	callEvent := &OpsImpCall{
-		Store: call,
+		store: call,
 	}
 
 	m.imp.CallChan <- callEvent

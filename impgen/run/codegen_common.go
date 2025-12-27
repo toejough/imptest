@@ -660,7 +660,7 @@ func isBasicComparableType(expr dst.Expr) bool {
 			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
 			"float32", "float64",
 			"complex64", "complex128",
-			"string", "byte", "rune": //nolint:goconst // Go type keywords and aliases
+			"string", "byte", "rune": //nolint:goconst // Go type keywords
 			return true
 		}
 		// Everything else: custom types, interfaces, etc. → use DeepEqual
@@ -722,6 +722,19 @@ func joinWith[T any](items []T, format func(T) string, sep string) string {
 	}
 
 	return strings.Join(parts, sep)
+}
+
+// lowerFirst lowercases the first character of a string.
+// Used to create unexported field names from method names.
+func lowerFirst(s string) string {
+	if s == "" {
+		return s
+	}
+
+	runes := []rune(s)
+	runes[0] = []rune(strings.ToLower(string(runes[0])))[0]
+
+	return string(runes)
 }
 
 // newBaseGenerator initializes a baseGenerator.

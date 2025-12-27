@@ -86,7 +86,10 @@
       "Bash(impgen:*)",
       "Bash(GOPACKAGE=methods_test impgen:*)",
       "Bash(git stash:*)",
-      "Bash(golangci-lint run:*)"
+      "Bash(golangci-lint run:*)",
+      "Bash(GOPACKAGE=imptest_test ../bin/impgen:*)",
+      "Bash(GOPACKAGE=imptest_test /Users/joe/repos/personal/imptest/bin/impgen:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

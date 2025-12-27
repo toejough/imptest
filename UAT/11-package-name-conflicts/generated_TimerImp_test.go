@@ -68,30 +68,30 @@ func (i *TimerImp) Within(d _time.Duration) *TimerImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type TimerImpCall struct {
-	Wait       *TimerImpWaitCall
-	GetElapsed *TimerImpGetElapsedCall
+	wait       *TimerImpWaitCall
+	getElapsed *TimerImpGetElapsedCall
 }
 
 // AsGetElapsed returns the call cast to TimerImpGetElapsedCall for accessing call details.
 // Returns nil if the call was not to GetElapsed.
 func (c *TimerImpCall) AsGetElapsed() *TimerImpGetElapsedCall {
-	return c.GetElapsed
+	return c.getElapsed
 }
 
 // AsWait returns the call cast to TimerImpWaitCall for accessing call details.
 // Returns nil if the call was not to Wait.
 func (c *TimerImpCall) AsWait() *TimerImpWaitCall {
-	return c.Wait
+	return c.wait
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *TimerImpCall) Done() bool {
-	if c.Wait != nil {
-		return c.Wait.done
+	if c.wait != nil {
+		return c.wait.done
 	}
-	if c.GetElapsed != nil {
-		return c.GetElapsed.done
+	if c.getElapsed != nil {
+		return c.getElapsed.done
 	}
 	return false
 }
@@ -99,10 +99,10 @@ func (c *TimerImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *TimerImpCall) Name() string {
-	if c.Wait != nil {
+	if c.wait != nil {
 		return "Wait"
 	}
-	if c.GetElapsed != nil {
+	if c.getElapsed != nil {
 		return "GetElapsed"
 	}
 	return ""
@@ -208,7 +208,7 @@ func (m *TimerImpMock) GetElapsed() int {
 	}
 
 	callEvent := &TimerImpCall{
-		GetElapsed: call,
+		getElapsed: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -233,7 +233,7 @@ func (m *TimerImpMock) Wait(seconds int) error {
 	}
 
 	callEvent := &TimerImpCall{
-		Wait: call,
+		wait: call,
 	}
 
 	m.imp.CallChan <- callEvent

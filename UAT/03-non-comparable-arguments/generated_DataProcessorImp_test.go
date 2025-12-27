@@ -69,30 +69,30 @@ func (i *DataProcessorImp) Within(d _time.Duration) *DataProcessorImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type DataProcessorImpCall struct {
-	ProcessSlice *DataProcessorImpProcessSliceCall
-	ProcessMap   *DataProcessorImpProcessMapCall
+	processSlice *DataProcessorImpProcessSliceCall
+	processMap   *DataProcessorImpProcessMapCall
 }
 
 // AsProcessMap returns the call cast to DataProcessorImpProcessMapCall for accessing call details.
 // Returns nil if the call was not to ProcessMap.
 func (c *DataProcessorImpCall) AsProcessMap() *DataProcessorImpProcessMapCall {
-	return c.ProcessMap
+	return c.processMap
 }
 
 // AsProcessSlice returns the call cast to DataProcessorImpProcessSliceCall for accessing call details.
 // Returns nil if the call was not to ProcessSlice.
 func (c *DataProcessorImpCall) AsProcessSlice() *DataProcessorImpProcessSliceCall {
-	return c.ProcessSlice
+	return c.processSlice
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *DataProcessorImpCall) Done() bool {
-	if c.ProcessSlice != nil {
-		return c.ProcessSlice.done
+	if c.processSlice != nil {
+		return c.processSlice.done
 	}
-	if c.ProcessMap != nil {
-		return c.ProcessMap.done
+	if c.processMap != nil {
+		return c.processMap.done
 	}
 	return false
 }
@@ -100,10 +100,10 @@ func (c *DataProcessorImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *DataProcessorImpCall) Name() string {
-	if c.ProcessSlice != nil {
+	if c.processSlice != nil {
 		return "ProcessSlice"
 	}
-	if c.ProcessMap != nil {
+	if c.processMap != nil {
 		return "ProcessMap"
 	}
 	return ""
@@ -145,7 +145,7 @@ func (m *DataProcessorImpMock) ProcessMap(config map[string]int) bool {
 	}
 
 	callEvent := &DataProcessorImpCall{
-		ProcessMap: call,
+		processMap: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -170,7 +170,7 @@ func (m *DataProcessorImpMock) ProcessSlice(data []string) int {
 	}
 
 	callEvent := &DataProcessorImpCall{
-		ProcessSlice: call,
+		processSlice: call,
 	}
 
 	m.imp.CallChan <- callEvent

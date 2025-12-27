@@ -68,30 +68,30 @@ func (i *SlowServiceImp) Within(d _time.Duration) *SlowServiceImpTimed {
 // Only one method field is non-nil at a time, indicating which method was called.
 // Use Name() to identify the method and As{{Method}() to access typed call details.
 type SlowServiceImpCall struct {
-	DoA *SlowServiceImpDoACall
-	DoB *SlowServiceImpDoBCall
+	doA *SlowServiceImpDoACall
+	doB *SlowServiceImpDoBCall
 }
 
 // AsDoA returns the call cast to SlowServiceImpDoACall for accessing call details.
 // Returns nil if the call was not to DoA.
 func (c *SlowServiceImpCall) AsDoA() *SlowServiceImpDoACall {
-	return c.DoA
+	return c.doA
 }
 
 // AsDoB returns the call cast to SlowServiceImpDoBCall for accessing call details.
 // Returns nil if the call was not to DoB.
 func (c *SlowServiceImpCall) AsDoB() *SlowServiceImpDoBCall {
-	return c.DoB
+	return c.doB
 }
 
 // Done returns true if the call has been completed (response injected).
 // Used internally to track call state.
 func (c *SlowServiceImpCall) Done() bool {
-	if c.DoA != nil {
-		return c.DoA.done
+	if c.doA != nil {
+		return c.doA.done
 	}
-	if c.DoB != nil {
-		return c.DoB.done
+	if c.doB != nil {
+		return c.doB.done
 	}
 	return false
 }
@@ -99,10 +99,10 @@ func (c *SlowServiceImpCall) Done() bool {
 // Name returns the name of the method that was called.
 // Returns an empty string if the call struct is invalid.
 func (c *SlowServiceImpCall) Name() string {
-	if c.DoA != nil {
+	if c.doA != nil {
 		return "DoA"
 	}
-	if c.DoB != nil {
+	if c.doB != nil {
 		return "DoB"
 	}
 	return ""
@@ -360,7 +360,7 @@ func (m *SlowServiceImpMock) DoA(id int) string {
 	}
 
 	callEvent := &SlowServiceImpCall{
-		DoA: call,
+		doA: call,
 	}
 
 	m.imp.CallChan <- callEvent
@@ -385,7 +385,7 @@ func (m *SlowServiceImpMock) DoB(id int) string {
 	}
 
 	callEvent := &SlowServiceImpCall{
-		DoB: call,
+		doB: call,
 	}
 
 	m.imp.CallChan <- callEvent
