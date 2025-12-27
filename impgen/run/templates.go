@@ -16,12 +16,14 @@ type baseTemplateData struct {
 
 	// Framework package names (always use these constants instead of hardcoding)
 	PkgTesting string // "_testing"
+	PkgFmt     string // "_fmt"
 	PkgImptest string // "_imptest"
 	PkgTime    string // "_time"
 	PkgReflect string // "_reflect"
 
 	// Framework packages are always imported with underscore prefix to avoid conflicts.
 	// User's package (Qualifier/PkgPath) is imported without alias.
+	NeedsFmt     bool // Whether fmt import is needed for Sprintf
 	NeedsReflect bool // Whether reflect import is needed for DeepEqual
 	NeedsImptest bool // Whether imptest import is needed for matchers
 

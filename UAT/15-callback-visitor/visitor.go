@@ -4,7 +4,7 @@ import "io/fs"
 
 // TreeWalker walks a directory tree, calling fn for each entry.
 type TreeWalker interface {
-	Walk(root string, fn fs.WalkDirFunc) error
+	Walk(root string, fn func(path string, d fs.DirEntry, err error) error) error
 }
 
 // CountFiles counts regular files using the walker.

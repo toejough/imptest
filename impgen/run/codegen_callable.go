@@ -5,6 +5,7 @@ import (
 	"go/format"
 	"go/token"
 	go_types "go/types"
+	"sort"
 	"strings"
 
 	"github.com/dave/dst"
@@ -34,8 +35,70 @@ type callableGenerator struct {
 
 	templates                  *TemplateRegistry
 	funcDecl                   *dst.FuncDecl
+	astFiles                   []*dst.File // Source AST files for import resolution
 	cachedTemplateData         *callableTemplateData         // Cache to avoid redundant templateData() calls
 	cachedExtendedTemplateData *callableExtendedTemplateData // Cache to avoid redundant extendedTemplateData() calls
+}
+
+// collectAdditionalImports collects all external type imports needed for the callable function signature.
+func (g *callableGenerator) collectAdditionalImports() []importInfo {
+	if len(g.astFiles) == 0 {
+		return nil
+	}
+
+	// Get source imports from the first AST file
+	var sourceImports []*dst.ImportSpec
+	for _, file := range g.astFiles {
+		if len(file.Imports) > 0 {
+			sourceImports = file.Imports
+			break
+		}
+	}
+
+	allImports := make(map[string]importInfo) // Deduplicate by path
+
+	// If we have a qualifier (e.g., "visitor"), we need to import that package
+	// This handles cases where the source package (visitor) contains types that
+	// need to be imported when generating in the test package (visitor_test)
+	if g.qualifier != "" && g.pkgPath != "" {
+		allImports[g.pkgPath] = importInfo{
+			Alias: g.qualifier,
+			Path:  g.pkgPath,
+		}
+	}
+
+	// Collect from parameters
+	if g.funcDecl.Type.Params != nil {
+		for _, field := range g.funcDecl.Type.Params.List {
+			imports := collectExternalImports(field.Type, sourceImports)
+			for _, imp := range imports {
+				allImports[imp.Path] = imp
+			}
+		}
+	}
+
+	// Collect from return types
+	if g.funcDecl.Type.Results != nil {
+		for _, field := range g.funcDecl.Type.Results.List {
+			imports := collectExternalImports(field.Type, sourceImports)
+			for _, imp := range imports {
+				allImports[imp.Path] = imp
+			}
+		}
+	}
+
+	// Convert map to slice and sort for deterministic output
+	result := make([]importInfo, 0, len(allImports))
+	for _, imp := range allImports {
+		result = append(result, imp)
+	}
+
+	// Sort by import path for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
+
+	return result
 }
 
 // buildReturnFieldData builds return field data with types for templates.
@@ -234,19 +297,22 @@ func (g *callableGenerator) templateData() callableTemplateData {
 
 	data := callableTemplateData{
 		baseTemplateData: baseTemplateData{
-			PkgName:        g.pkgName,
-			ImpName:        g.impName,
-			PkgPath:        g.pkgPath,
-			Qualifier:      g.qualifier,
-			NeedsQualifier: g.needsQualifier,
-			TypeParamsDecl: g.formatTypeParamsDecl(),
-			TypeParamsUse:  g.formatTypeParamsUse(),
-			PkgTesting:     pkgTesting,
-			PkgImptest:     pkgImptest,
-			PkgTime:        pkgTime,
-			PkgReflect:     pkgReflect,
-			NeedsReflect:   g.needsReflect,
-			NeedsImptest:   g.needsImptest,
+			PkgName:           g.pkgName,
+			ImpName:           g.impName,
+			PkgPath:           g.pkgPath,
+			Qualifier:         g.qualifier,
+			NeedsQualifier:    g.needsQualifier,
+			TypeParamsDecl:    g.formatTypeParamsDecl(),
+			TypeParamsUse:     g.formatTypeParamsUse(),
+			PkgTesting:        pkgTesting,
+			PkgFmt:            pkgFmt,
+			PkgImptest:        pkgImptest,
+			PkgTime:           pkgTime,
+			PkgReflect:        pkgReflect,
+			NeedsFmt:          g.needsFmt,
+			NeedsReflect:      g.needsReflect,
+			NeedsImptest:      g.needsImptest,
+			AdditionalImports: g.collectAdditionalImports(),
 		},
 		HasReturns: hasResults(g.funcDecl.Type),
 		ReturnType: g.returnTypeName(),
@@ -360,10 +426,37 @@ func generateCallableWrapperCode(
 
 	var pkgPath, qualifier string
 	if pkgImportPath != "." {
-		pkgPath, qualifier, err = GetPackageInfo(info.interfaceName, pkgLoader, info.pkgName)
-		if err != nil {
-			return "", fmt.Errorf("failed to get callable package info: %w", err)
+		// For callables, GetPackageInfo won't work since function names don't have package qualifiers
+		// Instead, if we're in a test package, we need to import the source package
+		if strings.HasSuffix(info.pkgName, "_test") {
+			// We're in a test package (e.g., visitor_test) and the callable is from the source package (e.g., visitor)
+			// We need to import the source package
+			pkgPath = pkgImportPath
+
+			// Get the actual package name by loading the package
+			srcFiles, _, _, err := pkgLoader.Load(pkgImportPath)
+			if err != nil {
+				return "", fmt.Errorf("failed to load source package: %w", err)
+			}
+
+			// Extract package name from the first file
+			if len(srcFiles) > 0 && srcFiles[0].Name != nil {
+				qualifier = srcFiles[0].Name.Name
+			} else {
+				// Fallback: extract from import path (last component)
+				parts := strings.Split(pkgImportPath, "/")
+				qualifier = parts[len(parts)-1]
+			}
+		} else {
+			pkgPath, qualifier, err = GetPackageInfo(info.interfaceName, pkgLoader, info.pkgName)
+			if err != nil {
+				return "", fmt.Errorf("failed to get callable package info: %w", err)
+			}
 		}
+	} else if strings.HasSuffix(info.pkgName, "_test") {
+		// Special case: when pkgImportPath is "." and we're in a test package,
+		// the callable is from the non-test version of this package
+		pkgPath, qualifier = resolveTestPackageImport(pkgLoader, info.pkgName)
 	}
 
 	gen := &callableGenerator{
@@ -377,6 +470,7 @@ func generateCallableWrapperCode(
 			typesInfo,
 		),
 		funcDecl: funcDecl,
+		astFiles: astFiles,
 	}
 
 	gen.checkIfQualifierNeeded(gen.funcDecl.Type)

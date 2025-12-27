@@ -8,7 +8,7 @@ import _reflect "reflect"
 import _testing "testing"
 import _time "time"
 import visitor "github.com/toejough/imptest/UAT/15-callback-visitor"
-import fs "io/fs"
+import "io/fs"
 
 // TreeWalkerImp is the test controller for mocking the interface.
 // Create with NewTreeWalkerImp(t), then use Mock field to get the mock implementation
@@ -122,7 +122,7 @@ type TreeWalkerImpMock struct {
 // The method blocks until a response is injected via the test controller.
 func (m *TreeWalkerImpMock) Walk(root string, fn func(string, fs.DirEntry, error) error) error {
 	responseChan := make(chan TreeWalkerImpWalkCallResponse, 1)
-	callbackFnChan := make(chan TreeWalkerImpWalkCallFnRequest)
+	callbackFnChan := make(chan _imptest.CallbackRequest)
 
 	call := &TreeWalkerImpWalkCall{
 		responseChan:   responseChan,
@@ -142,9 +142,9 @@ func (m *TreeWalkerImpMock) Walk(root string, fn func(string, fs.DirEntry, error
 	for {
 		select {
 		case cbReq := <-callbackFnChan:
-			// Direct invocation with typed values - no type assertions needed
-			result0 := fn(cbReq.Path, cbReq.D, cbReq.Err)
-			cbReq.ResultChan <- TreeWalkerImpWalkCallFnResponse{Result0: result0}
+			// Invoke the fn callback with provided args
+			results := invokeCallbackFn(fn, cbReq.Invocation.Args)
+			cbReq.ResultChan <- _imptest.CallbackResult{Results: results}
 		case resp = <-responseChan:
 			// Final response received
 			if resp.Type == "panic" {
@@ -253,7 +253,7 @@ type TreeWalkerImpWalkCall struct {
 	root         string
 	fn           func(string, fs.DirEntry, error) error
 	// Callback coordination channels
-	callbackFnChan chan TreeWalkerImpWalkCallFnRequest
+	callbackFnChan chan _imptest.CallbackRequest
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -273,40 +273,30 @@ func (c *TreeWalkerImpWalkCall) InjectResult(result error) {
 
 // InvokeFn invokes the fn callback with the provided arguments.
 // Returns a result object that can verify the callback's return values.
-func (c *TreeWalkerImpWalkCall) InvokeFn(path string, d fs.DirEntry, err error) *TreeWalkerImpWalkCallFnCallbackResult {
-	resultChan := make(chan TreeWalkerImpWalkCallFnResponse)
-	c.callbackFnChan <- TreeWalkerImpWalkCallFnRequest{
-		Path:       path,
-		D:          d,
-		Err:        err,
+func (c *TreeWalkerImpWalkCall) InvokeFn(args ...any) *TreeWalkerImpWalkCallFnCallbackResult {
+	resultChan := make(chan _imptest.CallbackResult)
+	c.callbackFnChan <- _imptest.CallbackRequest{
+		Invocation: _imptest.CallbackInvocation{Args: args},
 		ResultChan: resultChan,
 	}
-	resp := <-resultChan
-	return &TreeWalkerImpWalkCallFnCallbackResult{result0: resp.Result0}
+	result := <-resultChan
+	return &TreeWalkerImpWalkCallFnCallbackResult{results: result.Results}
 }
 
 type TreeWalkerImpWalkCallFnCallbackResult struct {
-	result0 error
+	results []any
 }
 
 // ExpectReturned verifies that the callback returned the expected values.
-func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectReturned(expected0 error) {
-	if !_reflect.DeepEqual(r.result0, expected0) {
-		panic(_fmt.Sprintf("callback result[0] = %v, expected %v", r.result0, expected0))
+func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectReturned(expected ...any) {
+	if len(r.results) != len(expected) {
+		panic(_fmt.Sprintf("callback returned %d values, expected %d", len(r.results), len(expected)))
 	}
-}
-
-// TreeWalkerImpWalkCallFnRequest carries callback invocation data for the fn parameter.
-type TreeWalkerImpWalkCallFnRequest struct {
-	Path       string
-	D          fs.DirEntry
-	Err        error
-	ResultChan chan TreeWalkerImpWalkCallFnResponse
-}
-
-// TreeWalkerImpWalkCallFnResponse carries callback return values for the fn parameter.
-type TreeWalkerImpWalkCallFnResponse struct {
-	Result0 error
+	for i, exp := range expected {
+		if !_reflect.DeepEqual(r.results[i], exp) {
+			panic(_fmt.Sprintf("callback result[%d] = %v, expected %v", i, r.results[i], exp))
+		}
+	}
 }
 
 // TreeWalkerImpWalkCallResponse holds the response configuration for the Walk method.
@@ -322,3 +312,12 @@ var (
 	// Compile-time verification that TreeWalkerImpMock implements visitor.TreeWalker.
 	_ visitor.TreeWalker = (*TreeWalkerImpMock)(nil)
 )
+
+// invokeCallbackFn invokes the fn callback with the provided arguments.
+func invokeCallbackFn(fn func(string, fs.DirEntry, error) error, args []any) []any {
+	arg0 := args[0].(string)
+	arg1 := args[1].(fs.DirEntry)
+	arg2 := args[2].(error)
+	result0 := fn(arg0, arg1, arg2)
+	return []any{result0}
+}

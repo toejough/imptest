@@ -102,6 +102,7 @@ func ValidateExportedTypes(expr dst.Expr, isTypeParam func(string) bool) error {
 const (
 	anyTypeString       = "any"
 	goPackageEnvVarName = "GOPACKAGE"
+	pkgFmt              = "_fmt"
 	pkgImptest          = "_imptest"
 	pkgReflect          = "_reflect"
 	pkgTesting          = "_testing"
@@ -125,6 +126,7 @@ type baseGenerator struct {
 	qualifier      string
 	typeParams     *dst.FieldList
 	typesInfo      *go_types.Info
+	needsFmt       bool
 	needsImptest   bool
 	needsReflect   bool
 	needsQualifier bool
@@ -676,6 +678,14 @@ func hasParams(ftype *dst.FuncType) bool {
 // hasResults returns true if the function type has return values.
 func hasResults(ftype *dst.FuncType) bool {
 	return ftype.Results != nil && len(ftype.Results.List) > 0
+}
+
+// funcParamInfo holds information about a function-typed parameter.
+type funcParamInfo struct {
+	Name      string        // Parameter name (e.g., "fn")
+	Index     int           // Parameter index
+	FuncType  *dst.FuncType // The function type
+	FieldInfo fieldInfo     // Original field info
 }
 
 // isBasicComparableType determines if an expression is a basic type that supports == comparison.

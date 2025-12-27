@@ -3,6 +3,7 @@
 package zero_returns_test
 
 import (
+	zero_returns "github.com/toejough/imptest/UAT/09-edge-zero-returns"
 	_imptest "github.com/toejough/imptest/imptest"
 	_testing "testing"
 )

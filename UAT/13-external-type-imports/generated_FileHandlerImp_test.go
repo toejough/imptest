@@ -7,8 +7,8 @@ import _reflect "reflect"
 import _testing "testing"
 import _time "time"
 import externalimports "github.com/toejough/imptest/UAT/13-external-type-imports"
-import "io"
-import "os"
+import io "io"
+import os "os"
 
 // FileHandlerImp is the test controller for mocking the interface.
 // Create with NewFileHandlerImp(t), then use Mock field to get the mock implementation

@@ -75,6 +75,19 @@ func (gen *codeGenerator) checkIfQualifierNeeded() {
 
 // codeGenerator Methods
 
+// checkIfFmtNeeded pre-scans all interface methods to determine if fmt import is needed.
+// fmt is needed when any method has function-typed parameters (for callback validation).
+func (gen *codeGenerator) checkIfFmtNeeded() {
+	gen.forEachMethod(func(_ string, ftype *dst.FuncType) {
+		funcParams := gen.extractFuncParams(ftype)
+		if len(funcParams) > 0 {
+			gen.needsFmt = true
+			gen.needsReflect = true // Callbacks also need reflect for DeepEqual
+			return                  // Early exit once we know fmt is needed
+		}
+	})
+}
+
 // checkIfReflectNeeded pre-scans all interface methods to determine if reflect import is needed.
 func (gen *codeGenerator) checkIfReflectNeeded() {
 	gen.forEachMethod(func(_ string, ftype *dst.FuncType) {
@@ -195,6 +208,8 @@ func (gen *codeGenerator) generate() (string, error) {
 	gen.checkIfReflectNeeded()
 	// Pre-scan to determine if imptest import is needed
 	gen.checkIfImptestNeeded()
+	// Pre-scan to determine if fmt import is needed
+	gen.checkIfFmtNeeded()
 	// Pre-scan to see if qualifier is needed
 	gen.checkIfQualifierNeeded()
 
@@ -453,6 +468,169 @@ func (gen *codeGenerator) generateInjectResultsMethod(methodCallName string, fty
 `)
 }
 
+// generateCallbackHelper generates a helper function to invoke a callback with dynamic arguments.
+// generateCallbackRequestResponseStructs generates type-safe request and response structs for a callback parameter.
+// For a callback like fn func(path string, d fs.DirEntry, err error) error, this generates:
+//   - TreeWalkerImpWalkCallFnRequest with fields for each parameter plus ResultChan
+//   - TreeWalkerImpWalkCallFnResponse with fields for each return value
+func (gen *codeGenerator) generateCallbackRequestResponseStructs(methodName, callName string, fp funcParamInfo) (requestTypeName, responseTypeName string) {
+	capitalizedName := strings.ToUpper(fp.Name[:1]) + fp.Name[1:]
+	requestTypeName = fmt.Sprintf("%s%sRequest", callName, capitalizedName)
+	responseTypeName = fmt.Sprintf("%s%sResponse", callName, capitalizedName)
+
+	// Generate request struct
+	gen.pf("// %s carries callback invocation data for the %s parameter.\n", requestTypeName, fp.Name)
+	gen.pf("type %s struct {\n", requestTypeName)
+
+	// Add fields for each callback parameter
+	params := extractParams(nil, fp.FuncType)
+	for i, param := range params {
+		fieldName := fmt.Sprintf("Arg%d", i)
+		if param.Name != "" {
+			// Capitalize the parameter name for the field
+			fieldName = strings.ToUpper(param.Name[:1]) + param.Name[1:]
+		}
+		paramType := gen.typeWithQualifier(param.Field.Type)
+		gen.pf("\t%s %s\n", fieldName, paramType)
+	}
+
+	// Add result channel
+	gen.pf("\tResultChan chan %s\n", responseTypeName)
+	gen.pf("}\n\n")
+
+	// Generate response struct
+	gen.pf("// %s carries callback return values for the %s parameter.\n", responseTypeName, fp.Name)
+	gen.pf("type %s struct {\n", responseTypeName)
+
+	// Add fields for each return value
+	if hasResults(fp.FuncType) {
+		results := extractResults(nil, fp.FuncType)
+		for i, result := range results {
+			resultType := gen.typeWithQualifier(result.Field.Type)
+			gen.pf("\tResult%d %s\n", i, resultType)
+		}
+	}
+
+	gen.pf("}\n\n")
+
+	return requestTypeName, responseTypeName
+}
+
+// generateCallbackInvocationMethod generates type-safe InvokeFn and ExpectReturned methods for a callback parameter.
+// For a callback like fn func(path string, d fs.DirEntry, err error) error, this generates:
+//   - InvokeFn(path string, d fs.DirEntry, err error) - type-safe invocation
+//   - ExpectReturned(result0 error) - type-safe result verification
+func (gen *codeGenerator) generateCallbackInvocationMethod(methodName, callName string, fp funcParamInfo, requestTypeName, responseTypeName string) {
+	capitalizedName := strings.ToUpper(fp.Name[:1]) + fp.Name[1:]
+	resultTypeName := fmt.Sprintf("%s%sCallbackResult", callName, capitalizedName)
+
+	// Generate the callback result type (holds response from the callback)
+	gen.pf("// %s holds the result of invoking the %s callback.\n", resultTypeName, fp.Name)
+	gen.pf("type %s struct {\n", resultTypeName)
+
+	// Add private fields for each return value
+	if hasResults(fp.FuncType) {
+		results := extractResults(nil, fp.FuncType)
+		for i := range results {
+			gen.pf("\tresult%d ", i)
+			gen.pf("%s\n", gen.typeWithQualifier(results[i].Field.Type))
+		}
+	}
+
+	gen.pf("}\n\n")
+
+	// Generate the ExpectReturned method with type-safe parameters
+	gen.pf("// ExpectReturned verifies that the callback returned the expected values.\n")
+	gen.pf("func (r *%s) ExpectReturned(", resultTypeName)
+
+	// Generate type-safe parameters for ExpectReturned
+	if hasResults(fp.FuncType) {
+		results := extractResults(nil, fp.FuncType)
+		for i, result := range results {
+			if i > 0 {
+				gen.pf(", ")
+			}
+			gen.pf("expected%d %s", i, gen.typeWithQualifier(result.Field.Type))
+		}
+	}
+
+	gen.pf(") {\n")
+
+	// Generate type-safe comparisons
+	if hasResults(fp.FuncType) {
+		results := extractResults(nil, fp.FuncType)
+		for i, result := range results {
+			resultType := gen.typeWithQualifier(result.Field.Type)
+			// Use DeepEqual for non-comparable types (like functions, slices, maps)
+			gen.pf("\tif !%s.DeepEqual(r.result%d, expected%d) {\n", pkgReflect, i, i)
+			gen.pf("\t\tpanic(%s.Sprintf(\"callback result[%d] = %%v, expected %%v\", r.result%d, expected%d))\n",
+				pkgFmt, i, i, i)
+			gen.pf("\t}\n")
+			_ = resultType // Keep for future optimizations (use == for comparable types)
+		}
+	}
+
+	gen.pf("}\n\n")
+
+	// Generate the type-safe InvokeFn method
+	methodNameFormatted := "Invoke" + capitalizedName
+	gen.pf("// %s invokes the %s callback with the provided arguments.\n", methodNameFormatted, fp.Name)
+	gen.pf("// Returns a result object that can verify the callback's return values.\n")
+	gen.pf("func (c *%s) %s(", callName, methodNameFormatted)
+
+	// Generate type-safe parameters for InvokeFn
+	params := extractParams(nil, fp.FuncType)
+	for i, param := range params {
+		if i > 0 {
+			gen.pf(", ")
+		}
+		paramName := param.Name
+		if paramName == "" {
+			paramName = fmt.Sprintf("arg%d", i)
+		}
+		gen.pf("%s %s", paramName, gen.typeWithQualifier(param.Field.Type))
+	}
+
+	gen.pf(") *%s {\n", resultTypeName)
+
+	// Create result channel with typed response
+	gen.pf("\tresultChan := make(chan %s)\n", responseTypeName)
+
+	// Send typed request
+	gen.pf("\tc.callback%sChan <- %s{\n", capitalizedName, requestTypeName)
+	for i, param := range params {
+		fieldName := fmt.Sprintf("Arg%d", i)
+		if param.Name != "" {
+			fieldName = strings.ToUpper(param.Name[:1]) + param.Name[1:]
+		}
+		paramName := param.Name
+		if paramName == "" {
+			paramName = fmt.Sprintf("arg%d", i)
+		}
+		gen.pf("\t\t%s: %s,\n", fieldName, paramName)
+	}
+	gen.pf("\t\tResultChan: resultChan,\n")
+	gen.pf("\t}\n")
+
+	// Receive typed response
+	gen.pf("\tresp := <-resultChan\n")
+
+	// Return typed result
+	gen.pf("\treturn &%s{", resultTypeName)
+	if hasResults(fp.FuncType) {
+		results := extractResults(nil, fp.FuncType)
+		for i := range results {
+			if i > 0 {
+				gen.pf(", ")
+			}
+			gen.pf("result%d: resp.Result%d", i, i)
+		}
+	}
+	gen.pf("}\n")
+
+	gen.pf("}\n\n")
+}
+
 // generateInterfaceVerification generates a compile-time check that the mock implements the interface.
 func (gen *codeGenerator) generateInterfaceVerification() {
 	gen.templates.WriteInterfaceVerification(&gen.buf, gen.templateData())
@@ -507,6 +685,15 @@ func (gen *codeGenerator) generateMethodBuilders() {
 // generateMethodCallStruct generates the call struct for a specific method, which tracks the method call parameters.
 func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *dst.FuncType) {
 	callName := gen.methodCallName(methodName)
+
+	// Generate callback request/response structs first (they need to exist before the call struct references them)
+	funcParams := gen.extractFuncParams(ftype)
+	callbackTypeNames := make(map[string]struct{ requestType, responseType string })
+	for _, fp := range funcParams {
+		requestType, responseType := gen.generateCallbackRequestResponseStructs(methodName, callName, fp)
+		callbackTypeNames[fp.Name] = struct{ requestType, responseType string }{requestType, responseType}
+	}
+
 	gen.pf("// %s%s represents a captured call to the %s method.\n", callName, gen.formatTypeParamsDecl(), methodName)
 	gen.pf("// Use InjectResult to set the return value, or InjectPanic to cause the method to panic.\n")
 	gen.pf(`type %s%s struct {
@@ -516,6 +703,16 @@ func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *dst
 
 	if hasParams(ftype) {
 		gen.generateCallStructParamFields(ftype)
+	}
+
+	// Add callback coordination channels with typed request channels
+	if len(funcParams) > 0 {
+		gen.pf("\t// Callback coordination channels\n")
+		for _, fp := range funcParams {
+			capitalizedName := strings.ToUpper(fp.Name[:1]) + fp.Name[1:]
+			typeNames := callbackTypeNames[fp.Name]
+			gen.pf("\tcallback%sChan chan %s\n", capitalizedName, typeNames.requestType)
+		}
 	}
 
 	gen.pf("}\n\n")
@@ -539,6 +736,16 @@ func (gen *codeGenerator) generateMethodResponseMethods(methodName string, ftype
 	} else {
 		gen.generateResolveMethod(callName)
 		gen.generateInjectPanicMethod(callName)
+	}
+
+	// Generate callback invocation methods if there are func-typed parameters
+	funcParams := gen.extractFuncParams(ftype)
+	for _, fp := range funcParams {
+		// Compute the request/response type names (same logic as in generateCallbackRequestResponseStructs)
+		capitalizedName := strings.ToUpper(fp.Name[:1]) + fp.Name[1:]
+		requestTypeName := fmt.Sprintf("%s%sRequest", callName, capitalizedName)
+		responseTypeName := fmt.Sprintf("%s%sResponse", callName, capitalizedName)
+		gen.generateCallbackInvocationMethod(methodName, callName, fp, requestTypeName, responseTypeName)
 	}
 
 	gen.pf("\n")
@@ -574,12 +781,18 @@ func (gen *codeGenerator) generateMethodStructs() {
 func (gen *codeGenerator) generateMockMethod(methodName string, ftype *dst.FuncType) {
 	callName := gen.methodCallName(methodName)
 	paramNames := interfaceExtractParamNames(gen.fset, ftype)
+	funcParams := gen.extractFuncParams(ftype)
 
 	gen.writeMockMethodSignature(methodName, ftype, paramNames)
 	gen.writeMockMethodCallCreation(callName, ftype, paramNames)
 	gen.writeMockMethodEventDispatch(methodName)
-	gen.writeMockMethodResponseHandling()
-	gen.writeReturnStatement(ftype)
+	gen.writeMockMethodResponseHandling(callName, ftype, paramNames)
+
+	// Only write return statement if there are no callbacks (otherwise it's in the select)
+	if len(funcParams) == 0 {
+		gen.writeReturnStatement(ftype)
+	}
+
 	gen.pf("}\n\n")
 }
 
@@ -610,6 +823,31 @@ func (gen *codeGenerator) generateResponseStructResultFields(ftype *dst.FuncType
 // generateTimedStruct generates the struct and method for timed call expectations.
 func (gen *codeGenerator) generateTimedStruct() {
 	gen.templates.WriteTimedStruct(&gen.buf, gen.templateData())
+}
+
+// extractFuncParams returns information about function-typed parameters in a function.
+// For now, only detects inline function types (func(...) ...), not named type aliases.
+func (gen *codeGenerator) extractFuncParams(ftype *dst.FuncType) []funcParamInfo {
+	if !hasParams(ftype) {
+		return nil
+	}
+
+	params := extractParams(nil, ftype)
+	var funcParams []funcParamInfo
+
+	for _, param := range params {
+		// Check if it's a direct inline function type
+		if funcType, ok := param.Field.Type.(*dst.FuncType); ok {
+			funcParams = append(funcParams, funcParamInfo{
+				Name:      param.Name,
+				Index:     param.Index,
+				FuncType:  funcType,
+				FieldInfo: param,
+			})
+		}
+	}
+
+	return funcParams
 }
 
 // getSourceImports returns the import specs from the first AST file that has imports.
@@ -693,9 +931,11 @@ func (gen *codeGenerator) templateData() templateData {
 			TypeParamsDecl:    gen.formatTypeParamsDecl(),
 			TypeParamsUse:     gen.formatTypeParamsUse(),
 			PkgTesting:        pkgTesting,
+			PkgFmt:            pkgFmt,
 			PkgImptest:        pkgImptest,
 			PkgTime:           pkgTime,
 			PkgReflect:        pkgReflect,
+			NeedsFmt:          gen.needsFmt,
 			NeedsReflect:      gen.needsReflect,
 			NeedsImptest:      gen.needsImptest,
 			AdditionalImports: gen.collectAdditionalImports(),
@@ -857,9 +1097,25 @@ func (gen *codeGenerator) writeMethodSignature(methodName string, ftype *dst.Fun
 
 // writeMockMethodCallCreation writes the response channel and call struct creation.
 func (gen *codeGenerator) writeMockMethodCallCreation(callName string, ftype *dst.FuncType, paramNames []string) {
-	gen.pf("\tresponseChan := make(chan %sResponse%s, 1)\n\n", callName, gen.formatTypeParamsUse())
-	gen.pf("\tcall := &%s%s{\n", callName, gen.formatTypeParamsUse())
+	gen.pf("\tresponseChan := make(chan %sResponse%s, 1)\n", callName, gen.formatTypeParamsUse())
+
+	// Create callback channels with typed requests
+	funcParams := gen.extractFuncParams(ftype)
+	for _, fp := range funcParams {
+		capitalizedName := strings.ToUpper(fp.Name[:1]) + fp.Name[1:]
+		requestTypeName := fmt.Sprintf("%s%sRequest", callName, capitalizedName)
+		gen.pf("\tcallback%sChan := make(chan %s)\n", capitalizedName, requestTypeName)
+	}
+
+	gen.pf("\n\tcall := &%s%s{\n", callName, gen.formatTypeParamsUse())
 	gen.pf("\t\tresponseChan: responseChan,\n")
+
+	// Add callback channels to call struct
+	for _, fp := range funcParams {
+		capitalizedName := strings.ToUpper(fp.Name[:1]) + fp.Name[1:]
+		gen.pf("\t\tcallback%sChan: callback%sChan,\n", capitalizedName, capitalizedName)
+	}
+
 	gen.writeCallStructFields(ftype, paramNames)
 	gen.pf("\t}\n\n")
 }
@@ -873,11 +1129,90 @@ func (gen *codeGenerator) writeMockMethodEventDispatch(methodName string) {
 }
 
 // writeMockMethodResponseHandling writes the response reception and panic handling.
-func (gen *codeGenerator) writeMockMethodResponseHandling() {
-	gen.pf("\tresp := <-responseChan\n\n")
-	gen.pf("\tif resp.Type == \"panic\" {\n")
-	gen.pf("\t\tpanic(resp.PanicValue)\n")
-	gen.pf("\t}\n\n")
+func (gen *codeGenerator) writeMockMethodResponseHandling(callName string, ftype *dst.FuncType, paramNames []string) {
+	funcParams := gen.extractFuncParams(ftype)
+
+	if len(funcParams) == 0 {
+		// No callbacks - simple response handling
+		gen.pf("\tresp := <-responseChan\n\n")
+		gen.pf("\tif resp.Type == \"panic\" {\n")
+		gen.pf("\t\tpanic(resp.PanicValue)\n")
+		gen.pf("\t}\n\n")
+		return
+	}
+
+	// With callbacks - loop until final response
+	gen.pf("\t// Handle callback invocations and final response\n")
+	gen.pf("\tvar resp %sResponse%s\n", callName, gen.formatTypeParamsUse())
+	gen.pf("\tfor {\n")
+	gen.pf("\t\tselect {\n")
+
+	// Generate case for each callback channel with type-safe invocation
+	for _, fp := range funcParams {
+		capitalizedName := strings.ToUpper(fp.Name[:1]) + fp.Name[1:]
+		responseTypeName := fmt.Sprintf("%s%sResponse", callName, capitalizedName)
+
+		gen.pf("\t\tcase cbReq := <-callback%sChan:\n", capitalizedName)
+		gen.pf("\t\t\t// Direct invocation with typed values - no type assertions needed\n")
+
+		// Invoke callback directly with typed request fields
+		gen.pf("\t\t\t")
+		if hasResults(fp.FuncType) {
+			results := extractResults(nil, fp.FuncType)
+			for i := range results {
+				if i > 0 {
+					gen.pf(", ")
+				}
+				gen.pf("result%d", i)
+			}
+			gen.pf(" := ")
+		}
+
+		gen.pf("%s(", fp.Name)
+		params := extractParams(nil, fp.FuncType)
+		for i, param := range params {
+			if i > 0 {
+				gen.pf(", ")
+			}
+			// Use the field name from the request struct
+			fieldName := fmt.Sprintf("Arg%d", i)
+			if param.Name != "" {
+				fieldName = strings.ToUpper(param.Name[:1]) + param.Name[1:]
+			}
+			gen.pf("cbReq.%s", fieldName)
+		}
+		gen.pf(")\n")
+
+		// Send typed response back
+		gen.pf("\t\t\tcbReq.ResultChan <- %s{", responseTypeName)
+		if hasResults(fp.FuncType) {
+			results := extractResults(nil, fp.FuncType)
+			for i := range results {
+				if i > 0 {
+					gen.pf(", ")
+				}
+				gen.pf("Result%d: result%d", i, i)
+			}
+		}
+		gen.pf("}\n")
+	}
+
+	// Generate case for final response
+	gen.pf("\t\tcase resp = <-responseChan:\n")
+	gen.pf("\t\t\t// Final response received\n")
+	gen.pf("\t\t\tif resp.Type == \"panic\" {\n")
+	gen.pf("\t\t\t\tpanic(resp.PanicValue)\n")
+	gen.pf("\t\t\t}\n")
+	gen.pf("\t\t\treturn")
+
+	// Return early if there are results
+	if hasResults(ftype) {
+		gen.pf(" ")
+		gen.writeReturnValues(ftype)
+	}
+
+	gen.pf("\n\t\t}\n")
+	gen.pf("\t}\n")
 }
 
 // writeMockMethodSignature writes the mock method signature and opening brace.

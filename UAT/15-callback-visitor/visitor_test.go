@@ -1,7 +1,7 @@
 package visitor_test
 
-//go:generate ../../bin/impgen TreeWalker
-//go:generate ../../bin/impgen CountFiles
+//go:generate impgen visitor.TreeWalker
+//go:generate impgen visitor.CountFiles
 
 import (
 	"io/fs"
@@ -45,5 +45,5 @@ func TestCountFiles(t *testing.T) {
 	call.InjectResult(nil)
 
 	// Verify the results - should count only the 2 non-directory entries
-	callable.ExpectReturnedValues(2, nil)
+	callable.ExpectReturnedValuesAre(2, nil)
 }

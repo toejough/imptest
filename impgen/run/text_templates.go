@@ -46,12 +46,13 @@ func NewTemplateRegistry() (*TemplateRegistry, error) {
 
 package {{.PkgName}}
 
-import {{.PkgImptest}} "github.com/toejough/imptest/imptest"
+{{if .NeedsFmt}}import {{.PkgFmt}} "fmt"
+{{end}}import {{.PkgImptest}} "github.com/toejough/imptest/imptest"
 {{if .NeedsReflect}}import {{.PkgReflect}} "reflect"
 {{end}}import {{.PkgTesting}} "testing"
 import {{.PkgTime}} "time"
 {{if .NeedsQualifier}}import {{.Qualifier}} "{{.PkgPath}}"
-{{end}}{{range .AdditionalImports}}import "{{.Path}}"
+{{end}}{{range .AdditionalImports}}import {{if .Alias}}{{.Alias}} {{end}}"{{.Path}}"
 {{end}}`)
 	if err != nil {
 		return nil, err
@@ -263,11 +264,12 @@ func (c *{{$.CallName}}{{$.TypeParamsUse}}) As{{.Name}}() *{{.CallName}}{{.TypeP
 package {{.PkgName}}
 
 import (
-	{{.PkgImptest}} "github.com/toejough/imptest/imptest"
+{{if .NeedsFmt}}	{{.PkgFmt}} "fmt"
+{{end}}	{{.PkgImptest}} "github.com/toejough/imptest/imptest"
 {{if .NeedsReflect}}	{{.PkgReflect}} "reflect"
 {{end}}	{{.PkgTesting}} "testing"
 {{if .NeedsQualifier}}	{{.Qualifier}} "{{.PkgPath}}"
-{{end}}{{range .AdditionalImports}}	"{{.Path}}"
+{{end}}{{range .AdditionalImports}}	{{if .Alias}}{{.Alias}} {{end}}"{{.Path}}"
 {{end}})
 
 `)
