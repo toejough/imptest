@@ -91,7 +91,8 @@
       "Bash(GOPACKAGE=imptest_test /Users/joe/repos/personal/imptest/bin/impgen:*)",
       "Bash(chmod:*)",
       "Bash(GOPACKAGE=externalimports go generate:*)",
-      "Bash(GOPACKAGE=externalimports ../../bin/impgen:*)"
+      "Bash(GOPACKAGE=externalimports ../../bin/impgen:*)",
+      "Bash(gofumpt:*)"
     ],
     "deny": [],
     "ask": []

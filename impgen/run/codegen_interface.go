@@ -603,7 +603,7 @@ func (gen *codeGenerator) generateResolveMethod(methodCallName string) {
 // generateResponseStructResultFields generates the result fields for a response struct.
 func (gen *codeGenerator) generateResponseStructResultFields(ftype *dst.FuncType) {
 	for _, r := range extractResults(gen.fset, ftype) {
-		gen.pf("\t%s %s\n", r.Name, r.Type)
+		gen.pf("\t%s %s\n", r.Name, gen.typeWithQualifier(r.Field.Type))
 	}
 }
 
@@ -777,9 +777,9 @@ func (gen *codeGenerator) writeInjectResultsArgs(ftype *dst.FuncType) {
 func (gen *codeGenerator) writeInjectResultsParams(ftype *dst.FuncType) []string {
 	results := extractResults(gen.fset, ftype)
 
-	// Write parameters using shared formatter
+	// Write parameters using shared formatter with proper type qualification
 	gen.pf("%s", formatResultParameters(results, "r", 0, func(r fieldInfo) string {
-		return r.Type
+		return gen.typeWithQualifier(r.Field.Type)
 	}))
 
 	// Build names array for return
