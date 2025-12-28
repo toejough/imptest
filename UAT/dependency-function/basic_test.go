@@ -1,9 +1,25 @@
+// Package dependencyfunction_test demonstrates mocking function dependencies with imptest v2.
+//
+// Test Taxonomy Coverage:
+//
+//	What:     Target x | Dependency ✓
+//	Type:     Function ✓ | Interface x
+//	Mode:     Ordered ✓ | Unordered x
+//	Matching: Exact ✓ | Matcher ✓
+//	Outcome:  Return ✓ | Panic ✓
+//	Source:   Type x | Definition ✓
+//
+// Mock Sources (function types used for code generation):
+//
+//	MockFetcher   ← func(int) (string, error)
+//	MockValidator ← func(int) bool
 package dependencyfunction_test
 
 import (
 	"testing"
 
-	imptest "github.com/toejough/imptest/imptest/v2"
+	. "github.com/onsi/gomega"
+	"github.com/toejough/imptest/imptest"
 )
 
 // ProcessData is a function under test that depends on a fetcher function
@@ -43,11 +59,8 @@ func TestDependencyFunction_Ordered_Exact_Args(t *testing.T) {
 func TestDependencyFunction_Ordered_Matcher_Args(t *testing.T) {
 	fetcher := MockFetcher(t)
 
-	// Expect call with argument matching a condition
-	call := fetcher.ExpectCalledWithMatches(imptest.Satisfies(func(v any) bool {
-		id, ok := v.(int)
-		return ok && id > 0
-	}))
+	// Expect call with argument matching a condition using gomega matcher
+	call := fetcher.ExpectCalledWithMatches(BeNumerically(">", 0))
 
 	call.InjectReturnValues("test data", nil)
 

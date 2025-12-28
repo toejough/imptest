@@ -1,10 +1,25 @@
+// Package dependencyinterface_test demonstrates mocking interface dependencies with imptest v2.
+//
+// Test Taxonomy Coverage:
+//
+//	What:     Target x | Dependency ✓
+//	Type:     Function x | Interface ✓
+//	Mode:     Ordered ✓ | Unordered x
+//	Matching: Exact ✓ | Matcher ✓
+//	Outcome:  Return ✓ | Panic ✓
+//	Source:   Type x | Definition ✓
+//
+// Mock Sources (interface types used for code generation):
+//
+//	MockDataStore ← DataStore interface
 package dependencyinterface_test
 
 import (
 	"errors"
 	"testing"
 
-	imptest "github.com/toejough/imptest/imptest/v2"
+	. "github.com/onsi/gomega"
+	"github.com/toejough/imptest/imptest"
 )
 
 // DataStore defines storage operations
@@ -61,11 +76,8 @@ func TestDependencyInterface_Ordered_Exact_Args(t *testing.T) {
 func TestDependencyInterface_Ordered_Matcher_Args(t *testing.T) {
 	store := MockDataStore(t)
 
-	// Expect Get with argument matching a condition
-	call := store.Get.ExpectCalledWithMatches(imptest.Satisfies(func(v any) bool {
-		id, ok := v.(int)
-		return ok && id > 0
-	}))
+	// Expect Get with argument matching a condition using gomega matcher
+	call := store.Get.ExpectCalledWithMatches(BeNumerically(">", 0))
 
 	call.InjectReturnValues("data", nil)
 

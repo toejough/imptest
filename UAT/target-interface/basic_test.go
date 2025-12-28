@@ -1,9 +1,23 @@
+// Package targetinterface_test demonstrates wrapping target interfaces with imptest v2.
+//
+// Test Taxonomy Coverage:
+//
+//	What:     Target ✓ | Dependency x
+//	Type:     Function x | Interface ✓
+//	Mode:     Ordered ✓ | Unordered x
+//	Matching: Exact ✓ | Matcher ✓
+//	Outcome:  Return ✓ | Panic ✓
+//	Source:   Type x | Definition ✓
+//
+// Wrapper Sources (interface types used for code generation):
+//
+//	WrapCalculator ← Calculator interface (implemented by BasicCalculator struct)
 package targetinterface_test
 
 import (
 	"testing"
 
-	imptest "github.com/toejough/imptest/imptest/v2"
+	. "github.com/onsi/gomega"
 )
 
 // Calculator defines basic arithmetic operations
@@ -45,12 +59,9 @@ func TestTargetInterface_Ordered_Exact_Returns(t *testing.T) {
 func TestTargetInterface_Ordered_Matcher_Returns(t *testing.T) {
 	calc := &BasicCalculator{}
 
-	// Use matcher for validation
+	// Use gomega matcher for flexible validation
 	WrapCalculator(t, calc).Subtract.CallWith(10, 3).ExpectReturnsMatch(
-		imptest.Satisfies(func(v any) bool {
-			result, ok := v.(int)
-			return ok && result > 0 && result < 10
-		}),
+		And(BeNumerically(">", 0), BeNumerically("<", 10)),
 	)
 }
 
