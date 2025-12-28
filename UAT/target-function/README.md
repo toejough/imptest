@@ -18,8 +18,12 @@ Use target wrappers when you want to **verify the behavior** of a function under
 
 ### Usage Pattern
 ```go
-// Wrap the function, call it with args, and verify the result
-WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+// Wrap the function, start execution with args, and verify the result
+WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
 ```
 
-The generated `WrapAdd` function creates a wrapper that calls `Add(2, 3)`, captures the return value, and verifies it equals 5.
+The generated `WrapAdd` function creates a wrapper that:
+1. `.Start(2, 3)` runs `Add(2, 3)` asynchronously in a goroutine and returns immediately
+2. `.ExpectReturnsEqual(5)` blocks waiting for the function to complete, then verifies the result equals 5
+
+This channel-based pattern enables conversational testing where target functions can call mocks that block waiting for the test to inject responses.

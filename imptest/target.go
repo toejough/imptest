@@ -193,22 +193,3 @@ func (tc *TargetCall) GetPanic() any {
 func valuesEqual(a, b any) bool {
 	return reflect.DeepEqual(a, b)
 }
-
-// TargetInterface wraps an interface implementation under test.
-// I is the interface type
-type TargetInterface[I any] struct {
-	imp      *Imp
-	instance I
-	// TODO: Methods will be added based on the interface
-}
-
-// NewTargetInterface creates a new wrapper for testing an interface implementation.
-func NewTargetInterface[I any](imp *Imp, instance I) *TargetInterface[I] {
-	return &TargetInterface[I]{
-		imp:      imp,
-		instance: instance,
-	}
-}
-
-// Note: Interface methods like Add, Subtract, etc. will be code-generated
-// for each specific interface type

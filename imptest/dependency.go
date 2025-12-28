@@ -1,59 +1,7 @@
 package imptest
 
-// DependencyFunction creates a mock for a function dependency.
-// F is the function type (e.g., func(int) (string, error))
-type DependencyFunction[F any] struct {
-	imp *Imp
-	// TODO: Store the mock function implementation
-}
-
-// NewDependencyFunction creates a new mock for a function dependency.
-func NewDependencyFunction[F any](imp *Imp) *DependencyFunction[F] {
-	return &DependencyFunction[F]{
-		imp: imp,
-	}
-}
-
-// ExpectCalledWithExactly sets up an expectation that the function will be
-// called with exactly the specified arguments.
-func (df *DependencyFunction[F]) ExpectCalledWithExactly(args ...any) *DependencyCall {
-	// Add expectation with exact args matching, ordered mode by default
-	exp := df.imp.AddExpectation("DependencyFunction", args, nil, true)
-	return &DependencyCall{
-		imp:         df.imp,
-		expectation: exp,
-	}
-}
-
-// ExpectCalledWithMatches sets up an expectation using matchers for arguments.
-func (df *DependencyFunction[F]) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
-	// Convert matchers to Matcher type
-	matcherList := make([]Matcher, len(matchers))
-	for i, m := range matchers {
-		if matcher, ok := m.(Matcher); ok {
-			matcherList[i] = matcher
-		} else {
-			df.imp.Helper()
-			df.imp.Fatalf("argument %d is not a Matcher", i)
-		}
-	}
-
-	exp := df.imp.AddExpectation("DependencyFunction", nil, matcherList, true)
-	return &DependencyCall{
-		imp:         df.imp,
-		expectation: exp,
-	}
-}
-
-// Func returns the actual function that should be passed to code under test.
-// When this function is called, it will verify expectations and inject responses.
-func (df *DependencyFunction[F]) Func() F {
-	// TODO: Return a function that intercepts calls
-	var zero F
-	return zero
-}
-
 // DependencyCall represents an expected call to a dependency.
+// This type is used by generated mock code.
 type DependencyCall struct {
 	imp         *Imp
 	expectation *Expectation
@@ -78,7 +26,7 @@ func (dc *DependencyCall) Eventually() *DependencyCall {
 }
 
 // GetArgs returns the actual arguments that were passed to the dependency.
-// This is a placeholder - actual implementation will be code-generated.
+// Code generation will create properly typed versions of this.
 type DependencyArgs struct {
 	A1 any
 	A2 any
@@ -102,27 +50,3 @@ func (dc *DependencyCall) GetArgs() *DependencyArgs {
 	}
 	return result
 }
-
-// DependencyInterface creates a mock for an interface dependency.
-// I is the interface type
-type DependencyInterface[I any] struct {
-	imp *Imp
-	// TODO: Methods will be added based on the interface
-}
-
-// NewDependencyInterface creates a new mock for an interface dependency.
-func NewDependencyInterface[I any](imp *Imp) *DependencyInterface[I] {
-	return &DependencyInterface[I]{
-		imp: imp,
-	}
-}
-
-// Interface returns the actual interface instance that should be passed to code under test.
-func (di *DependencyInterface[I]) Interface() I {
-	// TODO: Return a mock implementation
-	var zero I
-	return zero
-}
-
-// Note: Interface methods like Get, Save, etc. will be code-generated
-// for each specific interface type

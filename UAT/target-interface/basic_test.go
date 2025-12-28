@@ -53,7 +53,7 @@ func TestTargetInterface_Type_Ordered_Exact_Returns(t *testing.T) {
 	calc := &BasicCalculator{}
 
 	// Wrap the struct directly - generated from BasicCalculator type
-	WrapBasicCalculator(t, calc).Add.CallWith(2, 3).ExpectReturnsEqual(5)
+	WrapBasicCalculator(t, calc).Add.Start(2, 3).ExpectReturnsEqual(5)
 }
 
 // TestTargetInterface_Ordered_Exact_Returns demonstrates wrapping an interface
@@ -63,7 +63,7 @@ func TestTargetInterface_Ordered_Exact_Returns(t *testing.T) {
 	calc := &BasicCalculator{}
 
 	// Wrap it and call a method - concise syntax
-	WrapCalculator(t, calc).Add.CallWith(2, 3).ExpectReturnsEqual(5)
+	WrapCalculator(t, calc).Add.Start(2, 3).ExpectReturnsEqual(5)
 }
 
 // TestTargetInterface_Ordered_Matcher_Returns demonstrates matcher validation
@@ -71,7 +71,7 @@ func TestTargetInterface_Ordered_Matcher_Returns(t *testing.T) {
 	calc := &BasicCalculator{}
 
 	// Use gomega matcher for flexible validation
-	WrapCalculator(t, calc).Subtract.CallWith(10, 3).ExpectReturnsMatch(
+	WrapCalculator(t, calc).Subtract.Start(10, 3).ExpectReturnsMatch(
 		And(BeNumerically(">", 0), BeNumerically("<", 10)),
 	)
 }
@@ -81,7 +81,7 @@ func TestTargetInterface_Ordered_Exact_Panic(t *testing.T) {
 	calc := &BasicCalculator{}
 
 	// Verify panic with exact value
-	WrapCalculator(t, calc).Divide.CallWith(10, 0).ExpectPanicEquals("division by zero")
+	WrapCalculator(t, calc).Divide.Start(10, 0).ExpectPanicEquals("division by zero")
 }
 
 // TestTargetInterface_Ordered_GetReturns demonstrates getting actual values
@@ -89,7 +89,7 @@ func TestTargetInterface_Ordered_GetReturns(t *testing.T) {
 	calc := &BasicCalculator{}
 
 	// Get actual return values
-	result := WrapCalculator(t, calc).Divide.CallWith(10, 2).GetReturns()
+	result := WrapCalculator(t, calc).Divide.Start(10, 2).GetReturns()
 	if result.R1 != 5 {
 		t.Errorf("expected result 5, got %d", result.R1)
 	}
@@ -103,5 +103,5 @@ func TestTargetInterface_Ordered_MultipleReturns(t *testing.T) {
 	calc := &BasicCalculator{}
 
 	// Verify multiple return values
-	WrapCalculator(t, calc).Divide.CallWith(10, 2).ExpectReturnsEqual(5, nil)
+	WrapCalculator(t, calc).Divide.Start(10, 2).ExpectReturnsEqual(5, nil)
 }

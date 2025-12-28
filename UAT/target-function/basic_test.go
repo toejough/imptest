@@ -40,20 +40,20 @@ func Add(a, b int) int {
 // TestTargetFunction_Type_Ordered_Exact_Returns demonstrates wrapping a function
 // from a named type (vs a function definition)
 func TestTargetFunction_Type_Ordered_Exact_Returns(t *testing.T) {
-	WrapBinaryOp(t, multiply).CallWith(3, 4).ExpectReturnsEqual(12)
+	WrapBinaryOp(t, multiply).Start(3, 4).ExpectReturnsEqual(12)
 }
 
 // TestTargetFunction_Ordered_Exact_Returns demonstrates wrapping a function
 // with ordered expectations and exact value matching for returns
 func TestTargetFunction_Ordered_Exact_Returns(t *testing.T) {
-	WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+	WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
 }
 
 // TestTargetFunction_Ordered_Matcher_Returns demonstrates using matchers
 // for return value verification
 func TestTargetFunction_Ordered_Matcher_Returns(t *testing.T) {
 	// Use gomega matcher for flexible validation
-	WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsMatch(BeNumerically(">", 0))
+	WrapAdd(t, Add).Start(2, 3).ExpectReturnsMatch(BeNumerically(">", 0))
 }
 
 // Divide divides two integers, panicking on division by zero
@@ -67,19 +67,19 @@ func Divide(a, b int) int {
 // TestTargetFunction_Ordered_Exact_Panic demonstrates verifying panics
 func TestTargetFunction_Ordered_Exact_Panic(t *testing.T) {
 	// Verify the function panicked with exact value
-	WrapDivide(t, Divide).CallWith(10, 0).ExpectPanicEquals("division by zero")
+	WrapDivide(t, Divide).Start(10, 0).ExpectPanicEquals("division by zero")
 }
 
 // TestTargetFunction_Ordered_Matcher_Panic demonstrates panic matching
 func TestTargetFunction_Ordered_Matcher_Panic(t *testing.T) {
 	// Match any panic
-	WrapDivide(t, Divide).CallWith(10, 0).ExpectPanicMatches(imptest.Any())
+	WrapDivide(t, Divide).Start(10, 0).ExpectPanicMatches(imptest.Any())
 }
 
 // TestTargetFunction_Ordered_GetReturns demonstrates getting actual values
 func TestTargetFunction_Ordered_GetReturns(t *testing.T) {
 	// Get the actual return value for custom assertions
-	returns := WrapAdd(t, Add).CallWith(2, 3).GetReturns()
+	returns := WrapAdd(t, Add).Start(2, 3).GetReturns()
 	if returns.R1 != 5 {
 		t.Errorf("expected 5, got %d", returns.R1)
 	}
@@ -98,8 +98,8 @@ func TestTargetFunction_Ordered_Coordinated(t *testing.T) {
 	imp := imptest.NewImp(t)
 
 	// Launch two calls without waiting for their responses
-	c1 := WrapConcurrent(imp, Concurrent).CallWith(1)
-	c2 := WrapConcurrent(imp, Concurrent).CallWith(2)
+	c1 := WrapConcurrent(imp, Concurrent).Start(1)
+	c2 := WrapConcurrent(imp, Concurrent).Start(2)
 
 	// Now verify their returns in order
 	c1.ExpectReturnsEqual(1)
@@ -113,8 +113,8 @@ func TestTargetFunction_Unordered_Coordinated(t *testing.T) {
 	imp := imptest.NewImp(t)
 
 	// Launch two calls without waiting for their responses
-	c1 := WrapConcurrent(imp, Concurrent).CallWith(1)
-	c2 := WrapConcurrent(imp, Concurrent).CallWith(2)
+	c1 := WrapConcurrent(imp, Concurrent).Start(1)
+	c2 := WrapConcurrent(imp, Concurrent).Start(2)
 
 	// Verify returns in reverse order using Eventually
 	c2.Eventually().ExpectReturnsEqual(2)

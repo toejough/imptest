@@ -18,10 +18,25 @@ Redesign the imptest API around a cleaner conceptual model before implementing a
 | **Shared State** | *(not interceptable)* | *(not interceptable)* |
 
 **Type Sources:**
-- Functions can be wrapped from: named function types, function definitions
-- Interfaces can be wrapped from: named interface types, struct definitions
+
+The generator can create wrappers/mocks from two categories of sources:
+
+**Type Sources** - Generate from named type declarations:
+- Functions: `type Fetcher func(int) (string, error)`
+- Interfaces: `type DataStore interface { Get(...) Save(...) }`
+
+**Definition Sources** - Generate from concrete implementations:
+- Functions: `func Add(a, b int) int { return a + b }`
+- Interfaces: `type BasicCalculator struct{}` with methods implementing an interface
+
+**Source Usage by Role:**
+- **Targets**: Can use both Type and Definition sources (wrapping implementations to verify behavior)
+- **Dependencies**: Use Type sources only (mocking type contracts, not implementations)
+
+**Excluded:**
+- Literal types (anonymous functions, inline struct literals) are not supported
+- Users must name all things they want to wrap/mock
 - Channels: deferred until after major refactor
-- Note: Literal types (anonymous functions, inline struct literals) are not supported - users must name things to wrap/mock
 
 ### Direction Determines Role
 
@@ -71,10 +86,10 @@ type TestReporter interface {
 ```go
 // Concise syntax - generated wrapper accepts TestReporter
 // If given testing.T, creates internal Imp coordinator
-WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
 
 // With matchers
-WrapDivide(t, Divide).CallWith(10, 2).ExpectReturnsMatch(
+WrapDivide(t, Divide).Start(10, 2).ExpectReturnsMatch(
     imptest.Satisfies(func(v any) bool {
         result, ok := v.(int)
         return ok && result > 0
@@ -82,7 +97,7 @@ WrapDivide(t, Divide).CallWith(10, 2).ExpectReturnsMatch(
 )
 
 // Verify panics
-WrapDivide(t, Divide).CallWith(10, 0).ExpectPanicEquals("division by zero")
+WrapDivide(t, Divide).Start(10, 0).ExpectPanicEquals("division by zero")
 ```
 
 ### Complex API (Multiple Interactions, Shared Coordinator)
@@ -95,36 +110,39 @@ imp := imptest.NewImp(t)
 target := WrapProcessData(imp, ProcessData)
 fetcher := MockFetcher(imp)
 
-// Set up dependency expectations
+// Execute target - it will call the mock (conversational flow)
+result := target.Start(42, fetcher.Func())
+
+// Interactively verify dependency call and inject response
 call := fetcher.ExpectCalledWithExactly(42)
 call.InjectReturnValues("test data", nil)
 
-// Execute and verify target
-target.CallWith(42, fetcher.Func()).ExpectReturnsEqual("processed: test data", nil)
+// Verify target result
+result.ExpectReturnsEqual("processed: test data", nil)
 ```
 
 ### Target API (Wrapping Code Under Test)
 
 ```go
 // Functions
-WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
 
 // Interfaces
 calc := &BasicCalculator{}
-WrapCalculator(t, calc).Add.CallWith(2, 3).ExpectReturnsEqual(5)
+WrapCalculator(t, calc).Add.Start(2, 3).ExpectReturnsEqual(5)
 
 // Unordered mode (for async/concurrent code)
-call := WrapAsyncOp(t, AsyncOp).CallWith(args)
+call := WrapAsyncOp(t, AsyncOp).Start(args)
 call.Eventually().ExpectReturnsEqual(result)
 
 // Get actual values
-returns := WrapDivide(t, Divide).CallWith(10, 2).GetReturns()
+returns := WrapDivide(t, Divide).Start(10, 2).GetReturns()
 if returns.R1 != 5 {
     t.Errorf("expected 5, got %d", returns.R1)
 }
 
 // Verify panics
-WrapDivide(t, Divide).CallWith(10, 0).ExpectPanicMatches(imptest.Any())
+WrapDivide(t, Divide).Start(10, 0).ExpectPanicMatches(imptest.Any())
 ```
 
 ### Dependency API (Mocking Dependencies)
@@ -298,11 +316,11 @@ Write failing tests demonstrating the new API across the matrix.
 3. **Concise syntax for simple cases**: Generated wrappers accept `TestReporter`, creating internal `Imp` when given plain `testing.T`:
    ```go
    // Simple: WrapAdd creates internal coordinator
-   WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+   WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
 
    // Complex: pass shared Imp coordinator
    imp := imptest.NewImp(t)
-   WrapAdd(imp, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+   WrapAdd(imp, Add).Start(2, 3).ExpectReturnsEqual(5)
    MockFetcher(imp).ExpectCalledWithExactly(42).InjectReturnValues("data")
    ```
 
@@ -327,17 +345,66 @@ Write failing tests demonstrating the new API across the matrix.
 
 7. **Func types in interfaces**: NO auto-generation. When an interface method has func params/returns, users generate wrappers separately and wire them manually. This keeps the implementation simpler and gives users explicit control.
 
+8. **Channel-based asynchronous execution**: Target wrappers use `.Start()` which runs the target function/method in a goroutine and returns immediately:
+   - **Asynchronous execution**: `.Start()` launches function in goroutine, returns wrapper for method chaining
+   - **Blocking verification**: `Expect*()` and `GetReturns()` methods call `WaitForResponse()` which blocks on channels
+   - **State management**: Wrappers track `returned` and `panicked` state to avoid double-reading from channels
+   - **Idempotent waiting**: `WaitForResponse()` checks state before blocking, safe to call multiple times
+   - **Conversational flow**: This enables the pattern: "function calls mock → test verifies args → test injects response → function continues → test verifies result"
+   - Implementation details:
+     ```go
+     // Each wrapper has channels and state
+     type WrapAddWrapper struct {
+         imp        *imptest.Imp
+         fn         func(int, int) int
+         returnChan chan WrapAddReturns
+         panicChan  chan any
+         returned   *WrapAddReturns
+         panicked   any
+     }
+
+     // Start runs function in goroutine
+     func (w *WrapAddWrapper) Start(a, b int) *WrapAddWrapper {
+         w.returnChan = make(chan WrapAddReturns, 1)
+         w.panicChan = make(chan any, 1)
+         go func() {
+             defer func() {
+                 if r := recover(); r != nil {
+                     w.panicChan <- r
+                 }
+             }()
+             result := w.fn(a, b)
+             w.returnChan <- WrapAddReturns{R1: result}
+         }()
+         return w
+     }
+
+     // WaitForResponse blocks until function completes
+     func (w *WrapAddWrapper) WaitForResponse() {
+         if w.returned != nil || w.panicked != nil {
+             return
+         }
+         select {
+         case ret := <-w.returnChan:
+             w.returned = &ret
+         case p := <-w.panicChan:
+             w.panicked = p
+         }
+     }
+     ```
+
 ---
 
 ## Summary
 
 This redesign provides:
 - **Clearer mental model**: Target vs Dependency, Ordered vs Unordered
-- **Ergonomic for simple cases**: `WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)`
+- **Ergonomic for simple cases**: `WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)`
 - **Powerful for complex cases**: Shared `Imp` coordinator orchestrates multi-interaction scenarios
 - **Minimal coupling**: Custom `TestReporter` interface (only `Helper()` and `Fatalf()`)
 - **Symmetric API**: Same patterns for verification and mocking
 - **Unified matchers**: Same matcher API for args, returns, and panics
 - **Type-safe generated wrappers**: `Wrap{Name}` for targets, `Mock{Name}` for dependencies
 - **Explicit structure**: Func vs Interface is surfaced in the type names
+- **Channel-based flow control**: Asynchronous execution with blocking verification enables conversational testing
 - **Focused scope**: Channels deferred, shared state out of scope

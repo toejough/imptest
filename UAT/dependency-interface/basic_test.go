@@ -7,11 +7,11 @@
 //	Mode:     Ordered ✓ | Unordered x
 //	Matching: Exact ✓ | Matcher ✓
 //	Outcome:  Return ✓ | Panic ✓
-//	Source:   Type x | Definition ✓
+//	Source:   Type ✓ | Definition x
 //
 // Mock Sources (interface types used for code generation):
 //
-//	MockDataStore ← DataStore interface
+//	MockDataStore ← type DataStore interface
 package dependencyinterface_test
 
 import (

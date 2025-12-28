@@ -7,12 +7,12 @@
 //	Mode:     Ordered ✓ | Unordered x
 //	Matching: Exact ✓ | Matcher ✓
 //	Outcome:  Return ✓ | Panic ✓
-//	Source:   Type x | Definition ✓
+//	Source:   Type ✓ | Definition x
 //
 // Mock Sources (function types used for code generation):
 //
-//	MockFetcher   ← func(int) (string, error)
-//	MockValidator ← func(int) bool
+//	MockFetcher   ← type Fetcher func(int) (string, error)
+//	MockValidator ← type Validator func(int) bool
 package dependencyfunction_test
 
 import (
@@ -22,8 +22,14 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
+// Fetcher is a function type that fetches data by ID
+type Fetcher func(int) (string, error)
+
+// Validator is a function type that validates an integer
+type Validator func(int) bool
+
 // ProcessData is a function under test that depends on a fetcher function
-func ProcessData(id int, fetcher func(int) (string, error)) (string, error) {
+func ProcessData(id int, fetcher Fetcher) (string, error) {
 	data, err := fetcher(id)
 	if err != nil {
 		return "", err
@@ -34,25 +40,20 @@ func ProcessData(id int, fetcher func(int) (string, error)) (string, error) {
 // TestDependencyFunction_Ordered_Exact_Args demonstrates mocking a function dependency
 // with ordered expectations and exact argument matching
 func TestDependencyFunction_Ordered_Exact_Args(t *testing.T) {
+	// Create shared coordinator
+	imp := imptest.NewImp(t)
+
 	// Create mock for the dependency function
-	fetcher := MockFetcher(t)
+	fetcher := MockFetcher(imp)
 
-	// Expect the dependency to be called with exact arguments
-	call := fetcher.ExpectCalledWithExactly(42)
+	// Wrap and call the function under test
+	result := WrapProcessData(imp, ProcessData).CallWith(42, fetcher.Func())
 
-	// Inject the return values the mock should provide
-	call.InjectReturnValues("test data", nil)
-
-	// Execute the function under test with the mock
-	result, err := ProcessData(42, fetcher.Func())
+	// Interactively verify the dependency was called and inject response
+	fetcher.ExpectCalledWithExactly(42).InjectReturnValues("test data", nil)
 
 	// Verify the business logic result
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if result != "processed: test data" {
-		t.Errorf("expected 'processed: test data', got %q", result)
-	}
+	result.ExpectReturnsEqual("processed: test data", nil)
 }
 
 // TestDependencyFunction_Ordered_Matcher_Args demonstrates using matchers for args
@@ -109,7 +110,7 @@ func TestDependencyFunction_Ordered_GetArgs(t *testing.T) {
 }
 
 // ValidateAndProcess uses a validator function and returns whether it succeeded
-func ValidateAndProcess(value int, validator func(int) bool) bool {
+func ValidateAndProcess(value int, validator Validator) bool {
 	return validator(value)
 }
 

@@ -18,23 +18,35 @@ This directory demonstrates **mocking interface dependencies** with the imptest 
 ### When to Use Interface Dependencies
 Use interface dependency mocks when code under test accepts an **interface parameter** or has an interface field. The mock implements the interface, intercepts calls, and lets you control behavior.
 
-### Generated Wrapper Pattern
+### Usage Pattern - Conversational Flow
 ```go
-// TODO: Code generation will create
-store := MockDataStore(t)
+// Create shared coordinator
+imp := imptest.NewImp(t)
+
+// Wrap the target method that uses the dependency
+service := &Service{}
+target := WrapService(imp, service)
+
+// Create mock for the interface dependency
+store := MockDataStore(imp)
+service.store = store.Interface()
+
+// Start target execution (runs in goroutine)
+result := target.LoadAndProcess.Start(42)
+
+// Interactively verify the call and inject response
 call := store.Get.ExpectCalledWithExactly(42)
 call.InjectReturnValues("data", nil)
 
-// Pass to code under test
-service := &Service{store: store.Interface()}
-service.LoadAndProcess(42)
-
-// Currently use manual generic wrapper
-imp := imptest.NewImp(t)
-storeMock := imptest.NewDependencyInterface[DataStore](imp)
-call := storeMock.Get.ExpectCalledWithExactly(42)  // .Get will be code-generated
-call.InjectReturnValues("data", nil)
-service := &Service{store: storeMock.Interface()}
+// Verify the target result
+result.ExpectReturnsEqual("processed: data", nil)
 ```
 
-The mock provides an `.Interface()` method that returns the interface implementation to pass to code under test.
+The **conversational flow** pattern:
+1. Target method starts execution asynchronously via `.Start()`
+2. When the target calls a mock method, the mock blocks waiting for the test
+3. Test verifies arguments with `ExpectCalledWithExactly()` and injects response
+4. Mock unblocks and target continues execution
+5. Test verifies final result with `ExpectReturnsEqual()`
+
+Each interface method (`.Get`, `.Save`, `.Delete`) is exposed as a field on the mock for setting up expectations. The `.Interface()` method returns the interface implementation to pass to code under test.

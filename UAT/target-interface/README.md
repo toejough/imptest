@@ -17,16 +17,16 @@ This directory demonstrates **wrapping interface implementations under test** wi
 ### When to Use Interface Targets
 Use interface target wrappers when testing code that implements an interface. This lets you verify that methods are called correctly and return expected values.
 
-### Generated Wrapper Pattern
+### Usage Pattern
 ```go
-// TODO: Code generation will create
+// Wrap an interface implementation
 calc := &BasicCalculator{}
-WrapCalculator(t, calc).Add.CallWith(2, 3).ExpectReturnsEqual(5)
+WrapCalculator(t, calc).Add.Start(2, 3).ExpectReturnsEqual(5)
 
-// Currently use manual generic wrapper
-imp := imptest.NewImp(t)
-target := imptest.NewTargetInterface(imp, calc)
-// Note: Methods like .Add will be code-generated
+// Or wrap a struct type directly
+WrapBasicCalculator(t, calc).Subtract.Start(10, 3).ExpectReturnsMatch(
+    And(BeNumerically(">", 0), BeNumerically("<", 10)),
+)
 ```
 
-Each interface method becomes a field on the wrapper, providing type-safe access to wrap specific method calls.
+Each interface method becomes a field on the wrapper (`.Add`, `.Subtract`, `.Divide`), providing type-safe access to call and verify specific methods. The `.Start()` method runs the method asynchronously in a goroutine, enabling conversational testing patterns where the method can interact with mocks.

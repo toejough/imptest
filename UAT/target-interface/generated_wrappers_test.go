@@ -28,43 +28,92 @@ type WrapBasicCalculatorWrapper struct {
 
 // WrapBasicCalculatorAddMethod wraps the Add method.
 type WrapBasicCalculatorAddMethod struct {
-	wrapper *WrapBasicCalculatorWrapper
+	wrapper    *WrapBasicCalculatorWrapper
+	returnChan chan WrapBasicCalculatorAddReturns
+	panicChan  chan any
+	returned   *WrapBasicCalculatorAddReturns
+	panicked   any
 }
 
-// CallWith calls the Add method and captures the result.
-func (m *WrapBasicCalculatorAddMethod) CallWith(a, b int) *WrapBasicCalculatorAddCall {
-	var result int
-	var panicked bool
-	var panicValue any
+// Start begins execution of the Add method in a goroutine.
+func (m *WrapBasicCalculatorAddMethod) Start(a, b int) *WrapBasicCalculatorAddMethod {
+	m.returnChan = make(chan WrapBasicCalculatorAddReturns, 1)
+	m.panicChan = make(chan any, 1)
+	m.returned = nil
+	m.panicked = nil
 
-	func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				panicked = true
-				panicValue = r
+				m.panicChan <- r
 			}
 		}()
-		result = m.wrapper.instance.Add(a, b)
+
+		result := m.wrapper.instance.Add(a, b)
+		m.returnChan <- WrapBasicCalculatorAddReturns{R1: result}
 	}()
 
-	call := &imptest.TargetCall{
-		Imp:      m.wrapper.imp,
-		Ordered:  true,
-		Returned: !panicked,
-		Panicked: panicked,
-	}
-	if !panicked {
-		call.ReturnValues = []any{result}
-	} else {
-		call.PanicValue = panicValue
-	}
-
-	return &WrapBasicCalculatorAddCall{TargetCall: call}
+	return m
 }
 
-// WrapBasicCalculatorAddCall wraps a TargetCall for Add.
-type WrapBasicCalculatorAddCall struct {
-	*imptest.TargetCall
+// WaitForResponse blocks until the method completes (return or panic).
+func (m *WrapBasicCalculatorAddMethod) WaitForResponse() {
+	if m.returned != nil || m.panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-m.returnChan:
+		m.returned = &ret
+	case p := <-m.panicChan:
+		m.panicked = p
+	}
+}
+
+// ExpectReturnsEqual verifies the method returned exact values.
+func (m *WrapBasicCalculatorAddMethod) ExpectReturnsEqual(expected int) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if m.returned.R1 != expected {
+		m.wrapper.imp.Fatalf("expected %v, got %v", expected, m.returned.R1)
+	}
+}
+
+// ExpectReturnsMatch verifies return values match the given matchers.
+func (m *WrapBasicCalculatorAddMethod) ExpectReturnsMatch(matchers ...any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if len(matchers) != 1 {
+		m.wrapper.imp.Fatalf("expected 1 matcher, got %d", len(matchers))
+		return
+	}
+
+	matcher, ok := matchers[0].(imptest.Matcher)
+	if !ok {
+		m.wrapper.imp.Fatalf("argument 0 is not a Matcher")
+		return
+	}
+
+	success, err := matcher.Match(m.returned.R1)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value: %s", matcher.FailureMessage(m.returned.R1))
+	}
 }
 
 // WrapBasicCalculatorAddReturns provides type-safe access to Add return values.
@@ -73,52 +122,106 @@ type WrapBasicCalculatorAddReturns struct {
 }
 
 // GetReturns returns type-safe return values for Add.
-func (c *WrapBasicCalculatorAddCall) GetReturns() *WrapBasicCalculatorAddReturns {
-	raw := c.TargetCall.GetReturns()
-	return &WrapBasicCalculatorAddReturns{
-		R1: raw.R1.(int),
+func (m *WrapBasicCalculatorAddMethod) GetReturns() *WrapBasicCalculatorAddReturns {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("cannot get returns: method panicked with %v", m.panicked)
+		return nil
 	}
+
+	return m.returned
 }
 
 // WrapBasicCalculatorSubtractMethod wraps the Subtract method.
 type WrapBasicCalculatorSubtractMethod struct {
-	wrapper *WrapBasicCalculatorWrapper
+	wrapper    *WrapBasicCalculatorWrapper
+	returnChan chan WrapBasicCalculatorSubtractReturns
+	panicChan  chan any
+	returned   *WrapBasicCalculatorSubtractReturns
+	panicked   any
 }
 
-// CallWith calls the Subtract method and captures the result.
-func (m *WrapBasicCalculatorSubtractMethod) CallWith(a, b int) *WrapBasicCalculatorSubtractCall {
-	var result int
-	var panicked bool
-	var panicValue any
+// Start begins execution of the Subtract method in a goroutine.
+func (m *WrapBasicCalculatorSubtractMethod) Start(a, b int) *WrapBasicCalculatorSubtractMethod {
+	m.returnChan = make(chan WrapBasicCalculatorSubtractReturns, 1)
+	m.panicChan = make(chan any, 1)
+	m.returned = nil
+	m.panicked = nil
 
-	func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				panicked = true
-				panicValue = r
+				m.panicChan <- r
 			}
 		}()
-		result = m.wrapper.instance.Subtract(a, b)
+
+		result := m.wrapper.instance.Subtract(a, b)
+		m.returnChan <- WrapBasicCalculatorSubtractReturns{R1: result}
 	}()
 
-	call := &imptest.TargetCall{
-		Imp:      m.wrapper.imp,
-		Ordered:  true,
-		Returned: !panicked,
-		Panicked: panicked,
-	}
-	if !panicked {
-		call.ReturnValues = []any{result}
-	} else {
-		call.PanicValue = panicValue
-	}
-
-	return &WrapBasicCalculatorSubtractCall{TargetCall: call}
+	return m
 }
 
-// WrapBasicCalculatorSubtractCall wraps a TargetCall for Subtract.
-type WrapBasicCalculatorSubtractCall struct {
-	*imptest.TargetCall
+// WaitForResponse blocks until the method completes (return or panic).
+func (m *WrapBasicCalculatorSubtractMethod) WaitForResponse() {
+	if m.returned != nil || m.panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-m.returnChan:
+		m.returned = &ret
+	case p := <-m.panicChan:
+		m.panicked = p
+	}
+}
+
+// ExpectReturnsEqual verifies the method returned exact values.
+func (m *WrapBasicCalculatorSubtractMethod) ExpectReturnsEqual(expected int) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if m.returned.R1 != expected {
+		m.wrapper.imp.Fatalf("expected %v, got %v", expected, m.returned.R1)
+	}
+}
+
+// ExpectReturnsMatch verifies return values match the given matchers.
+func (m *WrapBasicCalculatorSubtractMethod) ExpectReturnsMatch(matchers ...any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if len(matchers) != 1 {
+		m.wrapper.imp.Fatalf("expected 1 matcher, got %d", len(matchers))
+		return
+	}
+
+	matcher, ok := matchers[0].(imptest.Matcher)
+	if !ok {
+		m.wrapper.imp.Fatalf("argument 0 is not a Matcher")
+		return
+	}
+
+	success, err := matcher.Match(m.returned.R1)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value: %s", matcher.FailureMessage(m.returned.R1))
+	}
 }
 
 // WrapBasicCalculatorSubtractReturns provides type-safe access to Subtract return values.
@@ -127,53 +230,159 @@ type WrapBasicCalculatorSubtractReturns struct {
 }
 
 // GetReturns returns type-safe return values for Subtract.
-func (c *WrapBasicCalculatorSubtractCall) GetReturns() *WrapBasicCalculatorSubtractReturns {
-	raw := c.TargetCall.GetReturns()
-	return &WrapBasicCalculatorSubtractReturns{
-		R1: raw.R1.(int),
+func (m *WrapBasicCalculatorSubtractMethod) GetReturns() *WrapBasicCalculatorSubtractReturns {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("cannot get returns: method panicked with %v", m.panicked)
+		return nil
 	}
+
+	return m.returned
 }
 
 // WrapBasicCalculatorDivideMethod wraps the Divide method.
 type WrapBasicCalculatorDivideMethod struct {
-	wrapper *WrapBasicCalculatorWrapper
+	wrapper    *WrapBasicCalculatorWrapper
+	returnChan chan WrapBasicCalculatorDivideReturns
+	panicChan  chan any
+	returned   *WrapBasicCalculatorDivideReturns
+	panicked   any
 }
 
-// CallWith calls the Divide method and captures the result.
-func (m *WrapBasicCalculatorDivideMethod) CallWith(a, b int) *WrapBasicCalculatorDivideCall {
-	var r1 int
-	var r2 error
-	var panicked bool
-	var panicValue any
+// Start begins execution of the Divide method in a goroutine.
+func (m *WrapBasicCalculatorDivideMethod) Start(a, b int) *WrapBasicCalculatorDivideMethod {
+	m.returnChan = make(chan WrapBasicCalculatorDivideReturns, 1)
+	m.panicChan = make(chan any, 1)
+	m.returned = nil
+	m.panicked = nil
 
-	func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				panicked = true
-				panicValue = r
+				m.panicChan <- r
 			}
 		}()
-		r1, r2 = m.wrapper.instance.Divide(a, b)
+
+		r1, r2 := m.wrapper.instance.Divide(a, b)
+		m.returnChan <- WrapBasicCalculatorDivideReturns{R1: r1, R2: r2}
 	}()
 
-	call := &imptest.TargetCall{
-		Imp:      m.wrapper.imp,
-		Ordered:  true,
-		Returned: !panicked,
-		Panicked: panicked,
-	}
-	if !panicked {
-		call.ReturnValues = []any{r1, r2}
-	} else {
-		call.PanicValue = panicValue
-	}
-
-	return &WrapBasicCalculatorDivideCall{TargetCall: call}
+	return m
 }
 
-// WrapBasicCalculatorDivideCall wraps a TargetCall for Divide.
-type WrapBasicCalculatorDivideCall struct {
-	*imptest.TargetCall
+// WaitForResponse blocks until the method completes (return or panic).
+func (m *WrapBasicCalculatorDivideMethod) WaitForResponse() {
+	if m.returned != nil || m.panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-m.returnChan:
+		m.returned = &ret
+	case p := <-m.panicChan:
+		m.panicked = p
+	}
+}
+
+// ExpectReturnsEqual verifies the method returned exact values.
+func (m *WrapBasicCalculatorDivideMethod) ExpectReturnsEqual(expectedR1 int, expectedR2 error) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if m.returned.R1 != expectedR1 {
+		m.wrapper.imp.Fatalf("expected R1=%v, got R1=%v", expectedR1, m.returned.R1)
+	}
+	if m.returned.R2 != expectedR2 {
+		m.wrapper.imp.Fatalf("expected R2=%v, got R2=%v", expectedR2, m.returned.R2)
+	}
+}
+
+// ExpectReturnsMatch verifies return values match the given matchers.
+func (m *WrapBasicCalculatorDivideMethod) ExpectReturnsMatch(matchers ...any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if len(matchers) != 2 {
+		m.wrapper.imp.Fatalf("expected 2 matchers, got %d", len(matchers))
+		return
+	}
+
+	matcher0, ok0 := matchers[0].(imptest.Matcher)
+	matcher1, ok1 := matchers[1].(imptest.Matcher)
+	if !ok0 {
+		m.wrapper.imp.Fatalf("argument 0 is not a Matcher")
+		return
+	}
+	if !ok1 {
+		m.wrapper.imp.Fatalf("argument 1 is not a Matcher")
+		return
+	}
+
+	success, err := matcher0.Match(m.returned.R1)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher 0 error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value 0: %s", matcher0.FailureMessage(m.returned.R1))
+		return
+	}
+
+	success, err = matcher1.Match(m.returned.R2)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher 1 error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value 1: %s", matcher1.FailureMessage(m.returned.R2))
+	}
+}
+
+// ExpectPanicEquals verifies the method panicked with an exact value.
+func (m *WrapBasicCalculatorDivideMethod) ExpectPanicEquals(expected any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.returned != nil {
+		m.wrapper.imp.Fatalf("expected method to panic, but it returned normally")
+		return
+	}
+
+	if m.panicked != expected {
+		m.wrapper.imp.Fatalf("expected panic with %v, got %v", expected, m.panicked)
+	}
+}
+
+// ExpectPanicMatches verifies the panic value matches the given matcher.
+func (m *WrapBasicCalculatorDivideMethod) ExpectPanicMatches(matcher imptest.Matcher) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.returned != nil {
+		m.wrapper.imp.Fatalf("expected method to panic, but it returned normally")
+		return
+	}
+
+	success, err := matcher.Match(m.panicked)
+	if err != nil {
+		m.wrapper.imp.Fatalf("panic matcher error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("panic value: %s", matcher.FailureMessage(m.panicked))
+	}
 }
 
 // WrapBasicCalculatorDivideReturns provides type-safe access to Divide return values.
@@ -183,16 +392,16 @@ type WrapBasicCalculatorDivideReturns struct {
 }
 
 // GetReturns returns type-safe return values for Divide.
-func (c *WrapBasicCalculatorDivideCall) GetReturns() *WrapBasicCalculatorDivideReturns {
-	raw := c.TargetCall.GetReturns()
-	var r2 error
-	if raw.R2 != nil {
-		r2 = raw.R2.(error)
+func (m *WrapBasicCalculatorDivideMethod) GetReturns() *WrapBasicCalculatorDivideReturns {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("cannot get returns: method panicked with %v", m.panicked)
+		return nil
 	}
-	return &WrapBasicCalculatorDivideReturns{
-		R1: raw.R1.(int),
-		R2: r2,
-	}
+
+	return m.returned
 }
 
 // WrapCalculator wraps a Calculator implementation for testing.
@@ -219,43 +428,92 @@ type WrapCalculatorWrapper struct {
 
 // WrapCalculatorAddMethod wraps the Add method.
 type WrapCalculatorAddMethod struct {
-	wrapper *WrapCalculatorWrapper
+	wrapper    *WrapCalculatorWrapper
+	returnChan chan WrapCalculatorAddReturns
+	panicChan  chan any
+	returned   *WrapCalculatorAddReturns
+	panicked   any
 }
 
-// CallWith calls the Add method and captures the result.
-func (m *WrapCalculatorAddMethod) CallWith(a, b int) *WrapCalculatorAddCall {
-	var result int
-	var panicked bool
-	var panicValue any
+// Start begins execution of the Add method in a goroutine.
+func (m *WrapCalculatorAddMethod) Start(a, b int) *WrapCalculatorAddMethod {
+	m.returnChan = make(chan WrapCalculatorAddReturns, 1)
+	m.panicChan = make(chan any, 1)
+	m.returned = nil
+	m.panicked = nil
 
-	func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				panicked = true
-				panicValue = r
+				m.panicChan <- r
 			}
 		}()
-		result = m.wrapper.instance.Add(a, b)
+
+		result := m.wrapper.instance.Add(a, b)
+		m.returnChan <- WrapCalculatorAddReturns{R1: result}
 	}()
 
-	call := &imptest.TargetCall{
-		Imp:      m.wrapper.imp,
-		Ordered:  true,
-		Returned: !panicked,
-		Panicked: panicked,
-	}
-	if !panicked {
-		call.ReturnValues = []any{result}
-	} else {
-		call.PanicValue = panicValue
-	}
-
-	return &WrapCalculatorAddCall{TargetCall: call}
+	return m
 }
 
-// WrapCalculatorAddCall wraps a TargetCall for Add with type-safe return accessors.
-type WrapCalculatorAddCall struct {
-	*imptest.TargetCall
+// WaitForResponse blocks until the method completes (return or panic).
+func (m *WrapCalculatorAddMethod) WaitForResponse() {
+	if m.returned != nil || m.panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-m.returnChan:
+		m.returned = &ret
+	case p := <-m.panicChan:
+		m.panicked = p
+	}
+}
+
+// ExpectReturnsEqual verifies the method returned exact values.
+func (m *WrapCalculatorAddMethod) ExpectReturnsEqual(expected int) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if m.returned.R1 != expected {
+		m.wrapper.imp.Fatalf("expected %v, got %v", expected, m.returned.R1)
+	}
+}
+
+// ExpectReturnsMatch verifies return values match the given matchers.
+func (m *WrapCalculatorAddMethod) ExpectReturnsMatch(matchers ...any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if len(matchers) != 1 {
+		m.wrapper.imp.Fatalf("expected 1 matcher, got %d", len(matchers))
+		return
+	}
+
+	matcher, ok := matchers[0].(imptest.Matcher)
+	if !ok {
+		m.wrapper.imp.Fatalf("argument 0 is not a Matcher")
+		return
+	}
+
+	success, err := matcher.Match(m.returned.R1)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value: %s", matcher.FailureMessage(m.returned.R1))
+	}
 }
 
 // WrapCalculatorAddReturns provides type-safe access to Add return values.
@@ -264,52 +522,106 @@ type WrapCalculatorAddReturns struct {
 }
 
 // GetReturns returns type-safe return values for Add.
-func (c *WrapCalculatorAddCall) GetReturns() *WrapCalculatorAddReturns {
-	raw := c.TargetCall.GetReturns()
-	return &WrapCalculatorAddReturns{
-		R1: raw.R1.(int),
+func (m *WrapCalculatorAddMethod) GetReturns() *WrapCalculatorAddReturns {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("cannot get returns: method panicked with %v", m.panicked)
+		return nil
 	}
+
+	return m.returned
 }
 
 // WrapCalculatorSubtractMethod wraps the Subtract method.
 type WrapCalculatorSubtractMethod struct {
-	wrapper *WrapCalculatorWrapper
+	wrapper    *WrapCalculatorWrapper
+	returnChan chan WrapCalculatorSubtractReturns
+	panicChan  chan any
+	returned   *WrapCalculatorSubtractReturns
+	panicked   any
 }
 
-// CallWith calls the Subtract method and captures the result.
-func (m *WrapCalculatorSubtractMethod) CallWith(a, b int) *WrapCalculatorSubtractCall {
-	var result int
-	var panicked bool
-	var panicValue any
+// Start begins execution of the Subtract method in a goroutine.
+func (m *WrapCalculatorSubtractMethod) Start(a, b int) *WrapCalculatorSubtractMethod {
+	m.returnChan = make(chan WrapCalculatorSubtractReturns, 1)
+	m.panicChan = make(chan any, 1)
+	m.returned = nil
+	m.panicked = nil
 
-	func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				panicked = true
-				panicValue = r
+				m.panicChan <- r
 			}
 		}()
-		result = m.wrapper.instance.Subtract(a, b)
+
+		result := m.wrapper.instance.Subtract(a, b)
+		m.returnChan <- WrapCalculatorSubtractReturns{R1: result}
 	}()
 
-	call := &imptest.TargetCall{
-		Imp:      m.wrapper.imp,
-		Ordered:  true,
-		Returned: !panicked,
-		Panicked: panicked,
-	}
-	if !panicked {
-		call.ReturnValues = []any{result}
-	} else {
-		call.PanicValue = panicValue
-	}
-
-	return &WrapCalculatorSubtractCall{TargetCall: call}
+	return m
 }
 
-// WrapCalculatorSubtractCall wraps a TargetCall for Subtract with type-safe return accessors.
-type WrapCalculatorSubtractCall struct {
-	*imptest.TargetCall
+// WaitForResponse blocks until the method completes (return or panic).
+func (m *WrapCalculatorSubtractMethod) WaitForResponse() {
+	if m.returned != nil || m.panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-m.returnChan:
+		m.returned = &ret
+	case p := <-m.panicChan:
+		m.panicked = p
+	}
+}
+
+// ExpectReturnsEqual verifies the method returned exact values.
+func (m *WrapCalculatorSubtractMethod) ExpectReturnsEqual(expected int) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if m.returned.R1 != expected {
+		m.wrapper.imp.Fatalf("expected %v, got %v", expected, m.returned.R1)
+	}
+}
+
+// ExpectReturnsMatch verifies return values match the given matchers.
+func (m *WrapCalculatorSubtractMethod) ExpectReturnsMatch(matchers ...any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if len(matchers) != 1 {
+		m.wrapper.imp.Fatalf("expected 1 matcher, got %d", len(matchers))
+		return
+	}
+
+	matcher, ok := matchers[0].(imptest.Matcher)
+	if !ok {
+		m.wrapper.imp.Fatalf("argument 0 is not a Matcher")
+		return
+	}
+
+	success, err := matcher.Match(m.returned.R1)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value: %s", matcher.FailureMessage(m.returned.R1))
+	}
 }
 
 // WrapCalculatorSubtractReturns provides type-safe access to Subtract return values.
@@ -318,53 +630,159 @@ type WrapCalculatorSubtractReturns struct {
 }
 
 // GetReturns returns type-safe return values for Subtract.
-func (c *WrapCalculatorSubtractCall) GetReturns() *WrapCalculatorSubtractReturns {
-	raw := c.TargetCall.GetReturns()
-	return &WrapCalculatorSubtractReturns{
-		R1: raw.R1.(int),
+func (m *WrapCalculatorSubtractMethod) GetReturns() *WrapCalculatorSubtractReturns {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("cannot get returns: method panicked with %v", m.panicked)
+		return nil
 	}
+
+	return m.returned
 }
 
 // WrapCalculatorDivideMethod wraps the Divide method.
 type WrapCalculatorDivideMethod struct {
-	wrapper *WrapCalculatorWrapper
+	wrapper    *WrapCalculatorWrapper
+	returnChan chan WrapCalculatorDivideReturns
+	panicChan  chan any
+	returned   *WrapCalculatorDivideReturns
+	panicked   any
 }
 
-// CallWith calls the Divide method and captures the result.
-func (m *WrapCalculatorDivideMethod) CallWith(a, b int) *WrapCalculatorDivideCall {
-	var r1 int
-	var r2 error
-	var panicked bool
-	var panicValue any
+// Start begins execution of the Divide method in a goroutine.
+func (m *WrapCalculatorDivideMethod) Start(a, b int) *WrapCalculatorDivideMethod {
+	m.returnChan = make(chan WrapCalculatorDivideReturns, 1)
+	m.panicChan = make(chan any, 1)
+	m.returned = nil
+	m.panicked = nil
 
-	func() {
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				panicked = true
-				panicValue = r
+				m.panicChan <- r
 			}
 		}()
-		r1, r2 = m.wrapper.instance.Divide(a, b)
+
+		r1, r2 := m.wrapper.instance.Divide(a, b)
+		m.returnChan <- WrapCalculatorDivideReturns{R1: r1, R2: r2}
 	}()
 
-	call := &imptest.TargetCall{
-		Imp:      m.wrapper.imp,
-		Ordered:  true,
-		Returned: !panicked,
-		Panicked: panicked,
-	}
-	if !panicked {
-		call.ReturnValues = []any{r1, r2}
-	} else {
-		call.PanicValue = panicValue
-	}
-
-	return &WrapCalculatorDivideCall{TargetCall: call}
+	return m
 }
 
-// WrapCalculatorDivideCall wraps a TargetCall for Divide with type-safe return accessors.
-type WrapCalculatorDivideCall struct {
-	*imptest.TargetCall
+// WaitForResponse blocks until the method completes (return or panic).
+func (m *WrapCalculatorDivideMethod) WaitForResponse() {
+	if m.returned != nil || m.panicked != nil {
+		return
+	}
+
+	select {
+	case ret := <-m.returnChan:
+		m.returned = &ret
+	case p := <-m.panicChan:
+		m.panicked = p
+	}
+}
+
+// ExpectReturnsEqual verifies the method returned exact values.
+func (m *WrapCalculatorDivideMethod) ExpectReturnsEqual(expectedR1 int, expectedR2 error) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if m.returned.R1 != expectedR1 {
+		m.wrapper.imp.Fatalf("expected R1=%v, got R1=%v", expectedR1, m.returned.R1)
+	}
+	if m.returned.R2 != expectedR2 {
+		m.wrapper.imp.Fatalf("expected R2=%v, got R2=%v", expectedR2, m.returned.R2)
+	}
+}
+
+// ExpectReturnsMatch verifies return values match the given matchers.
+func (m *WrapCalculatorDivideMethod) ExpectReturnsMatch(matchers ...any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("expected method to return, but it panicked with: %v", m.panicked)
+		return
+	}
+
+	if len(matchers) != 2 {
+		m.wrapper.imp.Fatalf("expected 2 matchers, got %d", len(matchers))
+		return
+	}
+
+	matcher0, ok0 := matchers[0].(imptest.Matcher)
+	matcher1, ok1 := matchers[1].(imptest.Matcher)
+	if !ok0 {
+		m.wrapper.imp.Fatalf("argument 0 is not a Matcher")
+		return
+	}
+	if !ok1 {
+		m.wrapper.imp.Fatalf("argument 1 is not a Matcher")
+		return
+	}
+
+	success, err := matcher0.Match(m.returned.R1)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher 0 error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value 0: %s", matcher0.FailureMessage(m.returned.R1))
+		return
+	}
+
+	success, err = matcher1.Match(m.returned.R2)
+	if err != nil {
+		m.wrapper.imp.Fatalf("matcher 1 error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("return value 1: %s", matcher1.FailureMessage(m.returned.R2))
+	}
+}
+
+// ExpectPanicEquals verifies the method panicked with an exact value.
+func (m *WrapCalculatorDivideMethod) ExpectPanicEquals(expected any) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.returned != nil {
+		m.wrapper.imp.Fatalf("expected method to panic, but it returned normally")
+		return
+	}
+
+	if m.panicked != expected {
+		m.wrapper.imp.Fatalf("expected panic with %v, got %v", expected, m.panicked)
+	}
+}
+
+// ExpectPanicMatches verifies the panic value matches the given matcher.
+func (m *WrapCalculatorDivideMethod) ExpectPanicMatches(matcher imptest.Matcher) {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.returned != nil {
+		m.wrapper.imp.Fatalf("expected method to panic, but it returned normally")
+		return
+	}
+
+	success, err := matcher.Match(m.panicked)
+	if err != nil {
+		m.wrapper.imp.Fatalf("panic matcher error: %v", err)
+		return
+	}
+	if !success {
+		m.wrapper.imp.Fatalf("panic value: %s", matcher.FailureMessage(m.panicked))
+	}
 }
 
 // WrapCalculatorDivideReturns provides type-safe access to Divide return values.
@@ -374,14 +792,14 @@ type WrapCalculatorDivideReturns struct {
 }
 
 // GetReturns returns type-safe return values for Divide.
-func (c *WrapCalculatorDivideCall) GetReturns() *WrapCalculatorDivideReturns {
-	raw := c.TargetCall.GetReturns()
-	var r2 error
-	if raw.R2 != nil {
-		r2 = raw.R2.(error)
+func (m *WrapCalculatorDivideMethod) GetReturns() *WrapCalculatorDivideReturns {
+	m.wrapper.imp.Helper()
+	m.WaitForResponse()
+
+	if m.panicked != nil {
+		m.wrapper.imp.Fatalf("cannot get returns: method panicked with %v", m.panicked)
+		return nil
 	}
-	return &WrapCalculatorDivideReturns{
-		R1: raw.R1.(int),
-		R2: r2,
-	}
+
+	return m.returned
 }
