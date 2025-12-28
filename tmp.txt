@@ -1,0 +1,18 @@
+the example for passing exact data in is incorrect - we pass data in through callable wapper "Start" functions and
+callback "invoke" functions right now. "ExpectArgsAre" is another way we receive exactly.
+
+I also want to implement matchers for panics, to unify that with the return value matchers.
+
+I don't think blocking/timeouts need to be expressly discussed in the outcome dimensions. 
+
+Handling concurrency should be called out somewhere - what are the conditions under which we use "Within"?
+
+For returned interfaces and functions, as well as for interfaces and functions passed in to dependencies, are they ok to
+be independently wrapped/mocked, or should we have a mechanism for bringing them into the same response channel
+ecosystem? As in, if a dependency returns a function, I think we should be able to ask the callable imp what it's next
+call is and get that returned function's imp. Similarly, if we pass a callback and then return from the main function,
+and then the callback is called... should we be able to test for that with some kind of unified imp?
+
+```go
+
+``

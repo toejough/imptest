@@ -99,10 +99,15 @@
       "Bash(GOPACKAGE=visitor ../../bin/impgen:*)",
       "Bash(GOPACKAGE=visitor /Users/joe/repos/personal/imptest/bin/impgen:*)",
       "Bash(GOPACKAGE=visitor bin/impgen:*)",
-      "Bash(/tmp/impgen_test:*)"
+      "Bash(/tmp/impgen_test:*)",
+      "Bash(do echo \"=== $dir ===\")"
     ],
     "deny": [],
     "ask": []
   },
-  "outputStyle": "Explanatory"
+  "outputStyle": "Explanatory",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  }
 }
