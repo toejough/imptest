@@ -218,6 +218,7 @@ type TesterImpFatalfCall struct {
 	done         bool
 	format       string
 	args         []any
+	t            _imptest.Tester
 }
 
 // Use this to test panic handling in code under test.
@@ -282,6 +283,7 @@ func (bldr *TesterImpHelperBuilder) Resolve() *TesterImpHelperCall {
 type TesterImpHelperCall struct {
 	responseChan chan TesterImpHelperCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // Use this to test panic handling in code under test.
@@ -322,6 +324,7 @@ func (m *TesterImpMock) Fatalf(format string, args ...any) {
 		responseChan: responseChan,
 		format:       format,
 		args:         args,
+		t:            m.imp.T,
 	}
 
 	callEvent := &TesterImpCall{
@@ -346,6 +349,7 @@ func (m *TesterImpMock) Helper() {
 
 	call := &TesterImpHelperCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &TesterImpCall{

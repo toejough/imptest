@@ -142,6 +142,7 @@ func (m *DataProcessorImpMock) ProcessMap(config map[string]int) bool {
 	call := &DataProcessorImpProcessMapCall{
 		responseChan: responseChan,
 		config:       config,
+		t:            m.imp.T,
 	}
 
 	callEvent := &DataProcessorImpCall{
@@ -167,6 +168,7 @@ func (m *DataProcessorImpMock) ProcessSlice(data []string) int {
 	call := &DataProcessorImpProcessSliceCall{
 		responseChan: responseChan,
 		data:         data,
+		t:            m.imp.T,
 	}
 
 	callEvent := &DataProcessorImpCall{
@@ -267,6 +269,7 @@ type DataProcessorImpProcessMapCall struct {
 	responseChan chan DataProcessorImpProcessMapCallResponse
 	done         bool
 	config       map[string]int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -375,6 +378,7 @@ type DataProcessorImpProcessSliceCall struct {
 	responseChan chan DataProcessorImpProcessSliceCallResponse
 	done         bool
 	data         []string
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

@@ -191,6 +191,7 @@ type SlowServiceImpDoACall struct {
 	responseChan chan SlowServiceImpDoACallResponse
 	done         bool
 	id           int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -299,6 +300,7 @@ type SlowServiceImpDoBCall struct {
 	responseChan chan SlowServiceImpDoBCallResponse
 	done         bool
 	id           int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -357,6 +359,7 @@ func (m *SlowServiceImpMock) DoA(id int) string {
 	call := &SlowServiceImpDoACall{
 		responseChan: responseChan,
 		id:           id,
+		t:            m.imp.T,
 	}
 
 	callEvent := &SlowServiceImpCall{
@@ -382,6 +385,7 @@ func (m *SlowServiceImpMock) DoB(id int) string {
 	call := &SlowServiceImpDoBCall{
 		responseChan: responseChan,
 		id:           id,
+		t:            m.imp.T,
 	}
 
 	callEvent := &SlowServiceImpCall{

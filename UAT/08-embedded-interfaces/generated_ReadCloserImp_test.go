@@ -149,6 +149,7 @@ func (bldr *ReadCloserImpCloseBuilder) InjectResult(result error) *ReadCloserImp
 type ReadCloserImpCloseCall struct {
 	responseChan chan ReadCloserImpCloseCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -206,6 +207,7 @@ func (m *ReadCloserImpMock) Close() error {
 
 	call := &ReadCloserImpCloseCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &ReadCloserImpCall{
@@ -231,6 +233,7 @@ func (m *ReadCloserImpMock) Read(p []byte) (n int, err error) {
 	call := &ReadCloserImpReadCall{
 		responseChan: responseChan,
 		p:            p,
+		t:            m.imp.T,
 	}
 
 	callEvent := &ReadCloserImpCall{
@@ -331,6 +334,7 @@ type ReadCloserImpReadCall struct {
 	responseChan chan ReadCloserImpReadCallResponse
 	done         bool
 	p            []byte
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

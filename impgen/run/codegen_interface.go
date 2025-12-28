@@ -58,15 +58,15 @@ func (gen *codeGenerator) callStructData() callStructTemplateData {
 // codeGenerator Methods
 
 // checkIfFmtNeeded pre-scans all interface methods to determine if fmt import is needed.
-// fmt is needed when any method has function-typed parameters (for callback validation).
+// fmt is no longer needed for callbacks since we use t.Fatalf instead of panic(fmt.Sprintf(...)).
 func (gen *codeGenerator) checkIfFmtNeeded() {
 	gen.forEachMethod(func(_ string, ftype *dst.FuncType) {
 		funcParams := gen.extractFuncParams(ftype)
 		if len(funcParams) > 0 {
-			gen.needsFmt = true
-			gen.needsReflect = true // Callbacks also need reflect for DeepEqual
+			// Callbacks need reflect for DeepEqual but no longer need fmt
+			gen.needsReflect = true
 
-			return // Early exit once we know fmt is needed
+			return // Early exit once we know reflect is needed
 		}
 	})
 }
@@ -398,6 +398,9 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 	// Add panic field to track callback panics
 	gen.pf("\tpanicked any\n")
 
+	// Add imptest.Tester field for proper test failures
+	gen.pf("\tt %s.Tester\n", "_imptest")
+
 	gen.pf("}\n\n")
 
 	// Generate the ExpectReturned method with type-safe parameters
@@ -417,10 +420,11 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 	}
 
 	gen.pf(") {\n")
+	gen.pf("\tr.t.Helper()\n\n")
 
 	// Check if callback panicked instead of returning
 	gen.pf("\tif r.panicked != nil {\n")
-	gen.pf("\t\tpanic(%s.Sprintf(\"expected callback to return, but it panicked with: %%v\", r.panicked))\n", pkgFmt)
+	gen.pf("\t\tr.t.Fatalf(\"expected callback to return, but it panicked with: %%v\", r.panicked)\n")
 	gen.pf("\t}\n\n")
 
 	// Generate type-safe comparisons
@@ -430,8 +434,8 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 			resultType := gen.typeWithQualifier(result.Field.Type)
 			// Use DeepEqual for non-comparable types (like functions, slices, maps)
 			gen.pf("\tif !%s.DeepEqual(r.result%d, expected%d) {\n", pkgReflect, i, i)
-			gen.pf("\t\tpanic(%s.Sprintf(\"callback result[%d] = %%v, expected %%v\", r.result%d, expected%d))\n",
-				pkgFmt, i, i, i)
+			gen.pf("\t\tr.t.Fatalf(\"callback result[%d] = %%v, expected %%v\", r.result%d, expected%d)\n",
+				i, i, i)
 			gen.pf("\t}\n")
 
 			_ = resultType // Keep for future optimizations (use == for comparable types)
@@ -457,17 +461,18 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 	}
 
 	gen.pf(") {\n")
+	gen.pf("\tr.t.Helper()\n\n")
 
 	// Check if callback panicked instead of returning
 	gen.pf("\tif r.panicked != nil {\n")
-	gen.pf("\t\tpanic(%s.Sprintf(\"expected callback to return, but it panicked with: %%v\", r.panicked))\n", pkgFmt)
+	gen.pf("\t\tr.t.Fatalf(\"expected callback to return, but it panicked with: %%v\", r.panicked)\n")
 	gen.pf("\t}\n\n")
 
 	if hasResults(fp.FuncType) {
 		results := extractResults(nil, fp.FuncType)
 		for i := range results {
 			gen.pf("\tok, msg := %s.MatchValue(r.result%d, expected%d)\n", pkgImptest, i, i)
-			gen.pf("\tif !ok { panic(%s.Sprintf(\"callback result[%d]: %%s\", msg)) }\n", pkgFmt, i)
+			gen.pf("\tif !ok { r.t.Fatalf(\"callback result[%d]: %%s\", msg) }\n", i)
 		}
 	}
 
@@ -476,16 +481,17 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 	// Generate ExpectPanicWith to verify callback panics
 	gen.pf("// ExpectPanicWith verifies that the callback panicked with a value matching the expectation.\n")
 	gen.pf("// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.\n")
-	gen.pf("// Panics if the callback returned normally or panicked with a different value.\n")
+	gen.pf("// Fails the test if the callback returned normally or panicked with a different value.\n")
 	gen.pf("func (r *%s) ExpectPanicWith(expected any) {\n", resultTypeName)
+	gen.pf("\tr.t.Helper()\n\n")
 	gen.pf("\tif r.panicked != nil {\n")
 	gen.pf("\t\tok, msg := %s.MatchValue(r.panicked, expected)\n", pkgImptest)
 	gen.pf("\t\tif !ok {\n")
-	gen.pf("\t\t\tpanic(%s.Sprintf(\"callback panic value: %%s\", msg))\n", pkgFmt)
+	gen.pf("\t\t\tr.t.Fatalf(\"callback panic value: %%s\", msg)\n")
 	gen.pf("\t\t}\n")
 	gen.pf("\t\treturn\n")
 	gen.pf("\t}\n")
-	gen.pf("\tpanic(\"expected callback to panic, but it returned\")\n")
+	gen.pf("\tr.t.Fatalf(\"expected callback to panic, but it returned\")\n")
 	gen.pf("}\n\n")
 
 	// Generate the type-safe InvokeFn method
@@ -547,7 +553,8 @@ func (gen *codeGenerator) generateCallbackInvocationMethod(
 		}
 	}
 
-	gen.pf("panicked: resp.Panicked")
+	gen.pf("panicked: resp.Panicked, ")
+	gen.pf("t: c.t")
 
 	gen.pf("}\n")
 
@@ -830,6 +837,9 @@ func (gen *codeGenerator) generateMethodCallStruct(methodName string, ftype *dst
 			gen.pf("\tcallback%sChan chan %s\n", capitalizedName, typeNames.requestType)
 		}
 	}
+
+	// Add imptest.Tester field for passing to callback results
+	gen.pf("\tt %s.Tester\n", "_imptest")
 
 	gen.pf("}\n\n")
 }
@@ -1219,6 +1229,10 @@ func (gen *codeGenerator) writeMockMethodCallCreation(callName string, ftype *ds
 	}
 
 	gen.writeCallStructFields(ftype, paramNames)
+
+	// Add testing.TB for callback result verification
+	gen.pf("\t\tt: m.imp.T,\n")
+
 	gen.pf("\t}\n\n")
 }
 

@@ -156,6 +156,7 @@ type CustomOpsImpAddCall struct {
 	done         bool
 	a            int
 	b            int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -337,6 +338,7 @@ func (bldr *CustomOpsImpFinishBuilder) InjectResult(result bool) *CustomOpsImpFi
 type CustomOpsImpFinishCall struct {
 	responseChan chan CustomOpsImpFinishCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -445,6 +447,7 @@ type CustomOpsImpLogCall struct {
 	responseChan chan CustomOpsImpLogCallResponse
 	done         bool
 	message      string
+	t            _imptest.Tester
 }
 
 // Use this to test panic handling in code under test.
@@ -485,6 +488,7 @@ func (m *CustomOpsImpMock) Add(a int, b int) int {
 		responseChan: responseChan,
 		a:            a,
 		b:            b,
+		t:            m.imp.T,
 	}
 
 	callEvent := &CustomOpsImpCall{
@@ -509,6 +513,7 @@ func (m *CustomOpsImpMock) Finish() bool {
 
 	call := &CustomOpsImpFinishCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &CustomOpsImpCall{
@@ -534,6 +539,7 @@ func (m *CustomOpsImpMock) Log(message string) {
 	call := &CustomOpsImpLogCall{
 		responseChan: responseChan,
 		message:      message,
+		t:            m.imp.T,
 	}
 
 	callEvent := &CustomOpsImpCall{
@@ -560,6 +566,7 @@ func (m *CustomOpsImpMock) Notify(message string, ids ...int) bool {
 		responseChan: responseChan,
 		message:      message,
 		ids:          ids,
+		t:            m.imp.T,
 	}
 
 	callEvent := &CustomOpsImpCall{
@@ -586,6 +593,7 @@ func (m *CustomOpsImpMock) Store(key string, value any) (int, error) {
 		responseChan: responseChan,
 		key:          key,
 		value:        value,
+		t:            m.imp.T,
 	}
 
 	callEvent := &CustomOpsImpCall{
@@ -694,6 +702,7 @@ type CustomOpsImpNotifyCall struct {
 	done         bool
 	message      string
 	ids          []int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -810,6 +819,7 @@ type CustomOpsImpStoreCall struct {
 	done         bool
 	key          string
 	value        any
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

@@ -156,6 +156,7 @@ type OpsImpAddCall struct {
 	done         bool
 	a            int
 	b            int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -337,6 +338,7 @@ func (bldr *OpsImpFinishBuilder) InjectResult(result bool) *OpsImpFinishCall {
 type OpsImpFinishCall struct {
 	responseChan chan OpsImpFinishCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -445,6 +447,7 @@ type OpsImpLogCall struct {
 	responseChan chan OpsImpLogCallResponse
 	done         bool
 	message      string
+	t            _imptest.Tester
 }
 
 // Use this to test panic handling in code under test.
@@ -485,6 +488,7 @@ func (m *OpsImpMock) Add(a int, b int) int {
 		responseChan: responseChan,
 		a:            a,
 		b:            b,
+		t:            m.imp.T,
 	}
 
 	callEvent := &OpsImpCall{
@@ -509,6 +513,7 @@ func (m *OpsImpMock) Finish() bool {
 
 	call := &OpsImpFinishCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &OpsImpCall{
@@ -534,6 +539,7 @@ func (m *OpsImpMock) Log(message string) {
 	call := &OpsImpLogCall{
 		responseChan: responseChan,
 		message:      message,
+		t:            m.imp.T,
 	}
 
 	callEvent := &OpsImpCall{
@@ -560,6 +566,7 @@ func (m *OpsImpMock) Notify(message string, ids ...int) bool {
 		responseChan: responseChan,
 		message:      message,
 		ids:          ids,
+		t:            m.imp.T,
 	}
 
 	callEvent := &OpsImpCall{
@@ -586,6 +593,7 @@ func (m *OpsImpMock) Store(key string, value any) (int, error) {
 		responseChan: responseChan,
 		key:          key,
 		value:        value,
+		t:            m.imp.T,
 	}
 
 	callEvent := &OpsImpCall{
@@ -694,6 +702,7 @@ type OpsImpNotifyCall struct {
 	done         bool
 	message      string
 	ids          []int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -810,6 +819,7 @@ type OpsImpStoreCall struct {
 	done         bool
 	key          string
 	value        any
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

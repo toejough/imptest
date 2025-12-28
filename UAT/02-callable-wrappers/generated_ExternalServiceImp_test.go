@@ -209,6 +209,7 @@ type ExternalServiceImpFetchDataCall struct {
 	responseChan chan ExternalServiceImpFetchDataCallResponse
 	done         bool
 	id           int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -251,6 +252,7 @@ func (m *ExternalServiceImpMock) FetchData(id int) (string, error) {
 	call := &ExternalServiceImpFetchDataCall{
 		responseChan: responseChan,
 		id:           id,
+		t:            m.imp.T,
 	}
 
 	callEvent := &ExternalServiceImpCall{
@@ -276,6 +278,7 @@ func (m *ExternalServiceImpMock) Process(data string) string {
 	call := &ExternalServiceImpProcessCall{
 		responseChan: responseChan,
 		data:         data,
+		t:            m.imp.T,
 	}
 
 	callEvent := &ExternalServiceImpCall{
@@ -376,6 +379,7 @@ type ExternalServiceImpProcessCall struct {
 	responseChan chan ExternalServiceImpProcessCallResponse
 	done         bool
 	data         string
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

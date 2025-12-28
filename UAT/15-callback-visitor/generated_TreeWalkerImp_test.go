@@ -2,7 +2,6 @@
 
 package visitor_test
 
-import _fmt "fmt"
 import _imptest "github.com/toejough/imptest/imptest"
 import _reflect "reflect"
 import _testing "testing"
@@ -147,6 +146,7 @@ func (m *TreeWalkerImpMock) Walk(root string, fn func(string, fs.DirEntry, error
 		callbackFnChan: callbackFnChan,
 		root:           root,
 		fn:             fn,
+		t:              m.imp.T,
 	}
 
 	callEvent := &TreeWalkerImpCall{
@@ -192,6 +192,7 @@ func (m *TreeWalkerImpMock) WalkWithNamedType(root string, fn visitor.WalkFunc) 
 		callbackFnChan: callbackFnChan,
 		root:           root,
 		fn:             fn,
+		t:              m.imp.T,
 	}
 
 	callEvent := &TreeWalkerImpCall{
@@ -325,6 +326,7 @@ type TreeWalkerImpWalkCall struct {
 	fn           func(string, fs.DirEntry, error) error
 	// Callback coordination channels
 	callbackFnChan chan TreeWalkerImpWalkCallFnRequest
+	t              _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -353,49 +355,56 @@ func (c *TreeWalkerImpWalkCall) InvokeFn(path string, d fs.DirEntry, err error) 
 		ResultChan: resultChan,
 	}
 	resp := <-resultChan
-	return &TreeWalkerImpWalkCallFnCallbackResult{result0: resp.Result0, panicked: resp.Panicked}
+	return &TreeWalkerImpWalkCallFnCallbackResult{result0: resp.Result0, panicked: resp.Panicked, t: c.t}
 }
 
 type TreeWalkerImpWalkCallFnCallbackResult struct {
 	result0  error
 	panicked any
+	t        _imptest.Tester
 }
 
 // ExpectPanicWith verifies that the callback panicked with a value matching the expectation.
 // Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
-// Panics if the callback returned normally or panicked with a different value.
+// Fails the test if the callback returned normally or panicked with a different value.
 func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectPanicWith(expected any) {
+	r.t.Helper()
+
 	if r.panicked != nil {
 		ok, msg := _imptest.MatchValue(r.panicked, expected)
 		if !ok {
-			panic(_fmt.Sprintf("callback panic value: %s", msg))
+			r.t.Fatalf("callback panic value: %s", msg)
 		}
 		return
 	}
-	panic("expected callback to panic, but it returned")
+	r.t.Fatalf("expected callback to panic, but it returned")
 }
 
 // ExpectReturned verifies that the callback returned the expected values.
 func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectReturned(expected0 error) {
+	r.t.Helper()
+
 	if r.panicked != nil {
-		panic(_fmt.Sprintf("expected callback to return, but it panicked with: %v", r.panicked))
+		r.t.Fatalf("expected callback to return, but it panicked with: %v", r.panicked)
 	}
 
 	if !_reflect.DeepEqual(r.result0, expected0) {
-		panic(_fmt.Sprintf("callback result[0] = %v, expected %v", r.result0, expected0))
+		r.t.Fatalf("callback result[0] = %v, expected %v", r.result0, expected0)
 	}
 }
 
 // ExpectReturnedShould verifies callback return values match matchers.
 // Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
 func (r *TreeWalkerImpWalkCallFnCallbackResult) ExpectReturnedShould(expected0 any) {
+	r.t.Helper()
+
 	if r.panicked != nil {
-		panic(_fmt.Sprintf("expected callback to return, but it panicked with: %v", r.panicked))
+		r.t.Fatalf("expected callback to return, but it panicked with: %v", r.panicked)
 	}
 
 	ok, msg := _imptest.MatchValue(r.result0, expected0)
 	if !ok {
-		panic(_fmt.Sprintf("callback result[0]: %s", msg))
+		r.t.Fatalf("callback result[0]: %s", msg)
 	}
 }
 
@@ -514,6 +523,7 @@ type TreeWalkerImpWalkWithNamedTypeCall struct {
 	fn           visitor.WalkFunc
 	// Callback coordination channels
 	callbackFnChan chan TreeWalkerImpWalkWithNamedTypeCallFnRequest
+	t              _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -542,49 +552,56 @@ func (c *TreeWalkerImpWalkWithNamedTypeCall) InvokeFn(path string, d fs.DirEntry
 		ResultChan: resultChan,
 	}
 	resp := <-resultChan
-	return &TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult{result0: resp.Result0, panicked: resp.Panicked}
+	return &TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult{result0: resp.Result0, panicked: resp.Panicked, t: c.t}
 }
 
 type TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult struct {
 	result0  error
 	panicked any
+	t        _imptest.Tester
 }
 
 // ExpectPanicWith verifies that the callback panicked with a value matching the expectation.
 // Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
-// Panics if the callback returned normally or panicked with a different value.
+// Fails the test if the callback returned normally or panicked with a different value.
 func (r *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult) ExpectPanicWith(expected any) {
+	r.t.Helper()
+
 	if r.panicked != nil {
 		ok, msg := _imptest.MatchValue(r.panicked, expected)
 		if !ok {
-			panic(_fmt.Sprintf("callback panic value: %s", msg))
+			r.t.Fatalf("callback panic value: %s", msg)
 		}
 		return
 	}
-	panic("expected callback to panic, but it returned")
+	r.t.Fatalf("expected callback to panic, but it returned")
 }
 
 // ExpectReturned verifies that the callback returned the expected values.
 func (r *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult) ExpectReturned(expected0 error) {
+	r.t.Helper()
+
 	if r.panicked != nil {
-		panic(_fmt.Sprintf("expected callback to return, but it panicked with: %v", r.panicked))
+		r.t.Fatalf("expected callback to return, but it panicked with: %v", r.panicked)
 	}
 
 	if !_reflect.DeepEqual(r.result0, expected0) {
-		panic(_fmt.Sprintf("callback result[0] = %v, expected %v", r.result0, expected0))
+		r.t.Fatalf("callback result[0] = %v, expected %v", r.result0, expected0)
 	}
 }
 
 // ExpectReturnedShould verifies callback return values match matchers.
 // Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
 func (r *TreeWalkerImpWalkWithNamedTypeCallFnCallbackResult) ExpectReturnedShould(expected0 any) {
+	r.t.Helper()
+
 	if r.panicked != nil {
-		panic(_fmt.Sprintf("expected callback to return, but it panicked with: %v", r.panicked))
+		r.t.Fatalf("expected callback to return, but it panicked with: %v", r.panicked)
 	}
 
 	ok, msg := _imptest.MatchValue(r.result0, expected0)
 	if !ok {
-		panic(_fmt.Sprintf("callback result[0]: %s", msg))
+		r.t.Fatalf("callback result[0]: %s", msg)
 	}
 }
 

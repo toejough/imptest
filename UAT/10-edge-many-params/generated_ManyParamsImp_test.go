@@ -132,6 +132,7 @@ func (m *ManyParamsImpMock) Process(a int, b int, c int, d int, e int, f int, g 
 		h:            h,
 		i:            i,
 		j:            j,
+		t:            m.imp.T,
 	}
 
 	callEvent := &ManyParamsImpCall{
@@ -304,6 +305,7 @@ type ManyParamsImpProcessCall struct {
 	h            int
 	i            int
 	j            int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

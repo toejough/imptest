@@ -124,6 +124,7 @@ func (m *ComplexServiceImpMock) Process(d matching.Data) bool {
 	call := &ComplexServiceImpProcessCall{
 		responseChan: responseChan,
 		d:            d,
+		t:            m.imp.T,
 	}
 
 	callEvent := &ComplexServiceImpCall{
@@ -224,6 +225,7 @@ type ComplexServiceImpProcessCall struct {
 	responseChan chan ComplexServiceImpProcessCallResponse
 	done         bool
 	d            matching.Data
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

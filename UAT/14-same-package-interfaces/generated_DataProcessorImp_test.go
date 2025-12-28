@@ -161,6 +161,7 @@ func (m *DataProcessorImpMock) Process(source samepackage.DataSource, sink samep
 		responseChan: responseChan,
 		source:       source,
 		sink:         sink,
+		t:            m.imp.T,
 	}
 
 	callEvent := &DataProcessorImpCall{
@@ -186,6 +187,7 @@ func (m *DataProcessorImpMock) Transform(input samepackage.DataSource) (samepack
 	call := &DataProcessorImpTransformCall{
 		responseChan: responseChan,
 		input:        input,
+		t:            m.imp.T,
 	}
 
 	callEvent := &DataProcessorImpCall{
@@ -211,6 +213,7 @@ func (m *DataProcessorImpMock) Validate(sink samepackage.DataSink) bool {
 	call := &DataProcessorImpValidateCall{
 		responseChan: responseChan,
 		sink:         sink,
+		t:            m.imp.T,
 	}
 
 	callEvent := &DataProcessorImpCall{
@@ -319,6 +322,7 @@ type DataProcessorImpProcessCall struct {
 	done         bool
 	source       samepackage.DataSource
 	sink         samepackage.DataSink
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -433,6 +437,7 @@ type DataProcessorImpTransformCall struct {
 	responseChan chan DataProcessorImpTransformCallResponse
 	done         bool
 	input        samepackage.DataSource
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -543,6 +548,7 @@ type DataProcessorImpValidateCall struct {
 	responseChan chan DataProcessorImpValidateCallResponse
 	done         bool
 	sink         samepackage.DataSink
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

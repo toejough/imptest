@@ -140,6 +140,7 @@ func (m *OpsImpMock) PublicMethod(x int) int {
 	call := &OpsImpPublicMethodCall{
 		responseChan: responseChan,
 		x:            x,
+		t:            m.imp.T,
 	}
 
 	callEvent := &OpsImpCall{
@@ -165,6 +166,7 @@ func (m *OpsImpMock) internalMethod(x int) int {
 	call := &OpsImpinternalMethodCall{
 		responseChan: responseChan,
 		x:            x,
+		t:            m.imp.T,
 	}
 
 	callEvent := &OpsImpCall{
@@ -265,6 +267,7 @@ type OpsImpPublicMethodCall struct {
 	responseChan chan OpsImpPublicMethodCallResponse
 	done         bool
 	x            int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -379,6 +382,7 @@ type OpsImpinternalMethodCall struct {
 	responseChan chan OpsImpinternalMethodCallResponse
 	done         bool
 	x            int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

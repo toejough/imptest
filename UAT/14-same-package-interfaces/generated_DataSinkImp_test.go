@@ -124,6 +124,7 @@ func (m *DataSinkImpMock) PutData(data []byte) error {
 	call := &DataSinkImpPutDataCall{
 		responseChan: responseChan,
 		data:         data,
+		t:            m.imp.T,
 	}
 
 	callEvent := &DataSinkImpCall{
@@ -224,6 +225,7 @@ type DataSinkImpPutDataCall struct {
 	responseChan chan DataSinkImpPutDataCallResponse
 	done         bool
 	data         []byte
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

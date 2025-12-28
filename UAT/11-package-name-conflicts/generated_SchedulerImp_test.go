@@ -227,6 +227,7 @@ type SchedulerImpDelayCall struct {
 	done         bool
 	taskID       string
 	duration     time.Duration
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -363,6 +364,7 @@ type SchedulerImpGetIntervalCall struct {
 	responseChan chan SchedulerImpGetIntervalCallResponse
 	done         bool
 	taskID       string
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -404,6 +406,7 @@ func (m *SchedulerImpMock) Delay(taskID string, duration time.Duration) error {
 		responseChan: responseChan,
 		taskID:       taskID,
 		duration:     duration,
+		t:            m.imp.T,
 	}
 
 	callEvent := &SchedulerImpCall{
@@ -429,6 +432,7 @@ func (m *SchedulerImpMock) GetInterval(taskID string) time.Duration {
 	call := &SchedulerImpGetIntervalCall{
 		responseChan: responseChan,
 		taskID:       taskID,
+		t:            m.imp.T,
 	}
 
 	callEvent := &SchedulerImpCall{
@@ -453,6 +457,7 @@ func (m *SchedulerImpMock) NextRun() (time.Time, error) {
 
 	call := &SchedulerImpNextRunCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &SchedulerImpCall{
@@ -479,6 +484,7 @@ func (m *SchedulerImpMock) ScheduleAt(taskID string, when time.Time) error {
 		responseChan: responseChan,
 		taskID:       taskID,
 		when:         when,
+		t:            m.imp.T,
 	}
 
 	callEvent := &SchedulerImpCall{
@@ -536,6 +542,7 @@ func (bldr *SchedulerImpNextRunBuilder) InjectResults(r0 time.Time, r1 error) *S
 type SchedulerImpNextRunCall struct {
 	responseChan chan SchedulerImpNextRunCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -654,6 +661,7 @@ type SchedulerImpScheduleAtCall struct {
 	done         bool
 	taskID       string
 	when         time.Time
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

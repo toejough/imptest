@@ -163,6 +163,7 @@ func (m *FileHandlerImpMock) OpenFile(path string, mode os.FileMode) (*os.File, 
 		responseChan: responseChan,
 		path:         path,
 		mode:         mode,
+		t:            m.imp.T,
 	}
 
 	callEvent := &FileHandlerImpCall{
@@ -188,6 +189,7 @@ func (m *FileHandlerImpMock) ReadAll(r io.Reader) ([]byte, error) {
 	call := &FileHandlerImpReadAllCall{
 		responseChan: responseChan,
 		r:            r,
+		t:            m.imp.T,
 	}
 
 	callEvent := &FileHandlerImpCall{
@@ -213,6 +215,7 @@ func (m *FileHandlerImpMock) Stats(path string) (os.FileInfo, error) {
 	call := &FileHandlerImpStatsCall{
 		responseChan: responseChan,
 		path:         path,
+		t:            m.imp.T,
 	}
 
 	callEvent := &FileHandlerImpCall{
@@ -321,6 +324,7 @@ type FileHandlerImpOpenFileCall struct {
 	done         bool
 	path         string
 	mode         os.FileMode
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -431,6 +435,7 @@ type FileHandlerImpReadAllCall struct {
 	responseChan chan FileHandlerImpReadAllCallResponse
 	done         bool
 	r            io.Reader
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -541,6 +546,7 @@ type FileHandlerImpStatsCall struct {
 	responseChan chan FileHandlerImpStatsCallResponse
 	done         bool
 	path         string
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

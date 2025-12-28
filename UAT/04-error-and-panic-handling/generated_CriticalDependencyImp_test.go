@@ -135,6 +135,7 @@ func (bldr *CriticalDependencyImpDoWorkBuilder) Resolve() *CriticalDependencyImp
 type CriticalDependencyImpDoWorkCall struct {
 	responseChan chan CriticalDependencyImpDoWorkCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // Use this to test panic handling in code under test.
@@ -186,6 +187,7 @@ func (m *CriticalDependencyImpMock) DoWork() {
 
 	call := &CriticalDependencyImpDoWorkCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &CriticalDependencyImpCall{

@@ -166,6 +166,7 @@ func (bldr *TimerImpGetElapsedBuilder) InjectResult(result int) *TimerImpGetElap
 type TimerImpGetElapsedCall struct {
 	responseChan chan TimerImpGetElapsedCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -205,6 +206,7 @@ func (m *TimerImpMock) GetElapsed() int {
 
 	call := &TimerImpGetElapsedCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &TimerImpCall{
@@ -230,6 +232,7 @@ func (m *TimerImpMock) Wait(seconds int) error {
 	call := &TimerImpWaitCall{
 		responseChan: responseChan,
 		seconds:      seconds,
+		t:            m.imp.T,
 	}
 
 	callEvent := &TimerImpCall{
@@ -336,6 +339,7 @@ type TimerImpWaitCall struct {
 	responseChan chan TimerImpWaitCallResponse
 	done         bool
 	seconds      int
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.

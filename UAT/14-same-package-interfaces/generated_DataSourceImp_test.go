@@ -148,6 +148,7 @@ func (bldr *DataSourceImpGetDataBuilder) InjectResults(r0 []byte, r1 error) *Dat
 type DataSourceImpGetDataCall struct {
 	responseChan chan DataSourceImpGetDataCallResponse
 	done         bool
+	t            _imptest.Tester
 }
 
 // InjectPanic causes the mocked method to panic with the given value.
@@ -189,6 +190,7 @@ func (m *DataSourceImpMock) GetData() ([]byte, error) {
 
 	call := &DataSourceImpGetDataCall{
 		responseChan: responseChan,
+		t:            m.imp.T,
 	}
 
 	callEvent := &DataSourceImpCall{
