@@ -35,19 +35,17 @@ func (s *Service) SaveProcessed(id int, input string) error {
 // TestDependencyInterface_Ordered_Exact_Args demonstrates mocking an interface dependency
 // with ordered expectations and exact argument matching
 func TestDependencyInterface_Ordered_Exact_Args(t *testing.T) {
-	imp := imptest.NewImp(t)
-
 	// Create mock for the dependency interface
-	storeMock := imptest.NewDependencyInterface[DataStore](imp)
+	store := MockDataStore(t)
 
 	// Expect Get to be called with exact arguments
-	call := storeMock.Get.ExpectCalledWithExactly(42)
+	call := store.Get.ExpectCalledWithExactly(42)
 
 	// Inject the return values
 	call.InjectReturnValues("test data", nil)
 
 	// Execute the function under test with the mock
-	svc := &Service{store: storeMock.Interface()}
+	svc := &Service{store: store.Interface()}
 	result, err := svc.LoadAndProcess(42)
 
 	// Verify the business logic result
@@ -61,18 +59,17 @@ func TestDependencyInterface_Ordered_Exact_Args(t *testing.T) {
 
 // TestDependencyInterface_Ordered_Matcher_Args demonstrates matcher validation
 func TestDependencyInterface_Ordered_Matcher_Args(t *testing.T) {
-	imp := imptest.NewImp(t)
-	storeMock := imptest.NewDependencyInterface[DataStore](imp)
+	store := MockDataStore(t)
 
 	// Expect Get with argument matching a condition
-	call := storeMock.Get.ExpectCalledWithMatches(imptest.Satisfies(func(v any) bool {
+	call := store.Get.ExpectCalledWithMatches(imptest.Satisfies(func(v any) bool {
 		id, ok := v.(int)
 		return ok && id > 0
 	}))
 
 	call.InjectReturnValues("data", nil)
 
-	svc := &Service{store: storeMock.Interface()}
+	svc := &Service{store: store.Interface()}
 	result, err := svc.LoadAndProcess(99)
 
 	if err != nil || result != "processed: data" {
@@ -82,16 +79,15 @@ func TestDependencyInterface_Ordered_Matcher_Args(t *testing.T) {
 
 // TestDependencyInterface_Ordered_InjectError demonstrates injecting errors
 func TestDependencyInterface_Ordered_InjectError(t *testing.T) {
-	imp := imptest.NewImp(t)
-	storeMock := imptest.NewDependencyInterface[DataStore](imp)
+	store := MockDataStore(t)
 
-	call := storeMock.Get.ExpectCalledWithExactly(42)
+	call := store.Get.ExpectCalledWithExactly(42)
 
 	// Inject an error return
 	expectedErr := errors.New("not found")
 	call.InjectReturnValues("", expectedErr)
 
-	svc := &Service{store: storeMock.Interface()}
+	svc := &Service{store: store.Interface()}
 	result, err := svc.LoadAndProcess(42)
 
 	if err != expectedErr {
@@ -104,13 +100,12 @@ func TestDependencyInterface_Ordered_InjectError(t *testing.T) {
 
 // TestDependencyInterface_Ordered_GetArgs demonstrates getting actual arguments
 func TestDependencyInterface_Ordered_GetArgs(t *testing.T) {
-	imp := imptest.NewImp(t)
-	storeMock := imptest.NewDependencyInterface[DataStore](imp)
+	store := MockDataStore(t)
 
-	call := storeMock.Save.ExpectCalledWithExactly(42, "processed: input")
+	call := store.Save.ExpectCalledWithExactly(42, "processed: input")
 	call.InjectReturnValues(nil)
 
-	svc := &Service{store: storeMock.Interface()}
+	svc := &Service{store: store.Interface()}
 	err := svc.SaveProcessed(42, "input")
 
 	if err != nil {
@@ -129,10 +124,9 @@ func TestDependencyInterface_Ordered_GetArgs(t *testing.T) {
 
 // TestDependencyInterface_Ordered_InjectPanic demonstrates injecting a panic
 func TestDependencyInterface_Ordered_InjectPanic(t *testing.T) {
-	imp := imptest.NewImp(t)
-	storeMock := imptest.NewDependencyInterface[DataStore](imp)
+	store := MockDataStore(t)
 
-	call := storeMock.Get.ExpectCalledWithExactly(42)
+	call := store.Get.ExpectCalledWithExactly(42)
 
 	// Inject a panic
 	call.InjectPanicValue("database connection lost")
@@ -146,23 +140,22 @@ func TestDependencyInterface_Ordered_InjectPanic(t *testing.T) {
 		}
 	}()
 
-	svc := &Service{store: storeMock.Interface()}
+	svc := &Service{store: store.Interface()}
 	svc.LoadAndProcess(42)
 }
 
 // TestDependencyInterface_Ordered_MultipleMethod demonstrates multiple method calls
 func TestDependencyInterface_Ordered_MultipleMethod(t *testing.T) {
-	imp := imptest.NewImp(t)
-	storeMock := imptest.NewDependencyInterface[DataStore](imp)
+	store := MockDataStore(t)
 
 	// Expect multiple ordered calls
-	call1 := storeMock.Get.ExpectCalledWithExactly(1)
+	call1 := store.Get.ExpectCalledWithExactly(1)
 	call1.InjectReturnValues("data1", nil)
 
-	call2 := storeMock.Get.ExpectCalledWithExactly(2)
+	call2 := store.Get.ExpectCalledWithExactly(2)
 	call2.InjectReturnValues("data2", nil)
 
-	svc := &Service{store: storeMock.Interface()}
+	svc := &Service{store: store.Interface()}
 
 	// First call
 	result1, _ := svc.LoadAndProcess(1)

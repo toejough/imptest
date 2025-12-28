@@ -1,4 +1,4 @@
-package v2
+package imptest
 
 // DependencyFunction creates a mock for a function dependency.
 // F is the function type (e.g., func(int) (string, error))
@@ -17,17 +17,31 @@ func NewDependencyFunction[F any](imp *Imp) *DependencyFunction[F] {
 // ExpectCalledWithExactly sets up an expectation that the function will be
 // called with exactly the specified arguments.
 func (df *DependencyFunction[F]) ExpectCalledWithExactly(args ...any) *DependencyCall {
-	// TODO: Implement expectation setup
+	// Add expectation with exact args matching, ordered mode by default
+	exp := df.imp.AddExpectation("DependencyFunction", args, nil, true)
 	return &DependencyCall{
-		imp: df.imp,
+		imp:         df.imp,
+		expectation: exp,
 	}
 }
 
 // ExpectCalledWithMatches sets up an expectation using matchers for arguments.
 func (df *DependencyFunction[F]) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
-	// TODO: Implement matcher expectation setup
+	// Convert matchers to Matcher type
+	matcherList := make([]Matcher, len(matchers))
+	for i, m := range matchers {
+		if matcher, ok := m.(Matcher); ok {
+			matcherList[i] = matcher
+		} else {
+			df.imp.Helper()
+			df.imp.Fatalf("argument %d is not a Matcher", i)
+		}
+	}
+
+	exp := df.imp.AddExpectation("DependencyFunction", nil, matcherList, true)
 	return &DependencyCall{
-		imp: df.imp,
+		imp:         df.imp,
+		expectation: exp,
 	}
 }
 
@@ -41,24 +55,25 @@ func (df *DependencyFunction[F]) Func() F {
 
 // DependencyCall represents an expected call to a dependency.
 type DependencyCall struct {
-	imp     *Imp
-	ordered bool // true = ordered (default), false = unordered
-	// TODO: Store expected args and response to inject
+	imp         *Imp
+	expectation *Expectation
 }
 
 // InjectReturnValues specifies the values the mock should return when called.
 func (dc *DependencyCall) InjectReturnValues(values ...any) {
-	// TODO: Implement return value injection
+	dc.expectation.returnValues = values
+	dc.expectation.shouldPanic = false
 }
 
 // InjectPanicValue specifies that the mock should panic with the given value.
 func (dc *DependencyCall) InjectPanicValue(value any) {
-	// TODO: Implement panic injection
+	dc.expectation.panicValue = value
+	dc.expectation.shouldPanic = true
 }
 
 // Eventually switches to unordered mode for this expectation.
 func (dc *DependencyCall) Eventually() *DependencyCall {
-	dc.ordered = false
+	dc.expectation.ordered = false
 	return dc
 }
 
@@ -71,10 +86,21 @@ type DependencyArgs struct {
 }
 
 func (dc *DependencyCall) GetArgs() *DependencyArgs {
-	dc.imp.t.Helper()
-	// TODO: Implement get args logic
-	dc.imp.t.Fatal("GetArgs not yet implemented")
-	return nil
+	dc.imp.Helper()
+	if !dc.expectation.called {
+		dc.imp.Fatalf("GetArgs called but expectation was never matched")
+		return nil
+	}
+	// For now, return a struct with up to 2 args
+	// Code generation will create properly typed versions
+	result := &DependencyArgs{}
+	if len(dc.expectation.actualArgs) > 0 {
+		result.A1 = dc.expectation.actualArgs[0]
+	}
+	if len(dc.expectation.actualArgs) > 1 {
+		result.A2 = dc.expectation.actualArgs[1]
+	}
+	return result
 }
 
 // DependencyInterface creates a mock for an interface dependency.

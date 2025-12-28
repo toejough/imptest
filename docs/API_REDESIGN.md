@@ -18,9 +18,10 @@ Redesign the imptest API around a cleaner conceptual model before implementing a
 | **Shared State** | *(not interceptable)* | *(not interceptable)* |
 
 **Type Sources:**
-- Functions can be extrapolated from: named types, function definitions, function literals
-- Interfaces can be extrapolated from: named types, struct definitions with methods, struct literals with methods
+- Functions can be wrapped from: named function types, function definitions
+- Interfaces can be wrapped from: named interface types, struct definitions
 - Channels: deferred until after major refactor
+- Note: Literal types (anonymous functions, inline struct literals) are not supported - users must name things to wrap/mock
 
 ### Direction Determines Role
 
@@ -47,72 +48,119 @@ Redesign the imptest API around a cleaner conceptual model before implementing a
 
 ## Proposed API
 
+### Core Interface
+
+```go
+// TestReporter is the minimal interface imptest needs from test frameworks.
+// testing.T, testing.B, and *Imp all implement this interface.
+type TestReporter interface {
+    Helper()
+    Fatalf(format string, args ...any)
+}
+```
+
 ### Generator Command
 
 ```go
-//go:generate impgen --[target|dependency] (package-alias.)[interface|struct|function-type|function]
+//go:generate impgen --target Add           // Generates WrapAdd(t TestReporter, fn ...) *AddTarget
+//go:generate impgen --dependency Fetcher   // Generates MockFetcher(t TestReporter) *FetcherDependency
 ```
 
-### Setup
+### Simple API (Pure Functions, Single Interactions)
 
 ```go
-// Central coordinator
-imp := NewImp(t)
+// Concise syntax - generated wrapper accepts TestReporter
+// If given testing.T, creates internal Imp coordinator
+WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
 
-// Targets (things we're testing)
-runTarget := NewRunTargetFunction(imp, callable)            // function
-runInterfaceTarget := NewRunTargetInterface(imp, instance)  // interface
-
-// Dependencies (things we're mocking)
-serviceDep := NewServiceDependencyFunction(imp)             // function
-serviceInterfaceDep := NewServiceDependencyInterface(imp)   // interface
-```
-
-### Target API (Verifying Behavior)
-
-```go
-// Call the target function
-instance := runTarget.CallWith(arg1, arg2)  // compile-time typesafe
-
-// For interface targets
-instance := runInterfaceTarget.Method1.CallWith(args)
-
-// Ordering
-instance = instance.Eventually()  // switch to unordered mode
-
-// Verify returns
-instance.ExpectReturnsEqual(val1, val2)     // exact match, compile-time typesafe
-instance.ExpectReturnsMatch(matcher1, matcher2) // matchers, runtime checked
+// With matchers
+WrapDivide(t, Divide).CallWith(10, 2).ExpectReturnsMatch(
+    imptest.Satisfies(func(v any) bool {
+        result, ok := v.(int)
+        return ok && result > 0
+    }),
+)
 
 // Verify panics
-instance.ExpectPanicEquals(value)   // exact match
-instance.ExpectPanicMatches(matcher) // matcher
-
-// Get actual values (typesafe)
-instance.GetReturns().R1  // fails test if no return
-instance.GetPanic()       // fails test if no panic
+WrapDivide(t, Divide).CallWith(10, 0).ExpectPanicEquals("division by zero")
 ```
 
-### Dependency API (Mocking Behavior)
+### Complex API (Multiple Interactions, Shared Coordinator)
 
 ```go
-// Expect a call to dependency function
-instance := serviceDep.ExpectCalledWithExactly(arg1, arg2)  // compile-time typesafe
-instance := serviceDep.ExpectCalledWithMatches(matcher1, matcher2) // matchers
+// Create shared coordinator for orchestrating multiple interactions
+imp := imptest.NewImp(t)
 
-// For interface dependencies
-instance := serviceInterfaceDep.Method1.ExpectCalledWithExactly(args)
-instance := serviceInterfaceDep.Method1.ExpectCalledWithMatches(matchers)
+// Wrap target functions and interfaces (pass imp which implements TestReporter)
+target := WrapProcessData(imp, ProcessData)
+fetcher := MockFetcher(imp)
 
-// Ordering
-instance = instance.Eventually()  // switch to unordered mode
+// Set up dependency expectations
+call := fetcher.ExpectCalledWithExactly(42)
+call.InjectReturnValues("test data", nil)
 
-// Get actual args (typesafe)
-instance.GetArgs().A1
+// Execute and verify target
+target.CallWith(42, fetcher.Func()).ExpectReturnsEqual("processed: test data", nil)
+```
 
-// Inject response
-instance.InjectReturnValues(val1, val2)  // compile-time typesafe
-instance.InjectPanicValue(value)
+### Target API (Wrapping Code Under Test)
+
+```go
+// Functions
+WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+
+// Interfaces
+calc := &BasicCalculator{}
+WrapCalculator(t, calc).Add.CallWith(2, 3).ExpectReturnsEqual(5)
+
+// Unordered mode (for async/concurrent code)
+call := WrapAsyncOp(t, AsyncOp).CallWith(args)
+call.Eventually().ExpectReturnsEqual(result)
+
+// Get actual values
+returns := WrapDivide(t, Divide).CallWith(10, 2).GetReturns()
+if returns.R1 != 5 {
+    t.Errorf("expected 5, got %d", returns.R1)
+}
+
+// Verify panics
+WrapDivide(t, Divide).CallWith(10, 0).ExpectPanicMatches(imptest.Any())
+```
+
+### Dependency API (Mocking Dependencies)
+
+```go
+// Mock functions
+fetcher := MockFetcher(t)
+call := fetcher.ExpectCalledWithExactly(42)
+call.InjectReturnValues("data", nil)
+ProcessData(42, fetcher.Func())
+
+// Mock interfaces
+store := MockDataStore(t)
+call := store.Get.ExpectCalledWithExactly(42)
+call.InjectReturnValues("data", nil)
+service := &Service{store: store.Interface()}
+service.LoadAndProcess(42)
+
+// Matchers for args
+call := fetcher.ExpectCalledWithMatches(imptest.Satisfies(func(v any) bool {
+    id, ok := v.(int)
+    return ok && id > 0
+}))
+
+// Inject errors or panics
+call.InjectReturnValues("", errors.New("not found"))
+call.InjectPanicValue("database error")
+
+// Get actual args
+args := call.GetArgs()
+if args.A1 != 42 {
+    t.Errorf("expected 42, got %d", args.A1)
+}
+
+// Unordered mode
+call := fetcher.Eventually().ExpectCalledWithExactly(42)
 ```
 
 ### Low-Level API
@@ -180,7 +228,7 @@ The generator must handle these scenarios:
 **Test Matrix Dimensions:**
 - **Interaction Type**: Function, Interface (Channels deferred)
 - **Role**: Target (wrap), Dependency (mock)
-- **Source**: Named types, definitions, literals
+- **Source**: Type, Definition (Literals not supported)
 - **Ordering**: Ordered (default), Unordered (Eventually)
 - **Matching**: Exact, Matcher
 
@@ -194,7 +242,7 @@ The generator must handle these scenarios:
 **Coverage per pattern:**
 | Dimension | Options to Test |
 |-----------|-----------------|
-| Source | named type, definition, literal |
+| Source | type, definition |
 | Ordering | ordered, unordered (Eventually) |
 | Matching | exact values, matchers |
 | Outcome | returns, panics |
@@ -241,14 +289,34 @@ Write failing tests demonstrating the new API across the matrix.
 
 1. **Backward compatibility**: Clean break (v2.0). No migration path - simpler implementation, cleaner codebase.
 
-2. **Naming**: `TargetFunction`/`DependencyFunction` and `TargetInterface`/`DependencyInterface` naming is clear and approved.
+2. **TestReporter interface**: Define minimal interface `TestReporter` with only `Helper()` and `Fatalf()`. Both `testing.T` and `*Imp` implement this interface. This:
+   - Decouples from testing package implementation details
+   - Makes clear what methods imptest actually uses
+   - Simplifies testing the framework itself
+   - Follows Interface Segregation Principle
 
-3. **GetReturns()/GetArgs()/GetPanic() semantics**: Follow the same ordered/unordered semantics as Expect methods.
+3. **Concise syntax for simple cases**: Generated wrappers accept `TestReporter`, creating internal `Imp` when given plain `testing.T`:
+   ```go
+   // Simple: WrapAdd creates internal coordinator
+   WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+
+   // Complex: pass shared Imp coordinator
+   imp := imptest.NewImp(t)
+   WrapAdd(imp, Add).CallWith(2, 3).ExpectReturnsEqual(5)
+   MockFetcher(imp).ExpectCalledWithExactly(42).InjectReturnValues("data")
+   ```
+
+4. **Generated wrapper naming**:
+   - Targets: `Wrap{Name}` (e.g., `WrapAdd`, `WrapCalculator`)
+   - Dependencies: `Mock{Name}` (e.g., `MockFetcher`, `MockDataStore`)
+   - Clear prefix indicates role; name matches the wrapped entity
+
+5. **GetReturns()/GetArgs()/GetPanic() semantics**: Follow the same ordered/unordered semantics as Expect methods.
    - **Ordered**: Expect the very next interaction to match (call, panic, or return for their instance); fail test if no match
    - **Unordered**: Wait for matching interaction, queueing any interactions that come in before it
    - **Both cases**: Wait as long as necessary (no timeout)
 
-4. **GetReturns()/GetArgs() field naming**: Use indexed names since Go doesn't allow both slice indexing and field access.
+6. **GetReturns()/GetArgs() field naming**: Use indexed names since Go doesn't allow both slice indexing and field access.
    ```go
    // If source has: func Foo(name string, count int) (result string, err error)
    instance.GetArgs().A1    // first arg (name)
@@ -257,7 +325,7 @@ Write failing tests demonstrating the new API across the matrix.
    instance.GetReturns().R2 // second return (err)
    ```
 
-5. **Func types in interfaces**: NO auto-generation. When an interface method has func params/returns, users generate wrappers separately and wire them manually. This keeps the implementation simpler and gives users explicit control.
+7. **Func types in interfaces**: NO auto-generation. When an interface method has func params/returns, users generate wrappers separately and wire them manually. This keeps the implementation simpler and gives users explicit control.
 
 ---
 
@@ -265,7 +333,11 @@ Write failing tests demonstrating the new API across the matrix.
 
 This redesign provides:
 - **Clearer mental model**: Target vs Dependency, Ordered vs Unordered
+- **Ergonomic for simple cases**: `WrapAdd(t, Add).CallWith(2, 3).ExpectReturnsEqual(5)`
+- **Powerful for complex cases**: Shared `Imp` coordinator orchestrates multi-interaction scenarios
+- **Minimal coupling**: Custom `TestReporter` interface (only `Helper()` and `Fatalf()`)
 - **Symmetric API**: Same patterns for verification and mocking
 - **Unified matchers**: Same matcher API for args, returns, and panics
+- **Type-safe generated wrappers**: `Wrap{Name}` for targets, `Mock{Name}` for dependencies
 - **Explicit structure**: Func vs Interface is surfaced in the type names
 - **Focused scope**: Channels deferred, shared state out of scope
