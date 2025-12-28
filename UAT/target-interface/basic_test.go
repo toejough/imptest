@@ -7,11 +7,12 @@
 //	Mode:     Ordered ✓ | Unordered x
 //	Matching: Exact ✓ | Matcher ✓
 //	Outcome:  Return ✓ | Panic ✓
-//	Source:   Type x | Definition ✓
+//	Source:   Type ✓ | Definition ✓
 //
-// Wrapper Sources (interface types used for code generation):
+// Wrapper Sources (types used for code generation):
 //
-//	WrapCalculator ← Calculator interface (implemented by BasicCalculator struct)
+//	WrapBasicCalculator ← BasicCalculator struct type
+//	WrapCalculator      ← Calculator interface definition
 package targetinterface_test
 
 import (
@@ -43,6 +44,16 @@ func (c *BasicCalculator) Divide(a, b int) (int, error) {
 		panic("division by zero")
 	}
 	return a / b, nil
+}
+
+// TestTargetInterface_Type_Ordered_Exact_Returns demonstrates wrapping a struct type
+// (vs wrapping an interface definition)
+func TestTargetInterface_Type_Ordered_Exact_Returns(t *testing.T) {
+	// Create the actual implementation
+	calc := &BasicCalculator{}
+
+	// Wrap the struct directly - generated from BasicCalculator type
+	WrapBasicCalculator(t, calc).Add.CallWith(2, 3).ExpectReturnsEqual(5)
 }
 
 // TestTargetInterface_Ordered_Exact_Returns demonstrates wrapping an interface
