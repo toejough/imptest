@@ -583,7 +583,7 @@ import (
 	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsReflect}}
 	{{.PkgReflect}} "reflect"{{end}}{{if .NeedsQualifier}}
 	{{.Qualifier}} "{{.PkgPath}}"{{end}}{{range .AdditionalImports}}
-	{{.Name}} "{{.Path}}"{{end}}
+	{{.Alias}} "{{.Path}}"{{end}}
 )
 
 `)
