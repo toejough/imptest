@@ -113,8 +113,8 @@ type ifaceWithDetails struct {
 type symbolDetails struct {
 	kind symbolType
 
-	iface    ifaceWithDetails
-	funcDecl *dst.FuncDecl
+	iface ifaceWithDetails
+	// TODO(Phase 1): Add funcDecl field for v2 target generator routing
 }
 
 // checkImport checks if an import matches the target package name.
@@ -286,11 +286,11 @@ func findSymbol(
 	}
 
 	// 2. Try finding it as a function or method
-	funcDecl, err := findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
+	_, err = findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
 	if err == nil {
 		return symbolDetails{
-			kind:     symbolFunction,
-			funcDecl: funcDecl,
+			kind: symbolFunction,
+			// TODO(Phase 1): Capture funcDecl for v2 target generator
 		}, nil
 	}
 

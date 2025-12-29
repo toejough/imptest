@@ -185,6 +185,7 @@ func (impl *mockOpsImpl) Store(key string, value any) (int, error) {
 	}
 
 	var result1 int
+
 	var result2 error
 
 	if len(resp.ReturnValues) > 0 {

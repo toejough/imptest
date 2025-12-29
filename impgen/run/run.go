@@ -190,7 +190,7 @@ type cliArgs struct {
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
-	mode                                                 namingMode
+	// TODO(Phase 1): Add mode field for v2 generator routing
 }
 
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
@@ -233,22 +233,17 @@ func generateCode(
 		return "", err
 	}
 
-	// Route to appropriate generator based on symbol type and naming mode
+	// Route to appropriate generator based on symbol type
 	if symbol.kind == symbolFunction {
-		// Use v2 generator for target wrappers when --target flag is set
-		if info.mode == namingModeTarget {
-			return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcDecl)
-		}
-		// Default to v1 callable wrapper generator
+		// Generate callable wrapper for functions
 		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
-	// Use v2 generator for dependency mocks when --dependency flag is set
-	if info.mode == namingModeDependency {
-		return generateV2DependencyCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
-	}
+	// TODO(Phase 1): Add v2 generator routing when --target/--dependency flags are set
+	// if info.mode == namingModeTarget { return generateV2TargetCode(...) }
+	// if info.mode == namingModeDependency { return generateV2DependencyCode(...) }
 
-	// Default to v1 implementation generator
+	// Default: generate v1 implementation for interfaces
 	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
 }
 
@@ -293,7 +288,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		interfaceName:      interfaceName,
 		localInterfaceName: localInterfaceName,
 		impName:            impName,
-		mode:               mode,
+		// TODO(Phase 1): Set mode field for v2 generator routing
 	}, nil
 }
 
