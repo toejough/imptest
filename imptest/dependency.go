@@ -1,12 +1,8 @@
 package imptest
 
-// Eventually switches to unordered mode for this expectation.
-// In unordered mode, GetCallWithTimeout will wait for a matching call,
-// queueing non-matching calls that arrive first.
-// TODO: Implement when adding Eventually support to generated code
-// func (dc *DependencyCall) Eventually() *DependencyCall {
-// 	return dc
-// }
+import (
+	"time"
+)
 
 // DependencyArgs provides access to the actual arguments that were passed to the dependency.
 // Code generation will create properly typed versions of this.
@@ -83,6 +79,7 @@ func (dc *DependencyCall) InjectReturnValues(values ...any) {
 type DependencyMethod struct {
 	imp        *Imp
 	methodName string
+	timeout    time.Duration
 }
 
 // NewDependencyMethod creates a new DependencyMethod.
@@ -91,6 +88,18 @@ func NewDependencyMethod(imp *Imp, methodName string) *DependencyMethod {
 	return &DependencyMethod{
 		imp:        imp,
 		methodName: methodName,
+		timeout:    0,
+	}
+}
+
+// Eventually configures a timeout for waiting for the next call.
+// Use this for concurrent code where calls may arrive out of order.
+// Returns a new DependencyMethod with the timeout configured.
+func (dm *DependencyMethod) Eventually(d time.Duration) *DependencyMethod {
+	return &DependencyMethod{
+		imp:        dm.imp,
+		methodName: dm.methodName,
+		timeout:    d,
 	}
 }
 
@@ -111,7 +120,7 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 		return true
 	}
 
-	call := dm.imp.GetCallWithTimeout(0, dm.methodName, validator)
+	call := dm.imp.GetCallWithTimeout(dm.timeout, dm.methodName, validator)
 
 	return newDependencyCall(dm.imp, call)
 }
@@ -139,7 +148,7 @@ func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *Dependency
 		return true
 	}
 
-	call := dm.imp.GetCallWithTimeout(0, dm.methodName, validator)
+	call := dm.imp.GetCallWithTimeout(dm.timeout, dm.methodName, validator)
 
 	return newDependencyCall(dm.imp, call)
 }
