@@ -1,15 +1,37 @@
 package many_params_test
 
 import (
-	"fmt"
 	"testing"
+
+	"github.com/toejough/imptest/imptest"
 )
 
-//go:generate impgen many_params.ManyParams --dependency
+// TestV2_ManyParams demonstrates v2 API for interfaces with many parameters.
+func TestV2_ManyParams(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+	t.Parallel()
 
-// TestManyParams_DifferentValues_mutant tests with different parameter values.
-// This ensures index arithmetic is correct even when values differ.
-func TestManyParams_DifferentValues_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+	imp := imptest.NewImp(t)
+	mock := MockManyParams(imp)
+
+	// Call with all 10 parameters in a goroutine
+	resultChan := make(chan string)
+
+	go func() {
+		resultChan <- mock.Interface().Process(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	}()
+
+	// Set up expectation with all 10 parameters
+	mock.Process.ExpectCalledWithExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).InjectReturnValues("success")
+
+	// Verify result
+	result := <-resultChan
+	if result != "success" {
+		t.Errorf("Process() = %v, want 'success'", result)
+	}
+}
+
+// TestV2_ManyParams_DifferentValues tests with different parameter values.
+func TestV2_ManyParams_DifferentValues(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	testCases := []struct {
@@ -38,8 +60,8 @@ func TestManyParams_DifferentValues_mutant(t *testing.T) { //nolint:varnamelen /
 		t.Run(testCase.name, func(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 			t.Parallel()
 
-			// Create a new mock for each test case
-			mock := MockManyParams(t)
+			imp := imptest.NewImp(t)
+			mock := MockManyParams(imp)
 
 			// Call Process in a goroutine
 			resultChan := make(chan string)
@@ -66,31 +88,12 @@ func TestManyParams_DifferentValues_mutant(t *testing.T) { //nolint:varnamelen /
 	}
 }
 
-// TestManyParams_UnnamedParams_mutant tests interfaces with unnamed parameters.
-func TestManyParams_UnnamedParams_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+// TestV2_ManyParams_VerifyArgs tests that all 10 arguments are captured correctly.
+func TestV2_ManyParams_VerifyArgs(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
-	// Note: This would test an interface with unnamed params which exercises different code paths
-	// type UnnamedParams interface {
-	// 	Execute(int, int, int) error
-	// }
-
-	// Generate message to document what this would test
-	msg := fmt.Sprintf("Interface with %d unnamed parameters would test unnamed parameter indexing", 10)
-	if len(msg) == 0 {
-		t.Error("Message should not be empty")
-	}
-
-	// Note: To fully test this, we'd need to generate UnnamedParams with //go:generate
-	// and create a mock for it. This test documents the edge case.
-}
-
-// TestManyParams_VerifyArgs_mutant tests that all 10 arguments are captured correctly.
-// This is critical for catching off-by-one errors in parameter indexing.
-func TestManyParams_VerifyArgs_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
-	t.Parallel()
-
-	mock := MockManyParams(t)
+	imp := imptest.NewImp(t)
+	mock := MockManyParams(imp)
 
 	// Use distinct values for each parameter to catch index errors
 	values := [10]int{111, 222, 333, 444, 555, 666, 777, 888, 999, 1000}
@@ -115,32 +118,5 @@ func TestManyParams_VerifyArgs_mutant(t *testing.T) { //nolint:varnamelen // Sta
 	result := <-resultChan
 	if result != "ok" {
 		t.Errorf("Process() = %v, want 'ok'", result)
-	}
-}
-
-// TestManyParams_mutant verifies that mocks work correctly for methods with many parameters.
-// This catches mutations in:
-// - Parameter index arithmetic (index + 1, index + 0, index + 2)
-// - Parameter naming beyond A-H (should use param8, param9, etc)
-// - Array bounds checking (index < len(names) vs index <= len(names)).
-func TestManyParams_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
-	t.Parallel()
-
-	mock := MockManyParams(t)
-
-	// Call with all 10 parameters in a goroutine
-	resultChan := make(chan string)
-
-	go func() {
-		resultChan <- mock.Interface().Process(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-	}()
-
-	// Set up expectation with all 10 parameters
-	mock.Process.ExpectCalledWithExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).InjectReturnValues("success")
-
-	// Verify result
-	result := <-resultChan
-	if result != "success" {
-		t.Errorf("Process() = %v, want 'success'", result)
 	}
 }
