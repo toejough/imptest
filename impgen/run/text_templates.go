@@ -480,7 +480,7 @@ package {{.PkgName}}
 import (
 	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsQualifier}}
 	{{.Qualifier}} "{{.PkgPath}}"{{end}}{{range .AdditionalImports}}
-	{{.Name}} "{{.Path}}"{{end}}
+	{{.Alias}} "{{.Path}}"{{end}}
 )
 
 `)
