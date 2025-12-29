@@ -6,6 +6,7 @@ import (
 	"go/format"
 	"go/token"
 	go_types "go/types"
+	"sort"
 	"strings"
 
 	"github.com/dave/dst"
@@ -34,6 +35,66 @@ func (gen *v2DependencyGenerator) checkIfQualifierNeeded() {
 			gen.baseGenerator.checkIfQualifierNeeded(ftype)
 		},
 	)
+}
+
+// collectAdditionalImports collects all external type imports needed for interface method signatures.
+//
+//nolint:cyclop // Import collection requires iteration over interface methods and their parameters/results
+func (gen *v2DependencyGenerator) collectAdditionalImports() []importInfo {
+	if len(gen.astFiles) == 0 {
+		return nil
+	}
+
+	// Get source imports from the first AST file
+	var sourceImports []*dst.ImportSpec
+
+	for _, file := range gen.astFiles {
+		if len(file.Imports) > 0 {
+			sourceImports = file.Imports
+			break
+		}
+	}
+
+	allImports := make(map[string]importInfo) // Deduplicate by path
+
+	// Iterate over all interface methods to collect imports from their signatures
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(_ string, ftype *dst.FuncType) {
+			// Collect from parameters
+			if ftype.Params != nil {
+				for _, field := range ftype.Params.List {
+					imports := collectExternalImports(field.Type, sourceImports)
+					for _, imp := range imports {
+						allImports[imp.Path] = imp
+					}
+				}
+			}
+
+			// Collect from return types
+			if ftype.Results != nil {
+				for _, field := range ftype.Results.List {
+					imports := collectExternalImports(field.Type, sourceImports)
+					for _, imp := range imports {
+						allImports[imp.Path] = imp
+					}
+				}
+			}
+		},
+	)
+
+	// Convert map to slice and sort for deterministic output
+	result := make([]importInfo, 0, len(allImports))
+	for _, imp := range allImports {
+		result = append(result, imp)
+	}
+
+	// Sort by import path for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
+
+	return result
 }
 
 // generate produces the v2 dependency mock code using templates.
@@ -216,21 +277,22 @@ func (gen *v2DependencyGenerator) generateImplMethodWithTemplate(
 func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	// Build base template data
 	base := baseTemplateData{
-		PkgName:        gen.pkgName,
-		ImpName:        gen.impName,
-		PkgPath:        gen.pkgPath,
-		Qualifier:      gen.qualifier,
-		NeedsQualifier: gen.needsQualifier,
-		TypeParamsDecl: gen.formatTypeParamsDecl(),
-		TypeParamsUse:  gen.formatTypeParamsUse(),
-		PkgTesting:     pkgTesting,
-		PkgFmt:         pkgFmt,
-		PkgImptest:     pkgImptest,
-		PkgTime:        pkgTime,
-		PkgReflect:     pkgReflect,
-		NeedsFmt:       gen.needsFmt,
-		NeedsReflect:   gen.needsReflect,
-		NeedsImptest:   gen.needsImptest,
+		PkgName:           gen.pkgName,
+		ImpName:           gen.impName,
+		PkgPath:           gen.pkgPath,
+		Qualifier:         gen.qualifier,
+		NeedsQualifier:    gen.needsQualifier,
+		TypeParamsDecl:    gen.formatTypeParamsDecl(),
+		TypeParamsUse:     gen.formatTypeParamsUse(),
+		PkgTesting:        pkgTesting,
+		PkgFmt:            pkgFmt,
+		PkgImptest:        pkgImptest,
+		PkgTime:           pkgTime,
+		PkgReflect:        pkgReflect,
+		NeedsFmt:          gen.needsFmt,
+		NeedsReflect:      gen.needsReflect,
+		NeedsImptest:      gen.needsImptest,
+		AdditionalImports: gen.collectAdditionalImports(),
 	}
 
 	// Construct the interface type with qualifier if needed
