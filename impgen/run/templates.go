@@ -81,3 +81,39 @@ type templateData struct {
 	InterfaceName    string // Full interface name for compile-time verification
 	MethodNames      []string
 }
+
+// v2DepTemplateData holds data for v2 dependency mock templates.
+type v2DepTemplateData struct {
+	baseTemplateData
+
+	MockName      string   // Constructor function name (e.g., "MockOps")
+	MockTypeName  string   // Struct type name (e.g., "OpsMock")
+	BaseName      string   // Base interface name without "Mock" prefix
+	InterfaceName string   // Local interface name (e.g., "Ops")
+	InterfaceType string   // Qualified interface type (e.g., "basic.Ops")
+	ImplName      string   // Implementation struct name (e.g., "mockOpsImpl")
+	MethodNames   []string // List of interface method names
+}
+
+// v2DepMethodTemplateData holds data for v2 dependency impl method template.
+type v2DepMethodTemplateData struct {
+	MethodName       string
+	InterfaceType    string
+	ImplName         string
+	Params           string   // Full parameter list string
+	Results          string   // Full result list string (including parens if multiple)
+	HasVariadic      bool
+	NonVariadicArgs  string   // Comma-separated non-variadic args
+	VariadicArg      string   // Name of variadic arg
+	Args             string   // Comma-separated all args (for non-variadic case)
+	HasResults       bool
+	ResultVars       []resultVar
+	ReturnList       string   // Comma-separated return variable names
+}
+
+// resultVar holds info about a single result variable.
+type resultVar struct {
+	Name  string
+	Type  string
+	Index int
+}

@@ -76,7 +76,7 @@ func newV2DependencyGenerator(
 	return gen, nil
 }
 
-// generate produces the v2 dependency mock code.
+// generate produces the v2 dependency mock code using templates.
 func (gen *v2DependencyGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded()
@@ -86,12 +86,14 @@ func (gen *v2DependencyGenerator) generate() (string, error) {
 		gen.needsQualifier = true
 	}
 
-	gen.generateHeader()
-	gen.generateMockStruct()
-	gen.generateConstructor()
-	gen.generateInterfaceMethod()
-	gen.generateImplStruct()
-	gen.generateImplMethods()
+	// Initialize template registry
+	templates, err := NewTemplateRegistry()
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize template registry: %w", err)
+	}
+
+	// Generate using templates
+	gen.generateWithTemplates(templates)
 
 	formatted, err := format.Source(gen.bytes())
 	if err != nil {
@@ -99,6 +101,210 @@ func (gen *v2DependencyGenerator) generate() (string, error) {
 	}
 
 	return string(formatted), nil
+}
+
+// generateWithTemplates generates code using templates instead of direct code generation.
+func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegistry) {
+	// Build base template data
+	base := baseTemplateData{
+		PkgName:        gen.pkgName,
+		ImpName:        gen.impName,
+		PkgPath:        gen.pkgPath,
+		Qualifier:      gen.qualifier,
+		NeedsQualifier: gen.needsQualifier,
+		TypeParamsDecl: gen.formatTypeParamsDecl(),
+		TypeParamsUse:  gen.formatTypeParamsUse(),
+		PkgTesting:     pkgTesting,
+		PkgFmt:         pkgFmt,
+		PkgImptest:     pkgImptest,
+		PkgTime:        pkgTime,
+		PkgReflect:     pkgReflect,
+		NeedsFmt:       gen.needsFmt,
+		NeedsReflect:   gen.needsReflect,
+		NeedsImptest:   gen.needsImptest,
+	}
+
+	// Construct the interface type with qualifier if needed
+	interfaceType := gen.interfaceName
+	if gen.qualifier != "" && gen.needsQualifier {
+		qualifierToUse := gen.qualifier
+		// Check if this is a stdlib package that needs aliasing due to a name conflict
+		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
+			qualifierToUse = "_" + gen.qualifier
+		}
+		interfaceType = qualifierToUse + "." + gen.interfaceName
+	}
+
+	// Build v2 dependency template data
+	baseName := strings.TrimPrefix(gen.mockName, "Mock")
+	data := v2DepTemplateData{
+		baseTemplateData: base,
+		MockName:         gen.mockName,
+		MockTypeName:     gen.mockTypeName,
+		BaseName:         baseName,
+		InterfaceName:    gen.interfaceName,
+		InterfaceType:    interfaceType,
+		ImplName:         gen.implName,
+		MethodNames:      gen.methodNames,
+	}
+
+	// Generate each section using templates
+	templates.WriteV2DepHeader(&gen.buf, data)
+	templates.WriteV2DepMockStruct(&gen.buf, data)
+	templates.WriteV2DepInterfaceMethod(&gen.buf, data)
+	templates.WriteV2DepConstructor(&gen.buf, data)
+	templates.WriteV2DepImplStruct(&gen.buf, data)
+
+	// Generate implementation methods for each interface method
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(methodName string, ftype *dst.FuncType) {
+			gen.generateImplMethodWithTemplate(templates, methodName, ftype, interfaceType)
+		},
+	)
+}
+
+// generateImplMethodWithTemplate generates a single impl method using templates.
+func (gen *v2DependencyGenerator) generateImplMethodWithTemplate(
+	templates *TemplateRegistry,
+	methodName string,
+	ftype *dst.FuncType,
+	interfaceType string,
+) {
+	// Build parameter string and collect param names
+	var paramsStr strings.Builder
+	var paramNames []string
+	first := true
+
+	if ftype.Params != nil {
+		for _, field := range ftype.Params.List {
+			fieldType := gen.typeWithQualifier(field.Type)
+
+			if len(field.Names) > 0 {
+				for _, name := range field.Names {
+					if !first {
+						paramsStr.WriteString(", ")
+					}
+					first = false
+					paramsStr.WriteString(name.Name)
+					paramsStr.WriteString(" ")
+					paramsStr.WriteString(fieldType)
+					paramNames = append(paramNames, name.Name)
+				}
+			} else {
+				paramName := fmt.Sprintf("arg%d", len(paramNames)+1)
+				if !first {
+					paramsStr.WriteString(", ")
+				}
+				first = false
+				paramsStr.WriteString(paramName)
+				paramsStr.WriteString(" ")
+				paramsStr.WriteString(fieldType)
+				paramNames = append(paramNames, paramName)
+			}
+		}
+	}
+
+	// Build results string and collect result types
+	var resultsStr strings.Builder
+	var resultTypes []string
+
+	if ftype.Results != nil && len(ftype.Results.List) > 0 {
+		hasMultipleResults := len(ftype.Results.List) > 1 ||
+			(len(ftype.Results.List) == 1 && len(ftype.Results.List[0].Names) > 1)
+
+		if hasMultipleResults {
+			resultsStr.WriteString(" (")
+		} else {
+			resultsStr.WriteString(" ")
+		}
+
+		first = true
+		for _, field := range ftype.Results.List {
+			fieldType := gen.typeWithQualifier(field.Type)
+
+			count := len(field.Names)
+			if count == 0 {
+				count = 1
+			}
+
+			for i := 0; i < count; i++ {
+				if !first {
+					resultsStr.WriteString(", ")
+				}
+				first = false
+				resultsStr.WriteString(fieldType)
+				resultTypes = append(resultTypes, fieldType)
+			}
+		}
+
+		if hasMultipleResults {
+			resultsStr.WriteString(")")
+		}
+	}
+
+	// Check for variadic parameters
+	var hasVariadic bool
+	var nonVariadicArgs, variadicArg, allArgs strings.Builder
+
+	if ftype.Params != nil && len(ftype.Params.List) > 0 {
+		lastField := ftype.Params.List[len(ftype.Params.List)-1]
+		_, hasVariadic = lastField.Type.(*dst.Ellipsis)
+	}
+
+	if hasVariadic && len(paramNames) > 0 {
+		// Build non-variadic args
+		for i := 0; i < len(paramNames)-1; i++ {
+			if i > 0 {
+				nonVariadicArgs.WriteString(", ")
+			}
+			nonVariadicArgs.WriteString(paramNames[i])
+		}
+		variadicArg.WriteString(paramNames[len(paramNames)-1])
+	} else {
+		// Build all args
+		for i, name := range paramNames {
+			if i > 0 {
+				allArgs.WriteString(", ")
+			}
+			allArgs.WriteString(name)
+		}
+	}
+
+	// Build result variables
+	var resultVars []resultVar
+	var returnList strings.Builder
+
+	for i, resultType := range resultTypes {
+		resultVars = append(resultVars, resultVar{
+			Name:  fmt.Sprintf("result%d", i+1),
+			Type:  resultType,
+			Index: i,
+		})
+
+		if i > 0 {
+			returnList.WriteString(", ")
+		}
+		returnList.WriteString(fmt.Sprintf("result%d", i+1))
+	}
+
+	// Build method template data
+	methodData := v2DepMethodTemplateData{
+		MethodName:      methodName,
+		InterfaceType:   interfaceType,
+		ImplName:        gen.implName,
+		Params:          paramsStr.String(),
+		Results:         resultsStr.String(),
+		HasVariadic:     hasVariadic,
+		NonVariadicArgs: nonVariadicArgs.String(),
+		VariadicArg:     variadicArg.String(),
+		Args:            allArgs.String(),
+		HasResults:      len(resultTypes) > 0,
+		ResultVars:      resultVars,
+		ReturnList:      returnList.String(),
+	}
+
+	templates.WriteV2DepImplMethod(&gen.buf, methodData)
 }
 
 // checkIfQualifierNeeded determines if we need a package qualifier.
