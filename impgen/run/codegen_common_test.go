@@ -7,6 +7,191 @@ import (
 	"github.com/dave/dst"
 )
 
+func TestIsStdlibPackage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{
+			name: "stdlib package time",
+			path: "time",
+			want: true,
+		},
+		{
+			name: "stdlib package fmt",
+			path: "fmt",
+			want: true,
+		},
+		{
+			name: "stdlib package io",
+			path: "io",
+			want: true,
+		},
+		{
+			name: "third-party package",
+			path: "github.com/user/pkg",
+			want: false,
+		},
+		{
+			name: "local package with path",
+			path: "myproject/internal/time",
+			want: false,
+		},
+		{
+			name: "empty string",
+			path: "",
+			want: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := isStdlibPackage(testCase.path)
+			if got != testCase.want {
+				t.Errorf("isStdlibPackage(%q) = %v, want %v", testCase.path, got, testCase.want)
+			}
+		})
+	}
+}
+
+//nolint:funlen // Test requires multiple scenarios for thorough coverage
+func TestCollectExternalImports_StdlibHandling(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		expr        dst.Expr
+		imports     []*dst.ImportSpec
+		wantImports []importInfo
+		description string
+	}{
+		{
+			name: "stdlib time.Time with conflict gets prefixed",
+			expr: &dst.SelectorExpr{
+				X:   &dst.Ident{Name: "time"},
+				Sel: &dst.Ident{Name: "Time"},
+			},
+			imports: []*dst.ImportSpec{
+				{
+					Path: &dst.BasicLit{Value: `"time"`},
+				},
+				{
+					// Local package named "time" that shadows stdlib
+					Path: &dst.BasicLit{Value: `"github.com/user/project/time"`},
+				},
+			},
+			wantImports: []importInfo{
+				{Alias: "_time", Path: "time"},
+			},
+			description: "stdlib package with local conflict should get _ prefix",
+		},
+		{
+			name: "stdlib time.Time without conflict no prefix",
+			expr: &dst.SelectorExpr{
+				X:   &dst.Ident{Name: "time"},
+				Sel: &dst.Ident{Name: "Time"},
+			},
+			imports: []*dst.ImportSpec{
+				{
+					Path: &dst.BasicLit{Value: `"time"`},
+				},
+			},
+			wantImports: []importInfo{
+				{Alias: "time", Path: "time"},
+			},
+			description: "stdlib package without conflict should not get _ prefix",
+		},
+		{
+			name: "user alias preserved",
+			expr: &dst.SelectorExpr{
+				X:   &dst.Ident{Name: "t"},
+				Sel: &dst.Ident{Name: "Time"},
+			},
+			imports: []*dst.ImportSpec{
+				{
+					Name: &dst.Ident{Name: "t"},
+					Path: &dst.BasicLit{Value: `"time"`},
+				},
+			},
+			wantImports: []importInfo{
+				{Alias: "t", Path: "time"},
+			},
+			description: "user-provided alias should be preserved",
+		},
+		{
+			name: "third-party package no prefix",
+			expr: &dst.SelectorExpr{
+				X:   &dst.Ident{Name: "mylib"},
+				Sel: &dst.Ident{Name: "Type"},
+			},
+			imports: []*dst.ImportSpec{
+				{
+					Path: &dst.BasicLit{Value: `"github.com/user/mylib"`},
+				},
+			},
+			wantImports: []importInfo{
+				{Alias: "mylib", Path: "github.com/user/mylib"},
+			},
+			description: "third-party package should not get prefix",
+		},
+		{
+			name: "multiple stdlib packages without conflicts",
+			expr: &dst.FuncType{
+				Params: &dst.FieldList{
+					List: []*dst.Field{
+						{
+							Type: &dst.SelectorExpr{
+								X:   &dst.Ident{Name: "time"},
+								Sel: &dst.Ident{Name: "Time"},
+							},
+						},
+						{
+							Type: &dst.SelectorExpr{
+								X:   &dst.Ident{Name: "io"},
+								Sel: &dst.Ident{Name: "Reader"},
+							},
+						},
+					},
+				},
+			},
+			imports: []*dst.ImportSpec{
+				{Path: &dst.BasicLit{Value: `"time"`}},
+				{Path: &dst.BasicLit{Value: `"io"`}},
+			},
+			wantImports: []importInfo{
+				{Alias: "time", Path: "time"},
+				{Alias: "io", Path: "io"},
+			},
+			description: "multiple stdlib packages without conflicts should not get prefixed",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := collectExternalImports(testCase.expr, testCase.imports)
+
+			if len(got) != len(testCase.wantImports) {
+				t.Fatalf("%s: got %d imports, want %d\nGot: %+v\nWant: %+v",
+					testCase.description, len(got), len(testCase.wantImports), got, testCase.wantImports)
+			}
+
+			for i, want := range testCase.wantImports {
+				if got[i].Alias != want.Alias || got[i].Path != want.Path {
+					t.Errorf("%s: import %d mismatch\nGot:  {Alias: %q, Path: %q}\nWant: {Alias: %q, Path: %q}",
+						testCase.description, i, got[i].Alias, got[i].Path, want.Alias, want.Path)
+				}
+			}
+		})
+	}
+}
+
 func TestBaseGenerator(t *testing.T) {
 	t.Parallel()
 
