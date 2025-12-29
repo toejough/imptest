@@ -121,7 +121,12 @@
       "Bash(PATH=/Users/joe/repos/personal/imptest/bin:$PATH go generate:*)",
       "Bash(PATH=/Users/joe/repos/personal/imptest/bin:$PATH GOPACKAGE=v2smoketest_test impgen:*)",
       "Bash(GOPACKAGE=zero_returns_test impgen:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(GOPACKAGE=externalimports_test go generate:*)",
+      "Bash(GOPACKAGE=externalimports_test ../../bin/impgen:*)",
+      "Bash(GOPACKAGE=samepackage_test go generate:*)",
+      "Bash(GOPACKAGE=visitor_test go generate:*)",
+      "Bash(GOPACKAGE=visitor_test ../../bin/impgen:*)"
     ],
     "deny": [],
     "ask": []
