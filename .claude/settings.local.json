@@ -126,7 +126,8 @@
       "Bash(GOPACKAGE=externalimports_test ../../bin/impgen:*)",
       "Bash(GOPACKAGE=samepackage_test go generate:*)",
       "Bash(GOPACKAGE=visitor_test go generate:*)",
-      "Bash(GOPACKAGE=visitor_test ../../bin/impgen:*)"
+      "Bash(GOPACKAGE=visitor_test ../../bin/impgen:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []
