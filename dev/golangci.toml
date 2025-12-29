@@ -64,8 +64,15 @@ paths = ['third_party$', 'builtin$', 'examples$']
 fix = true
 [[linters.exclusions.rules]]
 # Dynamic errors are acceptable and often clearer in test code/predicates.
+# Test code doesn't need to wrap errors or use errors.Is for exact comparisons.
+# Global test fixtures and variables are acceptable in tests.
 path = "_test.go"
-linters = ['err113', 'goconst']
+linters = ['err113', 'goconst', 'wrapcheck', 'errorlint', 'gochecknoglobals']
+
+[[linters.exclusions.rules]]
+# Tester and TestReporter are intentionally duplicate (v1 and v2 APIs during migration).
+path = "imptest/"
+linters = ['iface']
 
 [[linters.exclusions.rules]]
 # UAT/11 intentionally uses a package name that conflicts with stdlib to test aliasing.
@@ -75,6 +82,11 @@ linters = ['depguard', 'mnd', 'revive']
 [[linters.exclusions.rules]]
 # UAT/12 intentionally uses whitebox testing (tests in same package as code).
 path = "UAT/12-whitebox-testing"
+linters = ['testpackage']
+
+[[linters.exclusions.rules]]
+# imptest/imp_test.go intentionally uses whitebox testing to test internal adapters.
+path = "imptest/imp_test.go"
 linters = ['testpackage']
 
 [formatters]

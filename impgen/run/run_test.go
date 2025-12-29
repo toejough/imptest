@@ -2059,7 +2059,6 @@ func (m *mockWriteCloser) Close() error {
 	return nil
 }
 
-//nolint:wrapcheck // test helper
 func (m *mockWriteCloser) Write(p []byte) (n int, err error) {
 	return m.buf.Write(p)
 }

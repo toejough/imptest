@@ -57,9 +57,7 @@ func TestUATConsistency(t *testing.T) {
 
 // unexported variables.
 var (
-	//nolint:gochecknoglobals // Test-only cache that lives for duration of test run
-	packageCache = make(map[string]cachedPackage)
-	//nolint:gochecknoglobals // Mutex for packageCache
+	packageCache   = make(map[string]cachedPackage)
 	packageCacheMu sync.RWMutex
 )
 

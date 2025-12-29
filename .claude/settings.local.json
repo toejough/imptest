@@ -100,7 +100,9 @@
       "Bash(GOPACKAGE=visitor /Users/joe/repos/personal/imptest/bin/impgen:*)",
       "Bash(GOPACKAGE=visitor bin/impgen:*)",
       "Bash(/tmp/impgen_test:*)",
-      "Bash(do echo \"=== $dir ===\")"
+      "Bash(do echo \"=== $dir ===\")",
+      "Bash(/tmp/add_parallel.sh:*)",
+      "Bash(do)"
     ],
     "deny": [],
     "ask": []

@@ -20,69 +20,16 @@ package targetfunction_test
 import (
 	"testing"
 
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	"github.com/toejough/imptest/imptest"
 )
 
 // BinaryOp is a function type that takes two integers and returns one
 type BinaryOp func(a, b int) int
 
-// multiply is an instance of BinaryOp
-var multiply BinaryOp = func(a, b int) int {
-	return a * b
-}
-
 // Add adds two integers and returns the result
 func Add(a, b int) int {
 	return a + b
-}
-
-// TestTargetFunction_Type_Ordered_Exact_Returns demonstrates wrapping a function
-// from a named type (vs a function definition)
-func TestTargetFunction_Type_Ordered_Exact_Returns(t *testing.T) {
-	WrapBinaryOp(t, multiply).Start(3, 4).ExpectReturnsEqual(12)
-}
-
-// TestTargetFunction_Ordered_Exact_Returns demonstrates wrapping a function
-// with ordered expectations and exact value matching for returns
-func TestTargetFunction_Ordered_Exact_Returns(t *testing.T) {
-	WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
-}
-
-// TestTargetFunction_Ordered_Matcher_Returns demonstrates using matchers
-// for return value verification
-func TestTargetFunction_Ordered_Matcher_Returns(t *testing.T) {
-	// Use gomega matcher for flexible validation
-	WrapAdd(t, Add).Start(2, 3).ExpectReturnsMatch(BeNumerically(">", 0))
-}
-
-// Divide divides two integers, panicking on division by zero
-func Divide(a, b int) int {
-	if b == 0 {
-		panic("division by zero")
-	}
-	return a / b
-}
-
-// TestTargetFunction_Ordered_Exact_Panic demonstrates verifying panics
-func TestTargetFunction_Ordered_Exact_Panic(t *testing.T) {
-	// Verify the function panicked with exact value
-	WrapDivide(t, Divide).Start(10, 0).ExpectPanicEquals("division by zero")
-}
-
-// TestTargetFunction_Ordered_Matcher_Panic demonstrates panic matching
-func TestTargetFunction_Ordered_Matcher_Panic(t *testing.T) {
-	// Match any panic
-	WrapDivide(t, Divide).Start(10, 0).ExpectPanicMatches(imptest.Any())
-}
-
-// TestTargetFunction_Ordered_GetReturns demonstrates getting actual values
-func TestTargetFunction_Ordered_GetReturns(t *testing.T) {
-	// Get the actual return value for custom assertions
-	returns := WrapAdd(t, Add).Start(2, 3).GetReturns()
-	if returns.R1 != 5 {
-		t.Errorf("expected 5, got %d", returns.R1)
-	}
 }
 
 // Concurrent is a sample function that returns its input.
@@ -91,9 +38,20 @@ func Concurrent(i int) int {
 	return i
 }
 
+// Divide divides two integers, panicking on division by zero
+func Divide(a, b int) int {
+	if b == 0 {
+		panic("division by zero")
+	}
+
+	return a / b
+}
+
 // TestTargetFunction_Ordered_Coordinated demonstrates coordinating multiple
 // interactions with a shared Imp coordinator.
 func TestTargetFunction_Ordered_Coordinated(t *testing.T) {
+	t.Parallel()
+
 	// Use a shared Imp to coordinate multiple calls
 	imp := imptest.NewImp(t)
 
@@ -106,9 +64,63 @@ func TestTargetFunction_Ordered_Coordinated(t *testing.T) {
 	c2.ExpectReturnsEqual(2)
 }
 
+// TestTargetFunction_Ordered_Exact_Panic demonstrates verifying panics
+func TestTargetFunction_Ordered_Exact_Panic(t *testing.T) {
+	t.Parallel()
+
+	// Verify the function panicked with exact value
+	WrapDivide(t, Divide).Start(10, 0).ExpectPanicEquals("division by zero")
+}
+
+// TestTargetFunction_Ordered_Exact_Returns demonstrates wrapping a function
+// with ordered expectations and exact value matching for returns
+func TestTargetFunction_Ordered_Exact_Returns(t *testing.T) {
+	t.Parallel()
+
+	WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
+}
+
+// TestTargetFunction_Ordered_GetReturns demonstrates getting actual values
+func TestTargetFunction_Ordered_GetReturns(t *testing.T) {
+	t.Parallel()
+
+	// Get the actual return value for custom assertions
+	returns := WrapAdd(t, Add).Start(2, 3).GetReturns()
+	if returns.R1 != 5 {
+		t.Errorf("expected 5, got %d", returns.R1)
+	}
+}
+
+// TestTargetFunction_Ordered_Matcher_Panic demonstrates panic matching
+func TestTargetFunction_Ordered_Matcher_Panic(t *testing.T) {
+	t.Parallel()
+
+	// Match any panic
+	WrapDivide(t, Divide).Start(10, 0).ExpectPanicMatches(imptest.Any())
+}
+
+// TestTargetFunction_Ordered_Matcher_Returns demonstrates using matchers
+// for return value verification
+func TestTargetFunction_Ordered_Matcher_Returns(t *testing.T) {
+	t.Parallel()
+
+	// Use gomega matcher for flexible validation
+	WrapAdd(t, Add).Start(2, 3).ExpectReturnsMatch(gomega.BeNumerically(">", 0))
+}
+
+// TestTargetFunction_Type_Ordered_Exact_Returns demonstrates wrapping a function
+// from a named type (vs a function definition)
+func TestTargetFunction_Type_Ordered_Exact_Returns(t *testing.T) {
+	t.Parallel()
+
+	WrapBinaryOp(t, multiply).Start(3, 4).ExpectReturnsEqual(12)
+}
+
 // TestTargetFunction_Unordered_Coordinated demonstrates coordinating unordered
 // expectations across interactions via Eventually.
 func TestTargetFunction_Unordered_Coordinated(t *testing.T) {
+	t.Parallel()
+
 	// Use a shared Imp to coordinate multiple calls
 	imp := imptest.NewImp(t)
 
@@ -120,3 +132,10 @@ func TestTargetFunction_Unordered_Coordinated(t *testing.T) {
 	c2.Eventually().ExpectReturnsEqual(2)
 	c1.Eventually().ExpectReturnsEqual(1)
 }
+
+// unexported variables.
+var (
+	multiply BinaryOp = func(a, b int) int {
+		return a * b
+	}
+)

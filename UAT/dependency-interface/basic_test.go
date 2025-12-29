@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 	"github.com/toejough/imptest/imptest"
 )
 
@@ -39,6 +39,7 @@ func (s *Service) LoadAndProcess(id int) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return "processed: " + data, nil
 }
 
@@ -50,6 +51,8 @@ func (s *Service) SaveProcessed(id int, input string) error {
 // TestDependencyInterface_Ordered_Exact_Args demonstrates the conversational pattern
 // with ordered expectations and exact argument matching
 func TestDependencyInterface_Ordered_Exact_Args(t *testing.T) {
+	t.Parallel()
+
 	imp := imptest.NewImp(t)
 
 	// Create mock for the dependency interface
@@ -69,38 +72,10 @@ func TestDependencyInterface_Ordered_Exact_Args(t *testing.T) {
 	result.ExpectReturnsEqual("processed: test data", nil)
 }
 
-// TestDependencyInterface_Ordered_Matcher_Args demonstrates matcher validation
-func TestDependencyInterface_Ordered_Matcher_Args(t *testing.T) {
-	imp := imptest.NewImp(t)
-	store := MockDataStore(imp)
-	svc := &Service{store: store.Interface()}
-
-	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(99)
-
-	// Expect Get with argument matching a condition using gomega matcher
-	call := store.Get.ExpectCalledWithMatches(BeNumerically(">", 0))
-	call.InjectReturnValues("data", nil)
-
-	result.ExpectReturnsEqual("processed: data", nil)
-}
-
-// TestDependencyInterface_Ordered_InjectError demonstrates injecting errors
-func TestDependencyInterface_Ordered_InjectError(t *testing.T) {
-	imp := imptest.NewImp(t)
-	store := MockDataStore(imp)
-	svc := &Service{store: store.Interface()}
-
-	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(42)
-
-	expectedErr := errors.New("not found")
-	call := store.Get.ExpectCalledWithExactly(42)
-	call.InjectReturnValues("", expectedErr)
-
-	result.ExpectReturnsEqual("", expectedErr)
-}
-
 // TestDependencyInterface_Ordered_GetArgs demonstrates getting actual arguments
 func TestDependencyInterface_Ordered_GetArgs(t *testing.T) {
+	t.Parallel()
+
 	imp := imptest.NewImp(t)
 	store := MockDataStore(imp)
 	svc := &Service{store: store.Interface()}
@@ -114,16 +89,37 @@ func TestDependencyInterface_Ordered_GetArgs(t *testing.T) {
 
 	// Get the actual arguments
 	args := call.GetArgs()
+
 	if args.A1 != 42 {
 		t.Errorf("expected id 42, got %d", args.A1)
 	}
+
 	if args.A2 != "processed: input" {
 		t.Errorf("expected 'processed: input', got %q", args.A2)
 	}
 }
 
+// TestDependencyInterface_Ordered_InjectError demonstrates injecting errors
+func TestDependencyInterface_Ordered_InjectError(t *testing.T) {
+	t.Parallel()
+
+	imp := imptest.NewImp(t)
+	store := MockDataStore(imp)
+	svc := &Service{store: store.Interface()}
+
+	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(42)
+
+	expectedErr := errors.New("not found")
+	call := store.Get.ExpectCalledWithExactly(42)
+	call.InjectReturnValues("", expectedErr)
+
+	result.ExpectReturnsEqual("", expectedErr)
+}
+
 // TestDependencyInterface_Ordered_InjectPanic demonstrates injecting a panic
 func TestDependencyInterface_Ordered_InjectPanic(t *testing.T) {
+	t.Parallel()
+
 	imp := imptest.NewImp(t)
 	store := MockDataStore(imp)
 	svc := &Service{store: store.Interface()}
@@ -136,8 +132,27 @@ func TestDependencyInterface_Ordered_InjectPanic(t *testing.T) {
 	result.ExpectPanicEquals("database connection lost")
 }
 
+// TestDependencyInterface_Ordered_Matcher_Args demonstrates matcher validation
+func TestDependencyInterface_Ordered_Matcher_Args(t *testing.T) {
+	t.Parallel()
+
+	imp := imptest.NewImp(t)
+	store := MockDataStore(imp)
+	svc := &Service{store: store.Interface()}
+
+	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(99)
+
+	// Expect Get with argument matching a condition using gomega matcher
+	call := store.Get.ExpectCalledWithMatches(gomega.BeNumerically(">", 0))
+	call.InjectReturnValues("data", nil)
+
+	result.ExpectReturnsEqual("processed: data", nil)
+}
+
 // TestDependencyInterface_Ordered_MultipleMethod demonstrates multiple method calls
 func TestDependencyInterface_Ordered_MultipleMethod(t *testing.T) {
+	t.Parallel()
+
 	imp := imptest.NewImp(t)
 	store := MockDataStore(imp)
 	svc := &Service{store: store.Interface()}

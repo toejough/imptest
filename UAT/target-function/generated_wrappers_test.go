@@ -25,7 +25,7 @@ type WrapBinaryOpWrapper struct {
 }
 
 // Start begins execution of the function in a goroutine with the provided arguments.
-func (w *WrapBinaryOpWrapper) Start(a, b int) *WrapBinaryOpWrapper {
+func (w *WrapBinaryOpWrapper) Start(arg1, arg2 int) *WrapBinaryOpWrapper {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -33,9 +33,10 @@ func (w *WrapBinaryOpWrapper) Start(a, b int) *WrapBinaryOpWrapper {
 			}
 		}()
 
-		result := w.fn(a, b)
+		result := w.fn(arg1, arg2)
 		w.returnChan <- WrapBinaryOpReturns{R1: result}
 	}()
+
 	return w
 }
 
@@ -68,53 +69,9 @@ func (w *WrapBinaryOpWrapper) ExpectReturnsEqual(expected int) {
 	}
 }
 
-// ExpectReturnsMatch verifies return values match the given matchers.
-func (w *WrapBinaryOpWrapper) ExpectReturnsMatch(matchers ...any) {
-	w.imp.Helper()
-	w.WaitForResponse()
-
-	if w.panicked != nil {
-		w.imp.Fatalf("expected function to return, but it panicked with: %v", w.panicked)
-		return
-	}
-
-	if len(matchers) != 1 {
-		w.imp.Fatalf("expected 1 matcher, got %d", len(matchers))
-		return
-	}
-
-	matcher, ok := matchers[0].(imptest.Matcher)
-	if !ok {
-		w.imp.Fatalf("argument 0 is not a Matcher")
-		return
-	}
-
-	success, err := matcher.Match(w.returned.R1)
-	if err != nil {
-		w.imp.Fatalf("matcher error: %v", err)
-		return
-	}
-	if !success {
-		w.imp.Fatalf("return value: %s", matcher.FailureMessage(w.returned.R1))
-	}
-}
-
 // WrapBinaryOpReturns provides type-safe access to return values.
 type WrapBinaryOpReturns struct {
 	R1 int
-}
-
-// GetReturns returns type-safe return values.
-func (w *WrapBinaryOpWrapper) GetReturns() *WrapBinaryOpReturns {
-	w.imp.Helper()
-	w.WaitForResponse()
-
-	if w.panicked != nil {
-		w.imp.Fatalf("cannot get returns: function panicked with %v", w.panicked)
-		return nil
-	}
-
-	return w.returned
 }
 
 // WrapAdd wraps the Add function for testing.
@@ -138,7 +95,7 @@ type WrapAddWrapper struct {
 }
 
 // Start begins execution of the function in a goroutine.
-func (w *WrapAddWrapper) Start(a, b int) *WrapAddWrapper {
+func (w *WrapAddWrapper) Start(arg1, arg2 int) *WrapAddWrapper {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -146,9 +103,10 @@ func (w *WrapAddWrapper) Start(a, b int) *WrapAddWrapper {
 			}
 		}()
 
-		result := w.fn(a, b)
+		result := w.fn(arg1, arg2)
 		w.returnChan <- WrapAddReturns{R1: result}
 	}()
+
 	return w
 }
 
@@ -207,6 +165,7 @@ func (w *WrapAddWrapper) ExpectReturnsMatch(matchers ...any) {
 		w.imp.Fatalf("matcher error: %v", err)
 		return
 	}
+
 	if !success {
 		w.imp.Fatalf("return value: %s", matcher.FailureMessage(w.returned.R1))
 	}
@@ -251,7 +210,7 @@ type WrapDivideWrapper struct {
 }
 
 // Start begins execution of the function in a goroutine.
-func (w *WrapDivideWrapper) Start(a, b int) *WrapDivideWrapper {
+func (w *WrapDivideWrapper) Start(arg1, arg2 int) *WrapDivideWrapper {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -259,9 +218,10 @@ func (w *WrapDivideWrapper) Start(a, b int) *WrapDivideWrapper {
 			}
 		}()
 
-		result := w.fn(a, b)
+		result := w.fn(arg1, arg2)
 		w.returnChan <- WrapDivideReturns{R1: result}
 	}()
+
 	return w
 }
 
@@ -309,6 +269,7 @@ func (w *WrapDivideWrapper) ExpectPanicMatches(matcher imptest.Matcher) {
 		w.imp.Fatalf("panic matcher error: %v", err)
 		return
 	}
+
 	if !success {
 		w.imp.Fatalf("panic value: %s", matcher.FailureMessage(w.panicked))
 	}
@@ -340,7 +301,7 @@ type WrapConcurrentWrapper struct {
 }
 
 // Start begins execution of the function in a goroutine.
-func (w *WrapConcurrentWrapper) Start(i int) *WrapConcurrentWrapper {
+func (w *WrapConcurrentWrapper) Start(value int) *WrapConcurrentWrapper {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -348,9 +309,10 @@ func (w *WrapConcurrentWrapper) Start(i int) *WrapConcurrentWrapper {
 			}
 		}()
 
-		result := w.fn(i)
+		result := w.fn(value)
 		w.returnChan <- WrapConcurrentReturns{R1: result}
 	}()
+
 	return w
 }
 
@@ -392,17 +354,4 @@ func (w *WrapConcurrentWrapper) Eventually() *WrapConcurrentWrapper {
 // WrapConcurrentReturns holds return values.
 type WrapConcurrentReturns struct {
 	R1 int
-}
-
-// GetReturns returns type-safe return values.
-func (w *WrapConcurrentWrapper) GetReturns() *WrapConcurrentReturns {
-	w.imp.Helper()
-	w.WaitForResponse()
-
-	if w.panicked != nil {
-		w.imp.Fatalf("cannot get returns: function panicked with %v", w.panicked)
-		return nil
-	}
-
-	return w.returned
 }
