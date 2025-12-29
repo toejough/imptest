@@ -1,27 +1,49 @@
 package imptest
 
+import "time"
+
 // DependencyCall represents an expected call to a dependency.
-// This type is used by generated mock code.
+// This type wraps a GenericCall from the Controller and provides the v2 API.
 type DependencyCall struct {
-	imp         *Imp
-	expectation *Expectation
+	imp  *Imp
+	call *GenericCall
+}
+
+// newDependencyCall creates a DependencyCall from a GenericCall.
+// This is called by generated mock code after receiving a call from the Controller.
+func newDependencyCall(imp *Imp, call *GenericCall) *DependencyCall {
+	return &DependencyCall{
+		imp:  imp,
+		call: call,
+	}
 }
 
 // InjectReturnValues specifies the values the mock should return when called.
+// This sends the response to the mock's response channel, unblocking it.
 func (dc *DependencyCall) InjectReturnValues(values ...any) {
-	dc.expectation.returnValues = values
-	dc.expectation.shouldPanic = false
+	dc.call.MarkDone()
+	dc.call.ResponseChan <- GenericResponse{
+		Type:         "return",
+		ReturnValues: values,
+	}
 }
 
 // InjectPanicValue specifies that the mock should panic with the given value.
+// This sends a panic response to the mock's response channel, unblocking it.
 func (dc *DependencyCall) InjectPanicValue(value any) {
-	dc.expectation.panicValue = value
-	dc.expectation.shouldPanic = true
+	dc.call.MarkDone()
+	dc.call.ResponseChan <- GenericResponse{
+		Type:       "panic",
+		PanicValue: value,
+	}
 }
 
 // Eventually switches to unordered mode for this expectation.
+// In unordered mode, GetCallWithTimeout will wait for a matching call,
+// queueing non-matching calls that arrive first.
 func (dc *DependencyCall) Eventually() *DependencyCall {
-	dc.expectation.ordered = false
+	// This will be implemented when we add Eventually support to generated code
+	// For now, return self for method chaining
 	return dc
 }
 
@@ -30,23 +52,149 @@ func (dc *DependencyCall) Eventually() *DependencyCall {
 type DependencyArgs struct {
 	A1 any
 	A2 any
+	A3 any
+	A4 any
+	A5 any
 	// More fields will be generated as needed
 }
 
 func (dc *DependencyCall) GetArgs() *DependencyArgs {
 	dc.imp.Helper()
-	if !dc.expectation.called {
-		dc.imp.Fatalf("GetArgs called but expectation was never matched")
-		return nil
-	}
-	// For now, return a struct with up to 2 args
-	// Code generation will create properly typed versions
+
+	// Build the args struct from the call's args
 	result := &DependencyArgs{}
-	if len(dc.expectation.actualArgs) > 0 {
-		result.A1 = dc.expectation.actualArgs[0]
+	if len(dc.call.Args) > 0 {
+		result.A1 = dc.call.Args[0]
 	}
-	if len(dc.expectation.actualArgs) > 1 {
-		result.A2 = dc.expectation.actualArgs[1]
+	if len(dc.call.Args) > 1 {
+		result.A2 = dc.call.Args[1]
+	}
+	if len(dc.call.Args) > 2 {
+		result.A3 = dc.call.Args[2]
+	}
+	if len(dc.call.Args) > 3 {
+		result.A4 = dc.call.Args[3]
+	}
+	if len(dc.call.Args) > 4 {
+		result.A5 = dc.call.Args[4]
 	}
 	return result
+}
+
+// DependencyMethod represents a method on a mocked interface.
+// It provides methods to set up expectations for that specific method.
+// Code generation creates instances of this for each method in an interface.
+type DependencyMethod struct {
+	imp        *Imp
+	methodName string
+}
+
+// NewDependencyMethod creates a new DependencyMethod.
+// This is used by generated mock code.
+func NewDependencyMethod(imp *Imp, methodName string) *DependencyMethod {
+	return &DependencyMethod{
+		imp:        imp,
+		methodName: methodName,
+	}
+}
+
+// ExpectCalledWithExactly waits for a call to this method with exactly the specified arguments.
+// Uses reflection-based DeepEqual for argument matching.
+func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall {
+	validator := func(actualArgs []any) bool {
+		if len(actualArgs) != len(args) {
+			return false
+		}
+		for i, expected := range args {
+			if !valuesEqual(actualArgs[i], expected) {
+				return false
+			}
+		}
+		return true
+	}
+
+	call := dm.imp.GetCallWithTimeout(0, dm.methodName, validator)
+	return newDependencyCall(dm.imp, call)
+}
+
+// ExpectCalledWithMatches waits for a call to this method with arguments matching the given matchers.
+// Each matcher should implement the Matcher interface (compatible with gomega matchers).
+func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
+	validator := func(actualArgs []any) bool {
+		if len(actualArgs) != len(matchers) {
+			return false
+		}
+		for i, m := range matchers {
+			matcher, ok := m.(Matcher)
+			if !ok {
+				return false
+			}
+			success, _ := matcher.Match(actualArgs[i])
+			if !success {
+				return false
+			}
+		}
+		return true
+	}
+
+	call := dm.imp.GetCallWithTimeout(0, dm.methodName, validator)
+	return newDependencyCall(dm.imp, call)
+}
+
+// Eventually switches to unordered mode where the expectation will wait
+// for a matching call, queueing non-matching calls that arrive first.
+func (dm *DependencyMethod) Eventually() *DependencyMethodEventually {
+	return &DependencyMethodEventually{
+		imp:        dm.imp,
+		methodName: dm.methodName,
+		timeout:    30 * time.Second, // Default timeout for Eventually
+	}
+}
+
+// DependencyMethodEventually provides Eventually (unordered) mode expectations.
+type DependencyMethodEventually struct {
+	imp        *Imp
+	methodName string
+	timeout    time.Duration
+}
+
+// ExpectCalledWithExactly waits (with timeout) for a call with exact arguments.
+func (dme *DependencyMethodEventually) ExpectCalledWithExactly(args ...any) *DependencyCall {
+	validator := func(actualArgs []any) bool {
+		if len(actualArgs) != len(args) {
+			return false
+		}
+		for i, expected := range args {
+			if !valuesEqual(actualArgs[i], expected) {
+				return false
+			}
+		}
+		return true
+	}
+
+	call := dme.imp.GetCallWithTimeout(dme.timeout, dme.methodName, validator)
+	return newDependencyCall(dme.imp, call)
+}
+
+// ExpectCalledWithMatches waits (with timeout) for a call with matching arguments.
+func (dme *DependencyMethodEventually) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
+	validator := func(actualArgs []any) bool {
+		if len(actualArgs) != len(matchers) {
+			return false
+		}
+		for i, m := range matchers {
+			matcher, ok := m.(Matcher)
+			if !ok {
+				return false
+			}
+			success, _ := matcher.Match(actualArgs[i])
+			if !success {
+				return false
+			}
+		}
+		return true
+	}
+
+	call := dme.imp.GetCallWithTimeout(dme.timeout, dme.methodName, validator)
+	return newDependencyCall(dme.imp, call)
 }

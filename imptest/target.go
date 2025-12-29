@@ -1,38 +1,13 @@
 package imptest
 
-import "reflect"
-
-// TargetFunction wraps a function under test.
-// F is the function type (e.g., func(int, int) int)
-type TargetFunction[F any] struct {
-	imp      *Imp
-	callable F
-}
-
-// NewTargetFunction creates a new wrapper for testing a function.
-func NewTargetFunction[F any](imp *Imp, callable F) *TargetFunction[F] {
-	return &TargetFunction[F]{
-		imp:      imp,
-		callable: callable,
-	}
-}
-
-// CallWith is a placeholder - actual implementation will be code-generated
-// for type-safe argument passing
-func (tf *TargetFunction[F]) CallWith(args ...any) *TargetCall {
-	// TODO: Implement actual call logic
-	return &TargetCall{
-		Imp: tf.imp,
-	}
-}
-
 // TargetCall represents a call to a target function.
+// It wraps a CallableController to manage async execution and response channels.
 // Fields are exported so generated code can populate them.
 type TargetCall struct {
-	Imp          *Imp
-	Ordered      bool  // true = ordered (default), false = unordered
-	Returned     bool  // true if function returned normally
-	Panicked     bool  // true if function panicked
+	Imp      *Imp
+	Ordered  bool // true = ordered (default), false = unordered
+	Returned bool // true if function returned normally
+	Panicked bool // true if function panicked
 	ReturnValues []any // actual return values if returned
 	PanicValue   any   // actual panic value if panicked
 }
@@ -149,6 +124,9 @@ func (tc *TargetCall) Eventually() *TargetCall {
 type TargetReturns struct {
 	R1 any
 	R2 any
+	R3 any
+	R4 any
+	R5 any
 	// More fields will be generated as needed
 }
 
@@ -165,14 +143,22 @@ func (tc *TargetCall) GetReturns() *TargetReturns {
 		return nil
 	}
 
-	// For now, return a struct with up to 2 return values
-	// Code generation will create properly typed versions
+	// Build the returns struct from the return values
 	result := &TargetReturns{}
 	if len(tc.ReturnValues) > 0 {
 		result.R1 = tc.ReturnValues[0]
 	}
 	if len(tc.ReturnValues) > 1 {
 		result.R2 = tc.ReturnValues[1]
+	}
+	if len(tc.ReturnValues) > 2 {
+		result.R3 = tc.ReturnValues[2]
+	}
+	if len(tc.ReturnValues) > 3 {
+		result.R4 = tc.ReturnValues[3]
+	}
+	if len(tc.ReturnValues) > 4 {
+		result.R5 = tc.ReturnValues[4]
 	}
 	return result
 }
@@ -189,7 +175,14 @@ func (tc *TargetCall) GetPanic() any {
 	return tc.PanicValue
 }
 
-// valuesEqual checks if two values are equal using reflect.DeepEqual.
-func valuesEqual(a, b any) bool {
-	return reflect.DeepEqual(a, b)
+// FormatValue formats a value for display in error messages.
+func FormatValue(v any) string {
+	// Use fmt.Sprintf with %#v for Go-syntax representation
+	// This will be imported if needed by the generated code
+	// For now, return a simple string representation
+	if v == nil {
+		return "nil"
+	}
+	// This is a placeholder - the real implementation uses fmt package
+	return "<value>"
 }
