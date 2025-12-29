@@ -543,13 +543,17 @@ type {{.ImplName}} struct {
 	// V2 Dependency Impl Method template
 	//nolint:lll // Template docstring
 	registry.v2DepImplMethodTmpl, err = parseTemplate("v2DepImplMethod", `// {{.MethodName}} implements {{.InterfaceType}}.{{.MethodName}}.
-func (i *{{.ImplName}}) {{.MethodName}}({{.Params}}) {{if .HasResults}}({{.Results}}){{end}} {
-	call := &{{.PkgImptest}}.GenericCall{
+func (impl *{{.ImplName}}) {{.MethodName}}({{.Params}}){{.Results}} {
+	{{if .HasVariadic}}args := []any{ {{.NonVariadicArgs}} }
+	for _, v := range {{.VariadicArg}} {
+		args = append(args, v)
+	}
+	{{end}}call := &{{.PkgImptest}}.GenericCall{
 		MethodName: "{{.MethodName}}",
-		Args: []any{ {{.ArgNames}} },
+		Args: {{if .HasVariadic}}args{{else}}[]any{ {{.Args}} }{{end}},
 		ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 	}
-	i.mock.imp.CallChan <- call
+	impl.mock.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -4,60 +4,48 @@ package many_params_test
 
 import (
 	many_params "github.com/toejough/imptest/UAT/10-edge-many-params"
-	"github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ManyParamsMock is the mock implementation returned by MockManyParams.
+// ManyParamsMock is the mock for ManyParams.
 type ManyParamsMock struct {
-	imp     *imptest.Imp
-	Process *imptest.DependencyMethod
+	imp     *_imptest.Imp
+	Process *_imptest.DependencyMethod
 }
 
-// Interface returns the mock as a many_params.ManyParams interface implementation.
+// Interface returns the ManyParams implementation that can be passed to code under test.
 func (m *ManyParamsMock) Interface() many_params.ManyParams {
 	return &mockManyParamsImpl{mock: m}
 }
 
-// MockManyParams creates a new mock for the ManyParams interface.
-func MockManyParams(testReporter imptest.TestReporter) *ManyParamsMock {
-	imp, ok := testReporter.(*imptest.Imp)
-	if !ok {
-		imp = imptest.NewImp(testReporter)
-	}
-
+// MockManyParams creates a new ManyParamsMock for testing.
+func MockManyParams(t _imptest.TestReporter) *ManyParamsMock {
+	imp := _imptest.NewImp(t)
 	return &ManyParamsMock{
 		imp:     imp,
-		Process: imptest.NewDependencyMethod(imp, "Process"),
+		Process: _imptest.NewDependencyMethod(imp, "Process"),
 	}
 }
 
-// mockManyParamsImpl implements the ManyParams interface by forwarding to the mock.
+// mockManyParamsImpl implements many_params.ManyParams.
 type mockManyParamsImpl struct {
 	mock *ManyParamsMock
 }
 
-// Process implements many_params.ManyParams.Process by sending a call to the Controller and blocking on response.
+// Process implements many_params.ManyParams.Process.
 func (impl *mockManyParamsImpl) Process(a int, b int, c int, d int, e int, f int, g int, h int, i int, j int) string {
-	responseChan := make(chan imptest.GenericResponse, 1)
-
-	call := &imptest.GenericCall{
+	call := &_imptest.GenericCall{
 		MethodName:   "Process",
 		Args:         []any{a, b, c, d, e, f, g, h, i, j},
-		ResponseChan: responseChan,
+		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-
-	// Send call to Controller
 	impl.mock.imp.CallChan <- call
-
-	// Block waiting for test to inject response
-	resp := <-responseChan
-
+	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
 	}
 
 	var result1 string
-
 	if len(resp.ReturnValues) > 0 {
 		if value, ok := resp.ReturnValues[0].(string); ok {
 			result1 = value

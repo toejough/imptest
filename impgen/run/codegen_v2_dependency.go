@@ -316,6 +316,9 @@ func newV2DependencyGenerator(
 
 	// Convert MockXxx -> XxxMock for the struct type name
 	// This avoids naming conflict between the constructor function and the struct type
+	// Note: When using --name with a value ending in "Mock" (e.g., CustomOpsMock),
+	//       you'll get MockMock in the struct name to avoid conflicts.
+	//       Recommend using --name without the Mock suffix (e.g., --name CustomOps)
 	mockTypeName := strings.TrimPrefix(info.impName, "Mock") + "Mock"
 
 	gen := &v2DependencyGenerator{

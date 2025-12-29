@@ -7,8 +7,8 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// OpsMock is the mock for Ops.
-type OpsMock struct {
+// CustomOpsMock is the mock for Ops.
+type CustomOpsMock struct {
 	imp    *_imptest.Imp
 	Add    *_imptest.DependencyMethod
 	Store  *_imptest.DependencyMethod
@@ -18,14 +18,14 @@ type OpsMock struct {
 }
 
 // Interface returns the Ops implementation that can be passed to code under test.
-func (m *OpsMock) Interface() basic.Ops {
-	return &mockOpsImpl{mock: m}
+func (m *CustomOpsMock) Interface() basic.Ops {
+	return &mockCustomOpsImpl{mock: m}
 }
 
-// MockOps creates a new OpsMock for testing.
-func MockOps(t _imptest.TestReporter) *OpsMock {
+// MockCustomOps creates a new CustomOpsMock for testing.
+func MockCustomOps(t _imptest.TestReporter) *CustomOpsMock {
 	imp := _imptest.NewImp(t)
-	return &OpsMock{
+	return &CustomOpsMock{
 		imp:    imp,
 		Add:    _imptest.NewDependencyMethod(imp, "Add"),
 		Store:  _imptest.NewDependencyMethod(imp, "Store"),
@@ -35,13 +35,13 @@ func MockOps(t _imptest.TestReporter) *OpsMock {
 	}
 }
 
-// mockOpsImpl implements basic.Ops.
-type mockOpsImpl struct {
-	mock *OpsMock
+// mockCustomOpsImpl implements basic.Ops.
+type mockCustomOpsImpl struct {
+	mock *CustomOpsMock
 }
 
 // Add implements basic.Ops.Add.
-func (impl *mockOpsImpl) Add(a int, b int) int {
+func (impl *mockCustomOpsImpl) Add(a int, b int) int {
 	call := &_imptest.GenericCall{
 		MethodName:   "Add",
 		Args:         []any{a, b},
@@ -64,7 +64,7 @@ func (impl *mockOpsImpl) Add(a int, b int) int {
 }
 
 // Finish implements basic.Ops.Finish.
-func (impl *mockOpsImpl) Finish() bool {
+func (impl *mockCustomOpsImpl) Finish() bool {
 	call := &_imptest.GenericCall{
 		MethodName:   "Finish",
 		Args:         []any{},
@@ -87,7 +87,7 @@ func (impl *mockOpsImpl) Finish() bool {
 }
 
 // Log implements basic.Ops.Log.
-func (impl *mockOpsImpl) Log(message string) {
+func (impl *mockCustomOpsImpl) Log(message string) {
 	call := &_imptest.GenericCall{
 		MethodName:   "Log",
 		Args:         []any{message},
@@ -102,7 +102,7 @@ func (impl *mockOpsImpl) Log(message string) {
 }
 
 // Notify implements basic.Ops.Notify.
-func (impl *mockOpsImpl) Notify(message string, ids ...int) bool {
+func (impl *mockCustomOpsImpl) Notify(message string, ids ...int) bool {
 	args := []any{message}
 	for _, v := range ids {
 		args = append(args, v)
@@ -129,7 +129,7 @@ func (impl *mockOpsImpl) Notify(message string, ids ...int) bool {
 }
 
 // Store implements basic.Ops.Store.
-func (impl *mockOpsImpl) Store(key string, value any) (int, error) {
+func (impl *mockCustomOpsImpl) Store(key string, value any) (int, error) {
 	call := &_imptest.GenericCall{
 		MethodName:   "Store",
 		Args:         []any{key, value},

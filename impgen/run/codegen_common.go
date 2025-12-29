@@ -784,6 +784,7 @@ func isBasicComparableType(expr dst.Expr) bool {
 	switch t := expr.(type) {
 	case *dst.Ident:
 		// Basic built-in types
+		//nolint:goconst // These are Go type names, not magic strings
 		switch t.Name {
 		case "bool",
 			"int", "int8", "int16", "int32", "int64",

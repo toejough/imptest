@@ -119,7 +119,9 @@
       "Bash(GOPACKAGE=v2smoketest_test go generate:*)",
       "Bash(GOPACKAGE=v2smoketest_test impgen Add --target)",
       "Bash(PATH=/Users/joe/repos/personal/imptest/bin:$PATH go generate:*)",
-      "Bash(PATH=/Users/joe/repos/personal/imptest/bin:$PATH GOPACKAGE=v2smoketest_test impgen:*)"
+      "Bash(PATH=/Users/joe/repos/personal/imptest/bin:$PATH GOPACKAGE=v2smoketest_test impgen:*)",
+      "Bash(GOPACKAGE=zero_returns_test impgen:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
