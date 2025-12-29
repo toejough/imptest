@@ -144,66 +144,6 @@ func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *Dependency
 	return newDependencyCall(dm.imp, call)
 }
 
-// Eventually switches to unordered mode where the expectation will wait
-// for a matching call, queueing non-matching calls that arrive first.
-// TODO: Implement when adding Eventually support
-// func (dm *DependencyMethod) Eventually() *DependencyMethodEventually {
-// 	return &DependencyMethodEventually{
-// 		imp:        dm.imp,
-// 		methodName: dm.methodName,
-// 		timeout:    30 * time.Second, // Default timeout for Eventually
-// 	}
-// }
-
-// DependencyMethodEventually provides Eventually (unordered) mode expectations.
-// TODO: Implement when adding Eventually support
-// type DependencyMethodEventually struct {
-// 	imp        *Imp
-// 	methodName string
-// 	timeout    time.Duration
-// }
-//
-// // ExpectCalledWithExactly waits (with timeout) for a call with exact arguments.
-// func (dme *DependencyMethodEventually) ExpectCalledWithExactly(args ...any) *DependencyCall {
-// 	validator := func(actualArgs []any) bool {
-// 		if len(actualArgs) != len(args) {
-// 			return false
-// 		}
-// 		for i, expected := range args {
-// 			if !valuesEqual(actualArgs[i], expected) {
-// 				return false
-// 			}
-// 		}
-// 		return true
-// 	}
-//
-// 	call := dme.imp.GetCallWithTimeout(dme.timeout, dme.methodName, validator)
-// 	return newDependencyCall(dme.imp, call)
-// }
-//
-// // ExpectCalledWithMatches waits (with timeout) for a call with matching arguments.
-// func (dme *DependencyMethodEventually) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
-// 	validator := func(actualArgs []any) bool {
-// 		if len(actualArgs) != len(matchers) {
-// 			return false
-// 		}
-// 		for i, m := range matchers {
-// 			matcher, ok := m.(Matcher)
-// 			if !ok {
-// 				return false
-// 			}
-// 			success, _ := matcher.Match(actualArgs[i])
-// 			if !success {
-// 				return false
-// 			}
-// 		}
-// 		return true
-// 	}
-//
-// 	call := dme.imp.GetCallWithTimeout(dme.timeout, dme.methodName, validator)
-// 	return newDependencyCall(dme.imp, call)
-// }
-
 // unexported constants.
 const (
 	// Argument position constants for DependencyArgs fields.

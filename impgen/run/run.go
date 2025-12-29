@@ -2,6 +2,7 @@
 package run
 
 import (
+	"errors"
 	"fmt"
 	"go/token"
 	go_types "go/types" // Aliased import
@@ -75,8 +76,6 @@ func Run(
 	return nil
 }
 
-// Vars.
-
 // Functions - Public
 
 // WithCache executes the impgen tool with caching support. It checks if a cached version exists based on the
@@ -143,6 +142,21 @@ func WithCache(
 	return nil
 }
 
+// namingMode represents the different modes for generating type names.
+type namingMode int
+
+// namingMode values.
+const (
+	namingModeDefault namingMode = iota
+	namingModeTarget
+	namingModeDependency
+)
+
+// unexported variables.
+var (
+	errMutuallyExclusiveFlags = errors.New("--target and --dependency flags are mutually exclusive")
+)
+
 // capturingFileSystem wraps a FileWriter and captures what was written for caching.
 type capturingFileSystem struct {
 	underlying     FileWriter
@@ -167,13 +181,41 @@ func (c *capturingFileSystem) WriteFile(name string, data []byte, perm os.FileMo
 
 // cliArgs defines the command-line arguments for the generator.
 type cliArgs struct {
-	Interface string `arg:"positional,required" help:"interface name to implement (e.g. MyInterface or pkg.MyInterface)"`
-	Name      string `arg:"--name"              help:"name for the generated implementation (defaults to <Interface>Imp)"`
+	Interface  string `arg:"positional,required" help:"interface or function name to wrap/mock"`
+	Name       string `arg:"--name"              help:"name for the generated code (overrides default naming)"`
+	Target     bool   `arg:"--target"            help:"generate target wrapper (WrapXxx) instead of dependency mock"`
+	Dependency bool   `arg:"--dependency"        help:"generate dependency mock (MockXxx) - this is the default behavior"`
 }
 
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
+}
+
+// determineGeneratedTypeName generates the type name based on the naming mode and interface name.
+func determineGeneratedTypeName(mode namingMode, localInterfaceName string) string {
+	// Remove dots from localInterfaceName to create valid Go type names
+	// e.g., "Calculator.Add" -> "CalculatorAdd", "MyInterface" -> "MyInterface"
+	typeName := strings.ReplaceAll(localInterfaceName, ".", "")
+
+	switch mode {
+	case namingModeTarget:
+		return "Wrap" + typeName
+	case namingModeDependency:
+		return "Mock" + typeName
+	case namingModeDefault:
+		// Default: backward compatible (Imp suffix, no prefix)
+		// For methods (contains dots in original), use name as-is
+		// For interfaces, append "Imp" suffix
+		if strings.Contains(localInterfaceName, ".") {
+			return typeName // methods: TypeMethod
+		}
+
+		return typeName + "Imp" // interfaces: InterfaceImp
+	default:
+		// Should never reach here
+		return typeName + "Imp"
+	}
 }
 
 func generateCode(
@@ -215,18 +257,22 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 	localInterfaceName := getLocalInterfaceName(interfaceName)
 	impName := parsed.Name
 
+	// Validate mutually exclusive flags
+	if parsed.Target && parsed.Dependency {
+		return generatorInfo{}, errMutuallyExclusiveFlags
+	}
+
 	// set impname if not provided
 	if impName == "" {
-		// Remove dots from localInterfaceName to create valid Go type names
-		// e.g., "Calculator.Add" -> "CalculatorAdd", "MyInterface" -> "MyInterfaceImp"
-		typeName := strings.ReplaceAll(localInterfaceName, ".", "")
-		// For methods (contains dots in original), use name as-is
-		// For interfaces, append "Imp" suffix
-		if strings.Contains(localInterfaceName, ".") {
-			impName = typeName // methods: TypeMethod
-		} else {
-			impName = typeName + "Imp" // interfaces: InterfaceImp
+		// Determine naming mode based on flags
+		mode := namingModeDefault
+		if parsed.Target {
+			mode = namingModeTarget
+		} else if parsed.Dependency {
+			mode = namingModeDependency
 		}
+
+		impName = determineGeneratedTypeName(mode, localInterfaceName)
 	}
 
 	return generatorInfo{
