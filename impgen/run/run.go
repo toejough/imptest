@@ -190,6 +190,7 @@ type cliArgs struct {
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
+	mode                                                 namingMode
 }
 
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
@@ -236,6 +237,11 @@ func generateCode(
 		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
+	// Use v2 generator for dependency mocks
+	if info.mode == namingModeDependency {
+		return generateV2DependencyCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
+	}
+
 	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
 }
 
@@ -262,16 +268,16 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		return generatorInfo{}, errMutuallyExclusiveFlags
 	}
 
+	// Determine naming mode based on flags
+	mode := namingModeDefault
+	if parsed.Target {
+		mode = namingModeTarget
+	} else if parsed.Dependency {
+		mode = namingModeDependency
+	}
+
 	// set impname if not provided
 	if impName == "" {
-		// Determine naming mode based on flags
-		mode := namingModeDefault
-		if parsed.Target {
-			mode = namingModeTarget
-		} else if parsed.Dependency {
-			mode = namingModeDependency
-		}
-
 		impName = determineGeneratedTypeName(mode, localInterfaceName)
 	}
 
@@ -280,6 +286,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		interfaceName:      interfaceName,
 		localInterfaceName: localInterfaceName,
 		impName:            impName,
+		mode:               mode,
 	}, nil
 }
 

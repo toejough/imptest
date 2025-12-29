@@ -103,7 +103,8 @@
       "Bash(do echo \"=== $dir ===\")",
       "Bash(/tmp/add_parallel.sh:*)",
       "Bash(do)",
-      "Bash(GOPACKAGE=run go test:*)"
+      "Bash(GOPACKAGE=run go test:*)",
+      "Bash(GOPACKAGE=basic_test go run:*)"
     ],
     "deny": [],
     "ask": []
