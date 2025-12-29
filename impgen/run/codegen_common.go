@@ -442,10 +442,36 @@ func (tf *typeFormatter) typeWithQualifierStar(t *dst.StarExpr) string {
 // collectExternalImports walks a type expression and collects package references
 // from SelectorExpr nodes (e.g., "io.Reader", "os.FileMode").
 // It resolves each package reference to its full import path using the source imports.
+// For stdlib packages, it adds a "_" prefix when there's a naming conflict with non-stdlib imports.
+//
+//nolint:cyclop,nestif // Conflict detection requires nested checks; complexity is inherent
 func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []importInfo {
 	var imports []importInfo
 
 	seen := make(map[string]bool) // Deduplicate by import path
+
+	// Build a map of package names to their paths from source imports
+	// This helps us detect conflicts between stdlib and non-stdlib packages with the same name
+	sourcePackageNames := make(map[string]string) // name -> path
+
+	for _, imp := range sourceImports {
+		path := strings.Trim(imp.Path.Value, `"`)
+
+		var pkgName string
+		if imp.Name != nil {
+			pkgName = imp.Name.Name
+		} else {
+			// Extract package name from path
+			lastSlash := strings.LastIndex(path, "/")
+			if lastSlash >= 0 {
+				pkgName = path[lastSlash+1:]
+			} else {
+				pkgName = path
+			}
+		}
+
+		sourcePackageNames[pkgName] = path
+	}
 
 	walker := &typeExprWalker[struct{}]{
 		visitIdent: func(*dst.Ident) struct{} {
@@ -459,8 +485,20 @@ func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []im
 				path := resolveImportPath(pkgAlias, sourceImports)
 				if path != "" && !seen[path] {
 					seen[path] = true
+
+					// Determine the alias to use
+					alias := pkgAlias
+					// If this is a stdlib package and there's a non-stdlib source import with the same name,
+					// prefix the stdlib package with "_" to avoid the conflict
+					if isStdlibPackage(path) && path == pkgAlias {
+						if existingPath, exists := sourcePackageNames[pkgAlias]; exists && !isStdlibPackage(existingPath) {
+							// There's a non-stdlib package with the same name - prefix the stdlib one
+							alias = "_" + pkgAlias
+						}
+					}
+
 					imports = append(imports, importInfo{
-						Alias: pkgAlias,
+						Alias: alias,
 						Path:  path,
 					})
 				}
