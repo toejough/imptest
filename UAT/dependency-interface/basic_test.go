@@ -47,82 +47,70 @@ func (s *Service) SaveProcessed(id int, input string) error {
 	return s.store.Save(id, processed)
 }
 
-// TestDependencyInterface_Ordered_Exact_Args demonstrates mocking an interface dependency
+// TestDependencyInterface_Ordered_Exact_Args demonstrates the conversational pattern
 // with ordered expectations and exact argument matching
 func TestDependencyInterface_Ordered_Exact_Args(t *testing.T) {
+	imp := imptest.NewImp(t)
+
 	// Create mock for the dependency interface
-	store := MockDataStore(t)
+	store := MockDataStore(imp)
 
-	// Expect Get to be called with exact arguments
+	// Create service with mock
+	svc := &Service{store: store.Interface()}
+
+	// Start execution (runs in goroutine)
+	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(42)
+
+	// THEN verify the call and inject response (the "conversation")
 	call := store.Get.ExpectCalledWithExactly(42)
-
-	// Inject the return values
 	call.InjectReturnValues("test data", nil)
 
-	// Execute the function under test with the mock
-	svc := &Service{store: store.Interface()}
-	result, err := svc.LoadAndProcess(42)
-
-	// Verify the business logic result
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if result != "processed: test data" {
-		t.Errorf("expected 'processed: test data', got %q", result)
-	}
+	// Verify the result
+	result.ExpectReturnsEqual("processed: test data", nil)
 }
 
 // TestDependencyInterface_Ordered_Matcher_Args demonstrates matcher validation
 func TestDependencyInterface_Ordered_Matcher_Args(t *testing.T) {
-	store := MockDataStore(t)
+	imp := imptest.NewImp(t)
+	store := MockDataStore(imp)
+	svc := &Service{store: store.Interface()}
+
+	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(99)
 
 	// Expect Get with argument matching a condition using gomega matcher
 	call := store.Get.ExpectCalledWithMatches(BeNumerically(">", 0))
-
 	call.InjectReturnValues("data", nil)
 
-	svc := &Service{store: store.Interface()}
-	result, err := svc.LoadAndProcess(99)
-
-	if err != nil || result != "processed: data" {
-		t.Errorf("unexpected result: %q, %v", result, err)
-	}
+	result.ExpectReturnsEqual("processed: data", nil)
 }
 
 // TestDependencyInterface_Ordered_InjectError demonstrates injecting errors
 func TestDependencyInterface_Ordered_InjectError(t *testing.T) {
-	store := MockDataStore(t)
+	imp := imptest.NewImp(t)
+	store := MockDataStore(imp)
+	svc := &Service{store: store.Interface()}
 
-	call := store.Get.ExpectCalledWithExactly(42)
+	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(42)
 
-	// Inject an error return
 	expectedErr := errors.New("not found")
+	call := store.Get.ExpectCalledWithExactly(42)
 	call.InjectReturnValues("", expectedErr)
 
-	svc := &Service{store: store.Interface()}
-	result, err := svc.LoadAndProcess(42)
-
-	if err != expectedErr {
-		t.Errorf("expected error 'not found', got %v", err)
-	}
-	if result != "" {
-		t.Errorf("expected empty result, got %q", result)
-	}
+	result.ExpectReturnsEqual("", expectedErr)
 }
 
 // TestDependencyInterface_Ordered_GetArgs demonstrates getting actual arguments
 func TestDependencyInterface_Ordered_GetArgs(t *testing.T) {
-	store := MockDataStore(t)
+	imp := imptest.NewImp(t)
+	store := MockDataStore(imp)
+	svc := &Service{store: store.Interface()}
+
+	result := WrapSaveProcessed(imp, svc.SaveProcessed).Start(42, "input")
 
 	call := store.Save.ExpectCalledWithExactly(42, "processed: input")
 	call.InjectReturnValues(nil)
 
-	svc := &Service{store: store.Interface()}
-	err := svc.SaveProcessed(42, "input")
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	result.ExpectReturnsEqual(nil)
 
 	// Get the actual arguments
 	args := call.GetArgs()
@@ -136,48 +124,37 @@ func TestDependencyInterface_Ordered_GetArgs(t *testing.T) {
 
 // TestDependencyInterface_Ordered_InjectPanic demonstrates injecting a panic
 func TestDependencyInterface_Ordered_InjectPanic(t *testing.T) {
-	store := MockDataStore(t)
+	imp := imptest.NewImp(t)
+	store := MockDataStore(imp)
+	svc := &Service{store: store.Interface()}
+
+	result := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(42)
 
 	call := store.Get.ExpectCalledWithExactly(42)
-
-	// Inject a panic
 	call.InjectPanicValue("database connection lost")
 
-	// Expect panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic, but none occurred")
-		} else if r != "database connection lost" {
-			t.Errorf("expected panic 'database connection lost', got %v", r)
-		}
-	}()
-
-	svc := &Service{store: store.Interface()}
-	svc.LoadAndProcess(42)
+	result.ExpectPanicEquals("database connection lost")
 }
 
 // TestDependencyInterface_Ordered_MultipleMethod demonstrates multiple method calls
 func TestDependencyInterface_Ordered_MultipleMethod(t *testing.T) {
-	store := MockDataStore(t)
+	imp := imptest.NewImp(t)
+	store := MockDataStore(imp)
+	svc := &Service{store: store.Interface()}
 
-	// Expect multiple ordered calls
+	// First call
+	result1 := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(1)
+
 	call1 := store.Get.ExpectCalledWithExactly(1)
 	call1.InjectReturnValues("data1", nil)
+
+	result1.ExpectReturnsEqual("processed: data1", nil)
+
+	// Second call
+	result2 := WrapLoadAndProcess(imp, svc.LoadAndProcess).Start(2)
 
 	call2 := store.Get.ExpectCalledWithExactly(2)
 	call2.InjectReturnValues("data2", nil)
 
-	svc := &Service{store: store.Interface()}
-
-	// First call
-	result1, _ := svc.LoadAndProcess(1)
-	if result1 != "processed: data1" {
-		t.Errorf("expected 'processed: data1', got %q", result1)
-	}
-
-	// Second call
-	result2, _ := svc.LoadAndProcess(2)
-	if result2 != "processed: data2" {
-		t.Errorf("expected 'processed: data2', got %q", result2)
-	}
+	result2.ExpectReturnsEqual("processed: data2", nil)
 }

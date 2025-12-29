@@ -37,20 +37,20 @@ func ProcessData(id int, fetcher Fetcher) (string, error) {
 	return "processed: " + data, nil
 }
 
-// TestDependencyFunction_Ordered_Exact_Args demonstrates mocking a function dependency
-// with ordered expectations and exact argument matching
+// TestDependencyFunction_Ordered_Exact_Args demonstrates the conversational pattern
+// with function dependencies
 func TestDependencyFunction_Ordered_Exact_Args(t *testing.T) {
-	// Create shared coordinator
 	imp := imptest.NewImp(t)
 
 	// Create mock for the dependency function
 	fetcher := MockFetcher(imp)
 
-	// Wrap and call the function under test
-	result := WrapProcessData(imp, ProcessData).CallWith(42, fetcher.Func())
+	// Start execution (runs in goroutine)
+	result := WrapProcessData(imp, ProcessData).Start(42, fetcher.Func())
 
-	// Interactively verify the dependency was called and inject response
-	fetcher.ExpectCalledWithExactly(42).InjectReturnValues("test data", nil)
+	// THEN verify the dependency was called and inject response
+	call := fetcher.ExpectCalledWithExactly(42)
+	call.InjectReturnValues("test data", nil)
 
 	// Verify the business logic result
 	result.ExpectReturnsEqual("processed: test data", nil)
@@ -58,49 +58,42 @@ func TestDependencyFunction_Ordered_Exact_Args(t *testing.T) {
 
 // TestDependencyFunction_Ordered_Matcher_Args demonstrates using matchers for args
 func TestDependencyFunction_Ordered_Matcher_Args(t *testing.T) {
-	fetcher := MockFetcher(t)
+	imp := imptest.NewImp(t)
+	fetcher := MockFetcher(imp)
+
+	result := WrapProcessData(imp, ProcessData).Start(99, fetcher.Func())
 
 	// Expect call with argument matching a condition using gomega matcher
 	call := fetcher.ExpectCalledWithMatches(BeNumerically(">", 0))
-
 	call.InjectReturnValues("test data", nil)
 
-	result, err := ProcessData(99, fetcher.Func())
-
-	if err != nil || result != "processed: test data" {
-		t.Errorf("unexpected result: %q, %v", result, err)
-	}
+	result.ExpectReturnsEqual("processed: test data", nil)
 }
 
 // TestDependencyFunction_Ordered_InjectPanic demonstrates injecting a panic
 func TestDependencyFunction_Ordered_InjectPanic(t *testing.T) {
-	fetcher := MockFetcher(t)
+	imp := imptest.NewImp(t)
+	fetcher := MockFetcher(imp)
+
+	result := WrapProcessData(imp, ProcessData).Start(42, fetcher.Func())
 
 	call := fetcher.ExpectCalledWithExactly(42)
-
-	// Inject a panic instead of return values
 	call.InjectPanicValue("simulated error")
 
-	// Expect the function under test to panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic, but none occurred")
-		} else if r != "simulated error" {
-			t.Errorf("expected panic 'simulated error', got %v", r)
-		}
-	}()
-
-	ProcessData(42, fetcher.Func())
+	result.ExpectPanicEquals("simulated error")
 }
 
 // TestDependencyFunction_Ordered_GetArgs demonstrates getting actual arguments
 func TestDependencyFunction_Ordered_GetArgs(t *testing.T) {
-	fetcher := MockFetcher(t)
+	imp := imptest.NewImp(t)
+	fetcher := MockFetcher(imp)
+
+	result := WrapProcessData(imp, ProcessData).Start(42, fetcher.Func())
 
 	call := fetcher.ExpectCalledWithExactly(42)
 	call.InjectReturnValues("data", nil)
 
-	ProcessData(42, fetcher.Func())
+	result.ExpectReturnsEqual("processed: data", nil)
 
 	// Get the actual arguments that were passed
 	args := call.GetArgs()
@@ -116,14 +109,13 @@ func ValidateAndProcess(value int, validator Validator) bool {
 
 // TestDependencyFunction_BoolReturn demonstrates mocking functions with bool returns
 func TestDependencyFunction_BoolReturn(t *testing.T) {
-	validator := MockValidator(t)
+	imp := imptest.NewImp(t)
+	validator := MockValidator(imp)
+
+	result := WrapValidateAndProcess(imp, ValidateAndProcess).Start(10, validator.Func())
 
 	call := validator.ExpectCalledWithExactly(10)
 	call.InjectReturnValues(true)
 
-	result := ValidateAndProcess(10, validator.Func())
-
-	if !result {
-		t.Error("expected true, got false")
-	}
+	result.ExpectReturnsEqual(true)
 }
