@@ -106,7 +106,20 @@
       "Bash(GOPACKAGE=run go test:*)",
       "Bash(GOPACKAGE=basic_test go run:*)",
       "Bash(GOPACKAGE=many_params_test go run:*)",
-      "Bash(GOPACKAGE=dependencyinterface_test go run:*)"
+      "Bash(GOPACKAGE=dependencyinterface_test go run:*)",
+      "Bash(GOPACKAGE=basic_test /tmp/claude/impgen_test:*)",
+      "Bash(GOPACKAGE=manyparams_test /tmp/claude/impgen_test manyparams.ManyParams --dependency)",
+      "Bash(GOPACKAGE=manyparams_test /tmp/claude/impgen_test:*)",
+      "Bash(GOPACKAGE=targetfunction_test /tmp/claude/impgen_v2 Add:*)",
+      "Bash(GOPACKAGE=basic_test impgen:*)",
+      "Bash(GOPACKAGE=many_params_test impgen:*)",
+      "Bash(GOPACKAGE=dependencyinterface_test impgen:*)",
+      "Bash(GOPACKAGE=targetfunction_test impgen:*)",
+      "Bash(awk:*)",
+      "Bash(GOPACKAGE=v2smoketest_test go generate:*)",
+      "Bash(GOPACKAGE=v2smoketest_test impgen Add --target)",
+      "Bash(PATH=/Users/joe/repos/personal/imptest/bin:$PATH go generate:*)",
+      "Bash(PATH=/Users/joe/repos/personal/imptest/bin:$PATH GOPACKAGE=v2smoketest_test impgen:*)"
     ],
     "deny": [],
     "ask": []
