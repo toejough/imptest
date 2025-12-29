@@ -117,3 +117,35 @@ type resultVar struct {
 	Type  string
 	Index int
 }
+
+// v2TargetTemplateData holds data for v2 target wrapper templates.
+type v2TargetTemplateData struct {
+	baseTemplateData
+
+	WrapName           string // Constructor function name (e.g., "WrapAdd")
+	WrapperType        string // Wrapper struct type (e.g., "WrapAddWrapper")
+	ReturnsType        string // Returns struct type (e.g., "WrapAddReturns")
+	FuncSig            string // Full function signature
+	Params             string // Function parameters for Start method
+	ParamNames         string // Comma-separated parameter names
+	HasResults         bool
+	ResultVars         string         // Comma-separated result var declarations (e.g., "r1, r2")
+	ReturnAssignments  string         // Comma-separated return assignments (e.g., "R1: r1, R2: r2")
+	WaitMethodName     string         // "WaitForResponse" or "WaitForCompletion"
+	ExpectedParams     string         // Expected parameters for ExpectReturnsEqual
+	ResultChecks       []resultCheck  // Result comparison checks
+	ResultFields       []resultField  // Result struct fields
+}
+
+// resultCheck holds data for a single result comparison check.
+type resultCheck struct {
+	Field    string // Field name (e.g., "R1")
+	Expected string // Expected parameter name (e.g., "expected1")
+	Index    int    // 1-based index for error messages
+}
+
+// resultField holds data for a single result struct field.
+type resultField struct {
+	Name string // Field name (e.g., "R1")
+	Type string // Field type (e.g., "int")
+}

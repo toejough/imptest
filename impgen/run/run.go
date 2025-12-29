@@ -233,15 +233,22 @@ func generateCode(
 		return "", err
 	}
 
+	// Route to appropriate generator based on symbol type and naming mode
 	if symbol.kind == symbolFunction {
+		// Use v2 generator for target wrappers when --target flag is set
+		if info.mode == namingModeTarget {
+			return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcDecl)
+		}
+		// Default to v1 callable wrapper generator
 		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
-	// Use v2 generator for dependency mocks
+	// Use v2 generator for dependency mocks when --dependency flag is set
 	if info.mode == namingModeDependency {
 		return generateV2DependencyCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
 	}
 
+	// Default to v1 implementation generator
 	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
 }
 
