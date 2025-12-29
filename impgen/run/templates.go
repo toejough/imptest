@@ -149,7 +149,8 @@ type v2TargetTemplateData struct {
 	ResultVars        string        // Comma-separated result var declarations (e.g., "r1, r2")
 	ReturnAssignments string        // Comma-separated return assignments (e.g., "R1: r1, R2: r2")
 	WaitMethodName    string        // "WaitForResponse" or "WaitForCompletion"
-	ExpectedParams    string        // Expected parameters for ExpectReturnsEqual
+	ExpectedParams    string        // Expected parameters for ExpectReturnsEqual (typed)
+	MatcherParams     string        // Matcher parameters for ExpectReturnsMatch (all any)
 	ResultChecks      []resultCheck // Result comparison checks
 	ResultFields      []resultField // Result struct fields
 }

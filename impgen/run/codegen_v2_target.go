@@ -169,7 +169,7 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		paramNamesStr.WriteString(name)
 	}
 
-	// Build result vars and return assignments
+	// Build result vars and return assignments (using zero-indexed Result0, Result1 to match v1 pattern)
 	var resultVarsStr, returnAssignmentsStr strings.Builder
 	if gen.hasResults {
 		for i := range gen.resultTypes {
@@ -177,8 +177,8 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 				resultVarsStr.WriteString(", ")
 				returnAssignmentsStr.WriteString(", ")
 			}
-			fmt.Fprintf(&resultVarsStr, "r%d", i+1)
-			fmt.Fprintf(&returnAssignmentsStr, "R%d: r%d", i+1, i+1)
+			fmt.Fprintf(&resultVarsStr, "ret%d", i)
+			fmt.Fprintf(&returnAssignmentsStr, "Result%d: ret%d", i, i)
 		}
 	}
 
@@ -188,19 +188,21 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		waitMethodName = "WaitForResponse"
 	}
 
-	// Build expected params and result checks for ExpectReturnsEqual
-	var expectedParamsStr strings.Builder
+	// Build expected params for ExpectReturnsEqual and matcher params for ExpectReturnsMatch
+	var expectedParamsStr, matcherParamsStr strings.Builder
 	var resultChecks []resultCheck
 	if gen.hasResults {
 		for i, resultType := range gen.resultTypes {
 			if i > 0 {
 				expectedParamsStr.WriteString(", ")
+				matcherParamsStr.WriteString(", ")
 			}
-			fmt.Fprintf(&expectedParamsStr, "expected%d %s", i+1, resultType)
+			fmt.Fprintf(&expectedParamsStr, "v%d %s", i, resultType)
+			fmt.Fprintf(&matcherParamsStr, "v%d any", i)
 			resultChecks = append(resultChecks, resultCheck{
-				Field:    fmt.Sprintf("R%d", i+1),
-				Expected: fmt.Sprintf("expected%d", i+1),
-				Index:    i + 1,
+				Field:    fmt.Sprintf("Result%d", i),
+				Expected: fmt.Sprintf("v%d", i),
+				Index:    i,
 			})
 		}
 	}
@@ -210,7 +212,7 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 	if gen.hasResults {
 		for i, resultType := range gen.resultTypes {
 			resultFields = append(resultFields, resultField{
-				Name: fmt.Sprintf("R%d", i+1),
+				Name: fmt.Sprintf("Result%d", i),
 				Type: resultType,
 			})
 		}
@@ -230,6 +232,7 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		ReturnAssignments: returnAssignmentsStr.String(),
 		WaitMethodName:    waitMethodName,
 		ExpectedParams:    expectedParamsStr.String(),
+		MatcherParams:     matcherParamsStr.String(),
 		ResultChecks:      resultChecks,
 		ResultFields:      resultFields,
 	}
@@ -367,6 +370,8 @@ func newV2TargetGenerator(
 	gen.hasResults = funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0
 	if gen.hasResults {
 		gen.resultTypes = gen.extractResultTypes(funcDecl.Type.Results)
+		// V2 target wrappers need reflect for DeepEqual in ExpectReturnsEqual (only when there are results)
+		gen.needsReflect = true
 	}
 
 	return gen, nil

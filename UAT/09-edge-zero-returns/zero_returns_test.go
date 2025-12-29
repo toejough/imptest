@@ -6,7 +6,7 @@ import (
 	zr "github.com/toejough/imptest/UAT/09-edge-zero-returns"
 )
 
-//go:generate impgen ProcessData
+//go:generate impgen ProcessData --target
 
 // TestProcessData_MultipleArgs_mutant tests with various argument combinations.
 func TestProcessData_MultipleArgs_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
@@ -27,9 +27,9 @@ func TestProcessData_MultipleArgs_mutant(t *testing.T) { //nolint:varnamelen // 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			callable := zr.NewProcessDataImp(t, zr.ProcessData).Start(tc.data, tc.count)
-			if callable == nil {
-				t.Fatal("Expected non-nil callable")
+			wrapper := WrapProcessData(t, zr.ProcessData).Start(tc.data, tc.count)
+			if wrapper == nil {
+				t.Fatal("Expected non-nil wrapper")
 			}
 		})
 	}
@@ -44,11 +44,11 @@ func TestProcessData_Panic_mutant(t *testing.T) { //nolint:varnamelen // Standar
 		panic("test panic")
 	}
 
-	callable := zr.NewProcessDataImp(t, panicFunc).Start("test", 42)
+	wrapper := WrapProcessData(t, panicFunc).Start("test", 42)
 
 	// The wrapper should capture the panic - verify it's not nil
-	if callable == nil {
-		t.Fatal("Expected non-nil callable even after panic")
+	if wrapper == nil {
+		t.Fatal("Expected non-nil wrapper even after panic")
 	}
 }
 
@@ -57,12 +57,12 @@ func TestProcessData_Panic_mutant(t *testing.T) { //nolint:varnamelen // Standar
 func TestProcessData_mutant(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
-	// Start the callable wrapper
-	callable := zr.NewProcessDataImp(t, zr.ProcessData).Start("test data", 42)
+	// Start the wrapper
+	wrapper := WrapProcessData(t, zr.ProcessData).Start("test data", 42)
 
 	// For zero-return functions, the wrapper just ensures the function completes
 	// We verify it ran by checking no panic occurred
-	if callable == nil {
-		t.Fatal("Expected non-nil callable")
+	if wrapper == nil {
+		t.Fatal("Expected non-nil wrapper")
 	}
 }

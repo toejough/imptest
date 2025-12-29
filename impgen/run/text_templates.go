@@ -580,7 +580,8 @@ func (impl *{{.ImplName}}) {{.MethodName}}({{.Params}}){{.Results}} {
 package {{.PkgName}}
 
 import (
-	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsQualifier}}
+	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsReflect}}
+	{{.PkgReflect}} "reflect"{{end}}{{if .NeedsQualifier}}
 	{{.Qualifier}} "{{.PkgPath}}"{{end}}{{range .AdditionalImports}}
 	{{.Name}} "{{.Path}}"{{end}}
 )
@@ -592,11 +593,11 @@ import (
 
 	// V2 Target Constructor template
 	//nolint:lll // Template docstring
-	registry.v2TargetConstructorTmpl, err = parseTemplate("v2TargetConstructor", `// {{.WrapperName}} wraps {{.FuncName}} for testing.
-func {{.WrapperName}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncType}}) *{{.WrapperTypeName}} {
-	return &{{.WrapperTypeName}}{
-		t:  t,
-		fn: fn,
+	registry.v2TargetConstructorTmpl, err = parseTemplate("v2TargetConstructor", `// {{.WrapName}} wraps a function for testing.
+func {{.WrapName}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}} {
+	return &{{.WrapperType}}{
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return](t),
+		callable:           fn,
 	}
 }
 
@@ -607,10 +608,10 @@ func {{.WrapperName}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncType}}) *{{.Wrap
 
 	// V2 Target Wrapper Struct template
 	//nolint:lll // Template docstring
-	registry.v2TargetWrapperStructTmpl, err = parseTemplate("v2TargetWrapperStruct", `// {{.WrapperTypeName}} wraps {{.FuncName}} for testing.
-type {{.WrapperTypeName}} struct {
-	t  {{.PkgImptest}}.TestReporter
-	fn {{.FuncType}}
+	registry.v2TargetWrapperStructTmpl, err = parseTemplate("v2TargetWrapperStruct", `// {{.WrapperType}} wraps a function for testing.
+type {{.WrapperType}} struct {
+	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}Return]
+	callable {{.FuncSig}}
 }
 
 `)
@@ -620,29 +621,19 @@ type {{.WrapperTypeName}} struct {
 
 	// V2 Target Start Method template
 	//nolint:lll // Template docstring
-	registry.v2TargetStartMethodTmpl, err = parseTemplate("v2TargetStartMethod", `// Start executes {{.FuncName}} in a goroutine and returns a {{.ReturnsTypeName}} for verification.
-func (w *{{.WrapperTypeName}}) Start({{.Params}}) *{{.ReturnsTypeName}} {
-	resultChan := make(chan {{.PkgImptest}}.CallableResult{{.ResultTypeParam}}, 1)
-
+	registry.v2TargetStartMethodTmpl, err = parseTemplate("v2TargetStartMethod", `// Start executes the wrapped function in a goroutine.
+func (w *{{.WrapperType}}) Start({{.Params}}) *{{.WrapperType}} {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				resultChan <- {{.PkgImptest}}.CallableResult{{.ResultTypeParam}}{
-					Type: "panic",
-					PanicValue: r,
-				}
+				w.PanicChan <- r
 			}
 		}()
-		{{.ResultAssignment}}w.fn({{.ArgNames}})
-		resultChan <- {{.PkgImptest}}.CallableResult{{.ResultTypeParam}}{
-			Type: "return",{{.ResultFields}}
-		}
+		{{if .HasResults}}{{.ResultVars}} := w.callable({{.ParamNames}})
+		w.ReturnChan <- {{.ReturnsType}}Return{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
+		w.ReturnChan <- {{.ReturnsType}}Return{}{{end}}
 	}()
-
-	return &{{.ReturnsTypeName}}{
-		t: w.t,
-		resultChan: resultChan,
-	}
+	return w
 }
 
 `)
@@ -650,38 +641,45 @@ func (w *{{.WrapperTypeName}}) Start({{.Params}}) *{{.ReturnsTypeName}} {
 		return nil, err
 	}
 
-	// V2 Target Wait Method template
-	//nolint:lll // Template docstring
-	registry.v2TargetWaitMethodTmpl, err = parseTemplate("v2TargetWaitMethod", `// Wait waits for {{.FuncName}} to complete and returns the result.
-func (r *{{.ReturnsTypeName}}) Wait() {{.PkgImptest}}.CallableResult{{.ResultTypeParam}} {
-	return <-r.resultChan
-}
-
-`)
+	// V2 Target Wait Method template - NOT USED (CallableController provides WaitForResponse/WaitForCompletion)
+	registry.v2TargetWaitMethodTmpl, err = parseTemplate("v2TargetWaitMethod", ``)
 	if err != nil {
 		return nil, err
 	}
 
 	// V2 Target Expect Returns template
 	//nolint:lll // Template docstring
-	registry.v2TargetExpectReturnsTmpl, err = parseTemplate("v2TargetExpectReturns", `// ExpectReturnsEqual verifies that {{.FuncName}} returns the expected values using reflect.DeepEqual.
-func (r *{{.ReturnsTypeName}}) ExpectReturnsEqual({{.ExpectedParams}}) {
-	result := <-r.resultChan
-	if result.Type != "return" {
-		r.t.Fatalf("expected return but got panic: %v", result.PanicValue)
+	registry.v2TargetExpectReturnsTmpl, err = parseTemplate("v2TargetExpectReturns", `// ExpectReturnsEqual verifies the function returned the expected values.
+func (w *{{.WrapperType}}) ExpectReturnsEqual({{.ExpectedParams}}) {
+	w.T.Helper()
+	w.WaitForResponse()
+
+	if w.Returned != nil {
+		{{range .ResultChecks}}if !_reflect.DeepEqual(w.Returned.{{.Field}}, {{.Expected}}) {
+			w.T.Fatalf("expected return value {{.Index}} to be %v, got %v", {{.Expected}}, w.Returned.{{.Field}})
+		}
+		{{end}}return
 	}
-	{{range .Checks}}{{.}}
-	{{end}}
+
+	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
 }
 
-// ExpectReturnsMatch verifies that {{.FuncName}} returns values matching the given matchers.
-func (r *{{.ReturnsTypeName}}) ExpectReturnsMatch({{.MatcherParams}}) {
-	result := <-r.resultChan
-	if result.Type != "return" {
-		r.t.Fatalf("expected return but got panic: %v", result.PanicValue)
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (w *{{.WrapperType}}) ExpectReturnsMatch({{.MatcherParams}}) {
+	w.T.Helper()
+	w.WaitForResponse()
+
+	if w.Returned != nil {
+		var ok bool
+		var msg string
+		{{range .ResultChecks}}ok, msg = {{$.PkgImptest}}.MatchValue(w.Returned.{{.Field}}, {{.Expected}})
+		if !ok {
+			w.T.Fatalf("return value {{.Index}}: %s", msg)
+		}
+		{{end}}return
 	}
-	{{range .MatcherChecks}}{{.}}
-	{{end}}
+
+	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
 }
 
 `)
@@ -691,11 +689,13 @@ func (r *{{.ReturnsTypeName}}) ExpectReturnsMatch({{.MatcherParams}}) {
 
 	// V2 Target Expect Completes template
 	//nolint:lll // Template docstring
-	registry.v2TargetExpectCompletesTmpl, err = parseTemplate("v2TargetExpectCompletes", `// ExpectCompletes verifies that {{.FuncName}} completes without panicking.
-func (r *{{.ReturnsTypeName}}) ExpectCompletes() {
-	result := <-r.resultChan
-	if result.Type != "return" {
-		r.t.Fatalf("expected return but got panic: %v", result.PanicValue)
+	registry.v2TargetExpectCompletesTmpl, err = parseTemplate("v2TargetExpectCompletes", `// ExpectCompletes verifies the function completes without panicking.
+func (w *{{.WrapperType}}) ExpectCompletes() {
+	w.T.Helper()
+	w.WaitForResponse()
+
+	if w.Panicked != nil {
+		w.T.Fatalf("expected function to complete, but it panicked with: %v", w.Panicked)
 	}
 }
 
@@ -706,26 +706,36 @@ func (r *{{.ReturnsTypeName}}) ExpectCompletes() {
 
 	// V2 Target Expect Panic template
 	//nolint:lll // Template docstring
-	registry.v2TargetExpectPanicTmpl, err = parseTemplate("v2TargetExpectPanic", `// ExpectPanicEquals verifies that {{.FuncName}} panics with the expected value using reflect.DeepEqual.
-func (r *{{.ReturnsTypeName}}) ExpectPanicEquals(expected any) {
-	result := <-r.resultChan
-	if result.Type != "panic" {
-		r.t.Fatalf("expected panic but got return")
+	registry.v2TargetExpectPanicTmpl, err = parseTemplate("v2TargetExpectPanic", `// ExpectPanicEquals verifies the function panics with the expected value.
+func (w *{{.WrapperType}}) ExpectPanicEquals(expected any) {
+	w.T.Helper()
+	w.WaitForResponse()
+
+	if w.Panicked != nil {
+		ok, msg := {{.PkgImptest}}.MatchValue(w.Panicked, expected)
+		if !ok {
+			w.T.Fatalf("panic value: %s", msg)
+		}
+		return
 	}
-	if !{{.PkgImptest}}.ValuesEqual(result.PanicValue, expected) {
-		r.t.Fatalf("panic mismatch:\nexpected: %#v\nactual:   %#v", expected, result.PanicValue)
-	}
+
+	w.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies that {{.FuncName}} panics with a value matching the given matcher.
-func (r *{{.ReturnsTypeName}}) ExpectPanicMatches(matcher {{.PkgImptest}}.Matcher) {
-	result := <-r.resultChan
-	if result.Type != "panic" {
-		r.t.Fatalf("expected panic but got return")
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (w *{{.WrapperType}}) ExpectPanicMatches(matcher any) {
+	w.T.Helper()
+	w.WaitForResponse()
+
+	if w.Panicked != nil {
+		ok, msg := {{.PkgImptest}}.MatchValue(w.Panicked, matcher)
+		if !ok {
+			w.T.Fatalf("panic value: %s", msg)
+		}
+		return
 	}
-	if !matcher.Matches(result.PanicValue) {
-		r.t.Fatalf("panic matcher failed:\nexpected: %s\nactual:   %#v", matcher.Description(), result.PanicValue)
-	}
+
+	w.T.Fatalf("expected function to panic, but it returned")
 }
 
 `)
@@ -735,11 +745,10 @@ func (r *{{.ReturnsTypeName}}) ExpectPanicMatches(matcher {{.PkgImptest}}.Matche
 
 	// V2 Target Returns Struct template
 	//nolint:lll // Template docstring
-	registry.v2TargetReturnsStructTmpl, err = parseTemplate("v2TargetReturnsStruct", `// {{.ReturnsTypeName}} provides verification methods for {{.FuncName}} results.
-type {{.ReturnsTypeName}} struct {
-	t          {{.PkgImptest}}.TestReporter
-	resultChan chan {{.PkgImptest}}.CallableResult{{.ResultTypeParam}}
-}
+	registry.v2TargetReturnsStructTmpl, err = parseTemplate("v2TargetReturnsStruct", `// {{.ReturnsType}}Return holds the return values from the wrapped function.
+type {{.ReturnsType}}Return struct {
+	{{if .HasResults}}{{range .ResultFields}}{{.Name}} {{.Type}}
+	{{end}}{{end}}}
 
 `)
 	if err != nil {

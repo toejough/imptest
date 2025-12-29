@@ -3,89 +3,79 @@
 package zero_returns_test
 
 import (
-	"github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// WrapProcessDataReturns provides type-safe access to return values (empty for void functions).
-type WrapProcessDataReturns struct {
+// WrapProcessDataReturnsReturn holds the return values from the wrapped function.
+type WrapProcessDataReturnsReturn struct {
 }
 
-// WrapProcessDataWrapper provides a fluent API for calling and verifying the function.
+// WrapProcessDataWrapper wraps a function for testing.
 type WrapProcessDataWrapper struct {
-	imp        *imptest.Imp
-	fn         func(string, int)
-	returnChan chan WrapProcessDataReturns
-	panicChan  chan any
-	returned   *WrapProcessDataReturns
-	panicked   any
+	*_imptest.CallableController[WrapProcessDataReturnsReturn]
+	callable func(string, int)
 }
 
-// ExpectCompletes verifies the function completed without panicking.
+// ExpectCompletes verifies the function completes without panicking.
 func (w *WrapProcessDataWrapper) ExpectCompletes() {
-	w.imp.Helper()
-	w.WaitForCompletion()
+	w.T.Helper()
+	w.WaitForResponse()
 
-	if w.panicked != nil {
-		w.imp.Fatalf("expected function to complete, but it panicked with: %v", w.panicked)
+	if w.Panicked != nil {
+		w.T.Fatalf("expected function to complete, but it panicked with: %v", w.Panicked)
 	}
 }
 
-// ExpectPanicEquals verifies the function panicked with the exact value.
+// ExpectPanicEquals verifies the function panics with the expected value.
 func (w *WrapProcessDataWrapper) ExpectPanicEquals(expected any) {
-	w.imp.Helper()
-	w.WaitForCompletion()
+	w.T.Helper()
+	w.WaitForResponse()
 
-	if w.panicked == nil {
-		w.imp.Fatalf("expected panic with %v, but function completed normally", expected)
+	if w.Panicked != nil {
+		ok, msg := _imptest.MatchValue(w.Panicked, expected)
+		if !ok {
+			w.T.Fatalf("panic value: %s", msg)
+		}
 		return
 	}
 
-	if w.panicked != expected {
-		w.imp.Fatalf("expected panic with %v, got %v", expected, w.panicked)
-	}
+	w.T.Fatalf("expected function to panic, but it returned")
 }
 
-// Start begins execution of the function in a goroutine.
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (w *WrapProcessDataWrapper) ExpectPanicMatches(matcher any) {
+	w.T.Helper()
+	w.WaitForResponse()
+
+	if w.Panicked != nil {
+		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
+		if !ok {
+			w.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	w.T.Fatalf("expected function to panic, but it returned")
+}
+
+// Start executes the wrapped function in a goroutine.
 func (w *WrapProcessDataWrapper) Start(data string, count int) *WrapProcessDataWrapper {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.panicChan <- r
+				w.PanicChan <- r
 			}
 		}()
-
-		w.fn(data, count)
-		w.returnChan <- WrapProcessDataReturns{}
+		w.callable(data, count)
+		w.ReturnChan <- WrapProcessDataReturnsReturn{}
 	}()
-
 	return w
 }
 
-// WaitForCompletion blocks until the function completes (return or panic).
-func (w *WrapProcessDataWrapper) WaitForCompletion() {
-	if w.returned != nil || w.panicked != nil {
-		return
-	}
-
-	select {
-	case ret := <-w.returnChan:
-		w.returned = &ret
-	case p := <-w.panicChan:
-		w.panicked = p
-	}
-}
-
-// WrapProcessData wraps the function for testing.
-func WrapProcessData(testReporter imptest.TestReporter, fn func(string, int)) *WrapProcessDataWrapper {
-	imp, ok := testReporter.(*imptest.Imp)
-	if !ok {
-		imp = imptest.NewImp(testReporter)
-	}
-
+// WrapProcessData wraps a function for testing.
+func WrapProcessData(t _imptest.TestReporter, fn func(string, int)) *WrapProcessDataWrapper {
 	return &WrapProcessDataWrapper{
-		imp:        imp,
-		fn:         fn,
-		returnChan: make(chan WrapProcessDataReturns, 1),
-		panicChan:  make(chan any, 1),
+		CallableController: _imptest.NewCallableController[WrapProcessDataReturnsReturn](t),
+		callable:           fn,
 	}
 }
