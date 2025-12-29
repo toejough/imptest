@@ -1,6 +1,6 @@
 package externalimports_test
 
-//go:generate ../../bin/impgen FileHandler
+//go:generate ../../bin/impgen externalimports.FileHandler --dependency
 
 import (
 	"testing"
@@ -8,6 +8,7 @@ import (
 
 func TestExternalTypesCompile(t *testing.T) {
 	t.Parallel()
-	// If this compiles, the imports are correct
-	_ = NewFileHandlerImp(t)
+	// If this compiles, the imports are correct - v2 API test
+	mock := MockFileHandler(t)
+	_ = mock.Interface()
 }
