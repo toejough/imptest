@@ -11,26 +11,26 @@ import (
 //
 // Key Requirements Met:
 //  1. Panic Propagation: Verify that panics triggered in dependencies
-//     actually reach the caller using ExpectPanicWith.
+//     actually reach the caller using ExpectPanicEquals.
 func TestPropagatePanic(t *testing.T) {
 	t.Parallel()
 
-	depImp := NewCriticalDependencyImp(t)
-	runnerImp := NewUnsafeRunnerImp(t, safety.UnsafeRunner)
+	depMock := MockCriticalDependency(t)
+	wrapper := WrapUnsafeRunner(t, safety.UnsafeRunner)
 
 	// Start UnsafeRunner.
-	runnerImp.Start(depImp.Mock)
+	wrapper.Start(depMock.Interface())
 
 	// Inject a panic into the dependency call.
-	depImp.ExpectCallIs.DoWork().InjectPanic("fatal error")
+	depMock.DoWork.ExpectCalledWithExactly().InjectPanicValue("fatal error")
 
 	// Requirement: Verify that the panic was propagated through the runner.
-	runnerImp.ExpectPanicWith("fatal error")
+	wrapper.ExpectPanicEquals("fatal error")
 }
 
-//go:generate impgen safety.CriticalDependency --name CriticalDependencyImp
-//go:generate impgen safety.SafeRunner --name SafeRunnerImp
-//go:generate impgen safety.UnsafeRunner --name UnsafeRunnerImp
+//go:generate impgen safety.CriticalDependency --dependency
+//go:generate impgen safety.SafeRunner --target
+//go:generate impgen safety.UnsafeRunner --target
 
 // TestRecoverFromPanic demonstrates injecting a panic into a dependency call
 // to verify the system-under-test's recovery logic.
@@ -43,15 +43,15 @@ func TestPropagatePanic(t *testing.T) {
 func TestRecoverFromPanic(t *testing.T) {
 	t.Parallel()
 
-	depImp := NewCriticalDependencyImp(t)
-	runnerImp := NewSafeRunnerImp(t, safety.SafeRunner)
+	depMock := MockCriticalDependency(t)
+	wrapper := WrapSafeRunner(t, safety.SafeRunner)
 
 	// Start SafeRunner.
-	runnerImp.Start(depImp.Mock)
+	wrapper.Start(depMock.Interface())
 
 	// Requirement: Inject a panic into the dependency call.
-	depImp.ExpectCallIs.DoWork().InjectPanic("boom")
+	depMock.DoWork.ExpectCalledWithExactly().InjectPanicValue("boom")
 
 	// Requirement: Verify that SafeRunner recovered and returned false.
-	runnerImp.ExpectReturnedValuesAre(false)
+	wrapper.ExpectReturnsEqual(false)
 }
