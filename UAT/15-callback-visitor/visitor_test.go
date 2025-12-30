@@ -2,8 +2,7 @@ package visitor_test
 
 //go:generate impgen visitor.TreeWalker --dependency
 //go:generate impgen visitor.CountFiles --target
-// TODO: Fix generator to not import unused packages before enabling
-// //go:generate impgen visitor.WalkFunc --target
+//go:generate impgen visitor.WalkFunc --target
 
 import (
 	"io/fs"

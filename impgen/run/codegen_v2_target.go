@@ -92,7 +92,25 @@ func (gen *v2TargetGenerator) buildFunctionSignature() string {
 
 // collectAdditionalImports collects all external type imports needed for function signatures.
 func (gen *v2TargetGenerator) collectAdditionalImports() []importInfo {
-	return collectImportsFromFuncDecl(gen.funcDecl, gen.astFiles)
+	imports := collectImportsFromFuncDecl(gen.funcDecl, gen.astFiles)
+
+	// For function type wrappers (where pkgPath is empty), return imports as-is.
+	// Function type wrappers use the underlying function signature types directly,
+	// not the function type name itself, so no package qualifier is needed.
+	if gen.pkgPath == "" {
+		return imports
+	}
+
+	// For regular function wrappers, also filter out the source package import from additional imports.
+	// The source package import (if needed) is added separately via NeedsQualifier.
+	filtered := make([]importInfo, 0, len(imports))
+	for _, imp := range imports {
+		if imp.Path != gen.pkgPath {
+			filtered = append(filtered, imp)
+		}
+	}
+
+	return filtered
 }
 
 // extractResultTypes extracts result types from a field list.
@@ -140,6 +158,8 @@ func (gen *v2TargetGenerator) generate() (string, error) {
 // generateWithTemplates generates code using templates instead of direct code generation.
 func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	// Build base template data
+	additionalImports := gen.collectAdditionalImports()
+
 	base := baseTemplateData{
 		PkgName:           gen.pkgName,
 		ImpName:           gen.impName,
@@ -156,7 +176,7 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		NeedsFmt:          gen.needsFmt,
 		NeedsReflect:      gen.needsReflect,
 		NeedsImptest:      gen.needsImptest,
-		AdditionalImports: gen.collectAdditionalImports(),
+		AdditionalImports: additionalImports,
 	}
 
 	// Build function signature string
@@ -327,7 +347,7 @@ func generateV2TargetCode(
 	pkgLoader PackageLoader,
 	funcDecl *dst.FuncDecl,
 ) (string, error) {
-	gen, err := newV2TargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
+	gen, err := newV2TargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, false)
 	if err != nil {
 		return "", err
 	}
@@ -358,10 +378,16 @@ func generateV2TargetCodeFromFuncType(
 		funcDecl.Type.TypeParams = funcTypeDetails.typeParams
 	}
 
-	return generateV2TargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
+	gen, err := newV2TargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, true)
+	if err != nil {
+		return "", err
+	}
+
+	return gen.generate()
 }
 
 // newV2TargetGenerator creates a new v2 target wrapper generator.
+// isFunctionType should be true when wrapping a function type (not a function declaration).
 func newV2TargetGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
@@ -369,14 +395,18 @@ func newV2TargetGenerator(
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	funcDecl *dst.FuncDecl,
+	isFunctionType bool,
 ) (*v2TargetGenerator, error) {
 	var (
 		pkgPath, qualifier string
 		err                error
 	)
 
-	// Get package info for external functions OR when in a _test package
-	if pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test") {
+	// Get package info for external functions OR when in a _test package.
+	// For function type wrappers, skip this - we use the underlying function signature types
+	// directly (e.g., func(string, fs.DirEntry, error) error), not the function type name
+	// itself (e.g., visitor.WalkFunc), so we don't need to import the package.
+	if !isFunctionType && (pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test")) {
 		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get function package info: %w", err)
