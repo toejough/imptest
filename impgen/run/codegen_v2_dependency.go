@@ -1,5 +1,5 @@
 //nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,intrange,cyclop,funlen
-package run // Phase 1 infrastructure - will refine in Phase 2
+package run
 
 import (
 	"fmt"
