@@ -95,3 +95,62 @@ abbreviation is widely recognized.
 15. Prefer the minial set of tests that adequately verify functionality. Favor clarity and maintainability
    over exhaustive coverage.
 16. Run `mage check` to verify everything passes before considering work complete
+
+## Linter Issue Resolution Strategy
+
+When fixing linter issues, always prioritize by **code structure impact** rather than issue count:
+
+### Priority Tiers
+
+**Tier 1: HIGH IMPACT - Code Structure & Maintainability**
+- `gocyclo`, `gocognit`, `cyclop` - Cyclomatic complexity violations
+  - Fix: Extract helper functions, refactor complex logic into smaller focused units
+  - Impact: Improves testability, readability, and maintainability
+- `dupl` - Code duplication
+  - Fix: Extract shared logic into common functions
+  - Impact: Reduces technical debt, easier to maintain and update
+
+**Tier 2: MEDIUM IMPACT - Design & Safety**
+- `depguard` - Import restrictions
+  - Fix: Use approved dependencies, align with project standards
+- `forcetypeassert` - Unchecked type assertions
+  - Fix: Add checks or nolint with justification for manual example code
+- `govet`, `staticcheck` - Potential bugs
+  - Fix: Address the underlying issues identified
+
+**Tier 3: LOW IMPACT - Style & Formatting**
+- `wsl_v5`, `nlreturn` - Whitespace issues
+- `lll` - Line length
+- `gofmt`, `goimports` - Formatting
+- `nolintlint` - Unused nolint directives
+- `revive`, `funcorder` - Naming and ordering conventions
+- `testpackage` - Test package naming
+  - Use `//nolint:testpackage` for whitebox tests requiring access to unexported types
+
+### Resolution Approach
+
+1. **Run `mage check`** to see all issues
+2. **Fix HIGH impact issues first** (complexity, duplication)
+3. **Batch-fix LOW impact issues** by category:
+   - Fix all wsl_v5 issues together
+   - Fix all nolintlint issues together
+   - Run gofmt on all affected files
+4. **Re-run `mage check`** after each tier to track progress
+5. **Document** complex nolint directives with explanatory comments
+
+### Example Workflow
+
+```bash
+# 1. Identify high-impact issues
+mage check 2>&1 | grep -E "gocyclo|dupl|depguard"
+
+# 2. Fix high-impact issues (refactoring, extraction)
+# 3. Batch-fix low-impact issues by type
+mage check 2>&1 | grep "wsl_v5"  # Fix all whitespace
+mage check 2>&1 | grep "nolintlint"  # Clean up unused directives
+
+# 4. Final verification
+mage check
+```
+
+This strategy ensures maximum value from linter fixes by addressing architectural issues before style issues.
