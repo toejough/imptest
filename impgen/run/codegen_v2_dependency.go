@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,gocognit,intrange,cyclop,funlen
+//nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,intrange,cyclop,funlen
 package run // Phase 1 infrastructure - will refine in Phase 2
 
 import (
@@ -25,6 +25,218 @@ type v2DependencyGenerator struct {
 	pkgLoader           PackageLoader
 	methodNames         []string
 	identifiedInterface *dst.InterfaceType
+}
+
+func (gen *v2DependencyGenerator) buildMethodTemplateData(
+	methodName string,
+	ftype *dst.FuncType,
+	interfaceType string,
+) v2DepMethodTemplateData {
+	// Build parameter string and collect param names
+	paramsStr, paramNames := gen.buildParamStrings(ftype)
+
+	// Build results string and collect result types
+	resultsStr, resultTypes := gen.buildResultStrings(ftype)
+
+	// Check for variadic parameters and build argument strings
+	variadicResult := gen.buildVariadicArgs(ftype, paramNames)
+
+	// Build result variables
+	resultVars, returnList := buildResultVars(resultTypes)
+
+	// Extract parameter fields for type-safe args
+	paramFields := gen.buildParamFields(ftype)
+
+	// Build method template data with base fields
+	return v2DepMethodTemplateData{
+		baseTemplateData: baseTemplateData{
+			PkgName:        gen.pkgName,
+			PkgImptest:     "_imptest",
+			PkgTime:        pkgTime,
+			TypeParamsDecl: gen.formatTypeParamsDecl(),
+			TypeParamsUse:  gen.formatTypeParamsUse(),
+		},
+		MethodName:      methodName,
+		InterfaceType:   interfaceType,
+		ImplName:        gen.implName,
+		Params:          paramsStr,
+		Results:         resultsStr,
+		HasVariadic:     variadicResult.hasVariadic,
+		NonVariadicArgs: variadicResult.nonVariadicArgs,
+		VariadicArg:     variadicResult.variadicArg,
+		Args:            variadicResult.allArgs,
+		ArgNames:        variadicResult.allArgs,
+		HasResults:      len(resultTypes) > 0,
+		ResultVars:      resultVars,
+		ReturnList:      returnList,
+		ReturnStatement: fmt.Sprintf("return %s", returnList),
+		ParamFields:     paramFields,
+		HasParams:       len(paramFields) > 0,
+		ArgsTypeName:    fmt.Sprintf("%s%sArgs", gen.mockTypeName, methodName),
+		CallTypeName:    fmt.Sprintf("%s%sCall", gen.mockTypeName, methodName),
+		MethodTypeName:  fmt.Sprintf("%s%sMethod", gen.mockTypeName, methodName),
+		TypedParams:     paramsStr,
+	}
+}
+
+// buildParamFields extracts parameter fields for type-safe args.
+func (gen *v2DependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramField {
+	paramInfos := extractParams(gen.fset, ftype)
+	var paramFields []paramField
+
+	for _, pinfo := range paramInfos {
+		// Use actual parameter name if present, otherwise generate A1, A2, A3 style names
+		// to match the DependencyArgs pattern
+		fieldName := pinfo.Name
+		if strings.HasPrefix(pinfo.Name, "param") {
+			// Unnamed parameter - convert "param0" -> "A1", "param1" -> "A2", etc.
+			fieldName = fmt.Sprintf("A%d", pinfo.Index+1)
+		} else {
+			// Capitalize first letter for exported field
+			fieldName = strings.ToUpper(string(fieldName[0])) + fieldName[1:]
+		}
+
+		paramFields = append(paramFields, paramField{
+			Name:  fieldName,
+			Type:  normalizeVariadicType(gen.typeWithQualifier(pinfo.Field.Type)),
+			Index: pinfo.Index,
+		})
+	}
+
+	return paramFields
+}
+
+// buildMethodTemplateData builds template data for a single method.
+// buildParamStrings builds the parameter string and collects parameter names.
+func (gen *v2DependencyGenerator) buildParamStrings(
+	ftype *dst.FuncType,
+) (paramsStr string, paramNames []string) {
+	var builder strings.Builder
+	first := true
+
+	if ftype.Params != nil {
+		for _, field := range ftype.Params.List {
+			fieldType := gen.typeWithQualifier(field.Type)
+
+			if len(field.Names) > 0 {
+				for _, name := range field.Names {
+					if !first {
+						builder.WriteString(", ")
+					}
+					first = false
+					builder.WriteString(name.Name)
+					builder.WriteString(" ")
+					builder.WriteString(fieldType)
+					paramNames = append(paramNames, name.Name)
+				}
+			} else {
+				paramName := fmt.Sprintf("arg%d", len(paramNames)+1)
+				if !first {
+					builder.WriteString(", ")
+				}
+				first = false
+				builder.WriteString(paramName)
+				builder.WriteString(" ")
+				builder.WriteString(fieldType)
+				paramNames = append(paramNames, paramName)
+			}
+		}
+	}
+
+	return builder.String(), paramNames
+}
+
+// buildResultStrings builds the result string and collects result types.
+func (gen *v2DependencyGenerator) buildResultStrings(
+	ftype *dst.FuncType,
+) (resultsStr string, resultTypes []string) {
+	var builder strings.Builder
+
+	if ftype.Results != nil && len(ftype.Results.List) > 0 {
+		hasMultipleResults := len(ftype.Results.List) > 1 ||
+			(len(ftype.Results.List) == 1 && len(ftype.Results.List[0].Names) > 1)
+
+		if hasMultipleResults {
+			builder.WriteString(" (")
+		} else {
+			builder.WriteString(" ")
+		}
+
+		first := true
+		for _, field := range ftype.Results.List {
+			fieldType := gen.typeWithQualifier(field.Type)
+
+			count := len(field.Names)
+			if count == 0 {
+				count = 1
+			}
+
+			for i := 0; i < count; i++ {
+				if !first {
+					builder.WriteString(", ")
+				}
+				first = false
+				builder.WriteString(fieldType)
+				resultTypes = append(resultTypes, fieldType)
+			}
+		}
+
+		if hasMultipleResults {
+			builder.WriteString(")")
+		}
+	}
+
+	return builder.String(), resultTypes
+}
+
+// buildVariadicArgs checks for variadic parameters and builds argument strings.
+func (gen *v2DependencyGenerator) buildVariadicArgs(
+	ftype *dst.FuncType,
+	paramNames []string,
+) variadicArgsResult {
+	var hasVariadic bool
+	var nonVariadicArgs, variadicArg, allArgs strings.Builder
+
+	if ftype.Params != nil && len(ftype.Params.List) > 0 {
+		lastField := ftype.Params.List[len(ftype.Params.List)-1]
+		_, hasVariadic = lastField.Type.(*dst.Ellipsis)
+	}
+
+	if hasVariadic && len(paramNames) > 0 {
+		// Build non-variadic args (all params except the last one)
+		for i := 0; i < len(paramNames)-1; i++ {
+			if i > 0 {
+				nonVariadicArgs.WriteString(", ")
+			}
+			nonVariadicArgs.WriteString(paramNames[i])
+		}
+		variadicArg.WriteString(paramNames[len(paramNames)-1])
+
+		// For variadic methods, allArgs is not used in the template
+		// (the template uses NonVariadicArgs and VariadicArg to build args manually)
+		// But we still populate it for consistency and potential future use
+		for i, name := range paramNames {
+			if i > 0 {
+				allArgs.WriteString(", ")
+			}
+			allArgs.WriteString(name)
+		}
+	} else {
+		// Build all args (non-variadic case)
+		for i, name := range paramNames {
+			if i > 0 {
+				allArgs.WriteString(", ")
+			}
+			allArgs.WriteString(name)
+		}
+	}
+
+	return variadicArgsResult{
+		hasVariadic:     hasVariadic,
+		nonVariadicArgs: nonVariadicArgs.String(),
+		variadicArg:     variadicArg.String(),
+		allArgs:         allArgs.String(),
+	}
 }
 
 // checkIfQualifierNeeded determines if we need a package qualifier.
@@ -124,193 +336,6 @@ func (gen *v2DependencyGenerator) generate() (string, error) {
 	return string(formatted), nil
 }
 
-// buildMethodTemplateData builds template data for a single method.
-func (gen *v2DependencyGenerator) buildMethodTemplateData(
-	methodName string,
-	ftype *dst.FuncType,
-	interfaceType string,
-) v2DepMethodTemplateData {
-	// Build parameter string and collect param names
-	var paramsStr strings.Builder
-	var paramNames []string
-	first := true
-
-	if ftype.Params != nil {
-		for _, field := range ftype.Params.List {
-			fieldType := gen.typeWithQualifier(field.Type)
-
-			if len(field.Names) > 0 {
-				for _, name := range field.Names {
-					if !first {
-						paramsStr.WriteString(", ")
-					}
-					first = false
-					paramsStr.WriteString(name.Name)
-					paramsStr.WriteString(" ")
-					paramsStr.WriteString(fieldType)
-					paramNames = append(paramNames, name.Name)
-				}
-			} else {
-				paramName := fmt.Sprintf("arg%d", len(paramNames)+1)
-				if !first {
-					paramsStr.WriteString(", ")
-				}
-				first = false
-				paramsStr.WriteString(paramName)
-				paramsStr.WriteString(" ")
-				paramsStr.WriteString(fieldType)
-				paramNames = append(paramNames, paramName)
-			}
-		}
-	}
-
-	// Build results string and collect result types
-	var resultsStr strings.Builder
-	var resultTypes []string
-
-	if ftype.Results != nil && len(ftype.Results.List) > 0 {
-		hasMultipleResults := len(ftype.Results.List) > 1 ||
-			(len(ftype.Results.List) == 1 && len(ftype.Results.List[0].Names) > 1)
-
-		if hasMultipleResults {
-			resultsStr.WriteString(" (")
-		} else {
-			resultsStr.WriteString(" ")
-		}
-
-		first = true
-		for _, field := range ftype.Results.List {
-			fieldType := gen.typeWithQualifier(field.Type)
-
-			count := len(field.Names)
-			if count == 0 {
-				count = 1
-			}
-
-			for i := 0; i < count; i++ {
-				if !first {
-					resultsStr.WriteString(", ")
-				}
-				first = false
-				resultsStr.WriteString(fieldType)
-				resultTypes = append(resultTypes, fieldType)
-			}
-		}
-
-		if hasMultipleResults {
-			resultsStr.WriteString(")")
-		}
-	}
-
-	// Check for variadic parameters
-	var hasVariadic bool
-	var nonVariadicArgs, variadicArg, allArgs strings.Builder
-
-	if ftype.Params != nil && len(ftype.Params.List) > 0 {
-		lastField := ftype.Params.List[len(ftype.Params.List)-1]
-		_, hasVariadic = lastField.Type.(*dst.Ellipsis)
-	}
-
-	if hasVariadic && len(paramNames) > 0 {
-		// Build non-variadic args (all params except the last one)
-		for i := 0; i < len(paramNames)-1; i++ {
-			if i > 0 {
-				nonVariadicArgs.WriteString(", ")
-			}
-			nonVariadicArgs.WriteString(paramNames[i])
-		}
-		variadicArg.WriteString(paramNames[len(paramNames)-1])
-
-		// For variadic methods, allArgs is not used in the template
-		// (the template uses NonVariadicArgs and VariadicArg to build args manually)
-		// But we still populate it for consistency and potential future use
-		for i, name := range paramNames {
-			if i > 0 {
-				allArgs.WriteString(", ")
-			}
-			allArgs.WriteString(name)
-		}
-	} else {
-		// Build all args (non-variadic case)
-		for i, name := range paramNames {
-			if i > 0 {
-				allArgs.WriteString(", ")
-			}
-			allArgs.WriteString(name)
-		}
-	}
-
-	// Build result variables
-	var resultVars []resultVar
-	var returnList strings.Builder
-
-	for i, resultType := range resultTypes {
-		resultVars = append(resultVars, resultVar{
-			Name:  fmt.Sprintf("result%d", i+1),
-			Type:  resultType,
-			Index: i,
-		})
-
-		if i > 0 {
-			returnList.WriteString(", ")
-		}
-		returnList.WriteString(fmt.Sprintf("result%d", i+1))
-	}
-
-	// Extract parameter fields for type-safe args
-	paramInfos := extractParams(gen.fset, ftype)
-	var paramFields []paramField
-	for _, pinfo := range paramInfos {
-		// Use actual parameter name if present, otherwise generate A1, A2, A3 style names
-		// to match the DependencyArgs pattern
-		fieldName := pinfo.Name
-		if strings.HasPrefix(pinfo.Name, "param") {
-			// Unnamed parameter - convert "param0" -> "A1", "param1" -> "A2", etc.
-			fieldName = fmt.Sprintf("A%d", pinfo.Index+1)
-		} else {
-			// Capitalize first letter for exported field
-			fieldName = strings.ToUpper(string(fieldName[0])) + fieldName[1:]
-		}
-
-		paramFields = append(paramFields, paramField{
-			Name:  fieldName,
-			Type:  normalizeVariadicType(gen.typeWithQualifier(pinfo.Field.Type)),
-			Index: pinfo.Index,
-		})
-	}
-
-	// Build method template data with base fields
-	return v2DepMethodTemplateData{
-		baseTemplateData: baseTemplateData{
-			PkgName:        gen.pkgName,
-			PkgImptest:     "_imptest",
-			PkgTime:        pkgTime,
-			TypeParamsDecl: gen.formatTypeParamsDecl(),
-			TypeParamsUse:  gen.formatTypeParamsUse(),
-		},
-		MethodName:      methodName,
-		InterfaceType:   interfaceType,
-		ImplName:        gen.implName,
-		Params:          paramsStr.String(),
-		Results:         resultsStr.String(),
-		HasVariadic:     hasVariadic,
-		NonVariadicArgs: nonVariadicArgs.String(),
-		VariadicArg:     variadicArg.String(),
-		Args:            allArgs.String(),
-		ArgNames:        allArgs.String(),
-		HasResults:      len(resultTypes) > 0,
-		ResultVars:      resultVars,
-		ReturnList:      returnList.String(),
-		ReturnStatement: fmt.Sprintf("return %s", returnList.String()),
-		ParamFields:     paramFields,
-		HasParams:       len(paramFields) > 0,
-		ArgsTypeName:    fmt.Sprintf("%s%sArgs", gen.mockTypeName, methodName),
-		CallTypeName:    fmt.Sprintf("%s%sCall", gen.mockTypeName, methodName),
-		MethodTypeName:  fmt.Sprintf("%s%sMethod", gen.mockTypeName, methodName),
-		TypedParams:     paramsStr.String(),
-	}
-}
-
 // generateWithTemplates generates code using templates instead of direct code generation.
 func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	// Build base template data
@@ -386,6 +411,34 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 		templates.WriteV2DepCallWrapper(&gen.buf, methodData)
 		templates.WriteV2DepMethodWrapper(&gen.buf, methodData)
 	}
+}
+
+// variadicArgsResult holds the result of buildVariadicArgs.
+type variadicArgsResult struct {
+	hasVariadic     bool
+	nonVariadicArgs string
+	variadicArg     string
+	allArgs         string
+}
+
+// buildResultVars builds result variables and return list from result types.
+func buildResultVars(resultTypes []string) (resultVars []resultVar, returnList string) {
+	var returnListBuilder strings.Builder
+
+	for i, resultType := range resultTypes {
+		resultVars = append(resultVars, resultVar{
+			Name:  fmt.Sprintf("result%d", i+1),
+			Type:  resultType,
+			Index: i,
+		})
+
+		if i > 0 {
+			returnListBuilder.WriteString(", ")
+		}
+		returnListBuilder.WriteString(fmt.Sprintf("result%d", i+1))
+	}
+
+	return resultVars, returnListBuilder.String()
 }
 
 // generateV2DependencyCode generates v2-style dependency mock code for an interface.
