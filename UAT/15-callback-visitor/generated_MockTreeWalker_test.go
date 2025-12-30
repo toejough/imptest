@@ -3,10 +3,9 @@
 package visitor_test
 
 import (
-	fs "io/fs"
-
 	visitor "github.com/toejough/imptest/UAT/15-callback-visitor"
 	_imptest "github.com/toejough/imptest/imptest"
+	fs "io/fs"
 )
 
 // TreeWalkerMock is the mock for TreeWalker.

@@ -3,9 +3,8 @@
 package functype_test
 
 import (
-	_reflect "reflect"
-
 	_imptest "github.com/toejough/imptest/imptest"
+	_reflect "reflect"
 )
 
 // WrapWalkFuncReturnsReturn holds the return values from the wrapped function.

@@ -3,10 +3,9 @@
 package visitor_test
 
 import (
-	_reflect "reflect"
-
 	visitor "github.com/toejough/imptest/UAT/15-callback-visitor"
 	_imptest "github.com/toejough/imptest/imptest"
+	_reflect "reflect"
 )
 
 // WrapCountFilesReturnsReturn holds the return values from the wrapped function.

@@ -3,10 +3,9 @@
 package safety_test
 
 import (
-	_reflect "reflect"
-
 	safety "github.com/toejough/imptest/UAT/04-error-and-panic-handling"
 	_imptest "github.com/toejough/imptest/imptest"
+	_reflect "reflect"
 )
 
 // WrapSafeRunnerReturnsReturn holds the return values from the wrapped function.
