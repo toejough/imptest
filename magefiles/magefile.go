@@ -116,11 +116,6 @@ func CheckCoverage(c context.Context) error {
 			continue
 		}
 
-		// TODO(Phase 2): Remove this exclusion when v2 generators are tested
-		if strings.Contains(line, "WriteV2") {
-			continue
-		}
-
 		if strings.Contains(line, "total:") {
 			continue
 		}
