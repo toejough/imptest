@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/token"
 	go_types "go/types"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -515,6 +516,61 @@ func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []im
 	walker.walk(expr)
 
 	return imports
+}
+
+// collectImportsFromFuncDecl collects additional imports needed for a function declaration's parameters and returns.
+// This is shared logic used by both callableGenerator and v2TargetGenerator.
+//
+//nolint:cyclop // Complexity from iterating params and results is unavoidable
+func collectImportsFromFuncDecl(funcDecl *dst.FuncDecl, astFiles []*dst.File) []importInfo {
+	if len(astFiles) == 0 {
+		return nil
+	}
+
+	// Get source imports from the first AST file
+	var sourceImports []*dst.ImportSpec
+
+	for _, file := range astFiles {
+		if len(file.Imports) > 0 {
+			sourceImports = file.Imports
+			break
+		}
+	}
+
+	allImports := make(map[string]importInfo) // Deduplicate by path
+
+	// Collect from parameters
+	if funcDecl.Type.Params != nil {
+		for _, field := range funcDecl.Type.Params.List {
+			imports := collectExternalImports(field.Type, sourceImports)
+			for _, imp := range imports {
+				allImports[imp.Path] = imp
+			}
+		}
+	}
+
+	// Collect from return types
+	if funcDecl.Type.Results != nil {
+		for _, field := range funcDecl.Type.Results.List {
+			imports := collectExternalImports(field.Type, sourceImports)
+			for _, imp := range imports {
+				allImports[imp.Path] = imp
+			}
+		}
+	}
+
+	// Convert map to slice and sort for deterministic output
+	result := make([]importInfo, 0, len(allImports))
+	for _, imp := range allImports {
+		result = append(result, imp)
+	}
+
+	// Sort by import path for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
+
+	return result
 }
 
 // countFields counts the total number of individual fields in a field list.
