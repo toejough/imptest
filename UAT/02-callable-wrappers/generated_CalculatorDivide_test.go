@@ -3,8 +3,9 @@
 package callable_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
 	_testing "testing"
+
+	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // CalculatorDivide wraps a callable function for testing.

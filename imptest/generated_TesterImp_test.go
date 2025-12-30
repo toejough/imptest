@@ -2,11 +2,17 @@
 
 package imptest_test
 
-import _imptest "github.com/toejough/imptest/imptest"
-import _reflect "reflect"
-import _testing "testing"
-import _time "time"
-import imptest "github.com/toejough/imptest/imptest"
+import (
+	_reflect "reflect"
+
+	_imptest "github.com/toejough/imptest/imptest"
+
+	_testing "testing"
+
+	_time "time"
+
+	imptest "github.com/toejough/imptest/imptest"
+)
 
 // TesterImp is the test controller for mocking the interface.
 // Create with NewTesterImp(t), then use Mock field to get the mock implementation

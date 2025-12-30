@@ -3,9 +3,10 @@
 package timeconflict_test
 
 import (
+	time "time"
+
 	timeconflict "github.com/toejough/imptest/UAT/11-package-name-conflicts"
 	_imptest "github.com/toejough/imptest/imptest"
-	time "time"
 )
 
 // SchedulerMock is the mock for Scheduler.

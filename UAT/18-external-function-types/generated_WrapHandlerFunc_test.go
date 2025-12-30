@@ -3,8 +3,9 @@
 package externalfuncs_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
 	http "net/http"
+
+	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // WrapHandlerFuncReturnsReturn holds the return values from the wrapped function.

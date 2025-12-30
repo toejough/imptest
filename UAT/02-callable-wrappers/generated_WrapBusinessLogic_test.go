@@ -3,9 +3,10 @@
 package callable_test
 
 import (
+	_reflect "reflect"
+
 	callable "github.com/toejough/imptest/UAT/02-callable-wrappers"
 	_imptest "github.com/toejough/imptest/imptest"
-	_reflect "reflect"
 )
 
 // WrapBusinessLogicReturnsReturn holds the return values from the wrapped function.

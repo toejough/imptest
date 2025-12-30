@@ -212,9 +212,6 @@ func (w *codeWriter) bytes() []byte {
 }
 
 // pf writes a formatted string to the buffer.
-func (w *codeWriter) pf(format string, args ...any) {
-	fmt.Fprintf(&w.buf, format, args...)
-}
 
 // fieldInfo represents extracted information about a single field entry.
 type fieldInfo struct {
@@ -639,9 +636,6 @@ func extractParams(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
 }
 
 // extractResults extracts result info from a function type.
-func extractResults(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
-	return extractFields(ftype.Results, "Result")
-}
 
 // fieldNameCount returns the number of names in a field (at least 1 for unnamed fields).
 func fieldNameCount(field *dst.Field) int {
@@ -655,106 +649,29 @@ func fieldNameCount(field *dst.Field) int {
 // findExternalTypeAlias resolves an external type alias like fs.WalkDirFunc.
 //
 //nolint:cyclop // External type resolution requires multiple steps
-func findExternalTypeAlias(
-	selExpr *dst.SelectorExpr,
-	sourceImports []*dst.ImportSpec,
-	pkgLoader PackageLoader,
-) *dst.FuncType {
-	// Get the package identifier (e.g., "fs" in "fs.WalkDirFunc")
-	pkgIdent, ok := selExpr.X.(*dst.Ident)
-	if !ok {
-		return nil
-	}
 
-	pkgName := pkgIdent.Name
-	typeName := selExpr.Sel.Name
+// Get the package identifier (e.g., "fs" in "fs.WalkDirFunc")
 
-	// Find the import path for this package
-	var importPath string
+// Find the import path for this package
 
-	for _, imp := range sourceImports {
-		if imp.Name != nil && imp.Name.Name == pkgName {
-			// Explicit alias: import foo "bar/baz"
-			importPath = strings.Trim(imp.Path.Value, `"`)
+// Explicit alias: import foo "bar/baz"
 
-			break
-		} else if imp.Name == nil {
-			// No alias - check if the path ends with this package name
-			path := strings.Trim(imp.Path.Value, `"`)
-			if strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
-				importPath = path
+// No alias - check if the path ends with this package name
 
-				break
-			}
-		}
-	}
+// Load the external package
 
-	if importPath == "" {
-		return nil
-	}
-
-	// Load the external package
-	externalFiles, _, _, err := pkgLoader.Load(importPath)
-	if err != nil || len(externalFiles) == 0 {
-		return nil
-	}
-
-	// Search for the type definition in the external package
-	return findLocalTypeAlias(typeName, externalFiles)
-}
+// Search for the type definition in the external package
 
 // findLocalTypeAlias searches for a type alias definition in the local AST files.
-func findLocalTypeAlias(typeName string, astFiles []*dst.File) *dst.FuncType {
-	for _, file := range astFiles {
-		var result *dst.FuncType
 
-		dst.Inspect(file, func(node dst.Node) bool {
-			genDecl, ok := node.(*dst.GenDecl)
-			if !ok || genDecl.Tok != token.TYPE {
-				return true
-			}
+// Check if the underlying type is a function type
 
-			for _, spec := range genDecl.Specs {
-				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
-				if !isTypeSpec || typeSpec.Name.Name != typeName {
-					continue
-				}
-
-				// Check if the underlying type is a function type
-				if funcType, ok := typeSpec.Type.(*dst.FuncType); ok {
-					result = funcType
-					return false // Stop searching
-				}
-			}
-
-			return true
-		})
-
-		if result != nil {
-			return result
-		}
-	}
-
-	return nil
-}
+// Stop searching
 
 // formatResultParameters formats result parameters as "prefix0 type, prefix1 type, ...".
 // namePrefix: variable name prefix ("v" or "r")
 // startIndex: starting index (0 for r0-based, 1 for v1-based)
 // typeFormatter: function to format each result's type.
-func formatResultParameters(
-	results []fieldInfo,
-	namePrefix string,
-	startIndex int,
-	typeFormatter func(fieldInfo) string,
-) string {
-	return joinWith(results, func(r fieldInfo) string {
-		idx := r.Index + startIndex
-		typePart := typeFormatter(r)
-
-		return fmt.Sprintf("%s%d %s", namePrefix, idx, typePart)
-	}, ", ")
-}
 
 // formatTypeParamsDecl formats type parameters for declaration (e.g., "[T any, U comparable]").
 // Returns empty string if there are no type parameters.
@@ -822,14 +739,6 @@ func formatTypeParamsUse(typeParams *dst.FieldList) string {
 }
 
 // generateResultVarNames creates variable names for results (e.g., "r0", "r1" or "ret0", "ret1").
-func generateResultVarNames(count int, prefix string) []string {
-	names := make([]string, count)
-	for i := range names {
-		names[i] = fmt.Sprintf("%s%d", prefix, i)
-	}
-
-	return names
-}
 
 // hasExportedIdent checks if an expression contains an exported identifier.
 func hasExportedIdent(expr dst.Expr, isTypeParam func(string) bool) bool {
@@ -874,45 +783,21 @@ func hasResults(ftype *dst.FuncType) bool {
 // Returns false for everything else (slices, maps, funcs, custom types) which should use reflect.DeepEqual.
 //
 
-func isBasicComparableType(expr dst.Expr) bool {
-	switch t := expr.(type) {
-	case *dst.Ident:
-		// Basic built-in types
-		//nolint:goconst // These are Go type names, not magic strings
-		switch t.Name {
-		case "bool",
-			"int", "int8", "int16", "int32", "int64",
-			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
-			"float32", "float64",
-			"complex64", "complex128",
-			"string", "byte", "rune":
-			return true
-		}
-		// Everything else: custom types, interfaces, etc. → use DeepEqual
-		return false
+// Basic built-in types
+//nolint:goconst // These are Go type names, not magic strings
 
-	case *dst.StarExpr:
-		// Pointers are always comparable
-		return true
+// Everything else: custom types, interfaces, etc. → use DeepEqual
 
-	case *dst.SelectorExpr:
-		// Qualified types (e.g., pkg.Type) → conservatively use DeepEqual
-		return false
+// Pointers are always comparable
 
-	case *dst.ArrayType:
-		// Arrays are comparable if their elements are comparable
-		// But we'd need to recursively check, so conservatively return false
-		return false
+// Qualified types (e.g., pkg.Type) → conservatively use DeepEqual
 
-	case *dst.SliceExpr, *dst.MapType, *dst.FuncType, *dst.InterfaceType, *dst.StructType:
-		// Definitely not comparable with ==
-		return false
+// Arrays are comparable if their elements are comparable
+// But we'd need to recursively check, so conservatively return false
 
-	default:
-		// Unknown type → use DeepEqual to be safe
-		return false
-	}
-}
+// Definitely not comparable with ==
+
+// Unknown type → use DeepEqual to be safe
 
 // isBuiltinType checks if a type name is a Go builtin.
 func isBuiltinType(name string) bool {
@@ -930,11 +815,9 @@ func isBuiltinType(name string) bool {
 }
 
 // isComparableExpr checks if an expression represents a comparable type.
-func isComparableExpr(expr dst.Expr, _ *go_types.Info) bool {
-	// For DST, we need to convert to AST to look up in types.Info
-	// Since we don't have access to the original AST, we use syntax-based detection
-	return isBasicComparableType(expr)
-}
+
+// For DST, we need to convert to AST to look up in types.Info
+// Since we don't have access to the original AST, we use syntax-based detection
 
 // joinWith joins a slice of items into a string using a format function and separator.
 // This eliminates repetitive comma-separator loop patterns throughout the codebase.
@@ -1039,29 +922,12 @@ func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
 
 // resolveToFuncType resolves a type expression to a function type if possible.
 // Supports inline function types, local type aliases, and external types.
-func resolveToFuncType(
-	expr dst.Expr,
-	astFiles []*dst.File,
-	sourceImports []*dst.ImportSpec,
-	pkgLoader PackageLoader,
-) *dst.FuncType {
-	// Case 1: Already a function type
-	if funcType, ok := expr.(*dst.FuncType); ok {
-		return funcType
-	}
 
-	// Case 2: Local type alias (e.g., WalkFunc)
-	if ident, ok := expr.(*dst.Ident); ok {
-		return findLocalTypeAlias(ident.Name, astFiles)
-	}
+// Case 1: Already a function type
 
-	// Case 3: External type (e.g., fs.WalkDirFunc)
-	if selExpr, ok := expr.(*dst.SelectorExpr); ok {
-		return findExternalTypeAlias(selExpr, sourceImports, pkgLoader)
-	}
+// Case 2: Local type alias (e.g., WalkFunc)
 
-	return nil
-}
+// Case 3: External type (e.g., fs.WalkDirFunc)
 
 // stringifyDSTExpr converts a DST expression to its string representation.
 //
@@ -1154,17 +1020,3 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *dst.FuncType, typeFormatt
 // visitParams iterates over function parameters and calls the visitor for each.
 // The visitor receives each parameter with its type string and current indices,
 // and returns the updated indices for the next iteration.
-func visitParams(ftype *dst.FuncType, typeFormatter func(dst.Expr) string, visit paramVisitor) {
-	if !hasParams(ftype) {
-		return
-	}
-
-	totalParams := countFields(ftype.Params)
-	paramNameIndex := 0
-	unnamedIndex := 0
-
-	for _, param := range ftype.Params.List {
-		paramType := typeFormatter(param.Type)
-		paramNameIndex, unnamedIndex = visit(param, paramType, paramNameIndex, unnamedIndex, totalParams)
-	}
-}

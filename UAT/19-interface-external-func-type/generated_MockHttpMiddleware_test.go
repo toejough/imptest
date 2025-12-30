@@ -3,9 +3,10 @@
 package middleware_test
 
 import (
+	http "net/http"
+
 	middleware "github.com/toejough/imptest/UAT/19-interface-external-func-type"
 	_imptest "github.com/toejough/imptest/imptest"
-	http "net/http"
 )
 
 // HTTPMiddlewareMock is the mock for HTTPMiddleware.

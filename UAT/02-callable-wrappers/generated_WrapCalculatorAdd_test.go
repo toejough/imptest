@@ -3,8 +3,9 @@
 package callable_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
 	_reflect "reflect"
+
+	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // WrapCalculatorAddReturnsReturn holds the return values from the wrapped function.

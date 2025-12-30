@@ -3,10 +3,11 @@
 package externalimports_test
 
 import (
-	externalimports "github.com/toejough/imptest/UAT/13-external-type-imports"
-	_imptest "github.com/toejough/imptest/imptest"
 	io "io"
 	os "os"
+
+	externalimports "github.com/toejough/imptest/UAT/13-external-type-imports"
+	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // FileHandlerMock is the mock for FileHandler.

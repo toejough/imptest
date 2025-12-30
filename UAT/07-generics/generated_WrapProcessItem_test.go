@@ -3,9 +3,10 @@
 package generics_test
 
 import (
+	_reflect "reflect"
+
 	generics "github.com/toejough/imptest/UAT/07-generics"
 	_imptest "github.com/toejough/imptest/imptest"
-	_reflect "reflect"
 )
 
 // WrapProcessItemReturnsReturn holds the return values from the wrapped function.

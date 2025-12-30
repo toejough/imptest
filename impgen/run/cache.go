@@ -1,16 +1,12 @@
 package run
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 )
 
 // Exported constants.
@@ -46,38 +42,12 @@ type CacheFileSystem interface {
 
 // CalculatePackageSignature generates a unique hash based on CLI arguments
 // and the Go source files in the current directory.
-func CalculatePackageSignature(args []string, fileReader FileReader) (string, error) {
-	pkgHash := sha256.New()
 
-	// 1. Hash the arguments (skip program name)
-	if len(args) > 1 {
-		_, _ = pkgHash.Write([]byte(strings.Join(args[1:], "|")))
-	}
+// 1. Hash the arguments (skip program name)
 
-	// 2. Hash all .go files in the current directory (where go:generate runs)
-	files, err := fileReader.Glob("*.go")
-	if err != nil {
-		return "", fmt.Errorf("failed to glob go files: %w", err)
-	}
+// 2. Hash all .go files in the current directory (where go:generate runs)
 
-	sort.Strings(files)
-
-	for _, fileName := range files {
-		// Skip generated files to avoid circular dependency in signature
-		if strings.HasPrefix(fileName, "generated_") {
-			continue
-		}
-
-		data, err := fileReader.ReadFile(fileName)
-		if err != nil {
-			return "", fmt.Errorf("failed to read file %s: %w", fileName, err)
-		}
-
-		_, _ = pkgHash.Write(data)
-	}
-
-	return hex.EncodeToString(pkgHash.Sum(nil)), nil
-}
+// Skip generated files to avoid circular dependency in signature
 
 // FindProjectRoot locates the nearest directory containing a go.mod file.
 func FindProjectRoot(cfs CacheFileSystem) (string, error) {

@@ -8,7 +8,6 @@ import (
 	go_types "go/types" // Aliased import
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/alexflint/go-arg"
@@ -80,67 +79,22 @@ func Run(
 
 // WithCache executes the impgen tool with caching support. It checks if a cached version exists based on the
 // package signature and uses it if available. Otherwise, it generates new code and caches the result.
-func WithCache(
-	args []string,
-	getEnv func(string) string,
-	fileSys FileSystem,
-	pkgLoader PackageLoader,
-	cacheFS CacheFileSystem,
-	output io.Writer,
-) error {
-	// 1. Calculate current signature
-	sig, err := CalculatePackageSignature(args, fileSys)
-	if err != nil {
-		// If signature calculation fails, run without cache
-		return Run(args, getEnv, fileSys, pkgLoader, output)
-	}
 
-	// 2. Find project root and cache file
-	root, err := FindProjectRoot(cacheFS)
-	if err != nil {
-		// If project root not found, run without cache
-		return Run(args, getEnv, fileSys, pkgLoader, output)
-	}
+// 1. Calculate current signature
 
-	cachePath := filepath.Join(root, CacheDirName, "cache.json")
-	cache := LoadDiskCache(cachePath, cacheFS)
+// If signature calculation fails, run without cache
 
-	// 3. Check cache
-	key := strings.Join(args[1:], " ")
-	if entry, ok := cache.Entries[key]; ok && entry.Signature == sig {
-		// Cache hit! Just write the file if it doesn't exist or differs
-		err = fileSys.WriteFile(entry.Filename, []byte(entry.Content), FilePerm)
-		if err != nil {
-			return fmt.Errorf("error writing from cache: %w", err)
-		}
+// 2. Find project root and cache file
 
-		return nil
-	}
+// If project root not found, run without cache
 
-	// 4. Cache miss - run and record
-	capturingSys := &capturingFileSystem{underlying: fileSys}
+// 3. Check cache
 
-	err = Run(args, getEnv, capturingSys, pkgLoader, output)
-	if err != nil {
-		return err
-	}
+// Cache hit! Just write the file if it doesn't exist or differs
 
-	// 5. Update cache
-	if capturingSys.writtenName != "" {
-		if cache.Entries == nil {
-			cache.Entries = make(map[string]CacheEntry)
-		}
+// 4. Cache miss - run and record
 
-		cache.Entries[key] = CacheEntry{
-			Signature: sig,
-			Content:   capturingSys.writtenContent,
-			Filename:  capturingSys.writtenName,
-		}
-		SaveDiskCache(cachePath, cache, cacheFS)
-	}
-
-	return nil
-}
+// 5. Update cache
 
 // namingMode represents the different modes for generating type names.
 type namingMode int
@@ -165,17 +119,6 @@ type capturingFileSystem struct {
 }
 
 // WriteFile implements FileWriter by capturing the written data and delegating to underlying.
-func (c *capturingFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	c.writtenContent = string(data)
-	c.writtenName = name
-
-	err := c.underlying.WriteFile(name, data, perm)
-	if err != nil {
-		return fmt.Errorf("underlying write failed: %w", err)
-	}
-
-	return nil
-}
 
 // Structs - Private
 

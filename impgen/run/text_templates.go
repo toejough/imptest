@@ -824,174 +824,46 @@ type {{.ReturnsType}}Return{{.TypeParamsDecl}} struct {
 }
 
 // WriteCallStruct generates the call struct definition.
-func (r *TemplateRegistry) WriteCallStruct(buf *bytes.Buffer, data callStructTemplateData) {
-	err := r.callStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callStruct template: %v", err))
-	}
-}
 
 // WriteCallableConstructor generates the callable wrapper constructor.
-func (r *TemplateRegistry) WriteCallableConstructor(buf *bytes.Buffer, data callableExtendedTemplateData) {
-	err := r.callableConstructorTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableConstructor template: %v", err))
-	}
-}
 
 // WriteCallableExpectPanicWith generates the ExpectPanicWith method for callable wrappers.
-func (r *TemplateRegistry) WriteCallableExpectPanicWith(buf *bytes.Buffer, data callableTemplateData) {
-	err := r.callableExpectPanicWithTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableExpectPanicWith template: %v", err))
-	}
-}
 
 // WriteCallableExpectReturnedValuesAre generates the ExpectReturnedValuesAre method.
-func (r *TemplateRegistry) WriteCallableExpectReturnedValuesAre(buf *bytes.Buffer, data callableExtendedTemplateData) {
-	err := r.callableExpectReturnedValuesAreTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableExpectReturnedValuesAre template: %v", err))
-	}
-}
 
 // WriteCallableExpectReturnedValuesShould generates the ExpectReturnedValuesShould method.
-func (r *TemplateRegistry) WriteCallableExpectReturnedValuesShould(
-	buf *bytes.Buffer, data callableExtendedTemplateData,
-) {
-	err := r.callableExpectReturnedValuesShouldTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableExpectReturnedValuesShould template: %v", err))
-	}
-}
 
 // WriteCallableHeader generates the header for callable wrapper files.
-func (r *TemplateRegistry) WriteCallableHeader(buf *bytes.Buffer, data baseTemplateData) {
-	err := r.callableHeaderTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableHeader template: %v", err))
-	}
-}
 
 // WriteCallableMainStruct generates the main callable wrapper struct.
-func (r *TemplateRegistry) WriteCallableMainStruct(buf *bytes.Buffer, data callableExtendedTemplateData) {
-	err := r.callableMainStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableMainStruct template: %v", err))
-	}
-}
 
 // WriteCallableResponseStruct generates the response struct for callable wrappers.
-func (r *TemplateRegistry) WriteCallableResponseStruct(buf *bytes.Buffer, data callableTemplateData) {
-	err := r.callableResponseStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableResponseStruct template: %v", err))
-	}
-}
 
 // WriteCallableResponseTypeMethod generates the Type method for response structs.
-func (r *TemplateRegistry) WriteCallableResponseTypeMethod(buf *bytes.Buffer, data callableTemplateData) {
-	err := r.callableResponseTypeMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableResponseTypeMethod template: %v", err))
-	}
-}
 
 // WriteCallableReturnStruct generates the return struct for callable wrappers.
-func (r *TemplateRegistry) WriteCallableReturnStruct(buf *bytes.Buffer, data callableExtendedTemplateData) {
-	err := r.callableReturnStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableReturnStruct template: %v", err))
-	}
-}
 
 // WriteCallableStartMethod generates the Start method for callable wrappers.
-func (r *TemplateRegistry) WriteCallableStartMethod(buf *bytes.Buffer, data callableExtendedTemplateData) {
-	err := r.callableStartMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute callableStartMethod template: %v", err))
-	}
-}
 
 // WriteConstructor generates the constructor function for interface mocks.
-func (r *TemplateRegistry) WriteConstructor(buf *bytes.Buffer, data templateData) {
-	err := r.constructorTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute constructor template: %v", err))
-	}
-}
 
 // WriteExpectCallIsStruct generates the ExpectCallIs struct definition.
-func (r *TemplateRegistry) WriteExpectCallIsStruct(buf *bytes.Buffer, data templateData) {
-	err := r.expectCallIsStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute expectCallIsStruct template: %v", err))
-	}
-}
 
 // WriteGetCurrentCallMethod generates the GetCurrentCall method.
-func (r *TemplateRegistry) WriteGetCurrentCallMethod(buf *bytes.Buffer, data templateData) {
-	err := r.getCurrentCallMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute getCurrentCallMethod template: %v", err))
-	}
-}
 
 // WriteHeader generates the file header for interface mock files.
-func (r *TemplateRegistry) WriteHeader(buf *bytes.Buffer, data templateData) {
-	err := r.headerTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute header template: %v", err))
-	}
-}
 
 // WriteInjectPanic generates the InjectPanic method for a method call.
-func (r *TemplateRegistry) WriteInjectPanic(buf *bytes.Buffer, data methodTemplateData) {
-	err := r.injectPanicTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute injectPanic template: %v", err))
-	}
-}
 
 // WriteInterfaceVerification generates the compile-time interface verification.
-func (r *TemplateRegistry) WriteInterfaceVerification(buf *bytes.Buffer, data templateData) {
-	err := r.interfaceVerificationTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute interfaceVerification template: %v", err))
-	}
-}
 
 // WriteMainStruct generates the main controller struct definition.
-func (r *TemplateRegistry) WriteMainStruct(buf *bytes.Buffer, data templateData) {
-	err := r.mainStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute mainStruct template: %v", err))
-	}
-}
 
 // WriteMockStruct generates the mock struct definition.
-func (r *TemplateRegistry) WriteMockStruct(buf *bytes.Buffer, data templateData) {
-	err := r.mockStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute mockStruct template: %v", err))
-	}
-}
 
 // WriteResolve generates the Resolve method for a void method call.
-func (r *TemplateRegistry) WriteResolve(buf *bytes.Buffer, data methodTemplateData) {
-	err := r.resolveTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute resolve template: %v", err))
-	}
-}
 
 // WriteTimedStruct generates the timed expectation struct and Within method.
-func (r *TemplateRegistry) WriteTimedStruct(buf *bytes.Buffer, data templateData) {
-	err := r.timedStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute timedStruct template: %v", err))
-	}
-}
 
 // WriteV2DepArgsStruct writes the v2 dependency args struct.
 func (r *TemplateRegistry) WriteV2DepArgsStruct(buf *bytes.Buffer, data any) {
