@@ -1,7 +1,9 @@
 package visitor_test
 
-//go:generate impgen visitor.TreeWalker
-//go:generate impgen visitor.CountFiles
+//go:generate impgen visitor.TreeWalker --dependency
+//go:generate impgen visitor.CountFiles --target
+// TODO: Fix generator to not import unused packages before enabling
+// //go:generate impgen visitor.WalkFunc --target
 
 import (
 	"io/fs"
@@ -15,20 +17,32 @@ import (
 func TestCallbackMatcherSupport(t *testing.T) {
 	t.Parallel()
 
-	walker := NewTreeWalkerImp(t)
+	// V2 Pattern: Create mock and wrap the function under test
+	mock := MockTreeWalker(t)
+	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
-	go func() {
-		_ = walker.Mock.Walk("/test", func(_ string, _ fs.DirEntry, _ error) error {
-			return nil
-		})
-	}()
+	// Start the function under test in a goroutine
+	wrapper.Start(mock.Interface(), "/test")
 
-	call := walker.Within(time.Second).ExpectCallIs.Walk().ExpectArgsShould("/test", imptest.Any())
+	// V2 Pattern: Wait for the Walk call without Eventually to see if that's the issue
+	call := mock.Walk.ExpectCalledWithMatches("/test", imptest.Any())
 
-	// Use matcher-based verification
-	call.InvokeFn("/test/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil).ExpectReturnedShould(imptest.Any())
+	// V2 Pattern: Extract the callback from args using the typed wrapper
+	args := call.GetArgs()
+	callback := args.Fn
 
-	call.InjectResult(nil)
+	// V2 Pattern: Invoke the callback directly with test data
+	// This demonstrates that we've successfully extracted and can invoke the callback
+	err := callback("/test/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil)
+	if err != nil {
+		t.Errorf("Expected callback to return nil, got %v", err)
+	}
+
+	// Inject return value to let Walk complete
+	call.InjectReturnValues(nil)
+
+	// Verify the function completed successfully
+	wrapper.ExpectReturnsEqual(1, nil)
 }
 
 func TestCallbackPanicSupport(t *testing.T) {
