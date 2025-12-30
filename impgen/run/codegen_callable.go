@@ -5,7 +5,6 @@ import (
 	"go/format"
 	"go/token"
 	go_types "go/types"
-	"sort"
 	"strings"
 
 	"github.com/dave/dst"
@@ -82,57 +81,8 @@ func (g *callableGenerator) checkIfReflectNeeded(funcType *dst.FuncType) {
 }
 
 // collectAdditionalImports collects all external type imports needed for the callable function signature.
-//
-//nolint:cyclop // Import collection requires iteration over parameters and results
 func (g *callableGenerator) collectAdditionalImports() []importInfo {
-	if len(g.astFiles) == 0 {
-		return nil
-	}
-
-	// Get source imports from the first AST file
-	var sourceImports []*dst.ImportSpec
-
-	for _, file := range g.astFiles {
-		if len(file.Imports) > 0 {
-			sourceImports = file.Imports
-			break
-		}
-	}
-
-	allImports := make(map[string]importInfo) // Deduplicate by path
-
-	// Collect from parameters
-	if g.funcDecl.Type.Params != nil {
-		for _, field := range g.funcDecl.Type.Params.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Collect from return types
-	if g.funcDecl.Type.Results != nil {
-		for _, field := range g.funcDecl.Type.Results.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Convert map to slice and sort for deterministic output
-	result := make([]importInfo, 0, len(allImports))
-	for _, imp := range allImports {
-		result = append(result, imp)
-	}
-
-	// Sort by import path for consistent ordering
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Path < result[j].Path
-	})
-
-	return result
+	return collectImportsFromFuncDecl(g.funcDecl, g.astFiles)
 }
 
 // extendedTemplateData returns template data with dynamic signature info.

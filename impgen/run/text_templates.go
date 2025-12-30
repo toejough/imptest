@@ -580,6 +580,7 @@ func (impl *{{.ImplName}}{{.TypeParamsUse}}) {{.MethodName}}({{.Params}}){{.Resu
 	}
 
 	// V2 Dependency Args Struct template
+	//nolint:lll // Template string
 	registry.v2DepArgsStructTmpl, err = parseTemplate("v2DepArgsStruct", `{{if .HasParams}}// {{.ArgsTypeName}} holds typed arguments for {{.MethodName}}.
 type {{.ArgsTypeName}}{{.TypeParamsDecl}} struct {
 {{range .ParamFields}}	{{.Name}} {{.Type}}
@@ -591,6 +592,7 @@ type {{.ArgsTypeName}}{{.TypeParamsDecl}} struct {
 	}
 
 	// V2 Dependency Call Wrapper template
+	//nolint:lll // Template string
 	registry.v2DepCallWrapperTmpl, err = parseTemplate("v2DepCallWrapper", `{{if .HasParams}}// {{.CallTypeName}} wraps DependencyCall with typed GetArgs.
 type {{.CallTypeName}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.DependencyCall
@@ -991,6 +993,22 @@ func (r *TemplateRegistry) WriteTimedStruct(buf *bytes.Buffer, data templateData
 	}
 }
 
+// WriteV2DepArgsStruct writes the v2 dependency args struct.
+func (r *TemplateRegistry) WriteV2DepArgsStruct(buf *bytes.Buffer, data any) {
+	err := r.v2DepArgsStructTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2DepArgsStruct template: %v", err))
+	}
+}
+
+// WriteV2DepCallWrapper writes the v2 dependency call wrapper.
+func (r *TemplateRegistry) WriteV2DepCallWrapper(buf *bytes.Buffer, data any) {
+	err := r.v2DepCallWrapperTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2DepCallWrapper template: %v", err))
+	}
+}
+
 // WriteV2DepConstructor writes the v2 dependency mock constructor.
 func (r *TemplateRegistry) WriteV2DepConstructor(buf *bytes.Buffer, data any) {
 	err := r.v2DepConstructorTmpl.Execute(buf, data)
@@ -1031,35 +1049,19 @@ func (r *TemplateRegistry) WriteV2DepInterfaceMethod(buf *bytes.Buffer, data any
 	}
 }
 
-// WriteV2DepMockStruct writes the v2 dependency mock struct.
-func (r *TemplateRegistry) WriteV2DepMockStruct(buf *bytes.Buffer, data any) {
-	err := r.v2DepMockStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute v2DepMockStruct template: %v", err))
-	}
-}
-
-// WriteV2DepArgsStruct writes the v2 dependency args struct.
-func (r *TemplateRegistry) WriteV2DepArgsStruct(buf *bytes.Buffer, data any) {
-	err := r.v2DepArgsStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute v2DepArgsStruct template: %v", err))
-	}
-}
-
-// WriteV2DepCallWrapper writes the v2 dependency call wrapper.
-func (r *TemplateRegistry) WriteV2DepCallWrapper(buf *bytes.Buffer, data any) {
-	err := r.v2DepCallWrapperTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute v2DepCallWrapper template: %v", err))
-	}
-}
-
 // WriteV2DepMethodWrapper writes the v2 dependency method wrapper.
 func (r *TemplateRegistry) WriteV2DepMethodWrapper(buf *bytes.Buffer, data any) {
 	err := r.v2DepMethodWrapperTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute v2DepMethodWrapper template: %v", err))
+	}
+}
+
+// WriteV2DepMockStruct writes the v2 dependency mock struct.
+func (r *TemplateRegistry) WriteV2DepMockStruct(buf *bytes.Buffer, data any) {
+	err := r.v2DepMockStructTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2DepMockStruct template: %v", err))
 	}
 }
 

@@ -7,55 +7,117 @@ import (
 	"github.com/dave/dst"
 )
 
-func TestIsStdlibPackage(t *testing.T) {
+func TestBaseGenerator(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name string
-		path string
-		want bool
-	}{
-		{
-			name: "stdlib package time",
-			path: "time",
-			want: true,
-		},
-		{
-			name: "stdlib package fmt",
-			path: "fmt",
-			want: true,
-		},
-		{
-			name: "stdlib package io",
-			path: "io",
-			want: true,
-		},
-		{
-			name: "third-party package",
-			path: "github.com/user/pkg",
-			want: false,
-		},
-		{
-			name: "local package with path",
-			path: "myproject/internal/time",
-			want: false,
-		},
-		{
-			name: "empty string",
-			path: "",
-			want: false,
+	baseGen := newTestBaseGenerator()
+
+	t.Run("formatTypeParams", func(t *testing.T) {
+		t.Parallel()
+
+		if got := baseGen.formatTypeParamsDecl(); got != "[T any]" {
+			t.Errorf("expected [T any], got %q", got)
+		}
+
+		if got := baseGen.formatTypeParamsUse(); got != "[T]" {
+			t.Errorf("expected [T], got %q", got)
+		}
+	})
+
+	t.Run("isTypeParameter", func(t *testing.T) {
+		t.Parallel()
+
+		if !baseGen.isTypeParameter("T") {
+			t.Error("expected T to be a type parameter")
+		}
+
+		if baseGen.isTypeParameter("U") {
+			t.Error("expected U not to be a type parameter")
+		}
+	})
+
+	t.Run("checkIfQualifierNeeded", func(t *testing.T) {
+		t.Parallel()
+
+		expr := &dst.Ident{Name: "Exported"}
+		baseGen.checkIfQualifierNeeded(expr)
+
+		if !baseGen.needsQualifier {
+			t.Error("expected needsQualifier to be true")
+		}
+	})
+
+	t.Run("checkIfValidForExternalUsage", func(t *testing.T) {
+		t.Parallel()
+
+		ftype := &dst.FuncType{
+			Params: &dst.FieldList{
+				List: []*dst.Field{
+					{Type: &dst.Ident{Name: "unexported"}},
+				},
+			},
+		}
+
+		err := baseGen.checkIfValidForExternalUsage(ftype)
+		if err == nil {
+			t.Error("expected error for unexported type in external usage")
+		}
+	})
+}
+
+func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	typeParams := &dst.FieldList{
+		List: []*dst.Field{
+			{
+				Names: []*dst.Ident{{Name: "T"}, {Name: "U"}},
+				Type:  &dst.Ident{Name: "any"},
+			},
+			{
+				Names: []*dst.Ident{{Name: "V"}},
+				Type:  &dst.Ident{Name: "comparable"},
+			},
 		},
 	}
+	baseGen := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", typeParams, nil)
 
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
+	// Test all type parameters are recognized
+	if !baseGen.isTypeParameter("T") {
+		t.Error("expected T to be a type parameter")
+	}
 
-			got := isStdlibPackage(testCase.path)
-			if got != testCase.want {
-				t.Errorf("isStdlibPackage(%q) = %v, want %v", testCase.path, got, testCase.want)
-			}
-		})
+	if !baseGen.isTypeParameter("U") {
+		t.Error("expected U to be a type parameter")
+	}
+
+	if !baseGen.isTypeParameter("V") {
+		t.Error("expected V to be a type parameter")
+	}
+
+	// Test non-type parameter
+	if baseGen.isTypeParameter("W") {
+		t.Error("expected W not to be a type parameter")
+	}
+}
+
+func TestBaseGeneratorNilTypeParams(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	baseGenNil := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", nil, nil)
+
+	if got := baseGenNil.formatTypeParamsDecl(); got != "" {
+		t.Errorf("expected empty string for nil typeParams, got %q", got)
+	}
+
+	if got := baseGenNil.formatTypeParamsUse(); got != "" {
+		t.Errorf("expected empty string for nil typeParams, got %q", got)
+	}
+
+	if baseGenNil.isTypeParameter("T") {
+		t.Error("expected nil typeParams to return false for any name")
 	}
 }
 
@@ -189,120 +251,6 @@ func TestCollectExternalImports_StdlibHandling(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestBaseGenerator(t *testing.T) {
-	t.Parallel()
-
-	baseGen := newTestBaseGenerator()
-
-	t.Run("formatTypeParams", func(t *testing.T) {
-		t.Parallel()
-
-		if got := baseGen.formatTypeParamsDecl(); got != "[T any]" {
-			t.Errorf("expected [T any], got %q", got)
-		}
-
-		if got := baseGen.formatTypeParamsUse(); got != "[T]" {
-			t.Errorf("expected [T], got %q", got)
-		}
-	})
-
-	t.Run("isTypeParameter", func(t *testing.T) {
-		t.Parallel()
-
-		if !baseGen.isTypeParameter("T") {
-			t.Error("expected T to be a type parameter")
-		}
-
-		if baseGen.isTypeParameter("U") {
-			t.Error("expected U not to be a type parameter")
-		}
-	})
-
-	t.Run("checkIfQualifierNeeded", func(t *testing.T) {
-		t.Parallel()
-
-		expr := &dst.Ident{Name: "Exported"}
-		baseGen.checkIfQualifierNeeded(expr)
-
-		if !baseGen.needsQualifier {
-			t.Error("expected needsQualifier to be true")
-		}
-	})
-
-	t.Run("checkIfValidForExternalUsage", func(t *testing.T) {
-		t.Parallel()
-
-		ftype := &dst.FuncType{
-			Params: &dst.FieldList{
-				List: []*dst.Field{
-					{Type: &dst.Ident{Name: "unexported"}},
-				},
-			},
-		}
-
-		err := baseGen.checkIfValidForExternalUsage(ftype)
-		if err == nil {
-			t.Error("expected error for unexported type in external usage")
-		}
-	})
-}
-
-func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
-	t.Parallel()
-
-	fset := token.NewFileSet()
-	typeParams := &dst.FieldList{
-		List: []*dst.Field{
-			{
-				Names: []*dst.Ident{{Name: "T"}, {Name: "U"}},
-				Type:  &dst.Ident{Name: "any"},
-			},
-			{
-				Names: []*dst.Ident{{Name: "V"}},
-				Type:  &dst.Ident{Name: "comparable"},
-			},
-		},
-	}
-	baseGen := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", typeParams, nil)
-
-	// Test all type parameters are recognized
-	if !baseGen.isTypeParameter("T") {
-		t.Error("expected T to be a type parameter")
-	}
-
-	if !baseGen.isTypeParameter("U") {
-		t.Error("expected U to be a type parameter")
-	}
-
-	if !baseGen.isTypeParameter("V") {
-		t.Error("expected V to be a type parameter")
-	}
-
-	// Test non-type parameter
-	if baseGen.isTypeParameter("W") {
-		t.Error("expected W not to be a type parameter")
-	}
-}
-
-func TestBaseGeneratorNilTypeParams(t *testing.T) {
-	t.Parallel()
-
-	fset := token.NewFileSet()
-	baseGenNil := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", nil, nil)
-
-	if got := baseGenNil.formatTypeParamsDecl(); got != "" {
-		t.Errorf("expected empty string for nil typeParams, got %q", got)
-	}
-
-	if got := baseGenNil.formatTypeParamsUse(); got != "" {
-		t.Errorf("expected empty string for nil typeParams, got %q", got)
-	}
-
-	if baseGenNil.isTypeParameter("T") {
-		t.Error("expected nil typeParams to return false for any name")
 	}
 }
 
@@ -587,6 +535,58 @@ func TestIsBuiltinType(t *testing.T) {
 			t.Error("isBuiltinType(\"MyCustomType\") = true, want false")
 		}
 	})
+}
+
+func TestIsStdlibPackage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{
+			name: "stdlib package time",
+			path: "time",
+			want: true,
+		},
+		{
+			name: "stdlib package fmt",
+			path: "fmt",
+			want: true,
+		},
+		{
+			name: "stdlib package io",
+			path: "io",
+			want: true,
+		},
+		{
+			name: "third-party package",
+			path: "github.com/user/pkg",
+			want: false,
+		},
+		{
+			name: "local package with path",
+			path: "myproject/internal/time",
+			want: false,
+		},
+		{
+			name: "empty string",
+			path: "",
+			want: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := isStdlibPackage(testCase.path)
+			if got != testCase.want {
+				t.Errorf("isStdlibPackage(%q) = %v, want %v", testCase.path, got, testCase.want)
+			}
+		})
+	}
 }
 
 func TestNormalizeVariadicType(t *testing.T) {

@@ -103,17 +103,17 @@ var (
 	}
 )
 
-// ifaceWithDetails is a helper struct to return both the interface and its type parameters.
-type ifaceWithDetails struct {
-	iface      *dst.InterfaceType
-	typeParams *dst.FieldList
-}
-
 // funcTypeWithDetails is a helper struct to return both the function type and its type parameters.
 type funcTypeWithDetails struct {
 	funcType   *dst.FuncType
 	typeParams *dst.FieldList
 	typeName   string // The name of the type (e.g., "WalkFunc")
+}
+
+// ifaceWithDetails is a helper struct to return both the interface and its type parameters.
+type ifaceWithDetails struct {
+	iface      *dst.InterfaceType
+	typeParams *dst.FieldList
 }
 
 // symbolDetails holds information about the detected symbol.
@@ -219,6 +219,63 @@ func findFunctionInAST(
 	}
 
 	return nil, fmt.Errorf("%w: %s in package %s", errFunctionNotFound, funcName, pkgImportPath)
+}
+
+// findFunctionTypeInAST extracts the target function type declaration and its type parameters from AST files.
+func findFunctionTypeInAST(
+	astFiles []*dst.File, typeName string, pkgImportPath string,
+) (funcTypeWithDetails, error) {
+	var (
+		targetFuncType *dst.FuncType
+		typeParams     *dst.FieldList
+	)
+
+	for _, file := range astFiles {
+		dst.Inspect(file, func(node dst.Node) bool {
+			genDecl, ok := node.(*dst.GenDecl)
+
+			if !ok || genDecl.Tok != token.TYPE {
+				return true // Not a type declaration
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
+
+				if !isTypeSpec || typeSpec.Name.Name != typeName {
+					continue // Not the type we're looking for
+				}
+
+				funcType, isFuncType := typeSpec.Type.(*dst.FuncType)
+
+				if !isFuncType {
+					continue // Not a function type
+				}
+
+				// Found it!
+				targetFuncType = funcType
+				typeParams = typeSpec.TypeParams // Capture type parameters
+
+				return false // Stop inspecting
+			}
+
+			return true
+		})
+
+		if targetFuncType != nil {
+			break // Found in this file, no need to check others
+		}
+	}
+
+	if targetFuncType == nil {
+		//nolint:err113 // Dynamic error message required for user-facing parse errors
+		return funcTypeWithDetails{}, fmt.Errorf("function type not found: %s in package %s", typeName, pkgImportPath)
+	}
+
+	return funcTypeWithDetails{
+		funcType:   targetFuncType,
+		typeParams: typeParams,
+		typeName:   typeName,
+	}, nil
 }
 
 // findImportPath finds the import path for a given package name by parsing the provided AST files.
@@ -470,62 +527,6 @@ func getMatchingInterfaceFromAST(
 	}
 
 	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
-}
-
-// findFunctionTypeInAST extracts the target function type declaration and its type parameters from AST files.
-func findFunctionTypeInAST(
-	astFiles []*dst.File, typeName string, pkgImportPath string,
-) (funcTypeWithDetails, error) {
-	var (
-		targetFuncType *dst.FuncType
-		typeParams     *dst.FieldList
-	)
-
-	for _, file := range astFiles {
-		dst.Inspect(file, func(node dst.Node) bool {
-			genDecl, ok := node.(*dst.GenDecl)
-
-			if !ok || genDecl.Tok != token.TYPE {
-				return true // Not a type declaration
-			}
-
-			for _, spec := range genDecl.Specs {
-				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
-
-				if !isTypeSpec || typeSpec.Name.Name != typeName {
-					continue // Not the type we're looking for
-				}
-
-				funcType, isFuncType := typeSpec.Type.(*dst.FuncType)
-
-				if !isFuncType {
-					continue // Not a function type
-				}
-
-				// Found it!
-				targetFuncType = funcType
-				typeParams = typeSpec.TypeParams // Capture type parameters
-
-				return false // Stop inspecting
-			}
-
-			return true
-		})
-
-		if targetFuncType != nil {
-			break // Found in this file, no need to check others
-		}
-	}
-
-	if targetFuncType == nil {
-		return funcTypeWithDetails{}, fmt.Errorf("function type not found: %s in package %s", typeName, pkgImportPath)
-	}
-
-	return funcTypeWithDetails{
-		funcType:   targetFuncType,
-		typeParams: typeParams,
-		typeName:   typeName,
-	}, nil
 }
 
 // isStdlibPackage checks if a package name is a standard library package.

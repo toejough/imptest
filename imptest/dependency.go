@@ -51,12 +51,6 @@ func (dc *DependencyCall) GetArgs() *DependencyArgs {
 	return result
 }
 
-// RawArgs returns the raw argument slice for use by generated code.
-// This allows generated code to create type-safe args accessors.
-func (dc *DependencyCall) RawArgs() []any {
-	return dc.call.Args
-}
-
 // InjectPanicValue specifies that the mock should panic with the given value.
 // This sends a panic response to the mock's response channel, unblocking it.
 func (dc *DependencyCall) InjectPanicValue(value any) {
@@ -77,6 +71,12 @@ func (dc *DependencyCall) InjectReturnValues(values ...any) {
 		Type:         "return",
 		ReturnValues: values,
 	}
+}
+
+// RawArgs returns the raw argument slice for use by generated code.
+// This allows generated code to create type-safe args accessors.
+func (dc *DependencyCall) RawArgs() []any {
+	return dc.call.Args
 }
 
 // DependencyMethod represents a method on a mocked interface.

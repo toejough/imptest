@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,staticcheck,revive,unparam,cyclop,gocognit,intrange,funlen
+//nolint:varnamelen,wsl_v5,staticcheck,cyclop,gocognit,intrange,funlen
 package run // Phase 1 infrastructure - will refine in Phase 2
 
 import (
@@ -6,7 +6,6 @@ import (
 	"go/format"
 	"go/token"
 	go_types "go/types"
-	"sort"
 	"strings"
 
 	"github.com/dave/dst"
@@ -94,53 +93,7 @@ func (gen *v2TargetGenerator) buildFunctionSignature() string {
 
 // collectAdditionalImports collects all external type imports needed for function signatures.
 func (gen *v2TargetGenerator) collectAdditionalImports() []importInfo {
-	if len(gen.astFiles) == 0 {
-		return nil
-	}
-
-	// Get source imports from the first AST file
-	var sourceImports []*dst.ImportSpec
-	for _, file := range gen.astFiles {
-		if len(file.Imports) > 0 {
-			sourceImports = file.Imports
-			break
-		}
-	}
-
-	allImports := make(map[string]importInfo) // Deduplicate by path
-
-	// Collect from parameters
-	if gen.funcDecl.Type.Params != nil {
-		for _, field := range gen.funcDecl.Type.Params.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Collect from return types
-	if gen.funcDecl.Type.Results != nil {
-		for _, field := range gen.funcDecl.Type.Results.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Convert map to slice and sort for deterministic output
-	result := make([]importInfo, 0, len(allImports))
-	for _, imp := range allImports {
-		result = append(result, imp)
-	}
-
-	// Sort by import path for consistent ordering
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Path < result[j].Path
-	})
-
-	return result
+	return collectImportsFromFuncDecl(gen.funcDecl, gen.astFiles)
 }
 
 // extractResultTypes extracts result types from a field list.
@@ -364,6 +317,24 @@ func extractParamNames(funcType *dst.FuncType) []string {
 	return names
 }
 
+// generateV2TargetCode generates v2-style target wrapper code for a function.
+func generateV2TargetCode(
+	astFiles []*dst.File,
+	info generatorInfo,
+	fset *token.FileSet,
+	typesInfo *go_types.Info,
+	pkgImportPath string,
+	pkgLoader PackageLoader,
+	funcDecl *dst.FuncDecl,
+) (string, error) {
+	gen, err := newV2TargetGenerator(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, funcDecl)
+	if err != nil {
+		return "", err
+	}
+
+	return gen.generate()
+}
+
 // generateV2TargetCodeFromFuncType generates v2-style target wrapper code for a function type.
 // It creates a synthetic function declaration from the function type and delegates to generateV2TargetCode.
 func generateV2TargetCodeFromFuncType(
@@ -389,24 +360,6 @@ func generateV2TargetCodeFromFuncType(
 	}
 
 	return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, funcDecl)
-}
-
-// generateV2TargetCode generates v2-style target wrapper code for a function.
-func generateV2TargetCode(
-	astFiles []*dst.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	typesInfo *go_types.Info,
-	pkgImportPath string,
-	pkgLoader PackageLoader,
-	funcDecl *dst.FuncDecl,
-) (string, error) {
-	gen, err := newV2TargetGenerator(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, funcDecl)
-	if err != nil {
-		return "", err
-	}
-
-	return gen.generate()
 }
 
 // newV2TargetGenerator creates a new v2 target wrapper generator.
