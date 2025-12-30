@@ -4,6 +4,7 @@ package externalfuncs_test
 
 import (
 	_imptest "github.com/toejough/imptest/imptest"
+	http "net/http"
 )
 
 // WrapHandlerFuncReturnsReturn holds the return values from the wrapped function.
@@ -13,7 +14,7 @@ type WrapHandlerFuncReturnsReturn struct {
 // WrapHandlerFuncWrapper wraps a function for testing.
 type WrapHandlerFuncWrapper struct {
 	*_imptest.CallableController[WrapHandlerFuncReturnsReturn]
-	callable func(ResponseWriter, *Request)
+	callable func(http.ResponseWriter, *http.Request)
 }
 
 // ExpectCompletes verifies the function completes without panicking.
@@ -59,7 +60,7 @@ func (w *WrapHandlerFuncWrapper) ExpectPanicMatches(matcher any) {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapHandlerFuncWrapper) Start(arg1 ResponseWriter, arg2 *Request) *WrapHandlerFuncWrapper {
+func (w *WrapHandlerFuncWrapper) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncWrapper {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -73,7 +74,7 @@ func (w *WrapHandlerFuncWrapper) Start(arg1 ResponseWriter, arg2 *Request) *Wrap
 }
 
 // WrapHandlerFunc wraps a function for testing.
-func WrapHandlerFunc(t _imptest.TestReporter, fn func(ResponseWriter, *Request)) *WrapHandlerFuncWrapper {
+func WrapHandlerFunc(t _imptest.TestReporter, fn func(http.ResponseWriter, *http.Request)) *WrapHandlerFuncWrapper {
 	return &WrapHandlerFuncWrapper{
 		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](t),
 		callable:           fn,

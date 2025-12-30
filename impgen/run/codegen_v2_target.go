@@ -14,14 +14,16 @@ import (
 type v2TargetGenerator struct {
 	baseGenerator
 
-	wrapName    string // Wrapper constructor name (e.g., "WrapAdd")
-	wrapperType string // Wrapper struct type (e.g., "WrapAddWrapper")
-	returnsType string // Returns struct type (e.g., "WrapAddReturns")
-	funcDecl    *dst.FuncDecl
-	astFiles    []*dst.File
-	paramNames  []string
-	resultTypes []string
-	hasResults  bool
+	wrapName          string // Wrapper constructor name (e.g., "WrapAdd")
+	wrapperType       string // Wrapper struct type (e.g., "WrapAddWrapper")
+	returnsType       string // Returns struct type (e.g., "WrapAddReturns")
+	funcDecl          *dst.FuncDecl
+	astFiles          []*dst.File
+	paramNames        []string
+	resultTypes       []string
+	hasResults        bool
+	externalPkgPath   string // Import path for external function type package (e.g., "net/http")
+	externalQualifier string // Qualifier for external function type package (e.g., "http")
 }
 
 // buildFunctionSignature builds the function signature string.
@@ -94,14 +96,21 @@ func (gen *v2TargetGenerator) buildFunctionSignature() string {
 func (gen *v2TargetGenerator) collectAdditionalImports() []importInfo {
 	imports := collectImportsFromFuncDecl(gen.funcDecl, gen.astFiles)
 
-	// For function type wrappers (where pkgPath is empty), return imports as-is.
-	// Function type wrappers use the underlying function signature types directly,
-	// not the function type name itself, so no package qualifier is needed.
+	// For function type wrappers (where pkgPath is empty):
 	if gen.pkgPath == "" {
+		// If we qualified types from an external package (e.g., http.HandlerFunc),
+		// add the external package import
+		if gen.externalPkgPath != "" {
+			imports = append(imports, importInfo{
+				Alias: gen.externalQualifier,
+				Path:  gen.externalPkgPath,
+			})
+		}
+		// Return imports as-is for function type wrappers
 		return imports
 	}
 
-	// For regular function wrappers, also filter out the source package import from additional imports.
+	// For regular function wrappers, filter out the source package import from additional imports.
 	// The source package import (if needed) is added separately via NeedsQualifier.
 	filtered := make([]importInfo, 0, len(imports))
 	for _, imp := range imports {
@@ -365,12 +374,29 @@ func generateV2TargetCodeFromFuncType(
 	pkgLoader PackageLoader,
 	funcTypeDetails funcTypeWithDetails,
 ) (string, error) {
+	funcType := funcTypeDetails.funcType
+
+	// Track if we need to add external package import for qualified types
+	var externalPkgPath, externalQualifier string
+
+	// For external function types (from outside the current module), qualify types from the source package.
+	// E.g., http.HandlerFunc's ResponseWriter becomes http.ResponseWriter.
+	// For local function types (within the module), the types are already qualified in the source
+	// (e.g., fs.DirEntry), so we don't need to import the source package.
+	if pkgImportPath != "." && !isLocalPackage(pkgImportPath) {
+		qualifier := extractPkgNameFromPath(pkgImportPath)
+		funcType = qualifyFuncType(funcType, qualifier)
+		// Store the external package info so we can add the import later
+		externalPkgPath = pkgImportPath
+		externalQualifier = qualifier
+	}
+
 	// Create a synthetic function declaration from the function type
 	// For a type like: type WalkFunc func(path string, info string) error
 	// We create: func WalkFunc(path string, info string) error { ... }
 	funcDecl := &dst.FuncDecl{
 		Name: &dst.Ident{Name: funcTypeDetails.typeName},
-		Type: funcTypeDetails.funcType,
+		Type: funcType,
 	}
 
 	// If the function type has type parameters, attach them to the FuncType
@@ -382,6 +408,10 @@ func generateV2TargetCodeFromFuncType(
 	if err != nil {
 		return "", err
 	}
+
+	// Set the external package fields for import collection
+	gen.externalPkgPath = externalPkgPath
+	gen.externalQualifier = externalQualifier
 
 	return gen.generate()
 }
@@ -402,16 +432,28 @@ func newV2TargetGenerator(
 		err                error
 	)
 
-	// Get package info for external functions OR when in a _test package.
-	// For function type wrappers, skip this - we use the underlying function signature types
-	// directly (e.g., func(string, fs.DirEntry, error) error), not the function type name
-	// itself (e.g., visitor.WalkFunc), so we don't need to import the package.
-	if !isFunctionType && (pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test")) {
-		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get function package info: %w", err)
+	// For function type wrappers, ALWAYS leave pkgPath empty.
+	// Function types use the underlying signature types directly (e.g., func(http.ResponseWriter, *http.Request)),
+	// not the function type name itself (e.g., http.HandlerFunc).
+	//
+	// The AST transformation in generateV2TargetCodeFromFuncType handles qualifying types from
+	// external packages, and collectAdditionalImports picks up those qualified type imports automatically.
+	//
+	// For LOCAL function types (e.g., visitor.WalkFunc), the types are already qualified (e.g., fs.DirEntry),
+	// so no source package import is needed.
+	//
+	// For EXTERNAL function types (e.g., http.HandlerFunc), the AST transformation adds qualifiers
+	// (ResponseWriter → http.ResponseWriter), and collectImportsFromFuncDecl adds the http import.
+	if !isFunctionType {
+		// For non-function-type cases (regular functions), use the original logic
+		if pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test") {
+			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get function package info: %w", err)
+			}
 		}
 	}
+	// For function types, pkgPath and qualifier remain empty (initialized above)
 
 	// Wrapper type naming: WrapAdd -> WrapAddWrapper
 	wrapperType := info.impName + "Wrapper"
