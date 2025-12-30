@@ -63,14 +63,20 @@ func TestCallbackPanicSupport(t *testing.T) {
 
 	// V2 Pattern: Extract callback and invoke it, catching the panic
 	rawArgs := call.RawArgs()
-	callback := rawArgs[1].(func(string, fs.DirEntry, error) error)
+
+	callback, ok := rawArgs[1].(func(string, fs.DirEntry, error) error)
+	if !ok {
+		t.Fatal("Expected callback to be a function")
+	}
 
 	// Invoke callback and verify it panics with expected value
 	var panicValue any
+
 	func() {
 		defer func() {
 			panicValue = recover()
 		}()
+
 		_ = callback("/test/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil)
 	}()
 
@@ -82,7 +88,6 @@ func TestCallbackPanicSupport(t *testing.T) {
 	call.InjectReturnValues(nil)
 }
 
-//nolint:varnamelen // Standard Go testing convention
 func TestCountFiles(t *testing.T) {
 	t.Parallel()
 
@@ -99,17 +104,26 @@ func TestCountFiles(t *testing.T) {
 	// V2 Pattern: Extract the callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
 	rawArgs := call.RawArgs()
-	callback := rawArgs[1].(func(string, fs.DirEntry, error) error)
+
+	callback, ok := rawArgs[1].(func(string, fs.DirEntry, error) error)
+	if !ok {
+		t.Fatal("Expected callback to be a function")
+	}
 
 	// V2 Pattern: Invoke the callback multiple times with test data
 	// Verify each invocation returns the expected value
-	if err := callback("/test/a.txt", mockDirEntry{name: "a.txt", isDir: false}, nil); err != nil {
+	err := callback("/test/a.txt", mockDirEntry{name: "a.txt", isDir: false}, nil)
+	if err != nil {
 		t.Errorf("Expected callback to return nil for a.txt, got %v", err)
 	}
-	if err := callback("/test/b.txt", mockDirEntry{name: "b.txt", isDir: false}, nil); err != nil {
+
+	err = callback("/test/b.txt", mockDirEntry{name: "b.txt", isDir: false}, nil)
+	if err != nil {
 		t.Errorf("Expected callback to return nil for b.txt, got %v", err)
 	}
-	if err := callback("/test/dir", mockDirEntry{name: "dir", isDir: true}, nil); err != nil {
+
+	err = callback("/test/dir", mockDirEntry{name: "dir", isDir: true}, nil)
+	if err != nil {
 		t.Errorf("Expected callback to return nil for dir, got %v", err)
 	}
 
@@ -139,10 +153,15 @@ func TestWalkWithNamedType(t *testing.T) {
 	// V2 Pattern: Extract callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
 	rawArgs := call.RawArgs()
-	callback := rawArgs[1].(visitor.WalkFunc)
+
+	callback, ok := rawArgs[1].(visitor.WalkFunc)
+	if !ok {
+		t.Fatal("Expected callback to be a visitor.WalkFunc")
+	}
 
 	// Invoke the callback with the named type - should work just like inline function types
-	if err := callback("/data/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil); err != nil {
+	err := callback("/data/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil)
+	if err != nil {
 		t.Errorf("Expected callback to return nil, got %v", err)
 	}
 

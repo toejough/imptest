@@ -270,6 +270,7 @@ func (gen *v2TargetGenerator) writeFunctionParamsToBuilder(builder *strings.Buil
 	}
 
 	first := true
+	argCounter := 1
 	for _, field := range params.List {
 		fieldType := gen.typeWithQualifier(field.Type)
 
@@ -288,8 +289,9 @@ func (gen *v2TargetGenerator) writeFunctionParamsToBuilder(builder *strings.Buil
 				builder.WriteString(", ")
 			}
 			first = false
-			builder.WriteString(fmt.Sprintf("arg%d ", len(gen.paramNames)+1))
+			builder.WriteString(fmt.Sprintf("arg%d ", argCounter))
 			builder.WriteString(fieldType)
+			argCounter++
 		}
 	}
 }
