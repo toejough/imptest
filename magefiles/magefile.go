@@ -83,7 +83,7 @@ func CheckCoverage(c context.Context) error {
 	mg.SerialCtxDeps(c, Test) // Ensure tests have run to generate coverage.out
 
 	// Merge duplicate coverage blocks from cross-package testing
-	err := mergeCoverageBlocks()
+	err := mergeCoverageBlocks("coverage.out")
 	if err != nil {
 		return fmt.Errorf("failed to merge coverage blocks: %w", err)
 	}
@@ -1428,11 +1428,10 @@ func listTestFunctions(c context.Context, pkg string) ([]string, error) {
 // 1. Sums counts for identical blocks from different test packages
 // 2. Splits overlapping (but non-identical) blocks into non-overlapping segments
 // 3. Sums execution counts for each segment from all blocks that cover it
-func mergeCoverageBlocks() error {
-	// TODO: take the coverage file name as an arg
-	data, err := os.ReadFile("coverage.out")
+func mergeCoverageBlocks(coverageFile string) error {
+	data, err := os.ReadFile(coverageFile)
 	if err != nil {
-		return fmt.Errorf("failed to read coverage.out: %w", err)
+		return fmt.Errorf("failed to read %s: %w", coverageFile, err)
 	}
 
 	lines := strings.Split(string(data), "\n")
@@ -1528,7 +1527,7 @@ func mergeCoverageBlocks() error {
 	}
 
 	// Write merged coverage
-	err = os.WriteFile("coverage.out", []byte(strings.Join(merged, "\n")+"\n"), 0o600)
+	err = os.WriteFile(coverageFile, []byte(strings.Join(merged, "\n")+"\n"), 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to write merged coverage: %w", err)
 	}
