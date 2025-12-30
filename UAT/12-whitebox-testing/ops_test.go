@@ -2,7 +2,7 @@ package whitebox // NOT package whitebox_test - this is whitebox testing!
 
 import "testing"
 
-//go:generate impgen Ops
+//go:generate impgen Ops --dependency
 
 // TestProcessWithOps demonstrates whitebox testing.
 //
@@ -15,14 +15,14 @@ import "testing"
 func TestProcessWithOps(t *testing.T) {
 	t.Parallel()
 
-	imp := NewOpsImp(t)
+	mock := MockOps(t)
 
 	go func() {
-		result := ProcessWithOps(imp.Mock, 5)
+		result := ProcessWithOps(mock.Interface(), 5)
 		_ = result // Use the result to avoid unused variable warning
 	}()
 
 	// Can test unexported method because we're in the same package
-	imp.ExpectCallIs.internalMethod().ExpectArgsAre(5).InjectResult(10)
-	imp.ExpectCallIs.PublicMethod().ExpectArgsAre(10).InjectResult(20)
+	mock.internalMethod.ExpectCalledWithExactly(5).InjectReturnValues(10)
+	mock.PublicMethod.ExpectCalledWithExactly(10).InjectReturnValues(20)
 }

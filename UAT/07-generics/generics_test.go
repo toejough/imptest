@@ -17,21 +17,21 @@ import (
 func TestGenericCallable(t *testing.T) {
 	t.Parallel()
 
-	repoImp := NewRepositoryImp[int](t)
+	repoImp := MockRepository[int](t)
 
 	// Initialize the callable wrapper implementation for a specific instantiation of the generic function.
 	// NewProcessItemImp is generic.
-	logicImp := NewProcessItemImp[int](t, generics.ProcessItem[int])
+	logicImp := WrapProcessItem[int](t, generics.ProcessItem[int])
 
 	// Start the function.
 	transformer := func(i int) int { return i * 2 }
-	logicImp.Start(repoImp.Mock, "456", transformer)
+	logicImp.Start(repoImp.Interface(), "456", transformer)
 
-	repoImp.ExpectCallIs.Get().ExpectArgsAre("456").InjectResults(21, nil)
-	repoImp.ExpectCallIs.Save().ExpectArgsAre(42).InjectResult(nil)
+	repoImp.Get.ExpectCalledWithExactly("456").InjectReturnValues(21, nil)
+	repoImp.Save.ExpectCalledWithExactly(42).InjectReturnValues(nil)
 
 	// Verify it returned successfully (nil error).
-	logicImp.ExpectReturnedValuesAre(nil)
+	logicImp.ExpectReturnsEqual(nil)
 }
 
 // TestGenericMocking demonstrates how imptest supports generic interfaces.
@@ -46,17 +46,17 @@ func TestGenericMocking(t *testing.T) {
 
 	// Initialize the mock implementation for a specific type (string).
 	// The generated constructor is generic.
-	repoImp := NewRepositoryImp[string](t)
+	repoImp := MockRepository[string](t)
 
 	// Run the code under test in a goroutine.
 	go func() {
 		transformer := func(s string) string { return s + "!" }
-		_ = generics.ProcessItem[string](repoImp.Mock, "123", transformer)
+		_ = generics.ProcessItem[string](repoImp.Interface(), "123", transformer)
 	}()
 
 	// Expectations are type-safe based on the generic parameter.
-	repoImp.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("hello", nil)
-	repoImp.ExpectCallIs.Save().ExpectArgsAre("hello!").InjectResult(nil)
+	repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("hello", nil)
+	repoImp.Save.ExpectCalledWithExactly("hello!").InjectReturnValues(nil)
 }
 
 // TestProcessItem_Error demonstrates error handling in generic contexts.
@@ -65,14 +65,14 @@ func TestProcessItem_Error(t *testing.T) {
 
 	t.Run("Get error", func(t *testing.T) {
 		t.Parallel()
-		repoImp := NewRepositoryImp[string](t)
-		logicImp := NewProcessItemImp[string](t, generics.ProcessItem[string])
+		repoImp := MockRepository[string](t)
+		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		logicImp.Start(repoImp.Mock, "123", func(s string) string { return s })
+		logicImp.Start(repoImp.Interface(), "123", func(s string) string { return s })
 
-		repoImp.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("", errTest)
+		repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("", errTest)
 
-		logicImp.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) error {
+		logicImp.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {
 				return fmt.Errorf("expected error %w, got %w", errTest, err)
 			}
@@ -83,15 +83,15 @@ func TestProcessItem_Error(t *testing.T) {
 
 	t.Run("Save error", func(t *testing.T) {
 		t.Parallel()
-		repoImp := NewRepositoryImp[string](t)
-		logicImp := NewProcessItemImp[string](t, generics.ProcessItem[string])
+		repoImp := MockRepository[string](t)
+		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		logicImp.Start(repoImp.Mock, "123", func(s string) string { return s })
+		logicImp.Start(repoImp.Interface(), "123", func(s string) string { return s })
 
-		repoImp.ExpectCallIs.Get().ExpectArgsAre("123").InjectResults("data", nil)
-		repoImp.ExpectCallIs.Save().ExpectArgsAre("data").InjectResult(errTest)
+		repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("data", nil)
+		repoImp.Save.ExpectCalledWithExactly("data").InjectReturnValues(errTest)
 
-		logicImp.ExpectReturnedValuesShould(imptest.Satisfies(func(err error) error {
+		logicImp.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {
 				return fmt.Errorf("expected error %w, got %w", errTest, err)
 			}

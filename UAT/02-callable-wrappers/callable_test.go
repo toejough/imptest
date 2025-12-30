@@ -9,17 +9,17 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
-// Generate a mock for the dependency.
-//go:generate impgen callable.ExternalService --name ExternalServiceImp
+// Generate a mock for the dependency using v2 API.
+//go:generate impgen callable.ExternalService --dependency
 
-// Generate a wrapper for the function under test.
-//go:generate impgen callable.BusinessLogic --name BusinessLogicImp
+// Generate a wrapper for the function under test using v2 API.
+//go:generate impgen callable.BusinessLogic --target
 
-// Generate wrappers for Calculator methods to demonstrate method wrapping.
-//go:generate impgen callable.Calculator.Add
-//go:generate impgen callable.Calculator.Multiply
-//go:generate impgen callable.Calculator.Divide
-//go:generate impgen callable.Calculator.ProcessValue
+// Generate wrappers for Calculator methods to demonstrate method wrapping using v2 API.
+//go:generate impgen callable.Calculator.Add --target
+//go:generate impgen callable.Calculator.Multiply --target
+//go:generate impgen callable.Calculator.Divide --target
+//go:generate impgen callable.Calculator.ProcessValue --target
 
 // TestBusinessLogic demonstrates how to use type-safe wrappers for functions.
 //
@@ -31,22 +31,22 @@ import (
 func TestBusinessLogic(t *testing.T) {
 	t.Parallel()
 
-	// Initialize the mock implementation dependency and the callable wrapper.
-	impSvc := NewExternalServiceImp(t)
-	logicImp := NewBusinessLogicImp(t, callable.BusinessLogic)
+	// Initialize the mock implementation dependency and the callable wrapper using v2 API.
+	mockSvc := MockExternalService(t)
+	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
 	// Start the business logic in a goroutine.
 	// We pass the mock implementation and the input arguments.
-	logicImp.Start(impSvc.Mock, 42)
+	wrapper.Start(mockSvc.Interface(), 42)
 
 	// 1. Expect call to FetchData and provide response.
-	impSvc.ExpectCallIs.FetchData().ExpectArgsAre(42).InjectResults("raw data", nil)
+	mockSvc.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("raw data", nil)
 
 	// 2. Expect call to Process and provide response.
-	impSvc.ExpectCallIs.Process().ExpectArgsAre("raw data").InjectResult("processed data")
+	mockSvc.Process.ExpectCalledWithExactly("raw data").InjectReturnValues("processed data")
 
 	// 3. Verify the final output of the business logic.
-	logicImp.ExpectReturnedValuesAre("Result: processed data", nil)
+	wrapper.ExpectReturnsEqual("Result: processed data", nil)
 }
 
 // TestBusinessLogicError demonstrates error path validation using matchers.
@@ -57,17 +57,17 @@ func TestBusinessLogic(t *testing.T) {
 func TestBusinessLogicError(t *testing.T) {
 	t.Parallel()
 
-	impSvc := NewExternalServiceImp(t)
-	logicImp := NewBusinessLogicImp(t, callable.BusinessLogic)
+	mockSvc := MockExternalService(t)
+	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
-	logicImp.Start(impSvc.Mock, 99)
+	wrapper.Start(mockSvc.Interface(), 99)
 
 	// Simulate an error from the service.
-	impSvc.ExpectCallIs.FetchData().ExpectArgsAre(99).InjectResults("", errNotFound)
+	mockSvc.FetchData.ExpectCalledWithExactly(99).InjectReturnValues("", errNotFound)
 
 	// Requirement: Verify that the business logic returns the error.
 	// We use Satisfies to check if the error is (or wraps) errNotFound.
-	logicImp.ExpectReturnedValuesShould("", imptest.Satisfies(func(err error) error {
+	wrapper.ExpectReturnsMatch("", imptest.Satisfies(func(err error) error {
 		if !errors.Is(err, errNotFound) {
 			return fmt.Errorf("expected error %w, got %w", errNotFound, err)
 		}
@@ -82,11 +82,11 @@ func TestCalculatorAdd(t *testing.T) { //nolint:varnamelen // Standard Go test c
 
 	calc := callable.NewCalculator(2)
 
-	// Wrap the Add method for testing
-	addImp := NewCalculatorAdd(t, calc.Add)
+	// Wrap the Add method for testing using v2 API
+	wrapper := WrapCalculatorAdd(t, calc.Add)
 
 	// Start the method with test arguments
-	addImp.Start(5, 3).ExpectReturnedValuesAre(8)
+	wrapper.Start(5, 3).ExpectReturnsEqual(8)
 }
 
 // TestCalculatorDivide demonstrates wrapping a method with multiple return values.
@@ -95,11 +95,11 @@ func TestCalculatorDivide(t *testing.T) { //nolint:varnamelen // Standard Go tes
 
 	calc := callable.NewCalculator(1)
 
-	// Wrap the Divide method
-	divideImp := NewCalculatorDivide(t, calc.Divide)
+	// Wrap the Divide method using v2 API
+	wrapper := WrapCalculatorDivide(t, calc.Divide)
 
 	// Test successful division
-	divideImp.Start(10, 2).ExpectReturnedValuesAre(5, true)
+	wrapper.Start(10, 2).ExpectReturnsEqual(5, true)
 }
 
 // TestCalculatorDivideByZero demonstrates testing error conditions.
@@ -108,11 +108,11 @@ func TestCalculatorDivideByZero(t *testing.T) { //nolint:varnamelen // Standard 
 
 	calc := callable.NewCalculator(1)
 
-	// Wrap the Divide method
-	divideImp := NewCalculatorDivide(t, calc.Divide)
+	// Wrap the Divide method using v2 API
+	wrapper := WrapCalculatorDivide(t, calc.Divide)
 
 	// Test division by zero returns false
-	divideImp.Start(10, 0).ExpectReturnedValuesAre(0, false)
+	wrapper.Start(10, 0).ExpectReturnsEqual(0, false)
 }
 
 // TestCalculatorMultiply demonstrates wrapping a method that uses receiver state.
@@ -122,11 +122,11 @@ func TestCalculatorMultiply(t *testing.T) { //nolint:varnamelen // Standard Go t
 	// Create calculator with multiplier=3
 	calc := callable.NewCalculator(3)
 
-	// Wrap the Multiply method
-	multiplyImp := NewCalculatorMultiply(t, calc.Multiply)
+	// Wrap the Multiply method using v2 API
+	wrapper := WrapCalculatorMultiply(t, calc.Multiply)
 
 	// Test that it correctly applies the multiplier
-	multiplyImp.Start(7).ExpectReturnedValuesAre(21)
+	wrapper.Start(7).ExpectReturnsEqual(21)
 }
 
 // TestCalculatorProcessValuePanic demonstrates testing panic behavior.
@@ -135,11 +135,11 @@ func TestCalculatorProcessValuePanic(t *testing.T) { //nolint:varnamelen // Stan
 
 	calc := callable.NewCalculator(5)
 
-	// Wrap the ProcessValue method
-	processImp := NewCalculatorProcessValue(t, calc.ProcessValue)
+	// Wrap the ProcessValue method using v2 API
+	wrapper := WrapCalculatorProcessValue(t, calc.ProcessValue)
 
 	// Test that negative values cause a panic
-	processImp.Start(-1).ExpectPanicWith("negative values not supported")
+	wrapper.Start(-1).ExpectPanicEquals("negative values not supported")
 }
 
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.
@@ -148,11 +148,11 @@ func TestCalculatorProcessValueSuccess(t *testing.T) { //nolint:varnamelen // St
 
 	calc := callable.NewCalculator(5)
 
-	// Wrap the ProcessValue method
-	processImp := NewCalculatorProcessValue(t, calc.ProcessValue)
+	// Wrap the ProcessValue method using v2 API
+	wrapper := WrapCalculatorProcessValue(t, calc.ProcessValue)
 
 	// Test normal case: (3 * 5) + 10 = 25
-	processImp.Start(3).ExpectReturnedValuesAre(25)
+	wrapper.Start(3).ExpectReturnsEqual(25)
 }
 
 // unexported variables.

@@ -190,6 +190,7 @@ type cliArgs struct {
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
+	mode                                                namingMode
 }
 
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
@@ -232,10 +233,28 @@ func generateCode(
 		return "", err
 	}
 
+	// Route to appropriate generator based on symbol type and mode
 	if symbol.kind == symbolFunction {
+		// For functions: use v2 target generator if --target flag is set
+		if info.mode == namingModeTarget {
+			return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcDecl)
+		}
+
+		// Default: generate v1 callable wrapper for functions
 		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
+	// For function types: use v2 target generator (function types are always wrapped as targets)
+	if symbol.kind == symbolFunctionType {
+		return generateV2TargetCodeFromFuncType(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcType)
+	}
+
+	// For interfaces: use v2 dependency generator if --dependency flag is set
+	if info.mode == namingModeDependency {
+		return generateV2DependencyCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
+	}
+
+	// Default: generate v1 implementation for interfaces
 	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
 }
 
@@ -262,16 +281,16 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		return generatorInfo{}, errMutuallyExclusiveFlags
 	}
 
+	// Determine naming mode based on flags
+	mode := namingModeDefault
+	if parsed.Target {
+		mode = namingModeTarget
+	} else if parsed.Dependency {
+		mode = namingModeDependency
+	}
+
 	// set impname if not provided
 	if impName == "" {
-		// Determine naming mode based on flags
-		mode := namingModeDefault
-		if parsed.Target {
-			mode = namingModeTarget
-		} else if parsed.Dependency {
-			mode = namingModeDependency
-		}
-
 		impName = determineGeneratedTypeName(mode, localInterfaceName)
 	}
 
@@ -280,6 +299,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		interfaceName:      interfaceName,
 		localInterfaceName: localInterfaceName,
 		impName:            impName,
+		mode:               mode,
 	}, nil
 }
 

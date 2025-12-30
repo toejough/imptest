@@ -6,7 +6,7 @@ import (
 	timeconflict "github.com/toejough/imptest/UAT/11-package-name-conflicts"
 )
 
-//go:generate impgen time.Timer
+//go:generate impgen time.Timer --dependency
 
 // TestUseTimer demonstrates testing with a package that shadows stdlib time.
 //
@@ -17,13 +17,13 @@ import (
 func TestUseTimer(t *testing.T) {
 	t.Parallel()
 
-	imp := NewTimerImp(t)
+	mock := MockTimer(t)
 
 	go func() {
-		result := timeconflict.UseTimer(imp.Mock)
+		result := timeconflict.UseTimer(mock.Interface())
 		_ = result // Use the result to avoid unused variable warning
 	}()
 
-	imp.ExpectCallIs.Wait().ExpectArgsAre(100).InjectResult(nil)
-	imp.ExpectCallIs.GetElapsed().InjectResult(42)
+	mock.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
+	mock.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
 }

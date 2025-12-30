@@ -7,7 +7,7 @@ import (
 	concurrency "github.com/toejough/imptest/UAT/06-concurrency"
 )
 
-//go:generate impgen concurrency.SlowService --name SlowServiceImp
+//go:generate impgen concurrency.SlowService --dependency
 
 // TestConcurrentOutOfOrder demonstrates how imptest handles code that executes
 // dependencies in parallel or in non-deterministic order.
@@ -15,30 +15,30 @@ import (
 // Key Requirements Met:
 //  1. Thread-Safe Expectations: The internal call queue allows expectations to be
 //     defined in one order while the code under test calls them in another.
-//  2. Timing Control: Use .Within(duration) to tell imptest to wait for a call,
+//  2. Timing Control: Use .Eventually(duration) to tell imptest to wait for a call,
 //     preventing flaky tests in concurrent environments.
 func TestConcurrentOutOfOrder(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	// Initialize the generated mock implementation.
-	imp := NewSlowServiceImp(t)
+	mock := MockSlowService(t)
 
 	// resultChan will collect the results from the concurrent execution.
 	resultChan := make(chan []string, 1)
 
 	// Run the code under test. It will call DoA and DoB concurrently.
 	go func() {
-		resultChan <- concurrency.RunConcurrent(imp.Mock, 123)
+		resultChan <- concurrency.RunConcurrent(mock.Interface(), 123)
 	}()
 
 	// Requirement: We can expect DoA then DoB, even if the code calls them in reverse order.
-	// The .Within() modifier tells imptest to wait up to the given duration for the call.
+	// The .Eventually() modifier tells imptest to wait up to the given duration for the call.
 
 	// 1. Expect DoA(123) to be called within 1 second.
-	imp.Within(time.Second).ExpectCallIs.DoA().ExpectArgsAre(123).InjectResult("Result A")
+	mock.DoA.Eventually(time.Second).ExpectCalledWithExactly(123).InjectReturnValues("Result A")
 
 	// 2. Expect DoB(123) to be called within 1 second.
-	imp.Within(time.Second).ExpectCallIs.DoB().ExpectArgsAre(123).InjectResult("Result B")
+	mock.DoB.Eventually(time.Second).ExpectCalledWithExactly(123).InjectReturnValues("Result B")
 
 	// Wait for the code under test to finish and verify results.
 	results := <-resultChan
@@ -56,17 +56,17 @@ func TestConcurrentOutOfOrder(t *testing.T) { //nolint:varnamelen // Standard Go
 func TestExplicitReversedExpectation(t *testing.T) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
-	imp := NewSlowServiceImp(t)
+	mock := MockSlowService(t)
 	resultChan := make(chan []string, 1)
 
 	go func() {
-		resultChan <- concurrency.RunConcurrent(imp.Mock, 456)
+		resultChan <- concurrency.RunConcurrent(mock.Interface(), 456)
 	}()
 
 	// Requirement: Demonstrate that we can wait for DoB first, then DoA,
 	// regardless of which one the system-under-test triggers first.
-	imp.Within(time.Second).ExpectCallIs.DoB().ExpectArgsAre(456).InjectResult("Result B")
-	imp.Within(time.Second).ExpectCallIs.DoA().ExpectArgsAre(456).InjectResult("Result A")
+	mock.DoB.Eventually(time.Second).ExpectCalledWithExactly(456).InjectReturnValues("Result B")
+	mock.DoA.Eventually(time.Second).ExpectCalledWithExactly(456).InjectReturnValues("Result A")
 
 	results := <-resultChan
 	if results[0] != "Result A" || results[1] != "Result B" {
