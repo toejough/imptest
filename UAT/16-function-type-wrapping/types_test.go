@@ -17,10 +17,11 @@ import (
 func TestWrapFunctionType(t *testing.T) {
 	t.Parallel()
 
-	testFn := func(path string, info string) error {
+	testFn := func(path string, _ string) error {
 		if path == "/error" {
 			return errors.New("test error")
 		}
+
 		return nil
 	}
 
@@ -39,7 +40,7 @@ func TestWrapFunctionTypeWithError(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("test error")
-	testFn := func(path string, info string) error {
+	testFn := func(_ string, _ string) error {
 		return expectedErr
 	}
 

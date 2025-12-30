@@ -21,9 +21,10 @@ type CalculatorAddCall struct {
 
 func (c *CalculatorAddCall) GetArgs() CalculatorAddArgs {
 	raw := c.RawArgs()
+
 	return CalculatorAddArgs{
-		A: raw[0].(int),
-		B: raw[1].(int),
+		A: raw[0].(int), //nolint:forcetypeassert // Manual example code - type is guaranteed by mock setup
+		B: raw[1].(int), //nolint:forcetypeassert // Manual example code - type is guaranteed by mock setup
 	}
 }
 
@@ -54,18 +55,19 @@ type TypesafeCalculatorMock struct {
 	Store    *imptest.DependencyMethod
 }
 
-func (m *TypesafeCalculatorMock) Interface() typesafeargs.Calculator {
-	return &mockCalculatorImpl{mock: m}
-}
-
 func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMock {
 	imp := imptest.NewImp(t)
+
 	return &TypesafeCalculatorMock{
 		imp:      imp,
 		Add:      &CalculatorAddMethod{DependencyMethod: imptest.NewDependencyMethod(imp, "Add")},
 		Multiply: imptest.NewDependencyMethod(imp, "Multiply"),
 		Store:    imptest.NewDependencyMethod(imp, "Store"),
 	}
+}
+
+func (m *TypesafeCalculatorMock) Interface() typesafeargs.Calculator {
+	return &mockCalculatorImpl{mock: m}
 }
 
 type mockCalculatorImpl struct {
@@ -79,12 +81,14 @@ func (impl *mockCalculatorImpl) Add(a, b int) int {
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
 	impl.mock.imp.CallChan <- call
+
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
 	}
 
 	var result1 int
+
 	if len(resp.ReturnValues) > 0 {
 		if value, ok := resp.ReturnValues[0].(int); ok {
 			result1 = value
@@ -101,12 +105,14 @@ func (impl *mockCalculatorImpl) Multiply(x, y int) int {
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
 	impl.mock.imp.CallChan <- call
+
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
 	}
 
 	var result1 int
+
 	if len(resp.ReturnValues) > 0 {
 		if value, ok := resp.ReturnValues[0].(int); ok {
 			result1 = value
@@ -123,12 +129,14 @@ func (impl *mockCalculatorImpl) Store(key string, value any) error {
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
 	impl.mock.imp.CallChan <- call
+
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
 	}
 
 	var result1 error
+
 	if len(resp.ReturnValues) > 0 {
 		if value, ok := resp.ReturnValues[0].(error); ok {
 			result1 = value

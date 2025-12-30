@@ -23,6 +23,7 @@ func TestManualTypeSafeGetArgs(t *testing.T) {
 	if args.A != 10 {
 		t.Fatalf("expected A=10, got %d", args.A)
 	}
+
 	if args.B != 20 {
 		t.Fatalf("expected B=20, got %d", args.B)
 	}

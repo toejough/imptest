@@ -7,7 +7,7 @@ import (
 )
 
 // TestV2_ManyParams demonstrates v2 API for interfaces with many parameters.
-func TestV2_ManyParams(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestV2_ManyParams(t *testing.T) {
 	t.Parallel()
 
 	imp := imptest.NewImp(t)
@@ -31,7 +31,7 @@ func TestV2_ManyParams(t *testing.T) { //nolint:varnamelen // Standard Go test c
 }
 
 // TestV2_ManyParams_DifferentValues tests with different parameter values.
-func TestV2_ManyParams_DifferentValues(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestV2_ManyParams_DifferentValues(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -57,7 +57,7 @@ func TestV2_ManyParams_DifferentValues(t *testing.T) { //nolint:varnamelen // St
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			imp := imptest.NewImp(t)
@@ -89,7 +89,7 @@ func TestV2_ManyParams_DifferentValues(t *testing.T) { //nolint:varnamelen // St
 }
 
 // TestV2_ManyParams_VerifyArgs tests that all 10 arguments are captured correctly.
-func TestV2_ManyParams_VerifyArgs(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestV2_ManyParams_VerifyArgs(t *testing.T) {
 	t.Parallel()
 
 	imp := imptest.NewImp(t)

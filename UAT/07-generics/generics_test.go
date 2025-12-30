@@ -105,6 +105,3 @@ func TestProcessItem_Error(t *testing.T) {
 var (
 	errTest = errors.New("test error")
 )
-
-//go:generate impgen generics.Repository --dependency
-//go:generate impgen generics.ProcessItem --target

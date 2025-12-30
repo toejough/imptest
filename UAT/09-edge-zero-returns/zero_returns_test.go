@@ -15,7 +15,7 @@ func TestV2_ProcessData(t *testing.T) {
 }
 
 // TestV2_ProcessData_MultipleArgs tests with various argument combinations.
-func TestV2_ProcessData_MultipleArgs(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestV2_ProcessData_MultipleArgs(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -39,7 +39,7 @@ func TestV2_ProcessData_MultipleArgs(t *testing.T) { //nolint:varnamelen // Stan
 }
 
 // TestV2_ProcessData_Panic demonstrates panic verification for zero-return functions.
-func TestV2_ProcessData_Panic(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestV2_ProcessData_Panic(t *testing.T) {
 	t.Parallel()
 
 	// Define a function that panics
