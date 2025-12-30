@@ -54,50 +54,6 @@ func GetPackageInfo(
 	return pkgPath, pkgName, nil
 }
 
-// IsExportedIdent checks if an identifier is exported and not a builtin or type parameter.
-func IsExportedIdent(ident *dst.Ident, isTypeParam func(string) bool) bool {
-	if len(ident.Name) == 0 {
-		return true
-	}
-
-	if unicode.IsUpper(rune(ident.Name[0])) {
-		return true
-	}
-
-	return isBuiltinType(ident.Name) || isTypeParam(ident.Name)
-}
-
-// ValidateExportedTypes checks if an expression contains any unexported identifiers that would be inaccessible
-// from another package. Returns an error if found.
-func ValidateExportedTypes(expr dst.Expr, isTypeParam func(string) bool) error {
-	walker := &typeExprWalker[error]{
-		visitIdent: func(ident *dst.Ident) error {
-			if !IsExportedIdent(ident, isTypeParam) {
-				return fmt.Errorf("type '%s': %w", ident.Name, errUnexportedType)
-			}
-
-			return nil
-		},
-		visitSelector: func(sel *dst.SelectorExpr) error {
-			if !unicode.IsUpper(rune(sel.Sel.Name[0])) {
-				return fmt.Errorf("type '%s': %w", sel.Sel.Name, errUnexportedType)
-			}
-
-			return nil
-		},
-		combine: func(a, b error) error {
-			if a != nil {
-				return a
-			}
-
-			return b
-		},
-		zero: nil,
-	}
-
-	return walker.walk(expr)
-}
-
 // unexported constants.
 const (
 	anyTypeString       = "any"
@@ -112,7 +68,6 @@ const (
 // unexported variables.
 var (
 	errGOPACKAGENotSet = errors.New(goPackageEnvVarName + " environment variable not set")
-	errUnexportedType  = errors.New("unexported type is not accessible from external packages")
 )
 
 // baseGenerator holds common state and methods for code generation.
@@ -140,35 +95,6 @@ func (baseGen *baseGenerator) checkIfQualifierNeeded(expr dst.Expr) {
 	if hasExportedIdent(expr, baseGen.isTypeParam) {
 		baseGen.needsQualifier = true
 	}
-}
-
-// checkIfValidForExternalUsage checks if the symbol can be used from an external package.
-func (baseGen *baseGenerator) checkIfValidForExternalUsage(funcType *dst.FuncType) error {
-	if baseGen.qualifier == "" {
-		return nil
-	}
-
-	// Validate params
-	if funcType.Params != nil {
-		for _, field := range funcType.Params.List {
-			err := ValidateExportedTypes(field.Type, baseGen.isTypeParam)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// Validate results
-	if funcType.Results != nil {
-		for _, field := range funcType.Results.List {
-			err := ValidateExportedTypes(field.Type, baseGen.isTypeParam)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // formatTypeParamsDecl formats type parameters for declaration.
@@ -552,21 +478,6 @@ func collectImportsFromFuncDecl(funcDecl *dst.FuncDecl, astFiles []*dst.File) []
 	return result
 }
 
-// countFields counts the total number of individual fields in a field list.
-func countFields(fields *dst.FieldList) int {
-	if fields == nil {
-		return 0
-	}
-
-	total := 0
-
-	for _, field := range fields.List {
-		total += fieldNameCount(field)
-	}
-
-	return total
-}
-
 // exprToString renders a dst.Expr to Go code.
 // This function converts DST expressions back to their string representation.
 func exprToString(_ *token.FileSet, expr dst.Expr) string {
@@ -618,15 +529,6 @@ func extractParams(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
 }
 
 // extractResults extracts result info from a function type.
-
-// fieldNameCount returns the number of names in a field (at least 1 for unnamed fields).
-func fieldNameCount(field *dst.Field) int {
-	if len(field.Names) > 0 {
-		return len(field.Names)
-	}
-
-	return 1
-}
 
 // findExternalTypeAlias resolves an external type alias like fs.WalkDirFunc.
 //
@@ -747,16 +649,6 @@ func hasFieldNames(field *dst.Field) bool {
 	return len(field.Names) > 0
 }
 
-// hasParams returns true if the function type has parameters.
-func hasParams(ftype *dst.FuncType) bool {
-	return ftype.Params != nil && len(ftype.Params.List) > 0
-}
-
-// hasResults returns true if the function type has return values.
-func hasResults(ftype *dst.FuncType) bool {
-	return ftype.Results != nil && len(ftype.Results.List) > 0
-}
-
 // isBasicComparableType determines if an expression is a basic type that supports == comparison.
 // This works from syntax alone without requiring full type checking.
 // Returns true for: bool, int*, uint*, float*, complex*, string, and pointers.
@@ -837,20 +729,6 @@ func normalizeVariadicType(typeStr string) string {
 	}
 
 	return typeStr
-}
-
-// paramNamesToString returns a comma-separated string of parameter names.
-func paramNamesToString(params []fieldInfo) string {
-	if len(params) == 0 {
-		return ""
-	}
-
-	names := make([]string, len(params))
-	for i, p := range params {
-		names[i] = p.Name
-	}
-
-	return strings.Join(names, ", ")
 }
 
 // resolveImportPath finds the full import path for a package alias in the source imports.

@@ -67,6 +67,19 @@ type cachedPackage struct {
 	fset  *token.FileSet
 }
 
+// realCacheFS implements CacheFileSystem for production use in tests.
+type realCacheFS struct{}
+
+func (realCacheFS) Create(path string) (io.WriteCloser, error) { return os.Create(path) }
+
+func (realCacheFS) Getwd() (string, error) { return os.Getwd() }
+
+func (realCacheFS) MkdirAll(path string, perm os.FileMode) error { return os.MkdirAll(path, perm) }
+
+func (realCacheFS) Open(path string) (io.ReadCloser, error) { return os.Open(path) }
+
+func (realCacheFS) Stat(path string) (os.FileInfo, error) { return os.Stat(path) }
+
 // testPackageLoader implements PackageLoader using direct DST parsing.
 type testPackageLoader struct {
 	ProjectRoot string

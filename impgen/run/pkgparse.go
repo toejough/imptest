@@ -372,48 +372,6 @@ func findSymbol(
 	return symbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
 }
 
-// getFullImportPath uses 'go list' to get the full import path for a package.
-// This is needed to handle local packages that might shadow stdlib packages.
-// Results are cached to avoid redundant subprocess calls.
-func getFullImportPath(pkgName string) (string, error) {
-	cacheKey := "./" + pkgName
-
-	// Check cache first
-	goListCacheMu.RLock()
-
-	if cached, ok := goListCache[cacheKey]; ok {
-		goListCacheMu.RUnlock()
-		return cached, nil
-	}
-
-	goListCacheMu.RUnlock()
-
-	// Cache miss - run go list
-	//nolint:noctx // context not needed for simple command
-	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", cacheKey)
-
-	var out bytes.Buffer
-
-	cmd.Stdout = &out
-	cmd.Stderr = nil
-
-	err := cmd.Run()
-	if err != nil {
-		return "", fmt.Errorf("failed to get import path for %s: %w", pkgName, err)
-	}
-
-	importPath := strings.TrimSpace(out.String())
-
-	// Store in cache
-	goListCacheMu.Lock()
-
-	goListCache[cacheKey] = importPath
-
-	goListCacheMu.Unlock()
-
-	return importPath, nil
-}
-
 // getImportPathFromFiles determines the import path of a package by examining its loaded files.
 // It gets the directory from the FileSet and runs `go list` on that directory.
 // Results are cached to avoid redundant subprocess calls.

@@ -1,7 +1,6 @@
 package run
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -69,36 +68,6 @@ func FindProjectRoot(cfs CacheFileSystem) (string, error) {
 
 		curr = parent
 	}
-}
-
-// LoadDiskCache reads the cache from the specified path.
-func LoadDiskCache(path string, cfs CacheFileSystem) CacheData {
-	var data CacheData
-
-	file, err := cfs.Open(path)
-	if err != nil {
-		return data
-	}
-	defer file.Close()
-
-	_ = json.NewDecoder(file).Decode(&data)
-
-	return data
-}
-
-// SaveDiskCache writes the cache to the specified path.
-func SaveDiskCache(path string, data CacheData, cfs CacheFileSystem) {
-	_ = cfs.MkdirAll(filepath.Dir(path), DirPerm)
-
-	file, err := cfs.Create(path)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-
-	enc := json.NewEncoder(file)
-	enc.SetIndent("", "  ")
-	_ = enc.Encode(data) //nolint:errchkjson
 }
 
 // unexported variables.
