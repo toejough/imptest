@@ -124,13 +124,12 @@ func (gen *v2DependencyGenerator) generate() (string, error) {
 	return string(formatted), nil
 }
 
-// generateImplMethodWithTemplate generates a single impl method using templates.
-func (gen *v2DependencyGenerator) generateImplMethodWithTemplate(
-	templates *TemplateRegistry,
+// buildMethodTemplateData builds template data for a single method.
+func (gen *v2DependencyGenerator) buildMethodTemplateData(
 	methodName string,
 	ftype *dst.FuncType,
 	interfaceType string,
-) {
+) v2DepMethodTemplateData {
 	// Build parameter string and collect param names
 	var paramsStr strings.Builder
 	var paramNames []string
@@ -213,7 +212,7 @@ func (gen *v2DependencyGenerator) generateImplMethodWithTemplate(
 	}
 
 	if hasVariadic && len(paramNames) > 0 {
-		// Build non-variadic args
+		// Build non-variadic args (all params except the last one)
 		for i := 0; i < len(paramNames)-1; i++ {
 			if i > 0 {
 				nonVariadicArgs.WriteString(", ")
@@ -221,8 +220,18 @@ func (gen *v2DependencyGenerator) generateImplMethodWithTemplate(
 			nonVariadicArgs.WriteString(paramNames[i])
 		}
 		variadicArg.WriteString(paramNames[len(paramNames)-1])
+
+		// For variadic methods, allArgs is not used in the template
+		// (the template uses NonVariadicArgs and VariadicArg to build args manually)
+		// But we still populate it for consistency and potential future use
+		for i, name := range paramNames {
+			if i > 0 {
+				allArgs.WriteString(", ")
+			}
+			allArgs.WriteString(name)
+		}
 	} else {
-		// Build all args
+		// Build all args (non-variadic case)
 		for i, name := range paramNames {
 			if i > 0 {
 				allArgs.WriteString(", ")
@@ -248,11 +257,36 @@ func (gen *v2DependencyGenerator) generateImplMethodWithTemplate(
 		returnList.WriteString(fmt.Sprintf("result%d", i+1))
 	}
 
+	// Extract parameter fields for type-safe args
+	paramInfos := extractParams(gen.fset, ftype)
+	var paramFields []paramField
+	for _, pinfo := range paramInfos {
+		// Use actual parameter name if present, otherwise generate A1, A2, A3 style names
+		// to match the DependencyArgs pattern
+		fieldName := pinfo.Name
+		if strings.HasPrefix(pinfo.Name, "param") {
+			// Unnamed parameter - convert "param0" -> "A1", "param1" -> "A2", etc.
+			fieldName = fmt.Sprintf("A%d", pinfo.Index+1)
+		} else {
+			// Capitalize first letter for exported field
+			fieldName = strings.ToUpper(string(fieldName[0])) + fieldName[1:]
+		}
+
+		paramFields = append(paramFields, paramField{
+			Name:  fieldName,
+			Type:  normalizeVariadicType(gen.typeWithQualifier(pinfo.Field.Type)),
+			Index: pinfo.Index,
+		})
+	}
+
 	// Build method template data with base fields
-	methodData := v2DepMethodTemplateData{
+	return v2DepMethodTemplateData{
 		baseTemplateData: baseTemplateData{
-			PkgName:    gen.pkgName,
-			PkgImptest: "_imptest",
+			PkgName:        gen.pkgName,
+			PkgImptest:     "_imptest",
+			PkgTime:        pkgTime,
+			TypeParamsDecl: gen.formatTypeParamsDecl(),
+			TypeParamsUse:  gen.formatTypeParamsUse(),
 		},
 		MethodName:      methodName,
 		InterfaceType:   interfaceType,
@@ -268,9 +302,13 @@ func (gen *v2DependencyGenerator) generateImplMethodWithTemplate(
 		ResultVars:      resultVars,
 		ReturnList:      returnList.String(),
 		ReturnStatement: fmt.Sprintf("return %s", returnList.String()),
+		ParamFields:     paramFields,
+		HasParams:       len(paramFields) > 0,
+		ArgsTypeName:    fmt.Sprintf("%s%sArgs", gen.mockTypeName, methodName),
+		CallTypeName:    fmt.Sprintf("%s%sCall", gen.mockTypeName, methodName),
+		MethodTypeName:  fmt.Sprintf("%s%sMethod", gen.mockTypeName, methodName),
+		TypedParams:     paramsStr.String(),
 	}
-
-	templates.WriteV2DepImplMethod(&gen.buf, methodData)
 }
 
 // generateWithTemplates generates code using templates instead of direct code generation.
@@ -305,6 +343,20 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 		}
 		interfaceType = qualifierToUse + "." + gen.interfaceName
 	}
+	// Add type parameters to interface type if present
+	if gen.formatTypeParamsUse() != "" {
+		interfaceType += gen.formatTypeParamsUse()
+	}
+
+	// Collect method data for all methods first (needed for typed wrappers)
+	var methods []v2DepMethodTemplateData
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(methodName string, ftype *dst.FuncType) {
+			methodData := gen.buildMethodTemplateData(methodName, ftype, interfaceType)
+			methods = append(methods, methodData)
+		},
+	)
 
 	// Build v2 dependency template data
 	baseName := strings.TrimPrefix(gen.mockName, "Mock")
@@ -317,6 +369,7 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 		InterfaceType:    interfaceType,
 		ImplName:         gen.implName,
 		MethodNames:      gen.methodNames,
+		Methods:          methods,
 	}
 
 	// Generate each section using templates
@@ -326,13 +379,13 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 	templates.WriteV2DepConstructor(&gen.buf, data)
 	templates.WriteV2DepImplStruct(&gen.buf, data)
 
-	// Generate implementation methods for each interface method
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(methodName string, ftype *dst.FuncType) {
-			gen.generateImplMethodWithTemplate(templates, methodName, ftype, interfaceType)
-		},
-	)
+	// Generate implementation methods and type-safe wrappers for each interface method
+	for _, methodData := range methods {
+		templates.WriteV2DepImplMethod(&gen.buf, methodData)
+		templates.WriteV2DepArgsStruct(&gen.buf, methodData)
+		templates.WriteV2DepCallWrapper(&gen.buf, methodData)
+		templates.WriteV2DepMethodWrapper(&gen.buf, methodData)
+	}
 }
 
 // generateV2DependencyCode generates v2-style dependency mock code for an interface.

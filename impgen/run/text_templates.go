@@ -37,6 +37,9 @@ type TemplateRegistry struct {
 	v2DepInterfaceMethodTmpl *template.Template
 	v2DepImplStructTmpl      *template.Template
 	v2DepImplMethodTmpl      *template.Template
+	v2DepArgsStructTmpl      *template.Template
+	v2DepCallWrapperTmpl     *template.Template
+	v2DepMethodWrapperTmpl   *template.Template
 	// V2 Target wrapper templates
 	v2TargetHeaderTmpl          *template.Template
 	v2TargetConstructorTmpl     *template.Template
@@ -491,10 +494,11 @@ import (
 	// V2 Dependency Mock Struct template
 	//nolint:lll // Template docstring
 	registry.v2DepMockStructTmpl, err = parseTemplate("v2DepMockStruct", `// {{.MockTypeName}} is the mock for {{.InterfaceName}}.
-type {{.MockTypeName}} struct {
+type {{.MockTypeName}}{{.TypeParamsDecl}} struct {
 	imp *{{.PkgImptest}}.Imp
-{{range .MethodNames}}	{{.}} *{{$.PkgImptest}}.DependencyMethod
-{{end}}}
+{{range .Methods}}{{if .HasParams}}	{{.MethodName}} *{{.MethodTypeName}}{{$.TypeParamsUse}}
+{{else}}	{{.MethodName}} *{{$.PkgImptest}}.DependencyMethod
+{{end}}{{end}}}
 
 `)
 	if err != nil {
@@ -504,12 +508,13 @@ type {{.MockTypeName}} struct {
 	// V2 Dependency Constructor template
 	//nolint:lll // Template docstring
 	registry.v2DepConstructorTmpl, err = parseTemplate("v2DepConstructor", `// {{.MockName}} creates a new {{.MockTypeName}} for testing.
-func {{.MockName}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}} {
+func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}{{.TypeParamsUse}} {
 	imp := {{.PkgImptest}}.NewImp(t)
-	return &{{.MockTypeName}}{
+	return &{{.MockTypeName}}{{.TypeParamsUse}}{
 		imp: imp,
-{{range .MethodNames}}		{{.}}: {{$.PkgImptest}}.NewDependencyMethod(imp, "{{.}}"),
-{{end}}	}
+{{range .Methods}}{{if .HasParams}}		{{.MethodName}}: &{{.MethodTypeName}}{{$.TypeParamsUse}}{DependencyMethod: {{$.PkgImptest}}.NewDependencyMethod(imp, "{{.MethodName}}")},
+{{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(imp, "{{.MethodName}}"),
+{{end}}{{end}}	}
 }
 
 `)
@@ -520,8 +525,8 @@ func {{.MockName}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}} {
 	// V2 Dependency Interface Method template
 	//nolint:lll // Template docstring
 	registry.v2DepInterfaceMethodTmpl, err = parseTemplate("v2DepInterfaceMethod", `// Interface returns the {{.InterfaceName}} implementation that can be passed to code under test.
-func (m *{{.MockTypeName}}) Interface() {{.InterfaceType}} {
-	return &{{.ImplName}}{mock: m}
+func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Interface() {{.InterfaceType}} {
+	return &{{.ImplName}}{{.TypeParamsUse}}{mock: m}
 }
 
 `)
@@ -531,8 +536,8 @@ func (m *{{.MockTypeName}}) Interface() {{.InterfaceType}} {
 
 	// V2 Dependency Impl Struct template
 	registry.v2DepImplStructTmpl, err = parseTemplate("v2DepImplStruct", `// {{.ImplName}} implements {{.InterfaceType}}.
-type {{.ImplName}} struct {
-	mock *{{.MockTypeName}}
+type {{.ImplName}}{{.TypeParamsDecl}} struct {
+	mock *{{.MockTypeName}}{{.TypeParamsUse}}
 }
 
 `)
@@ -543,7 +548,7 @@ type {{.ImplName}} struct {
 	// V2 Dependency Impl Method template
 	//nolint:lll // Template docstring
 	registry.v2DepImplMethodTmpl, err = parseTemplate("v2DepImplMethod", `// {{.MethodName}} implements {{.InterfaceType}}.{{.MethodName}}.
-func (impl *{{.ImplName}}) {{.MethodName}}({{.Params}}){{.Results}} {
+func (impl *{{.ImplName}}{{.TypeParamsUse}}) {{.MethodName}}({{.Params}}){{.Results}} {
 	{{if .HasVariadic}}args := []any{ {{.NonVariadicArgs}} }
 	for _, v := range {{.VariadicArg}} {
 		args = append(args, v)
@@ -574,6 +579,64 @@ func (impl *{{.ImplName}}) {{.MethodName}}({{.Params}}){{.Results}} {
 		return nil, err
 	}
 
+	// V2 Dependency Args Struct template
+	registry.v2DepArgsStructTmpl, err = parseTemplate("v2DepArgsStruct", `{{if .HasParams}}// {{.ArgsTypeName}} holds typed arguments for {{.MethodName}}.
+type {{.ArgsTypeName}}{{.TypeParamsDecl}} struct {
+{{range .ParamFields}}	{{.Name}} {{.Type}}
+{{end}}}
+
+{{end}}`)
+	if err != nil {
+		return nil, err
+	}
+
+	// V2 Dependency Call Wrapper template
+	registry.v2DepCallWrapperTmpl, err = parseTemplate("v2DepCallWrapper", `{{if .HasParams}}// {{.CallTypeName}} wraps DependencyCall with typed GetArgs.
+type {{.CallTypeName}}{{.TypeParamsDecl}} struct {
+	*{{.PkgImptest}}.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *{{.CallTypeName}}{{.TypeParamsUse}}) GetArgs() {{.ArgsTypeName}}{{.TypeParamsUse}} {
+	raw := c.RawArgs()
+	return {{.ArgsTypeName}}{{.TypeParamsUse}}{
+{{range .ParamFields}}		{{.Name}}: raw[{{.Index}}].({{.Type}}),
+{{end}}	}
+}
+{{end}}
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// V2 Dependency Method Wrapper template
+	//nolint:lll // Template strings naturally exceed line length
+	registry.v2DepMethodWrapperTmpl, err = parseTemplate("v2DepMethodWrapper", `{{if .HasParams}}// {{.MethodTypeName}} wraps DependencyMethod with typed returns.
+type {{.MethodTypeName}}{{.TypeParamsDecl}} struct {
+	*{{.PkgImptest}}.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithExactly({{.TypedParams}}) *{{.CallTypeName}}{{.TypeParamsUse}} {
+	{{if .HasVariadic}}args := []any{ {{if .NonVariadicArgs}}{{.NonVariadicArgs}}{{end}} }
+	for _, v := range {{.VariadicArg}} {
+		args = append(args, v)
+	}
+	call := m.DependencyMethod.ExpectCalledWithExactly(args...){{else}}call := m.DependencyMethod.ExpectCalledWithExactly({{.ArgNames}}){{end}}
+	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers ...any) *{{.CallTypeName}}{{.TypeParamsUse}} {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
+}
+{{end}}
+`)
+	if err != nil {
+		return nil, err
+	}
+
 	// V2 Target Header template
 	registry.v2TargetHeaderTmpl, err = parseTemplate("v2TargetHeader", `// Code generated by impgen. DO NOT EDIT.
 
@@ -594,9 +657,9 @@ import (
 	// V2 Target Constructor template
 	//nolint:lll // Template docstring
 	registry.v2TargetConstructorTmpl, err = parseTemplate("v2TargetConstructor", `// {{.WrapName}} wraps a function for testing.
-func {{.WrapName}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}} {
-	return &{{.WrapperType}}{
-		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return](t),
+func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}}{{.TypeParamsUse}} {
+	return &{{.WrapperType}}{{.TypeParamsUse}}{
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](t),
 		callable:           fn,
 	}
 }
@@ -609,8 +672,8 @@ func {{.WrapName}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperT
 	// V2 Target Wrapper Struct template
 	//nolint:lll // Template docstring
 	registry.v2TargetWrapperStructTmpl, err = parseTemplate("v2TargetWrapperStruct", `// {{.WrapperType}} wraps a function for testing.
-type {{.WrapperType}} struct {
-	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}Return]
+type {{.WrapperType}}{{.TypeParamsDecl}} struct {
+	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}]
 	callable {{.FuncSig}}
 }
 
@@ -622,7 +685,7 @@ type {{.WrapperType}} struct {
 	// V2 Target Start Method template
 	//nolint:lll // Template docstring
 	registry.v2TargetStartMethodTmpl, err = parseTemplate("v2TargetStartMethod", `// Start executes the wrapped function in a goroutine.
-func (w *{{.WrapperType}}) Start({{.Params}}) *{{.WrapperType}} {
+func (w *{{.WrapperType}}{{.TypeParamsUse}}) Start({{.Params}}) *{{.WrapperType}}{{.TypeParamsUse}} {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -630,8 +693,8 @@ func (w *{{.WrapperType}}) Start({{.Params}}) *{{.WrapperType}} {
 			}
 		}()
 		{{if .HasResults}}{{.ResultVars}} := w.callable({{.ParamNames}})
-		w.ReturnChan <- {{.ReturnsType}}Return{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
-		w.ReturnChan <- {{.ReturnsType}}Return{}{{end}}
+		w.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
+		w.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{}{{end}}
 	}()
 	return w
 }
@@ -650,7 +713,7 @@ func (w *{{.WrapperType}}) Start({{.Params}}) *{{.WrapperType}} {
 	// V2 Target Expect Returns template
 	//nolint:lll // Template docstring
 	registry.v2TargetExpectReturnsTmpl, err = parseTemplate("v2TargetExpectReturns", `// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *{{.WrapperType}}) ExpectReturnsEqual({{.ExpectedParams}}) {
+func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectReturnsEqual({{.ExpectedParams}}) {
 	w.T.Helper()
 	w.WaitForResponse()
 
@@ -665,7 +728,7 @@ func (w *{{.WrapperType}}) ExpectReturnsEqual({{.ExpectedParams}}) {
 }
 
 // ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *{{.WrapperType}}) ExpectReturnsMatch({{.MatcherParams}}) {
+func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectReturnsMatch({{.MatcherParams}}) {
 	w.T.Helper()
 	w.WaitForResponse()
 
@@ -690,7 +753,7 @@ func (w *{{.WrapperType}}) ExpectReturnsMatch({{.MatcherParams}}) {
 	// V2 Target Expect Completes template
 	//nolint:lll // Template docstring
 	registry.v2TargetExpectCompletesTmpl, err = parseTemplate("v2TargetExpectCompletes", `// ExpectCompletes verifies the function completes without panicking.
-func (w *{{.WrapperType}}) ExpectCompletes() {
+func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectCompletes() {
 	w.T.Helper()
 	w.WaitForResponse()
 
@@ -707,7 +770,7 @@ func (w *{{.WrapperType}}) ExpectCompletes() {
 	// V2 Target Expect Panic template
 	//nolint:lll // Template docstring
 	registry.v2TargetExpectPanicTmpl, err = parseTemplate("v2TargetExpectPanic", `// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *{{.WrapperType}}) ExpectPanicEquals(expected any) {
+func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectPanicEquals(expected any) {
 	w.T.Helper()
 	w.WaitForResponse()
 
@@ -723,7 +786,7 @@ func (w *{{.WrapperType}}) ExpectPanicEquals(expected any) {
 }
 
 // ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *{{.WrapperType}}) ExpectPanicMatches(matcher any) {
+func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectPanicMatches(matcher any) {
 	w.T.Helper()
 	w.WaitForResponse()
 
@@ -746,7 +809,7 @@ func (w *{{.WrapperType}}) ExpectPanicMatches(matcher any) {
 	// V2 Target Returns Struct template
 	//nolint:lll // Template docstring
 	registry.v2TargetReturnsStructTmpl, err = parseTemplate("v2TargetReturnsStruct", `// {{.ReturnsType}}Return holds the return values from the wrapped function.
-type {{.ReturnsType}}Return struct {
+type {{.ReturnsType}}Return{{.TypeParamsDecl}} struct {
 	{{if .HasResults}}{{range .ResultFields}}{{.Name}} {{.Type}}
 	{{end}}{{end}}}
 
@@ -973,6 +1036,30 @@ func (r *TemplateRegistry) WriteV2DepMockStruct(buf *bytes.Buffer, data any) {
 	err := r.v2DepMockStructTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute v2DepMockStruct template: %v", err))
+	}
+}
+
+// WriteV2DepArgsStruct writes the v2 dependency args struct.
+func (r *TemplateRegistry) WriteV2DepArgsStruct(buf *bytes.Buffer, data any) {
+	err := r.v2DepArgsStructTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2DepArgsStruct template: %v", err))
+	}
+}
+
+// WriteV2DepCallWrapper writes the v2 dependency call wrapper.
+func (r *TemplateRegistry) WriteV2DepCallWrapper(buf *bytes.Buffer, data any) {
+	err := r.v2DepCallWrapperTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2DepCallWrapper template: %v", err))
+	}
+}
+
+// WriteV2DepMethodWrapper writes the v2 dependency method wrapper.
+func (r *TemplateRegistry) WriteV2DepMethodWrapper(buf *bytes.Buffer, data any) {
+	err := r.v2DepMethodWrapperTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2DepMethodWrapper template: %v", err))
 	}
 }
 
