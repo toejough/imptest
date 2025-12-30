@@ -140,13 +140,8 @@ func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *Dependency
 		}
 
 		for index, m := range matchers {
-			matcher, ok := m.(Matcher)
+			ok, _ := MatchValue(actualArgs[index], m)
 			if !ok {
-				return false
-			}
-
-			success, _ := matcher.Match(actualArgs[index])
-			if !success {
 				return false
 			}
 		}
