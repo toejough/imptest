@@ -48,67 +48,106 @@ func TestCallbackMatcherSupport(t *testing.T) {
 func TestCallbackPanicSupport(t *testing.T) {
 	t.Parallel()
 
-	walker := NewTreeWalkerImp(t)
+	// V2 Pattern: Create mock
+	mock := MockTreeWalker(t)
 
+	// Start goroutine that will pass a panicking callback to the mock
 	go func() {
-		_ = walker.Mock.Walk("/test", func(_ string, _ fs.DirEntry, _ error) error {
+		_ = mock.Interface().Walk("/test", func(_ string, _ fs.DirEntry, _ error) error {
 			panic("test panic") // Callback panics on its own
 		})
 	}()
 
-	call := walker.Within(time.Second).ExpectCallIs.Walk().ExpectArgsShould("/test", imptest.Any())
+	// V2 Pattern: Wait for the Walk call
+	call := mock.Walk.Eventually(time.Second).ExpectCalledWithMatches("/test", imptest.Any())
 
-	// Verify that the callback panicked with the expected value
-	call.InvokeFn("/test/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil).ExpectPanicWith("test panic")
+	// V2 Pattern: Extract callback and invoke it, catching the panic
+	rawArgs := call.RawArgs()
+	callback := rawArgs[1].(func(string, fs.DirEntry, error) error)
 
-	call.InjectResult(nil)
+	// Invoke callback and verify it panics with expected value
+	var panicValue any
+	func() {
+		defer func() {
+			panicValue = recover()
+		}()
+		_ = callback("/test/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil)
+	}()
+
+	if panicValue != "test panic" {
+		t.Errorf("Expected callback to panic with 'test panic', got %v", panicValue)
+	}
+
+	// Let Walk return
+	call.InjectReturnValues(nil)
 }
 
 //nolint:varnamelen // Standard Go testing convention
 func TestCountFiles(t *testing.T) {
 	t.Parallel()
 
-	walker := NewTreeWalkerImp(t)
+	// V2 Pattern: Create mock and wrap function under test
+	mock := MockTreeWalker(t)
+	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
-	// Start the code under test using callable wrapper
-	callable := NewCountFilesImp(t, visitor.CountFiles).Start(walker.Mock, "/test")
+	// Start the code under test
+	wrapper.Start(mock.Interface(), "/test")
 
-	// Wait for the Walk call
-	call := walker.Within(time.Second).ExpectCallIs.Walk().ExpectArgsShould("/test", imptest.Any())
+	// V2 Pattern: Wait for the Walk call
+	call := mock.Walk.Eventually(time.Second).ExpectCalledWithMatches("/test", imptest.Any())
 
-	// Invoke the callback multiple times with test data
-	// Expected API: call.InvokeFn(args...).ExpectReturned(result)
-	call.InvokeFn("/test/a.txt", mockDirEntry{name: "a.txt", isDir: false}, nil).ExpectReturned(nil)
-	call.InvokeFn("/test/b.txt", mockDirEntry{name: "b.txt", isDir: false}, nil).ExpectReturned(nil)
-	call.InvokeFn("/test/dir", mockDirEntry{name: "dir", isDir: true}, nil).ExpectReturned(nil)
+	// V2 Pattern: Extract the callback from args
+	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
+	rawArgs := call.RawArgs()
+	callback := rawArgs[1].(func(string, fs.DirEntry, error) error)
+
+	// V2 Pattern: Invoke the callback multiple times with test data
+	// Verify each invocation returns the expected value
+	if err := callback("/test/a.txt", mockDirEntry{name: "a.txt", isDir: false}, nil); err != nil {
+		t.Errorf("Expected callback to return nil for a.txt, got %v", err)
+	}
+	if err := callback("/test/b.txt", mockDirEntry{name: "b.txt", isDir: false}, nil); err != nil {
+		t.Errorf("Expected callback to return nil for b.txt, got %v", err)
+	}
+	if err := callback("/test/dir", mockDirEntry{name: "dir", isDir: true}, nil); err != nil {
+		t.Errorf("Expected callback to return nil for dir, got %v", err)
+	}
 
 	// Finally, let Walk return
-	call.InjectResult(nil)
+	call.InjectReturnValues(nil)
 
 	// Verify the results - should count only the 2 non-directory entries
-	callable.ExpectReturnedValuesAre(2, nil)
+	wrapper.ExpectReturnsEqual(2, nil)
 }
 
 func TestWalkWithNamedType(t *testing.T) {
 	t.Parallel()
 
-	walker := NewTreeWalkerImp(t)
+	// V2 Pattern: Create mock
+	mock := MockTreeWalker(t)
 
 	// Call WalkWithNamedType in a goroutine to trigger the mock
 	go func() {
-		_ = walker.Mock.WalkWithNamedType("/data", func(_ string, _ fs.DirEntry, _ error) error {
+		_ = mock.Interface().WalkWithNamedType("/data", func(_ string, _ fs.DirEntry, _ error) error {
 			return nil
 		})
 	}()
 
-	// Wait for and verify the WalkWithNamedType call
-	call := walker.Within(time.Second).ExpectCallIs.WalkWithNamedType().ExpectArgsShould("/data", imptest.Any())
+	// V2 Pattern: Wait for and verify the WalkWithNamedType call
+	call := mock.WalkWithNamedType.Eventually(time.Second).ExpectCalledWithMatches("/data", imptest.Any())
+
+	// V2 Pattern: Extract callback from args
+	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
+	rawArgs := call.RawArgs()
+	callback := rawArgs[1].(visitor.WalkFunc)
 
 	// Invoke the callback with the named type - should work just like inline function types
-	call.InvokeFn("/data/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil).ExpectReturned(nil)
+	if err := callback("/data/file.txt", mockDirEntry{name: "file.txt", isDir: false}, nil); err != nil {
+		t.Errorf("Expected callback to return nil, got %v", err)
+	}
 
 	// Let the method return
-	call.InjectResult(nil)
+	call.InjectReturnValues(nil)
 }
 
 // mockDirEntry is a simple fs.DirEntry implementation for testing.
