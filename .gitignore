@@ -15,3 +15,6 @@
 # vendor/
 .impgen
 bin/
+
+# Claude Code local settings
+.claude/
