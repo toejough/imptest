@@ -1,6 +1,9 @@
 # Phase 2: Type-Safe GetArgs() - Design Document
 
-## Status: Design Complete, Implementation in Progress
+## Status: ✅ COMPLETED AND SHIPPED
+
+This feature has been fully implemented and shipped as part of the V2 generator.
+All dependency mocks now include type-safe `GetArgs()` methods.
 
 ### Overview
 This document describes the design for adding type-safe `GetArgs()` methods to v2 dependency mocks, eliminating the need for type assertions when accessing method arguments.

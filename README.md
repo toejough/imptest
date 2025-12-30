@@ -28,10 +28,10 @@ import (
 )
 
 // create syntactic sugar instrumentation for your target function
-//go:generate go run impgen run.PrintSum 
+//go:generate impgen run.PrintSum --target
 
 // create instrumentation for your target dependency
-//go:generate go run impgen run.IntOps 
+//go:generate impgen run.IntOps --dependency 
 
 func Test_PrintSum(t *testing.T) {
     t.Parallel()
@@ -96,8 +96,8 @@ func Test_PrintSum_Flexible(t *testing.T) {
 
 | Concept | Description |
 |---------|-------------|
-| **Interface Mocks** | Generate type-safe mocks from any interface with `//go:generate go run impgen <package.Interface>` |
-| **Callable Wrappers** | Wrap functions to validate returns/panics with : `//go:generate go run impgen <package.Function>` (the tool figures out whether this is an interface or a callable being targeted. |
+| **Interface Mocks** | Generate type-safe mocks from any interface with `//go:generate impgen <package.Interface> --dependency` |
+| **Callable Wrappers** | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target` |
 | **Two-Step Matching** | Match methods first (`ExpectCallIs.Method()`), then arguments (`ExpectArgsAre()` for exact, `ExpectArgsShould()` for matchers) |
 | **Type Safety** | `ExpectArgsAre(int, int)` is compile-time checked; `ExpectArgsShould(any, any)` accepts matchers |
 | **Concurrent Support** | Use `Within(timeout)` to handle out-of-order calls: `imp.Within(time.Second).ExpectCallIs.Add().ExpectArgsAre(1, 2)` |
@@ -197,7 +197,7 @@ Install the code generator tool:
 go install github.com/toejough/imptest/impgen@latest
 ```
 
-Then add `//go:generate impgen <interface|callable>` directives to your test files and run `go generate`:
+Then add `//go:generate impgen <interface|callable> --dependency` (for interfaces) or `//go:generate impgen <callable> --target` (for functions) directives to your test files and run `go generate`:
 
 ```bash
 go generate ./...
@@ -284,8 +284,8 @@ func TestProcessUser_Testify(t *testing.T) {
 **For testing with dependencies:**
 
 ```go
-//go:generate impgen ExternalService
-//go:generate impgen ProcessUser
+//go:generate impgen ExternalService --dependency
+//go:generate impgen ProcessUser --target
 
 func TestProcessUser_Imptest(t *testing.T) {
     t.Parallel()
@@ -309,7 +309,7 @@ func TestProcessUser_Imptest(t *testing.T) {
 
 ```go
 // generate the wrapper for the Add function
-//go:generate impgen Add
+//go:generate impgen Add --target
 
 func Add(a, b int) int {
     return a + b
