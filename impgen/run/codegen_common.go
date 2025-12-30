@@ -528,6 +528,13 @@ func extractParams(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
 	return extractFields(ftype.Params, "param")
 }
 
+// extractPkgNameFromPath extracts the package name from an import path.
+// E.g., "net/http" -> "http", "encoding/json" -> "json".
+func extractPkgNameFromPath(importPath string) string {
+	parts := strings.Split(importPath, "/")
+	return parts[len(parts)-1]
+}
+
 // extractResults extracts result info from a function type.
 
 // findExternalTypeAlias resolves an external type alias like fs.WalkDirFunc.
@@ -677,11 +684,31 @@ func isBuiltinType(name string) bool {
 		"int8", "int16", "int32", "int64",
 		"rune", "string", "uint", "uint8",
 		"uint16", "uint32", "uint64", "uintptr",
-		anyTypeString:
+		"comparable", anyTypeString:
 		return true
 	}
 
 	return false
+}
+
+// isExportedIdent checks if an identifier name is exported (starts with uppercase).
+func isExportedIdent(name string) bool {
+	if name == "" {
+		return false
+	}
+
+	return unicode.IsUpper(rune(name[0]))
+}
+
+// isLocalPackage checks if an import path is from the current module.
+// For now, we use a simple heuristic: packages from the current module
+// start with "github.com/toejough/imptest".
+// TODO: Make this more robust by reading the module path from go.mod.
+func isLocalPackage(importPath string) bool {
+	// Packages from the current module
+	const modulePrefix = "github.com/toejough/imptest"
+
+	return strings.HasPrefix(importPath, modulePrefix)
 }
 
 // isComparableExpr checks if an expression represents a comparable type.
@@ -729,6 +756,97 @@ func normalizeVariadicType(typeStr string) string {
 	}
 
 	return typeStr
+}
+
+// qualifyExternalTypes walks an expression and qualifies exported type identifiers
+// from an external package with the given qualifier.
+// E.g., transforms "ResponseWriter" to "http.ResponseWriter" when qualifier is "http".
+//
+//nolint:cyclop // Expression type switching inherently requires multiple cases
+func qualifyExternalTypes(expr dst.Expr, qualifier string) dst.Expr {
+	// Handle nil
+	if expr == nil {
+		return nil
+	}
+
+	switch node := expr.(type) {
+	case *dst.Ident:
+		// Only qualify exported identifiers (starts with uppercase)
+		// Skip builtins: error, string, int, bool, etc.
+		if isExportedIdent(node.Name) && !isBuiltinType(node.Name) {
+			return &dst.SelectorExpr{
+				X:   &dst.Ident{Name: qualifier},
+				Sel: node,
+			}
+		}
+
+		return node
+
+	case *dst.StarExpr:
+		return &dst.StarExpr{X: qualifyExternalTypes(node.X, qualifier)}
+
+	case *dst.ArrayType:
+		return &dst.ArrayType{
+			Len: node.Len,
+			Elt: qualifyExternalTypes(node.Elt, qualifier),
+		}
+
+	case *dst.MapType:
+		return &dst.MapType{
+			Key:   qualifyExternalTypes(node.Key, qualifier),
+			Value: qualifyExternalTypes(node.Value, qualifier),
+		}
+
+	case *dst.ChanType:
+		return &dst.ChanType{
+			Dir:   node.Dir,
+			Value: qualifyExternalTypes(node.Value, qualifier),
+		}
+
+	case *dst.SelectorExpr:
+		// Already qualified - leave as is
+		return node
+
+	case *dst.FuncType:
+		// Recurse into function type params and results
+		return qualifyFuncType(node, qualifier)
+
+	default:
+		return node
+	}
+}
+
+// qualifyFieldList qualifies types in a field list.
+func qualifyFieldList(fl *dst.FieldList, qualifier string) *dst.FieldList {
+	result := &dst.FieldList{}
+
+	for _, field := range fl.List {
+		newField := &dst.Field{
+			Names: field.Names, // Keep parameter names as-is
+			Type:  qualifyExternalTypes(field.Type, qualifier),
+			Tag:   field.Tag,
+		}
+		result.List = append(result.List, newField)
+	}
+
+	return result
+}
+
+// qualifyFuncType qualifies types in a function signature.
+func qualifyFuncType(funcType *dst.FuncType, qualifier string) *dst.FuncType {
+	result := &dst.FuncType{
+		TypeParams: funcType.TypeParams, // Don't modify type params
+	}
+
+	if funcType.Params != nil {
+		result.Params = qualifyFieldList(funcType.Params, qualifier)
+	}
+
+	if funcType.Results != nil {
+		result.Results = qualifyFieldList(funcType.Results, qualifier)
+	}
+
+	return result
 }
 
 // resolveImportPath finds the full import path for a package alias in the source imports.
