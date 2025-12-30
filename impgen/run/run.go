@@ -244,6 +244,11 @@ func generateCode(
 		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
 	}
 
+	// For function types: use v2 target generator (function types are always wrapped as targets)
+	if symbol.kind == symbolFunctionType {
+		return generateV2TargetCodeFromFuncType(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcType)
+	}
+
 	// For interfaces: use v2 dependency generator if --dependency flag is set
 	if info.mode == namingModeDependency {
 		return generateV2DependencyCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)

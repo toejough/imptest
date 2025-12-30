@@ -364,6 +364,33 @@ func extractParamNames(funcType *dst.FuncType) []string {
 	return names
 }
 
+// generateV2TargetCodeFromFuncType generates v2-style target wrapper code for a function type.
+// It creates a synthetic function declaration from the function type and delegates to generateV2TargetCode.
+func generateV2TargetCodeFromFuncType(
+	astFiles []*dst.File,
+	info generatorInfo,
+	fset *token.FileSet,
+	typesInfo *go_types.Info,
+	pkgImportPath string,
+	pkgLoader PackageLoader,
+	funcTypeDetails funcTypeWithDetails,
+) (string, error) {
+	// Create a synthetic function declaration from the function type
+	// For a type like: type WalkFunc func(path string, info string) error
+	// We create: func WalkFunc(path string, info string) error { ... }
+	funcDecl := &dst.FuncDecl{
+		Name: &dst.Ident{Name: funcTypeDetails.typeName},
+		Type: funcTypeDetails.funcType,
+	}
+
+	// If the function type has type parameters, attach them to the FuncType
+	if funcTypeDetails.typeParams != nil {
+		funcDecl.Type.TypeParams = funcTypeDetails.typeParams
+	}
+
+	return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, funcDecl)
+}
+
 // generateV2TargetCode generates v2-style target wrapper code for a function.
 func generateV2TargetCode(
 	astFiles []*dst.File,

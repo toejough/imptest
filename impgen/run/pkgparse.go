@@ -71,6 +71,7 @@ type symbolType int
 const (
 	symbolInterface symbolType = iota
 	symbolFunction
+	symbolFunctionType
 )
 
 // unexported variables.
@@ -108,6 +109,13 @@ type ifaceWithDetails struct {
 	typeParams *dst.FieldList
 }
 
+// funcTypeWithDetails is a helper struct to return both the function type and its type parameters.
+type funcTypeWithDetails struct {
+	funcType   *dst.FuncType
+	typeParams *dst.FieldList
+	typeName   string // The name of the type (e.g., "WalkFunc")
+}
+
 // symbolDetails holds information about the detected symbol.
 
 type symbolDetails struct {
@@ -115,6 +123,7 @@ type symbolDetails struct {
 
 	iface    ifaceWithDetails
 	funcDecl *dst.FuncDecl
+	funcType funcTypeWithDetails
 }
 
 // checkImport checks if an import matches the target package name.
@@ -272,7 +281,7 @@ func findImportPath(
 	return "", fmt.Errorf("%w: %s", errPackageNotFound, pkgName)
 }
 
-// findSymbol looks for either an interface or a function/method in the given AST files.
+// findSymbol looks for either an interface, function type, or function/method in the given AST files.
 func findSymbol(
 	astFiles []*dst.File, fset *token.FileSet, symbolName string, pkgImportPath string,
 ) (symbolDetails, error) {
@@ -285,7 +294,16 @@ func findSymbol(
 		}, nil
 	}
 
-	// 2. Try finding it as a function or method
+	// 2. Try finding it as a function type
+	funcType, err := findFunctionTypeInAST(astFiles, symbolName, pkgImportPath)
+	if err == nil {
+		return symbolDetails{
+			kind:     symbolFunctionType,
+			funcType: funcType,
+		}, nil
+	}
+
+	// 3. Try finding it as a function or method
 	funcDecl, err := findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
 	if err == nil {
 		return symbolDetails{
@@ -452,6 +470,62 @@ func getMatchingInterfaceFromAST(
 	}
 
 	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
+}
+
+// findFunctionTypeInAST extracts the target function type declaration and its type parameters from AST files.
+func findFunctionTypeInAST(
+	astFiles []*dst.File, typeName string, pkgImportPath string,
+) (funcTypeWithDetails, error) {
+	var (
+		targetFuncType *dst.FuncType
+		typeParams     *dst.FieldList
+	)
+
+	for _, file := range astFiles {
+		dst.Inspect(file, func(node dst.Node) bool {
+			genDecl, ok := node.(*dst.GenDecl)
+
+			if !ok || genDecl.Tok != token.TYPE {
+				return true // Not a type declaration
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
+
+				if !isTypeSpec || typeSpec.Name.Name != typeName {
+					continue // Not the type we're looking for
+				}
+
+				funcType, isFuncType := typeSpec.Type.(*dst.FuncType)
+
+				if !isFuncType {
+					continue // Not a function type
+				}
+
+				// Found it!
+				targetFuncType = funcType
+				typeParams = typeSpec.TypeParams // Capture type parameters
+
+				return false // Stop inspecting
+			}
+
+			return true
+		})
+
+		if targetFuncType != nil {
+			break // Found in this file, no need to check others
+		}
+	}
+
+	if targetFuncType == nil {
+		return funcTypeWithDetails{}, fmt.Errorf("function type not found: %s in package %s", typeName, pkgImportPath)
+	}
+
+	return funcTypeWithDetails{
+		funcType:   targetFuncType,
+		typeParams: typeParams,
+		typeName:   typeName,
+	}, nil
 }
 
 // isStdlibPackage checks if a package name is a standard library package.
