@@ -10,7 +10,7 @@ import (
 // DataSinkMock is the mock for DataSink.
 type DataSinkMock struct {
 	imp     *_imptest.Imp
-	PutData *_imptest.DependencyMethod
+	PutData *DataSinkMockPutDataMethod
 }
 
 // Interface returns the DataSink implementation that can be passed to code under test.
@@ -18,12 +18,47 @@ func (m *DataSinkMock) Interface() samepackage.DataSink {
 	return &mockDataSinkImpl{mock: m}
 }
 
+// DataSinkMockPutDataArgs holds typed arguments for PutData.
+type DataSinkMockPutDataArgs struct {
+	Data []byte
+}
+
+// DataSinkMockPutDataCall wraps DependencyCall with typed GetArgs.
+type DataSinkMockPutDataCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *DataSinkMockPutDataCall) GetArgs() DataSinkMockPutDataArgs {
+	raw := c.RawArgs()
+	return DataSinkMockPutDataArgs{
+		Data: raw[0].([]byte),
+	}
+}
+
+// DataSinkMockPutDataMethod wraps DependencyMethod with typed returns.
+type DataSinkMockPutDataMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *DataSinkMockPutDataMethod) ExpectCalledWithExactly(data []byte) *DataSinkMockPutDataCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(data)
+	return &DataSinkMockPutDataCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *DataSinkMockPutDataMethod) ExpectCalledWithMatches(matchers ...any) *DataSinkMockPutDataCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &DataSinkMockPutDataCall{DependencyCall: call}
+}
+
 // MockDataSink creates a new DataSinkMock for testing.
 func MockDataSink(t _imptest.TestReporter) *DataSinkMock {
 	imp := _imptest.NewImp(t)
 	return &DataSinkMock{
 		imp:     imp,
-		PutData: _imptest.NewDependencyMethod(imp, "PutData"),
+		PutData: &DataSinkMockPutDataMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "PutData")},
 	}
 }
 

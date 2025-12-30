@@ -10,10 +10,10 @@ import (
 // OpsMock is the mock for Ops.
 type OpsMock struct {
 	imp    *_imptest.Imp
-	Add    *_imptest.DependencyMethod
-	Store  *_imptest.DependencyMethod
-	Log    *_imptest.DependencyMethod
-	Notify *_imptest.DependencyMethod
+	Add    *OpsMockAddMethod
+	Store  *OpsMockStoreMethod
+	Log    *OpsMockLogMethod
+	Notify *OpsMockNotifyMethod
 	Finish *_imptest.DependencyMethod
 }
 
@@ -22,15 +22,165 @@ func (m *OpsMock) Interface() basic.Ops {
 	return &mockOpsImpl{mock: m}
 }
 
+// OpsMockAddArgs holds typed arguments for Add.
+type OpsMockAddArgs struct {
+	A int
+	B int
+}
+
+// OpsMockAddCall wraps DependencyCall with typed GetArgs.
+type OpsMockAddCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *OpsMockAddCall) GetArgs() OpsMockAddArgs {
+	raw := c.RawArgs()
+	return OpsMockAddArgs{
+		A: raw[0].(int),
+		B: raw[1].(int),
+	}
+}
+
+// OpsMockAddMethod wraps DependencyMethod with typed returns.
+type OpsMockAddMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *OpsMockAddMethod) ExpectCalledWithExactly(a int, b int) *OpsMockAddCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(a, b)
+	return &OpsMockAddCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *OpsMockAddMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockAddCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &OpsMockAddCall{DependencyCall: call}
+}
+
+// OpsMockLogArgs holds typed arguments for Log.
+type OpsMockLogArgs struct {
+	Message string
+}
+
+// OpsMockLogCall wraps DependencyCall with typed GetArgs.
+type OpsMockLogCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *OpsMockLogCall) GetArgs() OpsMockLogArgs {
+	raw := c.RawArgs()
+	return OpsMockLogArgs{
+		Message: raw[0].(string),
+	}
+}
+
+// OpsMockLogMethod wraps DependencyMethod with typed returns.
+type OpsMockLogMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *OpsMockLogMethod) ExpectCalledWithExactly(message string) *OpsMockLogCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(message)
+	return &OpsMockLogCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *OpsMockLogMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockLogCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &OpsMockLogCall{DependencyCall: call}
+}
+
+// OpsMockNotifyArgs holds typed arguments for Notify.
+type OpsMockNotifyArgs struct {
+	Message string
+	Ids     []int
+}
+
+// OpsMockNotifyCall wraps DependencyCall with typed GetArgs.
+type OpsMockNotifyCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *OpsMockNotifyCall) GetArgs() OpsMockNotifyArgs {
+	raw := c.RawArgs()
+	return OpsMockNotifyArgs{
+		Message: raw[0].(string),
+		Ids:     raw[1].([]int),
+	}
+}
+
+// OpsMockNotifyMethod wraps DependencyMethod with typed returns.
+type OpsMockNotifyMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *OpsMockNotifyMethod) ExpectCalledWithExactly(message string, ids ...int) *OpsMockNotifyCall {
+	args := []any{message}
+	for _, v := range ids {
+		args = append(args, v)
+	}
+	call := m.DependencyMethod.ExpectCalledWithExactly(args...)
+	return &OpsMockNotifyCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *OpsMockNotifyMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockNotifyCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &OpsMockNotifyCall{DependencyCall: call}
+}
+
+// OpsMockStoreArgs holds typed arguments for Store.
+type OpsMockStoreArgs struct {
+	Key   string
+	Value any
+}
+
+// OpsMockStoreCall wraps DependencyCall with typed GetArgs.
+type OpsMockStoreCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *OpsMockStoreCall) GetArgs() OpsMockStoreArgs {
+	raw := c.RawArgs()
+	return OpsMockStoreArgs{
+		Key:   raw[0].(string),
+		Value: raw[1].(any),
+	}
+}
+
+// OpsMockStoreMethod wraps DependencyMethod with typed returns.
+type OpsMockStoreMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *OpsMockStoreMethod) ExpectCalledWithExactly(key string, value any) *OpsMockStoreCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(key, value)
+	return &OpsMockStoreCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *OpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockStoreCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &OpsMockStoreCall{DependencyCall: call}
+}
+
 // MockOps creates a new OpsMock for testing.
 func MockOps(t _imptest.TestReporter) *OpsMock {
 	imp := _imptest.NewImp(t)
 	return &OpsMock{
 		imp:    imp,
-		Add:    _imptest.NewDependencyMethod(imp, "Add"),
-		Store:  _imptest.NewDependencyMethod(imp, "Store"),
-		Log:    _imptest.NewDependencyMethod(imp, "Log"),
-		Notify: _imptest.NewDependencyMethod(imp, "Notify"),
+		Add:    &OpsMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Add")},
+		Store:  &OpsMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Store")},
+		Log:    &OpsMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Log")},
+		Notify: &OpsMockNotifyMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Notify")},
 		Finish: _imptest.NewDependencyMethod(imp, "Finish"),
 	}
 }

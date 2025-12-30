@@ -10,7 +10,7 @@ import (
 // ComplexServiceMock is the mock for ComplexService.
 type ComplexServiceMock struct {
 	imp     *_imptest.Imp
-	Process *_imptest.DependencyMethod
+	Process *ComplexServiceMockProcessMethod
 }
 
 // Interface returns the ComplexService implementation that can be passed to code under test.
@@ -18,12 +18,47 @@ func (m *ComplexServiceMock) Interface() matching.ComplexService {
 	return &mockComplexServiceImpl{mock: m}
 }
 
+// ComplexServiceMockProcessArgs holds typed arguments for Process.
+type ComplexServiceMockProcessArgs struct {
+	D matching.Data
+}
+
+// ComplexServiceMockProcessCall wraps DependencyCall with typed GetArgs.
+type ComplexServiceMockProcessCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *ComplexServiceMockProcessCall) GetArgs() ComplexServiceMockProcessArgs {
+	raw := c.RawArgs()
+	return ComplexServiceMockProcessArgs{
+		D: raw[0].(matching.Data),
+	}
+}
+
+// ComplexServiceMockProcessMethod wraps DependencyMethod with typed returns.
+type ComplexServiceMockProcessMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *ComplexServiceMockProcessMethod) ExpectCalledWithExactly(d matching.Data) *ComplexServiceMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(d)
+	return &ComplexServiceMockProcessCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *ComplexServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *ComplexServiceMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &ComplexServiceMockProcessCall{DependencyCall: call}
+}
+
 // MockComplexService creates a new ComplexServiceMock for testing.
 func MockComplexService(t _imptest.TestReporter) *ComplexServiceMock {
 	imp := _imptest.NewImp(t)
 	return &ComplexServiceMock{
 		imp:     imp,
-		Process: _imptest.NewDependencyMethod(imp, "Process"),
+		Process: &ComplexServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
 	}
 }
 

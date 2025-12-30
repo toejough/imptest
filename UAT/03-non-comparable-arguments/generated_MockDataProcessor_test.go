@@ -10,8 +10,8 @@ import (
 // DataProcessorMock is the mock for DataProcessor.
 type DataProcessorMock struct {
 	imp          *_imptest.Imp
-	ProcessSlice *_imptest.DependencyMethod
-	ProcessMap   *_imptest.DependencyMethod
+	ProcessSlice *DataProcessorMockProcessSliceMethod
+	ProcessMap   *DataProcessorMockProcessMapMethod
 }
 
 // Interface returns the DataProcessor implementation that can be passed to code under test.
@@ -19,13 +19,83 @@ func (m *DataProcessorMock) Interface() noncomparable.DataProcessor {
 	return &mockDataProcessorImpl{mock: m}
 }
 
+// DataProcessorMockProcessMapArgs holds typed arguments for ProcessMap.
+type DataProcessorMockProcessMapArgs struct {
+	Config map[string]int
+}
+
+// DataProcessorMockProcessMapCall wraps DependencyCall with typed GetArgs.
+type DataProcessorMockProcessMapCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *DataProcessorMockProcessMapCall) GetArgs() DataProcessorMockProcessMapArgs {
+	raw := c.RawArgs()
+	return DataProcessorMockProcessMapArgs{
+		Config: raw[0].(map[string]int),
+	}
+}
+
+// DataProcessorMockProcessMapMethod wraps DependencyMethod with typed returns.
+type DataProcessorMockProcessMapMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockProcessMapMethod) ExpectCalledWithExactly(config map[string]int) *DataProcessorMockProcessMapCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(config)
+	return &DataProcessorMockProcessMapCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockProcessMapMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockProcessMapCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &DataProcessorMockProcessMapCall{DependencyCall: call}
+}
+
+// DataProcessorMockProcessSliceArgs holds typed arguments for ProcessSlice.
+type DataProcessorMockProcessSliceArgs struct {
+	Data []string
+}
+
+// DataProcessorMockProcessSliceCall wraps DependencyCall with typed GetArgs.
+type DataProcessorMockProcessSliceCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *DataProcessorMockProcessSliceCall) GetArgs() DataProcessorMockProcessSliceArgs {
+	raw := c.RawArgs()
+	return DataProcessorMockProcessSliceArgs{
+		Data: raw[0].([]string),
+	}
+}
+
+// DataProcessorMockProcessSliceMethod wraps DependencyMethod with typed returns.
+type DataProcessorMockProcessSliceMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockProcessSliceMethod) ExpectCalledWithExactly(data []string) *DataProcessorMockProcessSliceCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(data)
+	return &DataProcessorMockProcessSliceCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockProcessSliceMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockProcessSliceCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &DataProcessorMockProcessSliceCall{DependencyCall: call}
+}
+
 // MockDataProcessor creates a new DataProcessorMock for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMock {
 	imp := _imptest.NewImp(t)
 	return &DataProcessorMock{
 		imp:          imp,
-		ProcessSlice: _imptest.NewDependencyMethod(imp, "ProcessSlice"),
-		ProcessMap:   _imptest.NewDependencyMethod(imp, "ProcessMap"),
+		ProcessSlice: &DataProcessorMockProcessSliceMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessSlice")},
+		ProcessMap:   &DataProcessorMockProcessMapMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessMap")},
 	}
 }
 

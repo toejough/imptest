@@ -10,7 +10,7 @@ import (
 // TimerMock is the mock for Timer.
 type TimerMock struct {
 	imp        *_imptest.Imp
-	Wait       *_imptest.DependencyMethod
+	Wait       *TimerMockWaitMethod
 	GetElapsed *_imptest.DependencyMethod
 }
 
@@ -19,12 +19,47 @@ func (m *TimerMock) Interface() time.Timer {
 	return &mockTimerImpl{mock: m}
 }
 
+// TimerMockWaitArgs holds typed arguments for Wait.
+type TimerMockWaitArgs struct {
+	Seconds int
+}
+
+// TimerMockWaitCall wraps DependencyCall with typed GetArgs.
+type TimerMockWaitCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *TimerMockWaitCall) GetArgs() TimerMockWaitArgs {
+	raw := c.RawArgs()
+	return TimerMockWaitArgs{
+		Seconds: raw[0].(int),
+	}
+}
+
+// TimerMockWaitMethod wraps DependencyMethod with typed returns.
+type TimerMockWaitMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *TimerMockWaitMethod) ExpectCalledWithExactly(seconds int) *TimerMockWaitCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(seconds)
+	return &TimerMockWaitCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *TimerMockWaitMethod) ExpectCalledWithMatches(matchers ...any) *TimerMockWaitCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &TimerMockWaitCall{DependencyCall: call}
+}
+
 // MockTimer creates a new TimerMock for testing.
 func MockTimer(t _imptest.TestReporter) *TimerMock {
 	imp := _imptest.NewImp(t)
 	return &TimerMock{
 		imp:        imp,
-		Wait:       _imptest.NewDependencyMethod(imp, "Wait"),
+		Wait:       &TimerMockWaitMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Wait")},
 		GetElapsed: _imptest.NewDependencyMethod(imp, "GetElapsed"),
 	}
 }

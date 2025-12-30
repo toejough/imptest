@@ -10,8 +10,8 @@ import (
 // ExternalServiceMock is the mock for ExternalService.
 type ExternalServiceMock struct {
 	imp       *_imptest.Imp
-	FetchData *_imptest.DependencyMethod
-	Process   *_imptest.DependencyMethod
+	FetchData *ExternalServiceMockFetchDataMethod
+	Process   *ExternalServiceMockProcessMethod
 }
 
 // Interface returns the ExternalService implementation that can be passed to code under test.
@@ -19,13 +19,83 @@ func (m *ExternalServiceMock) Interface() callable.ExternalService {
 	return &mockExternalServiceImpl{mock: m}
 }
 
+// ExternalServiceMockFetchDataArgs holds typed arguments for FetchData.
+type ExternalServiceMockFetchDataArgs struct {
+	Id int
+}
+
+// ExternalServiceMockFetchDataCall wraps DependencyCall with typed GetArgs.
+type ExternalServiceMockFetchDataCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *ExternalServiceMockFetchDataCall) GetArgs() ExternalServiceMockFetchDataArgs {
+	raw := c.RawArgs()
+	return ExternalServiceMockFetchDataArgs{
+		Id: raw[0].(int),
+	}
+}
+
+// ExternalServiceMockFetchDataMethod wraps DependencyMethod with typed returns.
+type ExternalServiceMockFetchDataMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithExactly(id int) *ExternalServiceMockFetchDataCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(id)
+	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithMatches(matchers ...any) *ExternalServiceMockFetchDataCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
+}
+
+// ExternalServiceMockProcessArgs holds typed arguments for Process.
+type ExternalServiceMockProcessArgs struct {
+	Data string
+}
+
+// ExternalServiceMockProcessCall wraps DependencyCall with typed GetArgs.
+type ExternalServiceMockProcessCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *ExternalServiceMockProcessCall) GetArgs() ExternalServiceMockProcessArgs {
+	raw := c.RawArgs()
+	return ExternalServiceMockProcessArgs{
+		Data: raw[0].(string),
+	}
+}
+
+// ExternalServiceMockProcessMethod wraps DependencyMethod with typed returns.
+type ExternalServiceMockProcessMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *ExternalServiceMockProcessMethod) ExpectCalledWithExactly(data string) *ExternalServiceMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(data)
+	return &ExternalServiceMockProcessCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *ExternalServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *ExternalServiceMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &ExternalServiceMockProcessCall{DependencyCall: call}
+}
+
 // MockExternalService creates a new ExternalServiceMock for testing.
 func MockExternalService(t _imptest.TestReporter) *ExternalServiceMock {
 	imp := _imptest.NewImp(t)
 	return &ExternalServiceMock{
 		imp:       imp,
-		FetchData: _imptest.NewDependencyMethod(imp, "FetchData"),
-		Process:   _imptest.NewDependencyMethod(imp, "Process"),
+		FetchData: &ExternalServiceMockFetchDataMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "FetchData")},
+		Process:   &ExternalServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
 	}
 }
 

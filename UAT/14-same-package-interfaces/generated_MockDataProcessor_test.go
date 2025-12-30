@@ -10,9 +10,9 @@ import (
 // DataProcessorMock is the mock for DataProcessor.
 type DataProcessorMock struct {
 	imp       *_imptest.Imp
-	Process   *_imptest.DependencyMethod
-	Transform *_imptest.DependencyMethod
-	Validate  *_imptest.DependencyMethod
+	Process   *DataProcessorMockProcessMethod
+	Transform *DataProcessorMockTransformMethod
+	Validate  *DataProcessorMockValidateMethod
 }
 
 // Interface returns the DataProcessor implementation that can be passed to code under test.
@@ -20,14 +20,121 @@ func (m *DataProcessorMock) Interface() samepackage.DataProcessor {
 	return &mockDataProcessorImpl{mock: m}
 }
 
+// DataProcessorMockProcessArgs holds typed arguments for Process.
+type DataProcessorMockProcessArgs struct {
+	Source samepackage.DataSource
+	Sink   samepackage.DataSink
+}
+
+// DataProcessorMockProcessCall wraps DependencyCall with typed GetArgs.
+type DataProcessorMockProcessCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *DataProcessorMockProcessCall) GetArgs() DataProcessorMockProcessArgs {
+	raw := c.RawArgs()
+	return DataProcessorMockProcessArgs{
+		Source: raw[0].(samepackage.DataSource),
+		Sink:   raw[1].(samepackage.DataSink),
+	}
+}
+
+// DataProcessorMockProcessMethod wraps DependencyMethod with typed returns.
+type DataProcessorMockProcessMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockProcessMethod) ExpectCalledWithExactly(source samepackage.DataSource, sink samepackage.DataSink) *DataProcessorMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(source, sink)
+	return &DataProcessorMockProcessCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &DataProcessorMockProcessCall{DependencyCall: call}
+}
+
+// DataProcessorMockTransformArgs holds typed arguments for Transform.
+type DataProcessorMockTransformArgs struct {
+	Input samepackage.DataSource
+}
+
+// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs.
+type DataProcessorMockTransformCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *DataProcessorMockTransformCall) GetArgs() DataProcessorMockTransformArgs {
+	raw := c.RawArgs()
+	return DataProcessorMockTransformArgs{
+		Input: raw[0].(samepackage.DataSource),
+	}
+}
+
+// DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
+type DataProcessorMockTransformMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockTransformMethod) ExpectCalledWithExactly(input samepackage.DataSource) *DataProcessorMockTransformCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(input)
+	return &DataProcessorMockTransformCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockTransformMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockTransformCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &DataProcessorMockTransformCall{DependencyCall: call}
+}
+
+// DataProcessorMockValidateArgs holds typed arguments for Validate.
+type DataProcessorMockValidateArgs struct {
+	Sink samepackage.DataSink
+}
+
+// DataProcessorMockValidateCall wraps DependencyCall with typed GetArgs.
+type DataProcessorMockValidateCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *DataProcessorMockValidateCall) GetArgs() DataProcessorMockValidateArgs {
+	raw := c.RawArgs()
+	return DataProcessorMockValidateArgs{
+		Sink: raw[0].(samepackage.DataSink),
+	}
+}
+
+// DataProcessorMockValidateMethod wraps DependencyMethod with typed returns.
+type DataProcessorMockValidateMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockValidateMethod) ExpectCalledWithExactly(sink samepackage.DataSink) *DataProcessorMockValidateCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(sink)
+	return &DataProcessorMockValidateCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockValidateMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockValidateCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &DataProcessorMockValidateCall{DependencyCall: call}
+}
+
 // MockDataProcessor creates a new DataProcessorMock for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMock {
 	imp := _imptest.NewImp(t)
 	return &DataProcessorMock{
 		imp:       imp,
-		Process:   _imptest.NewDependencyMethod(imp, "Process"),
-		Transform: _imptest.NewDependencyMethod(imp, "Transform"),
-		Validate:  _imptest.NewDependencyMethod(imp, "Validate"),
+		Process:   &DataProcessorMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
+		Transform: &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Transform")},
+		Validate:  &DataProcessorMockValidateMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Validate")},
 	}
 }
 

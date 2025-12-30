@@ -9,8 +9,8 @@ import (
 // OpsMock is the mock for Ops.
 type OpsMock struct {
 	imp            *_imptest.Imp
-	internalMethod *_imptest.DependencyMethod
-	PublicMethod   *_imptest.DependencyMethod
+	internalMethod *OpsMockinternalMethodMethod
+	PublicMethod   *OpsMockPublicMethodMethod
 }
 
 // Interface returns the Ops implementation that can be passed to code under test.
@@ -18,13 +18,83 @@ func (m *OpsMock) Interface() Ops {
 	return &mockOpsImpl{mock: m}
 }
 
+// OpsMockPublicMethodArgs holds typed arguments for PublicMethod.
+type OpsMockPublicMethodArgs struct {
+	X int
+}
+
+// OpsMockPublicMethodCall wraps DependencyCall with typed GetArgs.
+type OpsMockPublicMethodCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *OpsMockPublicMethodCall) GetArgs() OpsMockPublicMethodArgs {
+	raw := c.RawArgs()
+	return OpsMockPublicMethodArgs{
+		X: raw[0].(int),
+	}
+}
+
+// OpsMockPublicMethodMethod wraps DependencyMethod with typed returns.
+type OpsMockPublicMethodMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *OpsMockPublicMethodMethod) ExpectCalledWithExactly(x int) *OpsMockPublicMethodCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(x)
+	return &OpsMockPublicMethodCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *OpsMockPublicMethodMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockPublicMethodCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &OpsMockPublicMethodCall{DependencyCall: call}
+}
+
+// OpsMockinternalMethodArgs holds typed arguments for internalMethod.
+type OpsMockinternalMethodArgs struct {
+	X int
+}
+
+// OpsMockinternalMethodCall wraps DependencyCall with typed GetArgs.
+type OpsMockinternalMethodCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *OpsMockinternalMethodCall) GetArgs() OpsMockinternalMethodArgs {
+	raw := c.RawArgs()
+	return OpsMockinternalMethodArgs{
+		X: raw[0].(int),
+	}
+}
+
+// OpsMockinternalMethodMethod wraps DependencyMethod with typed returns.
+type OpsMockinternalMethodMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *OpsMockinternalMethodMethod) ExpectCalledWithExactly(x int) *OpsMockinternalMethodCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(x)
+	return &OpsMockinternalMethodCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *OpsMockinternalMethodMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockinternalMethodCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &OpsMockinternalMethodCall{DependencyCall: call}
+}
+
 // MockOps creates a new OpsMock for testing.
 func MockOps(t _imptest.TestReporter) *OpsMock {
 	imp := _imptest.NewImp(t)
 	return &OpsMock{
 		imp:            imp,
-		internalMethod: _imptest.NewDependencyMethod(imp, "internalMethod"),
-		PublicMethod:   _imptest.NewDependencyMethod(imp, "PublicMethod"),
+		internalMethod: &OpsMockinternalMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "internalMethod")},
+		PublicMethod:   &OpsMockPublicMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "PublicMethod")},
 	}
 }
 

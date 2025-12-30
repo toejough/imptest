@@ -10,10 +10,10 @@ import (
 // CustomOpsMock is the mock for Ops.
 type CustomOpsMock struct {
 	imp    *_imptest.Imp
-	Add    *_imptest.DependencyMethod
-	Store  *_imptest.DependencyMethod
-	Log    *_imptest.DependencyMethod
-	Notify *_imptest.DependencyMethod
+	Add    *CustomOpsMockAddMethod
+	Store  *CustomOpsMockStoreMethod
+	Log    *CustomOpsMockLogMethod
+	Notify *CustomOpsMockNotifyMethod
 	Finish *_imptest.DependencyMethod
 }
 
@@ -22,15 +22,165 @@ func (m *CustomOpsMock) Interface() basic.Ops {
 	return &mockCustomOpsImpl{mock: m}
 }
 
+// CustomOpsMockAddArgs holds typed arguments for Add.
+type CustomOpsMockAddArgs struct {
+	A int
+	B int
+}
+
+// CustomOpsMockAddCall wraps DependencyCall with typed GetArgs.
+type CustomOpsMockAddCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *CustomOpsMockAddCall) GetArgs() CustomOpsMockAddArgs {
+	raw := c.RawArgs()
+	return CustomOpsMockAddArgs{
+		A: raw[0].(int),
+		B: raw[1].(int),
+	}
+}
+
+// CustomOpsMockAddMethod wraps DependencyMethod with typed returns.
+type CustomOpsMockAddMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockAddMethod) ExpectCalledWithExactly(a int, b int) *CustomOpsMockAddCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(a, b)
+	return &CustomOpsMockAddCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockAddMethod) ExpectCalledWithMatches(matchers ...any) *CustomOpsMockAddCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &CustomOpsMockAddCall{DependencyCall: call}
+}
+
+// CustomOpsMockLogArgs holds typed arguments for Log.
+type CustomOpsMockLogArgs struct {
+	Message string
+}
+
+// CustomOpsMockLogCall wraps DependencyCall with typed GetArgs.
+type CustomOpsMockLogCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *CustomOpsMockLogCall) GetArgs() CustomOpsMockLogArgs {
+	raw := c.RawArgs()
+	return CustomOpsMockLogArgs{
+		Message: raw[0].(string),
+	}
+}
+
+// CustomOpsMockLogMethod wraps DependencyMethod with typed returns.
+type CustomOpsMockLogMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockLogMethod) ExpectCalledWithExactly(message string) *CustomOpsMockLogCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(message)
+	return &CustomOpsMockLogCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockLogMethod) ExpectCalledWithMatches(matchers ...any) *CustomOpsMockLogCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &CustomOpsMockLogCall{DependencyCall: call}
+}
+
+// CustomOpsMockNotifyArgs holds typed arguments for Notify.
+type CustomOpsMockNotifyArgs struct {
+	Message string
+	Ids     []int
+}
+
+// CustomOpsMockNotifyCall wraps DependencyCall with typed GetArgs.
+type CustomOpsMockNotifyCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *CustomOpsMockNotifyCall) GetArgs() CustomOpsMockNotifyArgs {
+	raw := c.RawArgs()
+	return CustomOpsMockNotifyArgs{
+		Message: raw[0].(string),
+		Ids:     raw[1].([]int),
+	}
+}
+
+// CustomOpsMockNotifyMethod wraps DependencyMethod with typed returns.
+type CustomOpsMockNotifyMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockNotifyMethod) ExpectCalledWithExactly(message string, ids ...int) *CustomOpsMockNotifyCall {
+	args := []any{message}
+	for _, v := range ids {
+		args = append(args, v)
+	}
+	call := m.DependencyMethod.ExpectCalledWithExactly(args...)
+	return &CustomOpsMockNotifyCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockNotifyMethod) ExpectCalledWithMatches(matchers ...any) *CustomOpsMockNotifyCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &CustomOpsMockNotifyCall{DependencyCall: call}
+}
+
+// CustomOpsMockStoreArgs holds typed arguments for Store.
+type CustomOpsMockStoreArgs struct {
+	Key   string
+	Value any
+}
+
+// CustomOpsMockStoreCall wraps DependencyCall with typed GetArgs.
+type CustomOpsMockStoreCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *CustomOpsMockStoreCall) GetArgs() CustomOpsMockStoreArgs {
+	raw := c.RawArgs()
+	return CustomOpsMockStoreArgs{
+		Key:   raw[0].(string),
+		Value: raw[1].(any),
+	}
+}
+
+// CustomOpsMockStoreMethod wraps DependencyMethod with typed returns.
+type CustomOpsMockStoreMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockStoreMethod) ExpectCalledWithExactly(key string, value any) *CustomOpsMockStoreCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(key, value)
+	return &CustomOpsMockStoreCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *CustomOpsMockStoreCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &CustomOpsMockStoreCall{DependencyCall: call}
+}
+
 // MockCustomOps creates a new CustomOpsMock for testing.
 func MockCustomOps(t _imptest.TestReporter) *CustomOpsMock {
 	imp := _imptest.NewImp(t)
 	return &CustomOpsMock{
 		imp:    imp,
-		Add:    _imptest.NewDependencyMethod(imp, "Add"),
-		Store:  _imptest.NewDependencyMethod(imp, "Store"),
-		Log:    _imptest.NewDependencyMethod(imp, "Log"),
-		Notify: _imptest.NewDependencyMethod(imp, "Notify"),
+		Add:    &CustomOpsMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Add")},
+		Store:  &CustomOpsMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Store")},
+		Log:    &CustomOpsMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Log")},
+		Notify: &CustomOpsMockNotifyMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Notify")},
 		Finish: _imptest.NewDependencyMethod(imp, "Finish"),
 	}
 }

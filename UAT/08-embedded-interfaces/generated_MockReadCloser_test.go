@@ -10,7 +10,7 @@ import (
 // ReadCloserMock is the mock for ReadCloser.
 type ReadCloserMock struct {
 	imp   *_imptest.Imp
-	Read  *_imptest.DependencyMethod
+	Read  *ReadCloserMockReadMethod
 	Close *_imptest.DependencyMethod
 }
 
@@ -19,12 +19,47 @@ func (m *ReadCloserMock) Interface() embedded.ReadCloser {
 	return &mockReadCloserImpl{mock: m}
 }
 
+// ReadCloserMockReadArgs holds typed arguments for Read.
+type ReadCloserMockReadArgs struct {
+	P []byte
+}
+
+// ReadCloserMockReadCall wraps DependencyCall with typed GetArgs.
+type ReadCloserMockReadCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *ReadCloserMockReadCall) GetArgs() ReadCloserMockReadArgs {
+	raw := c.RawArgs()
+	return ReadCloserMockReadArgs{
+		P: raw[0].([]byte),
+	}
+}
+
+// ReadCloserMockReadMethod wraps DependencyMethod with typed returns.
+type ReadCloserMockReadMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *ReadCloserMockReadMethod) ExpectCalledWithExactly(p []byte) *ReadCloserMockReadCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(p)
+	return &ReadCloserMockReadCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *ReadCloserMockReadMethod) ExpectCalledWithMatches(matchers ...any) *ReadCloserMockReadCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &ReadCloserMockReadCall{DependencyCall: call}
+}
+
 // MockReadCloser creates a new ReadCloserMock for testing.
 func MockReadCloser(t _imptest.TestReporter) *ReadCloserMock {
 	imp := _imptest.NewImp(t)
 	return &ReadCloserMock{
 		imp:   imp,
-		Read:  _imptest.NewDependencyMethod(imp, "Read"),
+		Read:  &ReadCloserMockReadMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Read")},
 		Close: _imptest.NewDependencyMethod(imp, "Close"),
 	}
 }
