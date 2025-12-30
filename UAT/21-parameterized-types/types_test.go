@@ -9,6 +9,8 @@ import (
 //go:generate go run ../../impgen --dependency parameterized.DataProcessor
 
 func TestDataProcessor_ProcessContainer(t *testing.T) {
+	t.Parallel()
+
 	mock := MockDataProcessor(t)
 
 	data := parameterized.Container[string]{Value: "test"}
@@ -21,13 +23,14 @@ func TestDataProcessor_ProcessContainer(t *testing.T) {
 
 	// Call the mock
 	err := mock.Interface().ProcessContainer(data)
-
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
 }
 
 func TestDataProcessor_ProcessPair(t *testing.T) {
+	t.Parallel()
+
 	mock := MockDataProcessor(t)
 
 	pair := parameterized.Pair[int, bool]{Key: 42, Value: true}
@@ -47,6 +50,8 @@ func TestDataProcessor_ProcessPair(t *testing.T) {
 }
 
 func TestDataProcessor_ReturnContainer(t *testing.T) {
+	t.Parallel()
+
 	mock := MockDataProcessor(t)
 
 	expected := parameterized.Container[int]{Value: 99}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/format"
 	"go/token"
-	go_types "go/types"
 	"sort"
 	"strings"
 
@@ -446,12 +445,11 @@ func generateV2DependencyCode(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
-	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	ifaceWithDetails ifaceWithDetails,
 ) (string, error) {
-	gen, err := newV2DependencyGenerator(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, ifaceWithDetails)
+	gen, err := newV2DependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
 	if err != nil {
 		return "", err
 	}
@@ -464,7 +462,6 @@ func newV2DependencyGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
-	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	ifaceWithDetails ifaceWithDetails,
@@ -491,7 +488,7 @@ func newV2DependencyGenerator(
 
 	gen := &v2DependencyGenerator{
 		baseGenerator: newBaseGenerator(
-			fset, info.pkgName, info.impName, pkgPath, qualifier, ifaceWithDetails.typeParams, typesInfo,
+			fset, info.pkgName, info.impName, pkgPath, qualifier, ifaceWithDetails.typeParams,
 		),
 		mockName:            info.impName,
 		mockTypeName:        mockTypeName,

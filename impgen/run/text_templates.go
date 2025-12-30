@@ -33,7 +33,7 @@ type TemplateRegistry struct {
 
 // NewTemplateRegistry creates and initializes a new template registry with all templates parsed.
 //
-//nolint:cyclop,funlen // Template parsing requires comprehensive initialization
+//nolint:cyclop,funlen,maintidx // Template parsing requires comprehensive initialization
 func NewTemplateRegistry() (*TemplateRegistry, error) {
 	registry := &TemplateRegistry{}
 

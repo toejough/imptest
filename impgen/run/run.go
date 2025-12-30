@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	go_types "go/types" // Aliased import
 	"io"
 	"os"
 	"strings"
@@ -13,6 +12,14 @@ import (
 	"github.com/alexflint/go-arg"
 	"github.com/dave/dst"
 	"github.com/toejough/go-reorder"
+)
+
+// Exported variables.
+var (
+	// ErrV1CallableDeprecated indicates that V1 callable wrappers are no longer supported.
+	ErrV1CallableDeprecated = errors.New("V1 callable wrappers are deprecated. Use --target flag for function wrapping")
+	// ErrV1InterfaceDeprecated indicates that V1 interface mocks are no longer supported.
+	ErrV1InterfaceDeprecated = errors.New("V1 interface mocks are deprecated. Use --dependency flag for interface mocking")
 )
 
 // Interfaces - Public
@@ -57,12 +64,12 @@ func Run(
 		info.localInterfaceName = info.interfaceName
 	}
 
-	astFiles, fset, typesInfo, err := loadPackage(pkgImportPath, pkgLoader)
+	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader)
 	if err != nil {
 		return err
 	}
 
-	code, err := generateCode(info, astFiles, fset, typesInfo, pkgImportPath, pkgLoader)
+	code, err := generateCode(info, astFiles, fset, pkgImportPath, pkgLoader)
 	if err != nil {
 		return err
 	}
@@ -111,15 +118,6 @@ var (
 	errMutuallyExclusiveFlags = errors.New("--target and --dependency flags are mutually exclusive")
 )
 
-// capturingFileSystem wraps a FileWriter and captures what was written for caching.
-type capturingFileSystem struct {
-	underlying     FileWriter
-	writtenContent string
-	writtenName    string
-}
-
-// WriteFile implements FileWriter by capturing the written data and delegating to underlying.
-
 // Structs - Private
 
 // cliArgs defines the command-line arguments for the generator.
@@ -166,7 +164,6 @@ func generateCode(
 	info generatorInfo,
 	astFiles []*dst.File,
 	fset *token.FileSet,
-	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 ) (string, error) {
@@ -180,23 +177,23 @@ func generateCode(
 	if symbol.kind == symbolFunction {
 		// For functions: require --target flag (V1 callable wrappers deprecated)
 		if info.mode == namingModeTarget {
-			return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcDecl)
+			return generateV2TargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, symbol.funcDecl)
 		}
 
-		return "", fmt.Errorf("V1 callable wrappers are deprecated. Use --target flag for function wrapping")
+		return "", ErrV1CallableDeprecated
 	}
 
 	// For function types: use v2 target generator (function types are always wrapped as targets)
 	if symbol.kind == symbolFunctionType {
-		return generateV2TargetCodeFromFuncType(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcType)
+		return generateV2TargetCodeFromFuncType(astFiles, info, fset, pkgImportPath, pkgLoader, symbol.funcType)
 	}
 
 	// For interfaces: require --dependency flag (V1 interface mocks deprecated)
 	if info.mode == namingModeDependency {
-		return generateV2DependencyCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
+		return generateV2DependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, symbol.iface)
 	}
 
-	return "", fmt.Errorf("V1 interface mocks are deprecated. Use --dependency flag for interface mocking")
+	return "", ErrV1InterfaceDeprecated
 }
 
 // Functions - Private
@@ -278,14 +275,14 @@ func getLocalInterfaceName(interfaceName string) string {
 	return interfaceName
 }
 
-// loadPackage loads the AST and type info for the package at the given path.
-func loadPackage(pkgPath string, pkgLoader PackageLoader) ([]*dst.File, *token.FileSet, *go_types.Info, error) {
-	astFiles, fset, typesInfo, err := pkgLoader.Load(pkgPath)
+// loadPackage loads the AST for the package at the given path.
+func loadPackage(pkgPath string, pkgLoader PackageLoader) ([]*dst.File, *token.FileSet, error) {
+	astFiles, fset, _, err := pkgLoader.Load(pkgPath)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to load package %s: %w", pkgPath, err)
+		return nil, nil, fmt.Errorf("failed to load package %s: %w", pkgPath, err)
 	}
 
-	return astFiles, fset, typesInfo, nil
+	return astFiles, fset, nil
 }
 
 // parseArgs parses command-line arguments into cliArgs.

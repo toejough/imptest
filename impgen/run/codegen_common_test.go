@@ -81,7 +81,7 @@ func TestBaseGeneratorMultipleTypeParams(t *testing.T) {
 			},
 		},
 	}
-	baseGen := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", typeParams, nil)
+	baseGen := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", typeParams)
 
 	// Test all type parameters are recognized
 	if !baseGen.isTypeParameter("T") {
@@ -106,7 +106,7 @@ func TestBaseGeneratorNilTypeParams(t *testing.T) {
 	t.Parallel()
 
 	fset := token.NewFileSet()
-	baseGenNil := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", nil, nil)
+	baseGenNil := newBaseGenerator(fset, "pkg", "Imp", "path", "qual", nil)
 
 	if got := baseGenNil.formatTypeParamsDecl(); got != "" {
 		t.Errorf("expected empty string for nil typeParams, got %q", got)
@@ -683,5 +683,5 @@ func newTestBaseGenerator() baseGenerator {
 		},
 	}
 
-	return newBaseGenerator(fset, "mypkg", "MyImp", "path", "qual", typeParams, nil)
+	return newBaseGenerator(fset, "mypkg", "MyImp", "path", "qual", typeParams)
 }

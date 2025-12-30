@@ -16,26 +16,6 @@ var (
 
 // Types
 
-// codeGenerator holds state for code generation.
-type codeGenerator struct {
-	baseGenerator
-
-	templates           *TemplateRegistry
-	mockName            string
-	callName            string
-	expectCallIsName    string
-	timedName           string
-	interfaceName       string // Full interface name for compile-time verification
-	identifiedInterface *dst.InterfaceType
-	astFiles            []*dst.File
-	pkgImportPath       string
-	pkgLoader           PackageLoader
-	methodNames         []string
-	cachedTemplateData  *templateData // Cache to avoid redundant templateData() calls
-}
-
-// callStructTemplateData returns template data for generating the call struct.
-
 // codeGenerator Methods
 
 // checkIfFmtNeeded pre-scans all interface methods to determine if fmt import is needed.
@@ -130,8 +110,6 @@ type codeGenerator struct {
 // For a callback like fn func(path string, d fs.DirEntry, err error) error, this generates:
 //   - InvokeFn(path string, d fs.DirEntry, err error) - type-safe invocation
 //   - ExpectReturned(result0 error) - type-safe result verification
-//
-//nolint:cyclop,funlen,varnamelen,wsl,gocognit // Code generation logic is inherently complex
 
 // Generate the callback result type (holds response from the callback)
 
@@ -176,8 +154,6 @@ type codeGenerator struct {
 // for a callback parameter. For a callback like fn func(path string, d fs.DirEntry, err error) error:
 //   - TreeWalkerImpWalkCallFnRequest with fields for each parameter plus ResultChan
 //   - TreeWalkerImpWalkCallFnResponse with fields for each return value
-//
-//nolint:varnamelen // Short parameter names are conventional in code generation
 
 // Generate request struct
 
@@ -342,8 +318,6 @@ type codeGenerator struct {
 // writeMockMethodEventDispatch writes the call event creation and dispatch to the imp.
 
 // writeMockMethodResponseHandling writes the response reception and panic handling.
-//
-//nolint:cyclop,funlen,varnamelen,wsl // Callback handling requires select statement with multiple cases
 
 // No callbacks - simple response handling
 
@@ -545,24 +519,6 @@ func interfaceProcessFieldMethods(
 
 	return nil
 }
-
-// newCodeGenerator initializes a codeGenerator with common properties and performs initial setup.
-//
-//nolint:funlen // Constructor with necessary initialization logic
-
-// Get package info for external interfaces OR when in a _test package (which needs to import the non-test package)
-
-// Construct the full interface name for compile-time verification
-// When there's a package name conflict (e.g., local "time" package shadowing stdlib "time"),
-// we need to use the aliased stdlib package name in the type assertion.
-
-// Check if this is a stdlib package that needs aliasing due to a name conflict
-// A stdlib package has a simple import path (no slashes), and if the qualifier matches
-// the package path, it means there's a local package with the same name.
-
-// This is a stdlib package with a name conflict - use the alias
-
-// Initialize template registry
 
 // resolvePackageInfo resolves the package path and qualifier for an interface.
 // Handles special case of test packages needing to import the non-test version.

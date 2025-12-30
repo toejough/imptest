@@ -244,6 +244,68 @@ func Deadcode(c context.Context) error {
 	return nil
 }
 
+// DeleteDeadcode removes unreachable functions from the codebase.
+func DeleteDeadcode(c context.Context) error {
+	fmt.Println("Deleting dead code...")
+
+	// Get list of unreachable functions
+	out, err := output(c, "deadcode", "-test", "./...")
+	if err != nil {
+		return err
+	}
+
+	// Parse deadcode output: "file.go:123: unreachable func: FuncName"
+	// Group by file
+	fileToFuncs := make(map[string][]deadFunc)
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		// Parse: "impgen/run/codegen_interface.go:42: unreachable func: callStructData"
+		parts := strings.Split(line, ": unreachable func: ")
+		if len(parts) != 2 {
+			continue
+		}
+
+		fileParts := strings.Split(parts[0], ":")
+		if len(fileParts) < 2 {
+			continue
+		}
+
+		file := fileParts[0]
+		funcName := parts[1]
+
+		// Skip generated files
+		if strings.Contains(file, "generated_") || strings.HasSuffix(file, ".qtpl.go") {
+			continue
+		}
+
+		lineNum, err := strconv.Atoi(fileParts[1])
+		if err != nil {
+			continue
+		}
+
+		fileToFuncs[file] = append(fileToFuncs[file], deadFunc{name: funcName, line: lineNum})
+	}
+
+	// Process each file
+	totalDeleted := 0
+	for file, funcs := range fileToFuncs {
+		deleted, err := deleteDeadFunctionsFromFile(file, funcs)
+		if err != nil {
+			fmt.Printf("Warning: failed to process %s: %v\n", file, err)
+			continue
+		}
+		totalDeleted += deleted
+	}
+
+	fmt.Printf("Deleted %d unreachable functions from %d files\n", totalDeleted, len(fileToFuncs))
+	return nil
+}
+
 // FindRedundantTests identifies unit tests that don't provide unique coverage beyond golden+UAT tests.
 // This is a convenience wrapper for this repository's specific configuration.
 func FindRedundantTests(c context.Context) error {
@@ -539,6 +601,12 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	return nil
 }
 
+// Fix all the imports
+func FixImports(c context.Context) error {
+	fmt.Println("Fixing imports...")
+	return run(c, "goimports", "-w", ".")
+}
+
 // Run the fuzz tests.
 func Fuzz(c context.Context) error {
 	fmt.Println("Running fuzz tests...")
@@ -612,12 +680,6 @@ func Modernize(c context.Context) error {
 	fmt.Println("Modernizing codebase...")
 	return run(c, "go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
 		"-fix", "./...")
-}
-
-// Fix all the imports
-func FixImports(c context.Context) error {
-	fmt.Println("Fixing imports...")
-	return run(c, "goimports", "-w", ".")
 }
 
 // Run the mutation tests.
@@ -994,6 +1056,11 @@ type coverageBlock struct {
 	count      int
 }
 
+type deadFunc struct {
+	name string
+	line int
+}
+
 // Types
 
 type lineAndCoverage struct {
@@ -1051,6 +1118,104 @@ func calculateFileHashes(dir string, extensions []string) (map[string]string, er
 	}
 
 	return hashes, nil
+}
+
+func deleteDeadFunctionsFromFile(filename string, funcs []deadFunc) (int, error) {
+	// Read file
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Parse AST
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, filename, content, parser.ParseComments)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse file: %w", err)
+	}
+
+	// Build set of function names to delete
+	toDelete := make(map[string]bool)
+	for _, f := range funcs {
+		toDelete[f.name] = true
+	}
+
+	// Filter declarations
+	newDecls := []ast.Decl{}
+	deleted := 0
+	for _, decl := range file.Decls {
+		keep := true
+
+		// Check if this is a function declaration to delete
+		if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+			funcName := funcDecl.Name.Name
+
+			// For methods, check receiver type + method name
+			if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
+				// Extract receiver type name
+				recvType := funcDecl.Recv.List[0].Type
+				var typeName string
+				switch t := recvType.(type) {
+				case *ast.StarExpr:
+					if ident, ok := t.X.(*ast.Ident); ok {
+						typeName = ident.Name
+					}
+				case *ast.Ident:
+					typeName = t.Name
+				}
+
+				// Check both "ReceiverType.MethodName" and "MethodName"
+				fullName := typeName + "." + funcName
+				if toDelete[fullName] || toDelete[funcName] {
+					keep = false
+				}
+			} else {
+				// Regular function
+				if toDelete[funcName] {
+					keep = false
+				}
+			}
+		}
+
+		// Check if this is a type declaration with unreachable methods
+		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
+			for _, spec := range genDecl.Specs {
+				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+					if toDelete[typeSpec.Name.Name] {
+						keep = false
+					}
+				}
+			}
+		}
+
+		if keep {
+			newDecls = append(newDecls, decl)
+		} else {
+			deleted++
+		}
+	}
+
+	if deleted == 0 {
+		return 0, nil // No changes
+	}
+
+	// Update declarations
+	file.Decls = newDecls
+
+	// Write back
+	var buf bytes.Buffer
+	err = printer.Fprint(&buf, fset, file)
+	if err != nil {
+		return 0, fmt.Errorf("failed to print AST: %w", err)
+	}
+
+	err = os.WriteFile(filename, buf.Bytes(), 0o600)
+	if err != nil {
+		return 0, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	fmt.Printf("  %s: deleted %d declarations\n", filename, deleted)
+	return deleted, nil
 }
 
 // Private Functions
@@ -1659,169 +1824,4 @@ func splitBlocksIntoSegments(blocks []coverageBlock) []coverageBlock {
 	}
 
 	return result
-}
-
-type deadFunc struct {
-	name string
-	line int
-}
-
-// DeleteDeadcode removes unreachable functions from the codebase.
-func DeleteDeadcode(c context.Context) error {
-	fmt.Println("Deleting dead code...")
-
-	// Get list of unreachable functions
-	out, err := output(c, "deadcode", "-test", "./...")
-	if err != nil {
-		return err
-	}
-
-	// Parse deadcode output: "file.go:123: unreachable func: FuncName"
-	// Group by file
-	fileToFuncs := make(map[string][]deadFunc)
-
-	lines := strings.Split(out, "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		// Parse: "impgen/run/codegen_interface.go:42: unreachable func: callStructData"
-		parts := strings.Split(line, ": unreachable func: ")
-		if len(parts) != 2 {
-			continue
-		}
-
-		fileParts := strings.Split(parts[0], ":")
-		if len(fileParts) < 2 {
-			continue
-		}
-
-		file := fileParts[0]
-		funcName := parts[1]
-
-		// Skip generated files
-		if strings.Contains(file, "generated_") || strings.HasSuffix(file, ".qtpl.go") {
-			continue
-		}
-
-		lineNum, err := strconv.Atoi(fileParts[1])
-		if err != nil {
-			continue
-		}
-
-		fileToFuncs[file] = append(fileToFuncs[file], deadFunc{name: funcName, line: lineNum})
-	}
-
-	// Process each file
-	totalDeleted := 0
-	for file, funcs := range fileToFuncs {
-		deleted, err := deleteDeadFunctionsFromFile(file, funcs)
-		if err != nil {
-			fmt.Printf("Warning: failed to process %s: %v\n", file, err)
-			continue
-		}
-		totalDeleted += deleted
-	}
-
-	fmt.Printf("Deleted %d unreachable functions from %d files\n", totalDeleted, len(fileToFuncs))
-	return nil
-}
-
-func deleteDeadFunctionsFromFile(filename string, funcs []deadFunc) (int, error) {
-	// Read file
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Parse AST
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, filename, content, parser.ParseComments)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse file: %w", err)
-	}
-
-	// Build set of function names to delete
-	toDelete := make(map[string]bool)
-	for _, f := range funcs {
-		toDelete[f.name] = true
-	}
-
-	// Filter declarations
-	newDecls := []ast.Decl{}
-	deleted := 0
-	for _, decl := range file.Decls {
-		keep := true
-
-		// Check if this is a function declaration to delete
-		if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-			funcName := funcDecl.Name.Name
-
-			// For methods, check receiver type + method name
-			if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
-				// Extract receiver type name
-				recvType := funcDecl.Recv.List[0].Type
-				var typeName string
-				switch t := recvType.(type) {
-				case *ast.StarExpr:
-					if ident, ok := t.X.(*ast.Ident); ok {
-						typeName = ident.Name
-					}
-				case *ast.Ident:
-					typeName = t.Name
-				}
-
-				// Check both "ReceiverType.MethodName" and "MethodName"
-				fullName := typeName + "." + funcName
-				if toDelete[fullName] || toDelete[funcName] {
-					keep = false
-				}
-			} else {
-				// Regular function
-				if toDelete[funcName] {
-					keep = false
-				}
-			}
-		}
-
-		// Check if this is a type declaration with unreachable methods
-		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if toDelete[typeSpec.Name.Name] {
-						keep = false
-					}
-				}
-			}
-		}
-
-		if keep {
-			newDecls = append(newDecls, decl)
-		} else {
-			deleted++
-		}
-	}
-
-	if deleted == 0 {
-		return 0, nil // No changes
-	}
-
-	// Update declarations
-	file.Decls = newDecls
-
-	// Write back
-	var buf bytes.Buffer
-	err = printer.Fprint(&buf, fset, file)
-	if err != nil {
-		return 0, fmt.Errorf("failed to print AST: %w", err)
-	}
-
-	err = os.WriteFile(filename, buf.Bytes(), 0o600)
-	if err != nil {
-		return 0, fmt.Errorf("failed to write file: %w", err)
-	}
-
-	fmt.Printf("  %s: deleted %d declarations\n", filename, deleted)
-	return deleted, nil
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/format"
 	"go/token"
-	go_types "go/types"
 	"strings"
 
 	"github.com/dave/dst"
@@ -324,12 +323,11 @@ func generateV2TargetCode(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
-	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	funcDecl *dst.FuncDecl,
 ) (string, error) {
-	gen, err := newV2TargetGenerator(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, funcDecl)
+	gen, err := newV2TargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
 	if err != nil {
 		return "", err
 	}
@@ -343,7 +341,6 @@ func generateV2TargetCodeFromFuncType(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
-	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	funcTypeDetails funcTypeWithDetails,
@@ -361,7 +358,7 @@ func generateV2TargetCodeFromFuncType(
 		funcDecl.Type.TypeParams = funcTypeDetails.typeParams
 	}
 
-	return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, funcDecl)
+	return generateV2TargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
 }
 
 // newV2TargetGenerator creates a new v2 target wrapper generator.
@@ -369,7 +366,6 @@ func newV2TargetGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
-	typesInfo *go_types.Info,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	funcDecl *dst.FuncDecl,
@@ -393,7 +389,7 @@ func newV2TargetGenerator(
 
 	gen := &v2TargetGenerator{
 		baseGenerator: newBaseGenerator(
-			fset, info.pkgName, info.impName, pkgPath, qualifier, funcDecl.Type.TypeParams, typesInfo,
+			fset, info.pkgName, info.impName, pkgPath, qualifier, funcDecl.Type.TypeParams,
 		),
 		wrapName:    info.impName,
 		wrapperType: wrapperType,

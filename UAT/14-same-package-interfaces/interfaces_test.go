@@ -19,8 +19,6 @@ import (
 //     that use other interfaces from the same package in method signatures.
 //  2. No Import Cycles: The generator must avoid creating import cycles when
 //     mocking interfaces that reference each other.
-//
-//nolint:varnamelen // Standard Go testing convention
 func TestSamePackageInterfaces(t *testing.T) {
 	t.Parallel()
 
@@ -65,8 +63,6 @@ func TestSamePackageInterfaces(t *testing.T) {
 // Key Requirements Met:
 //  1. Interface Return Types: Mocks correctly handle methods that return
 //     other interfaces from the same package.
-//
-//nolint:varnamelen // Standard Go testing convention
 func TestTransformReturnsInterface(t *testing.T) {
 	t.Parallel()
 

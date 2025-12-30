@@ -7,6 +7,8 @@ import (
 //go:generate go run ../../impgen --dependency Service
 
 func TestService_Execute(t *testing.T) {
+	t.Parallel()
+
 	mock := MockService(t)
 
 	input := "test input"
@@ -20,7 +22,6 @@ func TestService_Execute(t *testing.T) {
 
 	// Call the mock
 	output, err := mock.Interface().Execute(input)
-
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -31,6 +32,8 @@ func TestService_Execute(t *testing.T) {
 }
 
 func TestService_Validate(t *testing.T) {
+	t.Parallel()
+
 	mock := MockService(t)
 
 	input := "valid input"

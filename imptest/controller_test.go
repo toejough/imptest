@@ -20,7 +20,7 @@ import (
 // 3. No calls are lost or delivered to the wrong waiter
 // 4. Helper() is called but Fatalf() is NOT called (no timeout).
 //
-//nolint:varnamelen // Standard Go test parameter name
+//nolint:varnamelen,funlen // Standard Go test parameter name; concurrent test requires setup
 func TestGetCall_ConcurrentWaiters(t *testing.T) {
 	t.Parallel()
 

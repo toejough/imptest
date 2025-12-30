@@ -17,7 +17,7 @@ import (
 //     defined in one order while the code under test calls them in another.
 //  2. Timing Control: Use .Eventually(duration) to tell imptest to wait for a call,
 //     preventing flaky tests in concurrent environments.
-func TestConcurrentOutOfOrder(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestConcurrentOutOfOrder(t *testing.T) {
 	t.Parallel()
 
 	// Initialize the generated mock implementation.
@@ -53,7 +53,7 @@ func TestConcurrentOutOfOrder(t *testing.T) { //nolint:varnamelen // Standard Go
 // Key Requirements Met:
 //  1. Order Independence: Tests remain robust even when dependency call order
 //     is not guaranteed or changes due to implementation details.
-func TestExplicitReversedExpectation(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestExplicitReversedExpectation(t *testing.T) {
 	t.Parallel()
 
 	mock := MockSlowService(t)

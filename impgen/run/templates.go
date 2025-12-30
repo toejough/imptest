@@ -31,29 +31,6 @@ type baseTemplateData struct {
 	AdditionalImports []importInfo
 }
 
-// callStructMethodData holds data for generating call struct methods with method field info.
-type callStructMethodData struct {
-	Name          string // Method name (e.g., "DoSomething")
-	CallName      string // Full call struct name (e.g., "MyImpDoSomethingCall")
-	TypeParamsUse string
-}
-
-// callStructTemplateData holds data for generating the call struct and its methods.
-type callStructTemplateData struct {
-	templateData //nolint:unused // Embedded fields accessed via promotion
-
-	Methods []callStructMethodData
-}
-
-// callableTemplateData holds data for callable wrapper templates.
-type callableTemplateData struct {
-	baseTemplateData
-
-	HasReturns bool
-	ReturnType string // "{ImpName}Return" or "struct{}"
-	NumReturns int
-}
-
 // callbackParam holds metadata about a callback function parameter.
 type callbackParam struct {
 	ParamName        string               // Original parameter name (e.g., "fn")
@@ -79,14 +56,6 @@ type callbackParamField struct {
 type importInfo struct {
 	Alias string // Package alias/name (e.g., "io", "os")
 	Path  string // Full import path (e.g., "io", "os", "github.com/dave/dst")
-}
-
-// methodTemplateData holds data for method-specific templates.
-type methodTemplateData struct {
-	templateData //nolint:unused // Embedded fields accessed via promotion
-
-	MethodName     string
-	MethodCallName string
 }
 
 // paramField holds info about a single parameter field for args structs.
@@ -117,18 +86,6 @@ type resultVar struct {
 }
 
 // Types
-
-// templateData holds common data passed to templates.
-type templateData struct {
-	baseTemplateData //nolint:unused // Embedded fields accessed via promotion
-
-	MockName         string
-	CallName         string
-	ExpectCallIsName string
-	TimedName        string
-	InterfaceName    string // Full interface name for compile-time verification
-	MethodNames      []string
-}
 
 // v2DepMethodTemplateData holds data for v2 dependency impl method template.
 type v2DepMethodTemplateData struct {

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	go_types "go/types"
 	"sort"
 	"strings"
 	"unicode"
@@ -126,7 +125,6 @@ type baseGenerator struct {
 	pkgPath        string
 	qualifier      string
 	typeParams     *dst.FieldList
-	typesInfo      *go_types.Info
 	needsFmt       bool
 	needsImptest   bool
 	needsReflect   bool
@@ -219,22 +217,6 @@ type fieldInfo struct {
 	Index int        // The overall index across all fields
 	Field *dst.Field // The original AST field (use Field.Type with typeWithQualifier)
 }
-
-// funcParamInfo holds information about a function-typed parameter.
-type funcParamInfo struct {
-	Name      string        // Parameter name (e.g., "fn")
-	Index     int           // Parameter index
-	FuncType  *dst.FuncType // The function type
-	FieldInfo fieldInfo     // Original field info
-}
-
-// paramVisitor is called for each parameter during iteration.
-// Returns the next (paramNameIndex, unnamedIndex).
-type paramVisitor func(
-	param *dst.Field,
-	paramType string,
-	paramNameIndex, unnamedIndex, totalParams int,
-) (nextParamNameIndex, nextUnnamedIndex int)
 
 // typeExprWalker traverses AST type expressions with a generic return type.
 // It provides a unified way to walk type expressions, handling all AST node types
@@ -648,8 +630,6 @@ func fieldNameCount(field *dst.Field) int {
 
 // findExternalTypeAlias resolves an external type alias like fs.WalkDirFunc.
 //
-//nolint:cyclop // External type resolution requires multiple steps
-
 // Get the package identifier (e.g., "fs" in "fs.WalkDirFunc")
 
 // Find the import path for this package
@@ -784,8 +764,6 @@ func hasResults(ftype *dst.FuncType) bool {
 //
 
 // Basic built-in types
-//nolint:goconst // These are Go type names, not magic strings
-
 // Everything else: custom types, interfaces, etc. → use DeepEqual
 
 // Pointers are always comparable
@@ -835,7 +813,6 @@ func newBaseGenerator(
 	fset *token.FileSet,
 	pkgName, impName, pkgPath, qualifier string,
 	typeParams *dst.FieldList,
-	typesInfo *go_types.Info,
 ) baseGenerator {
 	baseGen := baseGenerator{
 		typeFormatter: typeFormatter{
@@ -847,7 +824,6 @@ func newBaseGenerator(
 		pkgPath:    pkgPath,
 		qualifier:  qualifier,
 		typeParams: typeParams,
-		typesInfo:  typesInfo,
 	}
 	baseGen.isTypeParam = baseGen.isTypeParameter
 
