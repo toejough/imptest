@@ -155,6 +155,34 @@ func Test_Manual(t *testing.T) {
 }
 ```
 
+## Testing Callbacks
+
+When your code passes callback functions to mocked dependencies, imptest makes it easy to extract and test those callbacks:
+
+```go
+// Create mock for dependency that receives callbacks
+mock := MockTreeWalker(t)
+
+// Wait for the call with a callback parameter (use imptest.Any() to match any function)
+call := mock.Walk.Eventually(time.Second).ExpectCalledWithMatches("/test", imptest.Any())
+
+// Extract the callback from the arguments
+rawArgs := call.RawArgs()
+callback := rawArgs[1].(func(string, fs.DirEntry, error) error)
+
+// Invoke the callback with test data
+err := callback("/test/file.txt", mockDirEntry{name: "file.txt"}, nil)
+
+// Verify callback behavior and complete the mock call
+call.InjectReturnValues(nil)
+```
+
+See [CALLBACKS.md](./CALLBACKS.md) for comprehensive examples including:
+- Testing callbacks that panic
+- Multiple callback invocations
+- Named function types
+- Mixing exact values and matchers
+
 ## Installation
 
 Install the library with:
