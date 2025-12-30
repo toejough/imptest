@@ -549,13 +549,13 @@ type {{.ImplName}}{{.TypeParamsDecl}} struct {
 	//nolint:lll // Template docstring
 	registry.v2DepImplMethodTmpl, err = parseTemplate("v2DepImplMethod", `// {{.MethodName}} implements {{.InterfaceType}}.{{.MethodName}}.
 func (impl *{{.ImplName}}{{.TypeParamsUse}}) {{.MethodName}}({{.Params}}){{.Results}} {
-	{{if .HasVariadic}}args := []any{ {{.NonVariadicArgs}} }
+	{{if .HasVariadic}}callArgs := []any{ {{.NonVariadicArgs}} }
 	for _, v := range {{.VariadicArg}} {
-		args = append(args, v)
+		callArgs = append(callArgs, v)
 	}
 	{{end}}call := &{{.PkgImptest}}.GenericCall{
 		MethodName: "{{.MethodName}}",
-		Args: {{if .HasVariadic}}args{{else}}[]any{ {{.Args}} }{{end}},
+		Args: {{if .HasVariadic}}callArgs{{else}}[]any{ {{.Args}} }{{end}},
 		ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 	}
 	impl.mock.imp.CallChan <- call
@@ -620,11 +620,11 @@ type {{.MethodTypeName}}{{.TypeParamsDecl}} struct {
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithExactly({{.TypedParams}}) *{{.CallTypeName}}{{.TypeParamsUse}} {
-	{{if .HasVariadic}}args := []any{ {{if .NonVariadicArgs}}{{.NonVariadicArgs}}{{end}} }
+	{{if .HasVariadic}}callArgs := []any{ {{if .NonVariadicArgs}}{{.NonVariadicArgs}}{{end}} }
 	for _, v := range {{.VariadicArg}} {
-		args = append(args, v)
+		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.ExpectCalledWithExactly(args...){{else}}call := m.DependencyMethod.ExpectCalledWithExactly({{.ArgNames}}){{end}}
+	call := m.DependencyMethod.ExpectCalledWithExactly(callArgs...){{else}}call := m.DependencyMethod.ExpectCalledWithExactly({{.ArgNames}}){{end}}
 	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 

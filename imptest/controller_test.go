@@ -1,6 +1,6 @@
 package imptest_test
 
-//go:generate ../bin/impgen Tester
+//go:generate ../bin/impgen Tester --dependency
 
 import (
 	"sync"
@@ -24,8 +24,8 @@ import (
 func TestGetCall_ConcurrentWaiters(t *testing.T) {
 	t.Parallel()
 
-	testerImp := NewTesterImp(t)
-	ctrl := imptest.NewController[*testCall](testerImp.Mock)
+	testerMock := MockTester(t)
+	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callA := &testCall{name: "callA"}
 	callB := &testCall{name: "callB"}
@@ -67,8 +67,10 @@ func TestGetCall_ConcurrentWaiters(t *testing.T) {
 
 	// Handle the two Helper() calls (one per GetCall)
 	go func() {
-		testerImp.ExpectCallIs.Helper().Resolve()
-		testerImp.ExpectCallIs.Helper().Resolve()
+		call := testerMock.Helper.ExpectCalledWithExactly()
+		call.InjectReturnValues()
+		call = testerMock.Helper.ExpectCalledWithExactly()
+		call.InjectReturnValues()
 	}()
 
 	// Send both calls (dispatcher receives them immediately)
@@ -98,16 +100,18 @@ func TestGetCall_ConcurrentWaiters(t *testing.T) {
 func TestGetCall_QueuedCallsMatchLaterWaiters(t *testing.T) {
 	t.Parallel()
 
-	testerImp := NewTesterImp(t)
-	ctrl := imptest.NewController[*testCall](testerImp.Mock)
+	testerMock := MockTester(t)
+	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	call1 := &testCall{name: "call1"}
 	call2 := &testCall{name: "call2"}
 
 	// Handle the two Helper() calls (one per GetCall)
 	go func() {
-		testerImp.ExpectCallIs.Helper().Resolve()
-		testerImp.ExpectCallIs.Helper().Resolve()
+		call := testerMock.Helper.ExpectCalledWithExactly()
+		call.InjectReturnValues()
+		call = testerMock.Helper.ExpectCalledWithExactly()
+		call.InjectReturnValues()
 	}()
 
 	// Send calls (dispatcher receives and queues them immediately)

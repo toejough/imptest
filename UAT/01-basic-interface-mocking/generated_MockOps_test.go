@@ -121,11 +121,11 @@ type OpsMockNotifyMethod struct {
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *OpsMockNotifyMethod) ExpectCalledWithExactly(message string, ids ...int) *OpsMockNotifyCall {
-	args := []any{message}
+	callArgs := []any{message}
 	for _, v := range ids {
-		args = append(args, v)
+		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.ExpectCalledWithExactly(args...)
+	call := m.DependencyMethod.ExpectCalledWithExactly(callArgs...)
 	return &OpsMockNotifyCall{DependencyCall: call}
 }
 
@@ -253,13 +253,13 @@ func (impl *mockOpsImpl) Log(message string) {
 
 // Notify implements basic.Ops.Notify.
 func (impl *mockOpsImpl) Notify(message string, ids ...int) bool {
-	args := []any{message}
+	callArgs := []any{message}
 	for _, v := range ids {
-		args = append(args, v)
+		callArgs = append(callArgs, v)
 	}
 	call := &_imptest.GenericCall{
 		MethodName:   "Notify",
-		Args:         args,
+		Args:         callArgs,
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
 	impl.mock.imp.CallChan <- call

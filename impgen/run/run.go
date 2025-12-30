@@ -235,13 +235,12 @@ func generateCode(
 
 	// Route to appropriate generator based on symbol type and mode
 	if symbol.kind == symbolFunction {
-		// For functions: use v2 target generator if --target flag is set
+		// For functions: require --target flag (V1 callable wrappers deprecated)
 		if info.mode == namingModeTarget {
 			return generateV2TargetCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcDecl)
 		}
 
-		// Default: generate v1 callable wrapper for functions
-		return generateCallableWrapperCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader)
+		return "", fmt.Errorf("V1 callable wrappers are deprecated. Use --target flag for function wrapping")
 	}
 
 	// For function types: use v2 target generator (function types are always wrapped as targets)
@@ -249,13 +248,12 @@ func generateCode(
 		return generateV2TargetCodeFromFuncType(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.funcType)
 	}
 
-	// For interfaces: use v2 dependency generator if --dependency flag is set
+	// For interfaces: require --dependency flag (V1 interface mocks deprecated)
 	if info.mode == namingModeDependency {
 		return generateV2DependencyCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
 	}
 
-	// Default: generate v1 implementation for interfaces
-	return generateImplementationCode(astFiles, info, fset, typesInfo, pkgImportPath, pkgLoader, symbol.iface)
+	return "", fmt.Errorf("V1 interface mocks are deprecated. Use --dependency flag for interface mocking")
 }
 
 // Functions - Private
