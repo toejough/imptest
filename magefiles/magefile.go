@@ -64,13 +64,14 @@ func Check(c context.Context) error {
 	fmt.Println("Checking...")
 
 	mg.SerialCtxDeps(c,
-		Tidy, // clean up the module dependencies
-		CheckCoverage,
-		CheckNils,
-		Deadcode,
+		Tidy,           // clean up the module dependencies
+		DeleteDeadcode, // no use doing anything else to dead code
+		FixImports,     // after dead code removal, fix imports to remove unused ones
+		Modernize,      // no use doing anything else to old code patterns
+		CheckCoverage,  // does our code work?
+		CheckNils,      // is it nil free?
+		ReorderDecls,   // linter will yell about declaration order if not correct
 		Lint,
-		Modernize,
-		ReorderDecls,
 	)
 
 	return nil
@@ -611,6 +612,12 @@ func Modernize(c context.Context) error {
 	fmt.Println("Modernizing codebase...")
 	return run(c, "go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
 		"-fix", "./...")
+}
+
+// Fix all the imports
+func FixImports(c context.Context) error {
+	fmt.Println("Fixing imports...")
+	return run(c, "goimports", "-w", ".")
 }
 
 // Run the mutation tests.
