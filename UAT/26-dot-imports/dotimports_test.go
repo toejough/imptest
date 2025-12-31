@@ -7,6 +7,9 @@ import (
 	. "github.com/toejough/imptest/UAT/26-dot-imports/helpers" //nolint:revive // Dot import intentional - testing dot import support
 )
 
+//go:generate impgen Storage --dependency
+//go:generate impgen Processor --dependency
+
 // TestDotImportedProcessor verifies multiple dot-imported interfaces work.
 func TestDotImportedProcessor(t *testing.T) {
 	t.Parallel()
