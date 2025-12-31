@@ -52,6 +52,13 @@ type CustomOpsMockAddMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *CustomOpsMockAddMethod) Eventually() *CustomOpsMockAddMethod {
+	return &CustomOpsMockAddMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *CustomOpsMockAddMethod) ExpectCalledWithExactly(a int, b int) *CustomOpsMockAddCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(a, b)
@@ -97,6 +104,13 @@ type CustomOpsMockLogMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *CustomOpsMockLogMethod) Eventually() *CustomOpsMockLogMethod {
+	return &CustomOpsMockLogMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *CustomOpsMockLogMethod) ExpectCalledWithExactly(message string) *CustomOpsMockLogCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(message)
@@ -137,6 +151,13 @@ func (c *CustomOpsMockNotifyCall) InjectReturnValues(result0 bool) {
 // CustomOpsMockNotifyMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockNotifyMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *CustomOpsMockNotifyMethod) Eventually() *CustomOpsMockNotifyMethod {
+	return &CustomOpsMockNotifyMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -183,6 +204,13 @@ func (c *CustomOpsMockStoreCall) InjectReturnValues(result0 int, result1 error) 
 // CustomOpsMockStoreMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockStoreMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *CustomOpsMockStoreMethod) Eventually() *CustomOpsMockStoreMethod {
+	return &CustomOpsMockStoreMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

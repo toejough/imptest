@@ -2,8 +2,6 @@
 package typesafeargs_test
 
 import (
-	"time"
-
 	typesafeargs "github.com/toejough/imptest/UAT/17-typesafe-getargs"
 	"github.com/toejough/imptest/imptest"
 )
@@ -33,8 +31,8 @@ type CalculatorAddMethod struct {
 	*imptest.DependencyMethod
 }
 
-func (m *CalculatorAddMethod) Eventually(d time.Duration) *CalculatorAddMethod {
-	return &CalculatorAddMethod{DependencyMethod: m.DependencyMethod.Eventually(d)}
+func (m *CalculatorAddMethod) Eventually() *CalculatorAddMethod {
+	return &CalculatorAddMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 func (m *CalculatorAddMethod) ExpectCalledWithExactly(a, b int) *CalculatorAddCall {

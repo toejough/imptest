@@ -2,7 +2,6 @@ package typesafeargs_test
 
 import (
 	"testing"
-	"time"
 )
 
 // TestManualTypeSafeGetArgs tests the manually created typed wrappers
@@ -16,7 +15,7 @@ func TestManualTypeSafeGetArgs(t *testing.T) {
 	}()
 
 	// Use the typed wrapper
-	call := calc.Add.Eventually(time.Second).ExpectCalledWithExactly(10, 20)
+	call := calc.Add.Eventually().ExpectCalledWithExactly(10, 20)
 
 	// GetArgs should return typed struct - no casting!
 	args := call.GetArgs()

@@ -310,7 +310,15 @@ A simple md issue tracker.
       - 2025-12-31 16:15 EST: RED complete - Step 6: 3 failing tests written (Eventually() API transformation)
       - 2025-12-31 16:18 EST: GREEN phase - Step 6: implementer transforming DependencyMethod to mode-based
       - 2025-12-31 16:22 EST: GREEN complete - Step 6: Timeout removed! Eventually() now no-param, mode-based API working
-      - 2025-12-31 16:23 EST: MILESTONE - Issue #20 core complete: Eventually() has NO timeout parameter!
+      - 2025-12-31 15:23 EST: MILESTONE - Issue #20 core complete: Eventually() has NO timeout parameter!
+      - 2025-12-31 15:25 EST: COMMITTED - feat(imptest): remove timeout from Eventually() (46c6966)
+      - 2025-12-31 15:27 EST: Phase 4 START - Code generation: Add typed Eventually() to templates for Issue #19
+      - 2025-12-31 15:27 EST: GREEN phase - Routed to implementer for template changes
+      - 2025-12-31 15:28 EST: GREEN - implementer: Added Eventually() to v2DepMethodWrapperTmpl
+      - 2025-12-31 15:29 EST: GREEN - implementer: Updated 5 UAT test files (removed timeout parameter)
+      - 2025-12-31 15:30 EST: GREEN - implementer: Regenerated mocks, created eventually_test.go
+      - 2025-12-31 15:31 EST: GREEN - All UAT tests passing
+      - 2025-12-31 15:31 EST: Step 7 complete: Added typed Eventually() to templates, Issue #19 COMPLETE
 20. Remove timeout parameter from Eventually() (TOE-107)
    - status: in progress
    - started: 2025-12-31 14:00 EST

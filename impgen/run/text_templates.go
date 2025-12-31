@@ -202,6 +202,13 @@ func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) Eventually() *{{.MethodTypeName}}{{.TypeParamsUse}} {
+	return &{{.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: m.DependencyMethod.Eventually()}
+}
 {{end}}
 `)
 	if err != nil {

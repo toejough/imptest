@@ -5,7 +5,6 @@ package middleware_test
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/toejough/imptest/imptest"
 )
@@ -43,7 +42,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	}()
 
 	// Expect the Wrap call and inject the wrapped handler
-	call := mock.Wrap.Eventually(time.Second).ExpectCalledWithMatches(imptest.Any())
+	call := mock.Wrap.Eventually().ExpectCalledWithMatches(imptest.Any())
 	call.InjectReturnValues(wrappedHandler)
 
 	// Wait for the result

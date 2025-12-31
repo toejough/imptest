@@ -52,6 +52,13 @@ type OpsMockAddMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *OpsMockAddMethod) Eventually() *OpsMockAddMethod {
+	return &OpsMockAddMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *OpsMockAddMethod) ExpectCalledWithExactly(a int, b int) *OpsMockAddCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(a, b)
@@ -97,6 +104,13 @@ type OpsMockLogMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *OpsMockLogMethod) Eventually() *OpsMockLogMethod {
+	return &OpsMockLogMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *OpsMockLogMethod) ExpectCalledWithExactly(message string) *OpsMockLogCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(message)
@@ -137,6 +151,13 @@ func (c *OpsMockNotifyCall) InjectReturnValues(result0 bool) {
 // OpsMockNotifyMethod wraps DependencyMethod with typed returns.
 type OpsMockNotifyMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *OpsMockNotifyMethod) Eventually() *OpsMockNotifyMethod {
+	return &OpsMockNotifyMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -183,6 +204,13 @@ func (c *OpsMockStoreCall) InjectReturnValues(result0 int, result1 error) {
 // OpsMockStoreMethod wraps DependencyMethod with typed returns.
 type OpsMockStoreMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *OpsMockStoreMethod) Eventually() *OpsMockStoreMethod {
+	return &OpsMockStoreMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

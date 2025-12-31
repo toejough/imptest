@@ -24,7 +24,7 @@ type RepositoryMockGetArgs[T any] struct {
 	Id string
 }
 
-// RepositoryMockGetCall wraps DependencyCall with typed GetArgs.
+// RepositoryMockGetCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type RepositoryMockGetCall[T any] struct {
 	*_imptest.DependencyCall
 }
@@ -37,9 +37,21 @@ func (c *RepositoryMockGetCall[T]) GetArgs() RepositoryMockGetArgs[T] {
 	}
 }
 
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *RepositoryMockGetCall[T]) InjectReturnValues(result0 T, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
+}
+
 // RepositoryMockGetMethod wraps DependencyMethod with typed returns.
 type RepositoryMockGetMethod[T any] struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *RepositoryMockGetMethod[T]) Eventually() *RepositoryMockGetMethod[T] {
+	return &RepositoryMockGetMethod[T]{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -59,7 +71,7 @@ type RepositoryMockSaveArgs[T any] struct {
 	Item T
 }
 
-// RepositoryMockSaveCall wraps DependencyCall with typed GetArgs.
+// RepositoryMockSaveCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type RepositoryMockSaveCall[T any] struct {
 	*_imptest.DependencyCall
 }
@@ -72,9 +84,21 @@ func (c *RepositoryMockSaveCall[T]) GetArgs() RepositoryMockSaveArgs[T] {
 	}
 }
 
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *RepositoryMockSaveCall[T]) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
+}
+
 // RepositoryMockSaveMethod wraps DependencyMethod with typed returns.
 type RepositoryMockSaveMethod[T any] struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *RepositoryMockSaveMethod[T]) Eventually() *RepositoryMockSaveMethod[T] {
+	return &RepositoryMockSaveMethod[T]{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

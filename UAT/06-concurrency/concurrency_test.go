@@ -2,7 +2,6 @@ package concurrency_test
 
 import (
 	"testing"
-	"time"
 
 	concurrency "github.com/toejough/imptest/UAT/06-concurrency"
 )
@@ -32,13 +31,13 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 	}()
 
 	// Requirement: We can expect DoA then DoB, even if the code calls them in reverse order.
-	// The .Eventually() modifier tells imptest to wait up to the given duration for the call.
+	// The .Eventually() modifier tells imptest to wait indefinitely for the call.
 
-	// 1. Expect DoA(123) to be called within 1 second.
-	mock.DoA.Eventually(time.Second).ExpectCalledWithExactly(123).InjectReturnValues("Result A")
+	// 1. Expect DoA(123) to be called.
+	mock.DoA.Eventually().ExpectCalledWithExactly(123).InjectReturnValues("Result A")
 
-	// 2. Expect DoB(123) to be called within 1 second.
-	mock.DoB.Eventually(time.Second).ExpectCalledWithExactly(123).InjectReturnValues("Result B")
+	// 2. Expect DoB(123) to be called.
+	mock.DoB.Eventually().ExpectCalledWithExactly(123).InjectReturnValues("Result B")
 
 	// Wait for the code under test to finish and verify results.
 	results := <-resultChan
@@ -65,8 +64,8 @@ func TestExplicitReversedExpectation(t *testing.T) {
 
 	// Requirement: Demonstrate that we can wait for DoB first, then DoA,
 	// regardless of which one the system-under-test triggers first.
-	mock.DoB.Eventually(time.Second).ExpectCalledWithExactly(456).InjectReturnValues("Result B")
-	mock.DoA.Eventually(time.Second).ExpectCalledWithExactly(456).InjectReturnValues("Result A")
+	mock.DoB.Eventually().ExpectCalledWithExactly(456).InjectReturnValues("Result B")
+	mock.DoA.Eventually().ExpectCalledWithExactly(456).InjectReturnValues("Result A")
 
 	results := <-resultChan
 	if results[0] != "Result A" || results[1] != "Result B" {
