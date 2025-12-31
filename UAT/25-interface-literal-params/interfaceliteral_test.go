@@ -7,6 +7,8 @@ import (
 	"github.com/toejough/imptest/imptest"
 )
 
+//go:generate impgen DataProcessor --dependency
+
 // TestInterfaceLiteralParameters demonstrates that impgen correctly handles
 // interface literals in method signatures.
 //
@@ -149,8 +151,6 @@ type resultProvider struct {
 func (r *resultProvider) Result() string {
 	return r.result
 }
-
-//go:generate impgen DataProcessor --dependency
 
 // simpleGetter implements the single-method interface literal.
 type simpleGetter struct {
