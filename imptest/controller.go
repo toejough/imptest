@@ -126,26 +126,156 @@ func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T
 	}
 }
 
-// dispatchLoop receives calls and either matches them to waiters or queues them.
-func (c *Controller[T]) dispatchLoop() {
-	for call := range c.CallChan {
+// GetCallEventually waits for a call that matches the given validator,
+// checking the queue first before registering as a waiter.
+func (c *Controller[T]) GetCallEventually(timeout time.Duration, validator func(T) bool) T {
+	c.T.Helper()
+
+	c.mu.Lock()
+
+	// Check queue first (while holding lock)
+	for i, call := range c.callQueue {
+		if validator(call) {
+			c.callQueue = append(c.callQueue[:i], c.callQueue[i+1:]...)
+			c.mu.Unlock()
+
+			return call
+		}
+	}
+
+	// Register as waiter BEFORE unlocking (this prevents race conditions)
+	myWaiter := &waiter[T]{
+		validator: validator,
+		result:    make(chan T, 1),
+	}
+	c.waiters = append(c.waiters, myWaiter)
+	c.mu.Unlock()
+
+	// Wait for result with timeout
+	var timeoutChan <-chan time.Time
+
+	if timeout > 0 {
+		timeoutChan = c.Timer.After(timeout)
+	}
+
+	select {
+	case call := <-myWaiter.result:
+		return call
+	case <-timeoutChan:
+		// Remove self from waiters list
 		c.mu.Lock()
 
-		// Try to match with waiting goroutines
-		matched := false
-
-		for i, w := range c.waiters {
-			if w.validator(call) {
-				w.result <- call
-
+		for i, waiter := range c.waiters {
+			if waiter == myWaiter {
 				c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
-				matched = true
 
 				break
 			}
 		}
 
-		// No matching waiter - queue for future
+		c.mu.Unlock()
+
+		c.T.Fatalf("timeout waiting for call matching validator")
+
+		var zero T
+
+		return zero
+	}
+}
+
+// GetCallOrdered waits for a call that matches the given validator, but fails
+// fast if a non-matching call arrives first (sends it to mismatchChan).
+func (c *Controller[T]) GetCallOrdered(
+	timeout time.Duration,
+	validator func(T) bool,
+	mismatchChan chan T,
+) T {
+	c.T.Helper()
+
+	c.mu.Lock()
+
+	// Check queue first (while holding lock)
+	for i, call := range c.callQueue {
+		if validator(call) {
+			c.callQueue = append(c.callQueue[:i], c.callQueue[i+1:]...)
+			c.mu.Unlock()
+
+			return call
+		}
+	}
+
+	// Register as ordered waiter (fail-fast mode)
+	myWaiter := &waiter[T]{
+		validator:      validator,
+		result:         make(chan T, 1),
+		failOnMismatch: true,
+		mismatchChan:   mismatchChan,
+	}
+	c.waiters = append(c.waiters, myWaiter)
+	c.mu.Unlock()
+
+	// Wait for result with timeout (caller handles mismatch channel)
+	var timeoutChan <-chan time.Time
+
+	if timeout > 0 {
+		timeoutChan = c.Timer.After(timeout)
+	}
+
+	select {
+	case call := <-myWaiter.result:
+		return call
+	case <-timeoutChan:
+		// Remove self from waiters list
+		c.mu.Lock()
+
+		for i, waiter := range c.waiters {
+			if waiter == myWaiter {
+				c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
+
+				break
+			}
+		}
+
+		c.mu.Unlock()
+
+		c.T.Fatalf("timeout waiting for call matching validator")
+
+		var zero T
+
+		return zero
+	}
+}
+
+// dispatchLoop receives calls and either matches them to waiters or queues them.
+func (c *Controller[T]) dispatchLoop() {
+	for call := range c.CallChan {
+		c.mu.Lock()
+
+		// Check first waiter for fail-fast mode BEFORE trying other waiters
+		matched := false
+
+		if len(c.waiters) > 0 && c.waiters[0].failOnMismatch && !c.waiters[0].validator(call) {
+			// First waiter is ordered and call doesn't match - fail it
+			c.waiters[0].mismatchChan <- call
+			c.waiters = c.waiters[1:] // Remove failed waiter
+			// Don't set matched yet - try remaining waiters with this call
+		}
+
+		// Try to match with (remaining) waiters
+		if !matched {
+			for i, w := range c.waiters {
+				if w.validator(call) {
+					w.result <- call
+
+					c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
+					matched = true
+
+					break
+				}
+			}
+		}
+
+		// If still no match, queue for future waiters
 		if !matched {
 			c.callQueue = append(c.callQueue, call)
 		}
@@ -174,6 +304,8 @@ func (realTimer) After(d time.Duration) <-chan time.Time {
 
 // waiter represents a goroutine waiting for a matching call.
 type waiter[T any] struct {
-	validator func(T) bool
-	result    chan T
+	validator      func(T) bool
+	result         chan T
+	failOnMismatch bool
+	mismatchChan   chan T
 }

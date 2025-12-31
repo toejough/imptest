@@ -75,6 +75,32 @@ func (i *Imp) GetCallWithTimeout(timeout time.Duration, methodName string, valid
 	return i.GetCall(timeout, callValidator)
 }
 
+// GetCallOrdered waits for a call matching both the method name and argument validator,
+// but fails fast if a non-matching call arrives first by sending it to mismatchChan.
+func (i *Imp) GetCallOrdered(timeout time.Duration, methodName string, validator func([]any) bool, mismatchChan chan *GenericCall) *GenericCall {
+	combinedValidator := func(call *GenericCall) bool {
+		if call.MethodName != methodName {
+			return false
+		}
+		return validator(call.Args)
+	}
+
+	return i.Controller.GetCallOrdered(timeout, combinedValidator, mismatchChan)
+}
+
+// GetCallEventually waits for a call matching both the method name and argument validator,
+// queuing calls with different method names while waiting for a match.
+func (i *Imp) GetCallEventually(timeout time.Duration, methodName string, validator func([]any) bool) *GenericCall {
+	combinedValidator := func(call *GenericCall) bool {
+		if call.MethodName != methodName {
+			return false
+		}
+		return validator(call.Args)
+	}
+
+	return i.Controller.GetCallEventually(timeout, combinedValidator)
+}
+
 // Helper marks the calling function as a test helper.
 // Implements TestReporter interface.
 func (i *Imp) Helper() {

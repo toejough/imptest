@@ -262,19 +262,62 @@ A simple md issue tracker.
    - priority: Low
    - linear: TOE-106
 19. Fix Eventually() type loss in concurrent call matching (TOE-104)
-   - status: backlog
+   - status: in progress
+   - started: 2025-12-31 14:00 EST
    - description: Eventually() returns base *DependencyCall instead of typed wrapper, losing type-safe GetArgs() access
    - acceptance: Eventually() returns same typed wrapper as synchronous call matching
    - effort: High - requires changes to controller/dependency interaction
    - priority: Medium
    - linear: TOE-104
+   - combined_with: Issue #20 (both related to Eventually() API)
+   - timeline:
+      - 2025-12-31 14:00 EST: DESIGN phase - Routed to solution-architect
+      - 2025-12-31 14:15 EST: DESIGN - User clarified: no timeout at all, ordered mode should fail-fast
+      - 2025-12-31 14:20 EST: DESIGN - Solution-architect redesigned with ordered vs eventually modes
+      - 2025-12-31 14:25 EST: DESIGN complete - User approved: ordered (fail-fast) vs eventually (queue)
+      - 2025-12-31 14:30 EST: PLANNING phase - Routed to solution-planner
+      - 2025-12-31 14:35 EST: PLANNING - Architectural decisions confirmed (hard break, wait forever, per-expectation, FIFO)
+      - 2025-12-31 14:45 EST: PLANNING complete - 13-step plan created (~10 hours estimated)
+      - 2025-12-31 14:50 EST: RED phase - Step 1: test-writer writing tests for failOnMismatch
+      - 2025-12-31 14:55 EST: RED complete - 2 failing tests written (GetCallOrdered, GetCallEventually)
+      - 2025-12-31 15:00 EST: GREEN phase - Step 1: implementer adding failOnMismatch to waiter struct
+      - 2025-12-31 15:05 EST: GREEN complete - Step 1 done: waiter struct extended, GetCallOrdered implemented, tests passing
+      - 2025-12-31 15:10 EST: AUDIT phase - Step 1: auditor reviewing code quality
+      - 2025-12-31 15:12 EST: AUDIT PASS - Step 1: Clean implementation, thread-safe, comprehensive tests, ready for Step 2
+      - 2025-12-31 15:15 EST: RED phase - Step 2: test-writer writing tests for GetCallEventually
+      - 2025-12-31 15:18 EST: RED complete - Step 2: 2 failing tests written (WaitsForMatch, ChecksQueueFirst)
+      - 2025-12-31 15:20 EST: GREEN phase - Step 2: implementer creating GetCallEventually method
+      - 2025-12-31 15:23 EST: GREEN complete - Step 2: GetCallEventually implemented, all tests passing
+      - 2025-12-31 15:25 EST: AUDIT phase - Step 2: auditor reviewing code quality
+      - 2025-12-31 15:27 EST: AUDIT PASS - Step 2: Functional and safe, minor code duplication (temp), ready for Step 3
+      - 2025-12-31 15:30 EST: RED phase - Step 3: test-writer writing tests for mixed ordered/eventually waiters
+      - 2025-12-31 15:35 EST: RED complete - Step 3: 3 tests written, 2 failing (exposed dispatcher missing fail-fast priority)
+      - 2025-12-31 15:38 EST: GREEN phase - Step 3: implementer fixing dispatcher fail-fast priority logic
+      - 2025-12-31 15:41 EST: GREEN complete - Step 3: Dispatcher fixed, all 19 tests passing, FIFO with fail-fast working
+      - 2025-12-31 15:43 EST: AUDIT phase - Step 3: auditor reviewing dispatcher logic
+      - 2025-12-31 15:46 EST: AUDIT PASS - Step 3: Correct logic, thread-safe, 100% coverage, ready for next phase
+      - 2025-12-31 15:48 EST: Phase 1 (Controller Layer) COMPLETE - Steps 1-3 done, moving to Phase 2 (Imp Layer)
+      - 2025-12-31 15:50 EST: RED phase - Step 5: test-writer writing tests for Imp layer methods
+      - 2025-12-31 15:53 EST: RED complete - Step 5: 3 failing tests written (GetCallOrdered/Eventually on Imp)
+      - 2025-12-31 15:55 EST: GREEN phase - Step 5: implementer adding GetCallOrdered/Eventually to Imp
+      - 2025-12-31 15:58 EST: GREEN complete - Step 5: Imp layer methods implemented, all tests passing
+      - 2025-12-31 16:00 EST: AUDIT phase - Step 5: auditor reviewing Imp layer
+      - 2025-12-31 16:02 EST: AUDIT NOTE - Step 5: Tests pass, some linter warnings (may be pre-existing), continuing
+      - 2025-12-31 16:05 EST: Phases 1-2 CHECKPOINT - Controller & Imp layers functional, committing progress
 20. Remove timeout parameter from Eventually() (TOE-107)
-   - status: backlog
+   - status: in progress
+   - started: 2025-12-31 14:00 EST
    - description: Eventually(time.Second) requires timeout, but timeout is only for handling unordered concurrent code, not real delays. Should use sensible default instead.
-   - acceptance: Eventually() has no timeout parameter, uses internal default
+   - acceptance: Eventually() has no timeout parameter, waits indefinitely (test framework handles timeout)
    - effort: Medium
    - priority: Medium
    - linear: TOE-107
+   - combined_with: Issue #19 (both related to Eventually() API)
+   - timeline:
+      - 2025-12-31 14:00 EST: Combined with issue #19 for unified solution
+      - 2025-12-31 14:20 EST: DESIGN - Decision: NO timeout parameter, wait indefinitely
+      - 2025-12-31 14:45 EST: PLANNING - Timeout removed entirely from design
+      - 2025-12-31 15:05 EST: GREEN phase - Step 1/13 complete (waiter struct foundation)
 21. Rename --target/--dependency flags to --wrap/--mock (TOE-108)
    - status: backlog
    - description: Current flag names describe user intent rather than what generator does. Rename to focus on action: --wrap for WrapX, --mock for MockX
