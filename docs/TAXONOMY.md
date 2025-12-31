@@ -56,20 +56,29 @@ This matrix documents where the types to be wrapped/mocked can be defined. Packa
 | Same package | Yes | Yes | [14](../UAT/14-same-package-interfaces/), [12](../UAT/12-whitebox-testing/) | Type in same package as test |
 | Different package | Yes | Yes | [01](../UAT/01-basic-interface-mocking/), [02](../UAT/02-callable-wrappers/), [22](../UAT/22-test-package-import/) | Local or external module |
 | Standard library | Yes | Yes | [18](../UAT/18-external-function-types/), [08](../UAT/08-embedded-interfaces/) | `http.HandlerFunc`, `io.Reader` |
-| Standard library shadowing | **Hole** | **Hole** | [11](../UAT/11-package-name-conflicts/) | **See known issues** |
+| Standard library shadowing | Yes | Yes | [11](../UAT/11-package-name-conflicts/) | 4-tier resolution (see below) |
 | Aliased import | Yes | Yes | — | `import alias "github.com/foo/bar"` |
 | Dot import | ? | ? | — | `import . "pkg"` - untested |
 
-**Legend**: Yes = supported, ? = untested, **Hole** = known limitation
+**Legend**: Yes = supported, ? = untested
 
-### Known Issues
+### Standard Library Shadowing Resolution
 
-**Standard library shadowing** ([UAT-11](../UAT/11-package-name-conflicts/)): Current implementation has ambiguity when local package shadows stdlib package name and test doesn't import the shadowed package. For example:
+**Standard library shadowing** ([UAT-11](../UAT/11-package-name-conflicts/)) is now **fully supported** via a 4-tier resolution strategy (implemented in commit cae3385):
+
+**The Problem**: When a local package shadows a stdlib package name (e.g., local `time` package shadowing stdlib `time`), and the test doesn't import either package, impgen previously couldn't determine which package was intended:
+
 ```go
-// In timeconflict package with local Time type
+// Local "time" package exists
+// Test doesn't import any "time" package
 //go:generate impgen time.Timer --dependency  // Which "time"?
 ```
-Without explicit package qualification, generator cannot determine if `time` refers to stdlib or local package. **This is a hole in the current implementation.** See [issues.md](../issues.md#2-fix-stdlib-package-shadowing-ambiguity-uat-11) for tracking.
+
+**The Solution**: 4-tier resolution strategy:
+1. **Explicit `--import-path` flag** (highest priority): `impgen --import-path=time time.Timer` for stdlib or `impgen --import-path=github.com/user/project/time time.Timer` for local
+2. **Infer from test file imports**: If test imports the package (aliased or not), use that import path automatically
+3. **Detect ambiguity**: If both stdlib and local package exist and neither is imported, error with helpful message suggesting `--import-path` or adding an import
+4. **Fallback**: Existing resolution logic for non-ambiguous cases
 
 ---
 
@@ -594,9 +603,9 @@ wrapper := mypackage.WrapCalculatorAdd()
 
 ---
 
-### 3. Stdlib Package Shadowing (Known Hole)
+### 3. Stdlib Package Shadowing (Now Supported ✓)
 
-**Problem**: When a local package shadows a stdlib package name and the test doesn't import the shadowed package, impgen cannot determine which package is intended.
+**Problem**: When a local package shadows a stdlib package name and the test doesn't import the shadowed package, impgen needs to determine which package is intended.
 
 ```go
 // Local package named "time" exists
@@ -605,16 +614,15 @@ wrapper := mypackage.WrapCalculatorAdd()
 //go:generate impgen time.Timer --dependency  // Which "time"?
 ```
 
-**Current Status**: **This is a known hole in the implementation.** impgen currently accepts this syntax but makes incorrect assumptions.
+**Status**: **Fully supported** as of commit cae3385 via 4-tier resolution strategy.
 
-**Tracking**: See [issues.md](../issues.md#2-fix-stdlib-package-shadowing-ambiguity-uat-11)
+**Solutions** (in priority order):
+1. **Use `--import-path` flag**: `impgen --import-path=time time.Timer --dependency` (stdlib) or `impgen --import-path=github.com/user/project/time time.Timer --dependency` (local)
+2. **Import the package in your test**: impgen will automatically infer from imports
+3. **Let impgen detect ambiguity**: If both exist and neither imported, impgen errors with helpful suggestions
+4. **Fallback resolution**: Works automatically for non-ambiguous cases
 
-**Temporary Workarounds**:
-1. Import the intended package in your test file to remove ambiguity
-2. Use fully qualified package paths in comments
-3. Run impgen from a context where the package is clear
-
-**Future Solution**: Will require explicit package qualification flag (e.g., `--package=stdlib`) or automatic ambiguity detection.
+See [Package Variations Matrix](#package-variations-matrix) for details on the 4-tier resolution strategy.
 
 **Example UAT**: [UAT/11-package-name-conflicts](../UAT/11-package-name-conflicts/)
 
