@@ -107,7 +107,7 @@ This matrix documents what parameter and return types are supported in wrapped/m
 | Non-comparable types | Yes | Yes | [03](../UAT/03-non-comparable-arguments/) |
 | Simple types (int, string, etc.) | Yes | Yes | Most UATs |
 | Struct literal | ? | ? | — |
-| Function literal | ? | ? | — |
+| Function literal | Partial | Partial | [24](../UAT/24-function-literal-params/) | Single-param works; multi-param bug (see below) |
 | Interface literal | ? | ? | — |
 | Channel | Yes | Yes | [20](../UAT/20-channel-types/) |
 | Directional channel | Yes | Yes | [20](../UAT/20-channel-types/) |
@@ -657,6 +657,50 @@ import util "github.com/example/utils"
 
 ---
 
+### 5. Multi-Parameter Function Literals (Known Bug)
+
+**Problem**: Function literal parameters with multiple arguments have their parameters incorrectly parsed by impgen code generation.
+
+```go
+type DataProcessor interface {
+    // The reducer has TWO parameters: acc and item
+    Reduce(items []int, initial int, reducer func(acc, item int) int) int
+}
+
+//go:generate impgen DataProcessor --dependency
+```
+
+**Generated Code Bug**: impgen incorrectly generates `func(int) int` instead of `func(int, int) int`, dropping the second parameter.
+
+**Workaround 1**: Use single-parameter function literals when possible.
+
+```go
+type DataProcessor interface {
+    // Workaround: single parameter
+    Reduce(items []int, reducer func(int) int) []int
+}
+```
+
+**Workaround 2**: When testing with function literal parameters, use matchers instead of exact equality (required because Go functions cannot be compared with `==`).
+
+```go
+// In tests - ALWAYS use matchers for function literal params
+transformFn := func(x int) int { return x * 2 }
+
+// Don't use ExpectCalledWithExactly - will hang!
+// mock.Transform.ExpectCalledWithExactly(items, transformFn)
+
+// DO use ExpectCalledWithMatches with imptest.Any()
+mock.Transform.ExpectCalledWithMatches(items, imptest.Any()).
+    InjectReturnValues(result, nil)
+```
+
+**Example UAT**: [UAT/24-function-literal-params](../UAT/24-function-literal-params/)
+
+**Status**: Single-parameter function literals work correctly. Multi-parameter function literals are a known impgen bug requiring code generation fixes.
+
+---
+
 ## UAT Directory Index
 
 Quick reference for locating User Acceptance Tests by feature coverage.
@@ -686,6 +730,7 @@ Quick reference for locating User Acceptance Tests by feature coverage.
 | [21](../UAT/21-parameterized-types/) | parameterized-types | Constrained generics | Generic interface (dep) | Local | Type constraints |
 | [22](../UAT/22-test-package-import/) | test-package-import | External module imports | Interface (dep) | External module | Standard methods |
 | [23](../UAT/23-named-params-returns/) | named-params-returns | Named parameters/returns | Interface (dep)<br>Method + Function (target) | Local | Named params/returns |
+| [24](../UAT/24-function-literal-params/) | function-literal-params | Function literal parameters | Interface (dep)<br>Method + Function (target) | Local | Function literal params; matcher usage |
 
 ### Legend
 
