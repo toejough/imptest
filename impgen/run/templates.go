@@ -115,6 +115,10 @@ type v2DepMethodTemplateData struct {
 	CallTypeName   string       // Call wrapper type name (e.g., "CalculatorAddCall")
 	MethodTypeName string       // Method wrapper type name (e.g., "CalculatorAddMethod")
 	TypedParams    string       // Typed parameter list for ExpectCalledWithExactly (e.g., "a int, b int")
+
+	// Type-safe return value support
+	TypedReturnParams string // Typed return parameter list for InjectReturnValues (e.g., "result0 int, result1 error")
+	ReturnParamNames  string // Comma-separated return parameter names (e.g., "result0, result1")
 }
 
 // v2DepTemplateData holds data for v2 dependency mock templates.

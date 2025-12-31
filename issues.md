@@ -80,13 +80,15 @@ A simple md issue tracker.
    - acceptance: UAT or documented limitation with workaround
    - effort: Small (1-2 hours)
    - **NOTE**: After completing UAT, update Signature Variations Matrix in TAXONOMY.md to mark "Struct literal" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
-7. Document dot import behavior
+7. Support dot imports for mocking
    - status: backlog
-   - description: Verify and document whether dot imports (`import . "pkg"`) work or fail gracefully
-   - rationale: Currently marked "?" in Package Matrix, should know definitive answer
-   - acceptance: UAT demonstrating support OR updated taxonomy documenting limitation
-   - effort: Small (1 hour)
-   - **NOTE**: After testing, update Package Variations Matrix in TAXONOMY.md to mark "Dot import" as "Yes" with UAT reference OR add to "Cannot Do" section with workaround
+   - description: Enable impgen to generate mocks for types/functions available via dot imports (`import . "pkg"`). If someone wants to mock something that is available in a dot import, we need to be able to do that.
+   - rationale: Currently marked "?" in Package Matrix. Dot imports are a valid Go pattern and users should be able to mock dot-imported symbols.
+   - current behavior: Unknown - may fail or have issues with symbol resolution
+   - expected behavior: impgen should correctly identify and generate mocks for dot-imported symbols
+   - acceptance: UAT demonstrating that dot-imported symbols can be mocked successfully
+   - effort: Medium (2-3 hours) - may require import resolution changes
+   - **NOTE**: After implementation, update Package Variations Matrix in TAXONOMY.md to mark "Dot import" as "Yes" with UAT reference
 8. Update taxonomy for resolved stdlib shadowing
    - status: done
    - started: 2025-12-31 01:14 EST
@@ -104,8 +106,38 @@ A simple md issue tracker.
      - Renamed "Known Issues" to "Standard Library Shadowing Resolution" with full explanation of 4-tier strategy
      - Cannot Do section: Changed "Known Hole" to "Now Supported ✓" with usage examples
 9. dependency.go does not use typesafe return values
-   - status: backlog
+   - status: done
+   - started: 2025-12-31 02:42 EST
+   - completed: 2025-12-31 03:25 EST
+   - timeline:
+     - 2025-12-31 02:42 EST - Started issue, entered PLAN MODE
+     - 2025-12-31 02:43 EST - Launched 2 Explore agents in parallel:
+       - Agent 1: Exploring target wrapper typesafe return pattern
+       - Agent 2: Exploring dependency mock return handling
+     - 2025-12-31 02:52 EST - Exploration complete, launched Plan agent to design implementation
+     - 2025-12-31 03:05 EST - Plan revised based on user feedback: Use method shadowing instead of return structs
+     - 2025-12-31 03:06 EST - Plan complete, exiting PLAN MODE for user approval
+     - 2025-12-31 03:08 EST - Plan approved, starting TDD implementation
+     - 2025-12-31 03:10 EST - RED: Wrote test demonstrating typed InjectReturnValues usage
+     - 2025-12-31 03:12 EST - GREEN: Implemented code generation (templates, template data, helper function)
+     - 2025-12-31 03:20 EST - REFACTOR: All tests passing, mage check clean (0 linter errors)
+     - 2025-12-31 03:25 EST - Complete: Verified compile-time type safety, all UATs passing
    - description: In dependency.go, the generated wrapper functions do not use typesafe return values, leading to potential runtime panics when type assertions fail or someone passes the wrong number of return values. This can be improved by generating typesafe return values in the mocks.
+   - priority: CRITICAL - breaks fundamental type-safety expectation of the library
+   - current behavior: InjectReturnValues(...any) with silent type assertion failures returning zero values
+   - expected behavior: Typed InjectReturnValues methods that shadow base method with compile-time type safety
+   - acceptance: Dependency mocks have same type-safe return value guarantees as target wrappers
+   - solution: Generated typed InjectReturnValues(result0 T1, result1 T2, ...) methods on call wrappers that shadow the untyped base method, providing:
+     - Compile-time type safety (wrong types = compiler error)
+     - Compile-time arity checking (wrong number of params = compiler error)
+     - Zero migration impact (same method name, calling pattern unchanged)
+     - Full backward compatibility (all existing tests pass)
+   - files modified:
+     - impgen/run/templates.go: Added TypedReturnParams and ReturnParamNames fields
+     - impgen/run/text_templates.go: Modified v2DepCallWrapperTmpl to generate typed method
+     - impgen/run/codegen_v2_dependency.go: Added buildTypedReturnParams helper and updated buildMethodTemplateData
+     - UAT/01-basic-interface-mocking/typesafety_test.go: Added test demonstrating typed API
+     - UAT/01-basic-interface-mocking/typesafety_compile_errors_test.go.disabled: Examples of compile errors
 10. Fix multi-parameter function literal code generation bug
    - status: done
    - started: 2025-12-31 02:12 EST

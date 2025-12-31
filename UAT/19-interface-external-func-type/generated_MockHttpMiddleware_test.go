@@ -24,7 +24,7 @@ type HTTPMiddlewareMockWrapArgs struct {
 	Handler http.HandlerFunc
 }
 
-// HTTPMiddlewareMockWrapCall wraps DependencyCall with typed GetArgs.
+// HTTPMiddlewareMockWrapCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type HTTPMiddlewareMockWrapCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,6 +35,11 @@ func (c *HTTPMiddlewareMockWrapCall) GetArgs() HTTPMiddlewareMockWrapArgs {
 	return HTTPMiddlewareMockWrapArgs{
 		Handler: raw[0].(http.HandlerFunc),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *HTTPMiddlewareMockWrapCall) InjectReturnValues(result0 http.HandlerFunc) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // HTTPMiddlewareMockWrapMethod wraps DependencyMethod with typed returns.

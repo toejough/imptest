@@ -27,7 +27,7 @@ type UserRepositoryMockCountUsersArgs struct {
 	Ctx context.Context
 }
 
-// UserRepositoryMockCountUsersCall wraps DependencyCall with typed GetArgs.
+// UserRepositoryMockCountUsersCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type UserRepositoryMockCountUsersCall struct {
 	*_imptest.DependencyCall
 }
@@ -38,6 +38,11 @@ func (c *UserRepositoryMockCountUsersCall) GetArgs() UserRepositoryMockCountUser
 	return UserRepositoryMockCountUsersArgs{
 		Ctx: raw[0].(context.Context),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *UserRepositoryMockCountUsersCall) InjectReturnValues(result0 int, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // UserRepositoryMockCountUsersMethod wraps DependencyMethod with typed returns.
@@ -63,7 +68,7 @@ type UserRepositoryMockDeleteUserArgs struct {
 	UserID int
 }
 
-// UserRepositoryMockDeleteUserCall wraps DependencyCall with typed GetArgs.
+// UserRepositoryMockDeleteUserCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type UserRepositoryMockDeleteUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -75,6 +80,11 @@ func (c *UserRepositoryMockDeleteUserCall) GetArgs() UserRepositoryMockDeleteUse
 		Ctx:    raw[0].(context.Context),
 		UserID: raw[1].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *UserRepositoryMockDeleteUserCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // UserRepositoryMockDeleteUserMethod wraps DependencyMethod with typed returns.
@@ -100,7 +110,7 @@ type UserRepositoryMockGetUserArgs struct {
 	UserID int
 }
 
-// UserRepositoryMockGetUserCall wraps DependencyCall with typed GetArgs.
+// UserRepositoryMockGetUserCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type UserRepositoryMockGetUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -112,6 +122,11 @@ func (c *UserRepositoryMockGetUserCall) GetArgs() UserRepositoryMockGetUserArgs 
 		Ctx:    raw[0].(context.Context),
 		UserID: raw[1].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *UserRepositoryMockGetUserCall) InjectReturnValues(result0 named.User, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // UserRepositoryMockGetUserMethod wraps DependencyMethod with typed returns.
@@ -137,7 +152,7 @@ type UserRepositoryMockSaveUserArgs struct {
 	User named.User
 }
 
-// UserRepositoryMockSaveUserCall wraps DependencyCall with typed GetArgs.
+// UserRepositoryMockSaveUserCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type UserRepositoryMockSaveUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -149,6 +164,11 @@ func (c *UserRepositoryMockSaveUserCall) GetArgs() UserRepositoryMockSaveUserArg
 		Ctx:  raw[0].(context.Context),
 		User: raw[1].(named.User),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *UserRepositoryMockSaveUserCall) InjectReturnValues(result0 named.User, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // UserRepositoryMockSaveUserMethod wraps DependencyMethod with typed returns.

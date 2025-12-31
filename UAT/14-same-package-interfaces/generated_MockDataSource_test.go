@@ -18,6 +18,16 @@ func (m *DataSourceMock) Interface() samepackage.DataSource {
 	return &mockDataSourceImpl{mock: m}
 }
 
+// DataSourceMockGetDataCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type DataSourceMockGetDataCall struct {
+	*_imptest.DependencyCall
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataSourceMockGetDataCall) InjectReturnValues(result0 []byte, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
+}
+
 // MockDataSource creates a new DataSourceMock for testing.
 func MockDataSource(t _imptest.TestReporter) *DataSourceMock {
 	imp := _imptest.NewImp(t)

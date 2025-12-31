@@ -25,7 +25,7 @@ type DataProcessorMockProcessContainerArgs struct {
 	Data parameterized.Container[string]
 }
 
-// DataProcessorMockProcessContainerCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockProcessContainerCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockProcessContainerCall struct {
 	*_imptest.DependencyCall
 }
@@ -36,6 +36,11 @@ func (c *DataProcessorMockProcessContainerCall) GetArgs() DataProcessorMockProce
 	return DataProcessorMockProcessContainerArgs{
 		Data: raw[0].(parameterized.Container[string]),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockProcessContainerCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockProcessContainerMethod wraps DependencyMethod with typed returns.
@@ -60,7 +65,7 @@ type DataProcessorMockProcessPairArgs struct {
 	Pair parameterized.Pair[int, bool]
 }
 
-// DataProcessorMockProcessPairCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockProcessPairCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockProcessPairCall struct {
 	*_imptest.DependencyCall
 }
@@ -71,6 +76,11 @@ func (c *DataProcessorMockProcessPairCall) GetArgs() DataProcessorMockProcessPai
 	return DataProcessorMockProcessPairArgs{
 		Pair: raw[0].(parameterized.Pair[int, bool]),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockProcessPairCall) InjectReturnValues(result0 string) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockProcessPairMethod wraps DependencyMethod with typed returns.
@@ -88,6 +98,16 @@ func (m *DataProcessorMockProcessPairMethod) ExpectCalledWithExactly(pair parame
 func (m *DataProcessorMockProcessPairMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockProcessPairCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &DataProcessorMockProcessPairCall{DependencyCall: call}
+}
+
+// DataProcessorMockReturnContainerCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type DataProcessorMockReturnContainerCall struct {
+	*_imptest.DependencyCall
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockReturnContainerCall) InjectReturnValues(result0 parameterized.Container[int]) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // MockDataProcessor creates a new DataProcessorMock for testing.

@@ -23,7 +23,7 @@ type ComplexServiceMockProcessArgs struct {
 	D matching.Data
 }
 
-// ComplexServiceMockProcessCall wraps DependencyCall with typed GetArgs.
+// ComplexServiceMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ComplexServiceMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -34,6 +34,11 @@ func (c *ComplexServiceMockProcessCall) GetArgs() ComplexServiceMockProcessArgs 
 	return ComplexServiceMockProcessArgs{
 		D: raw[0].(matching.Data),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ComplexServiceMockProcessCall) InjectReturnValues(result0 bool) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // ComplexServiceMockProcessMethod wraps DependencyMethod with typed returns.

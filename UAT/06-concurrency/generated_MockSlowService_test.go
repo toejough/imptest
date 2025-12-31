@@ -24,7 +24,7 @@ type SlowServiceMockDoAArgs struct {
 	Id int
 }
 
-// SlowServiceMockDoACall wraps DependencyCall with typed GetArgs.
+// SlowServiceMockDoACall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type SlowServiceMockDoACall struct {
 	*_imptest.DependencyCall
 }
@@ -35,6 +35,11 @@ func (c *SlowServiceMockDoACall) GetArgs() SlowServiceMockDoAArgs {
 	return SlowServiceMockDoAArgs{
 		Id: raw[0].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *SlowServiceMockDoACall) InjectReturnValues(result0 string) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // SlowServiceMockDoAMethod wraps DependencyMethod with typed returns.
@@ -59,7 +64,7 @@ type SlowServiceMockDoBArgs struct {
 	Id int
 }
 
-// SlowServiceMockDoBCall wraps DependencyCall with typed GetArgs.
+// SlowServiceMockDoBCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type SlowServiceMockDoBCall struct {
 	*_imptest.DependencyCall
 }
@@ -70,6 +75,11 @@ func (c *SlowServiceMockDoBCall) GetArgs() SlowServiceMockDoBArgs {
 	return SlowServiceMockDoBArgs{
 		Id: raw[0].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *SlowServiceMockDoBCall) InjectReturnValues(result0 string) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // SlowServiceMockDoBMethod wraps DependencyMethod with typed returns.

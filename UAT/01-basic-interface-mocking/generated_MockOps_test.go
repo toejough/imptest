@@ -28,7 +28,7 @@ type OpsMockAddArgs struct {
 	B int
 }
 
-// OpsMockAddCall wraps DependencyCall with typed GetArgs.
+// OpsMockAddCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type OpsMockAddCall struct {
 	*_imptest.DependencyCall
 }
@@ -40,6 +40,11 @@ func (c *OpsMockAddCall) GetArgs() OpsMockAddArgs {
 		A: raw[0].(int),
 		B: raw[1].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *OpsMockAddCall) InjectReturnValues(result0 int) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // OpsMockAddMethod wraps DependencyMethod with typed returns.
@@ -57,6 +62,16 @@ func (m *OpsMockAddMethod) ExpectCalledWithExactly(a int, b int) *OpsMockAddCall
 func (m *OpsMockAddMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockAddCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &OpsMockAddCall{DependencyCall: call}
+}
+
+// OpsMockFinishCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type OpsMockFinishCall struct {
+	*_imptest.DependencyCall
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *OpsMockFinishCall) InjectReturnValues(result0 bool) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // OpsMockLogArgs holds typed arguments for Log.
@@ -100,7 +115,7 @@ type OpsMockNotifyArgs struct {
 	Ids     []int
 }
 
-// OpsMockNotifyCall wraps DependencyCall with typed GetArgs.
+// OpsMockNotifyCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type OpsMockNotifyCall struct {
 	*_imptest.DependencyCall
 }
@@ -112,6 +127,11 @@ func (c *OpsMockNotifyCall) GetArgs() OpsMockNotifyArgs {
 		Message: raw[0].(string),
 		Ids:     raw[1].([]int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *OpsMockNotifyCall) InjectReturnValues(result0 bool) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // OpsMockNotifyMethod wraps DependencyMethod with typed returns.
@@ -141,7 +161,7 @@ type OpsMockStoreArgs struct {
 	Value any
 }
 
-// OpsMockStoreCall wraps DependencyCall with typed GetArgs.
+// OpsMockStoreCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type OpsMockStoreCall struct {
 	*_imptest.DependencyCall
 }
@@ -153,6 +173,11 @@ func (c *OpsMockStoreCall) GetArgs() OpsMockStoreArgs {
 		Key:   raw[0].(string),
 		Value: raw[1].(any),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *OpsMockStoreCall) InjectReturnValues(result0 int, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // OpsMockStoreMethod wraps DependencyMethod with typed returns.

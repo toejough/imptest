@@ -24,7 +24,7 @@ type ServiceMockExecuteArgs struct {
 	Input string
 }
 
-// ServiceMockExecuteCall wraps DependencyCall with typed GetArgs.
+// ServiceMockExecuteCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ServiceMockExecuteCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,6 +35,11 @@ func (c *ServiceMockExecuteCall) GetArgs() ServiceMockExecuteArgs {
 	return ServiceMockExecuteArgs{
 		Input: raw[0].(string),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ServiceMockExecuteCall) InjectReturnValues(result0 string, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // ServiceMockExecuteMethod wraps DependencyMethod with typed returns.
@@ -59,7 +64,7 @@ type ServiceMockValidateArgs struct {
 	Input string
 }
 
-// ServiceMockValidateCall wraps DependencyCall with typed GetArgs.
+// ServiceMockValidateCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ServiceMockValidateCall struct {
 	*_imptest.DependencyCall
 }
@@ -70,6 +75,11 @@ func (c *ServiceMockValidateCall) GetArgs() ServiceMockValidateArgs {
 	return ServiceMockValidateArgs{
 		Input: raw[0].(string),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ServiceMockValidateCall) InjectReturnValues(result0 bool) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // ServiceMockValidateMethod wraps DependencyMethod with typed returns.

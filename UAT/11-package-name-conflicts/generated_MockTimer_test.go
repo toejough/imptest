@@ -19,12 +19,22 @@ func (m *TimerMock) Interface() time.Timer {
 	return &mockTimerImpl{mock: m}
 }
 
+// TimerMockGetElapsedCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type TimerMockGetElapsedCall struct {
+	*_imptest.DependencyCall
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *TimerMockGetElapsedCall) InjectReturnValues(result0 int) {
+	c.DependencyCall.InjectReturnValues(result0)
+}
+
 // TimerMockWaitArgs holds typed arguments for Wait.
 type TimerMockWaitArgs struct {
 	Seconds int
 }
 
-// TimerMockWaitCall wraps DependencyCall with typed GetArgs.
+// TimerMockWaitCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type TimerMockWaitCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,6 +45,11 @@ func (c *TimerMockWaitCall) GetArgs() TimerMockWaitArgs {
 	return TimerMockWaitArgs{
 		Seconds: raw[0].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *TimerMockWaitCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // TimerMockWaitMethod wraps DependencyMethod with typed returns.

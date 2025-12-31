@@ -46,6 +46,9 @@ func (gen *v2DependencyGenerator) buildMethodTemplateData(
 	// Extract parameter fields for type-safe args
 	paramFields := gen.buildParamFields(ftype)
 
+	// Build typed return parameters for type-safe InjectReturnValues
+	typedReturnParams, returnParamNames := buildTypedReturnParams(resultTypes)
+
 	// Build method template data with base fields
 	return v2DepMethodTemplateData{
 		baseTemplateData: baseTemplateData{
@@ -55,26 +58,28 @@ func (gen *v2DependencyGenerator) buildMethodTemplateData(
 			TypeParamsDecl: gen.formatTypeParamsDecl(),
 			TypeParamsUse:  gen.formatTypeParamsUse(),
 		},
-		MethodName:      methodName,
-		InterfaceType:   interfaceType,
-		ImplName:        gen.implName,
-		Params:          paramsStr,
-		Results:         resultsStr,
-		HasVariadic:     variadicResult.hasVariadic,
-		NonVariadicArgs: variadicResult.nonVariadicArgs,
-		VariadicArg:     variadicResult.variadicArg,
-		Args:            variadicResult.allArgs,
-		ArgNames:        variadicResult.allArgs,
-		HasResults:      len(resultTypes) > 0,
-		ResultVars:      resultVars,
-		ReturnList:      returnList,
-		ReturnStatement: fmt.Sprintf("return %s", returnList),
-		ParamFields:     paramFields,
-		HasParams:       len(paramFields) > 0,
-		ArgsTypeName:    fmt.Sprintf("%s%sArgs", gen.mockTypeName, methodName),
-		CallTypeName:    fmt.Sprintf("%s%sCall", gen.mockTypeName, methodName),
-		MethodTypeName:  fmt.Sprintf("%s%sMethod", gen.mockTypeName, methodName),
-		TypedParams:     paramsStr,
+		MethodName:        methodName,
+		InterfaceType:     interfaceType,
+		ImplName:          gen.implName,
+		Params:            paramsStr,
+		Results:           resultsStr,
+		HasVariadic:       variadicResult.hasVariadic,
+		NonVariadicArgs:   variadicResult.nonVariadicArgs,
+		VariadicArg:       variadicResult.variadicArg,
+		Args:              variadicResult.allArgs,
+		ArgNames:          variadicResult.allArgs,
+		HasResults:        len(resultTypes) > 0,
+		ResultVars:        resultVars,
+		ReturnList:        returnList,
+		ReturnStatement:   fmt.Sprintf("return %s", returnList),
+		ParamFields:       paramFields,
+		HasParams:         len(paramFields) > 0,
+		ArgsTypeName:      fmt.Sprintf("%s%sArgs", gen.mockTypeName, methodName),
+		CallTypeName:      fmt.Sprintf("%s%sCall", gen.mockTypeName, methodName),
+		MethodTypeName:    fmt.Sprintf("%s%sMethod", gen.mockTypeName, methodName),
+		TypedParams:       paramsStr,
+		TypedReturnParams: typedReturnParams,
+		ReturnParamNames:  returnParamNames,
 	}
 }
 
@@ -438,6 +443,33 @@ func buildResultVars(resultTypes []string) (resultVars []resultVar, returnList s
 	}
 
 	return resultVars, returnListBuilder.String()
+}
+
+// buildTypedReturnParams builds typed return parameters for InjectReturnValues method.
+// Returns (typedParams, paramNames) like ("result0 int, result1 error", "result0, result1").
+func buildTypedReturnParams(resultTypes []string) (typedParams, paramNames string) {
+	if len(resultTypes) == 0 {
+		return "", ""
+	}
+
+	var typedBuilder, namesBuilder strings.Builder
+
+	for i, resultType := range resultTypes {
+		paramName := fmt.Sprintf("result%d", i)
+
+		if i > 0 {
+			typedBuilder.WriteString(", ")
+			namesBuilder.WriteString(", ")
+		}
+
+		typedBuilder.WriteString(paramName)
+		typedBuilder.WriteString(" ")
+		typedBuilder.WriteString(resultType)
+
+		namesBuilder.WriteString(paramName)
+	}
+
+	return typedBuilder.String(), namesBuilder.String()
 }
 
 // generateV2DependencyCode generates v2-style dependency mock code for an interface.

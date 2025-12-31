@@ -24,7 +24,7 @@ type DataProcessorMockProcessMapArgs struct {
 	Config map[string]int
 }
 
-// DataProcessorMockProcessMapCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockProcessMapCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockProcessMapCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,6 +35,11 @@ func (c *DataProcessorMockProcessMapCall) GetArgs() DataProcessorMockProcessMapA
 	return DataProcessorMockProcessMapArgs{
 		Config: raw[0].(map[string]int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockProcessMapCall) InjectReturnValues(result0 bool) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockProcessMapMethod wraps DependencyMethod with typed returns.
@@ -59,7 +64,7 @@ type DataProcessorMockProcessSliceArgs struct {
 	Data []string
 }
 
-// DataProcessorMockProcessSliceCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockProcessSliceCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockProcessSliceCall struct {
 	*_imptest.DependencyCall
 }
@@ -70,6 +75,11 @@ func (c *DataProcessorMockProcessSliceCall) GetArgs() DataProcessorMockProcessSl
 	return DataProcessorMockProcessSliceArgs{
 		Data: raw[0].([]string),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockProcessSliceCall) InjectReturnValues(result0 int) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockProcessSliceMethod wraps DependencyMethod with typed returns.

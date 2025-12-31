@@ -24,7 +24,7 @@ type ExternalServiceMockFetchDataArgs struct {
 	Id int
 }
 
-// ExternalServiceMockFetchDataCall wraps DependencyCall with typed GetArgs.
+// ExternalServiceMockFetchDataCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ExternalServiceMockFetchDataCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,6 +35,11 @@ func (c *ExternalServiceMockFetchDataCall) GetArgs() ExternalServiceMockFetchDat
 	return ExternalServiceMockFetchDataArgs{
 		Id: raw[0].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ExternalServiceMockFetchDataCall) InjectReturnValues(result0 string, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // ExternalServiceMockFetchDataMethod wraps DependencyMethod with typed returns.
@@ -59,7 +64,7 @@ type ExternalServiceMockProcessArgs struct {
 	Data string
 }
 
-// ExternalServiceMockProcessCall wraps DependencyCall with typed GetArgs.
+// ExternalServiceMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ExternalServiceMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -70,6 +75,11 @@ func (c *ExternalServiceMockProcessCall) GetArgs() ExternalServiceMockProcessArg
 	return ExternalServiceMockProcessArgs{
 		Data: raw[0].(string),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ExternalServiceMockProcessCall) InjectReturnValues(result0 string) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // ExternalServiceMockProcessMethod wraps DependencyMethod with typed returns.

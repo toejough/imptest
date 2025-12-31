@@ -23,7 +23,7 @@ type OpsMockPublicMethodArgs struct {
 	X int
 }
 
-// OpsMockPublicMethodCall wraps DependencyCall with typed GetArgs.
+// OpsMockPublicMethodCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type OpsMockPublicMethodCall struct {
 	*_imptest.DependencyCall
 }
@@ -34,6 +34,11 @@ func (c *OpsMockPublicMethodCall) GetArgs() OpsMockPublicMethodArgs {
 	return OpsMockPublicMethodArgs{
 		X: raw[0].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *OpsMockPublicMethodCall) InjectReturnValues(result0 int) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // OpsMockPublicMethodMethod wraps DependencyMethod with typed returns.
@@ -58,7 +63,7 @@ type OpsMockinternalMethodArgs struct {
 	X int
 }
 
-// OpsMockinternalMethodCall wraps DependencyCall with typed GetArgs.
+// OpsMockinternalMethodCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type OpsMockinternalMethodCall struct {
 	*_imptest.DependencyCall
 }
@@ -69,6 +74,11 @@ func (c *OpsMockinternalMethodCall) GetArgs() OpsMockinternalMethodArgs {
 	return OpsMockinternalMethodArgs{
 		X: raw[0].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *OpsMockinternalMethodCall) InjectReturnValues(result0 int) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // OpsMockinternalMethodMethod wraps DependencyMethod with typed returns.

@@ -26,7 +26,7 @@ type DataProcessorMockFilterArgs struct {
 	Predicate func(int) bool
 }
 
-// DataProcessorMockFilterCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockFilterCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockFilterCall struct {
 	*_imptest.DependencyCall
 }
@@ -38,6 +38,11 @@ func (c *DataProcessorMockFilterCall) GetArgs() DataProcessorMockFilterArgs {
 		Items:     raw[0].([]int),
 		Predicate: raw[1].(func(int) bool),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockFilterCall) InjectReturnValues(result0 []int) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockFilterMethod wraps DependencyMethod with typed returns.
@@ -64,7 +69,7 @@ type DataProcessorMockReduceArgs struct {
 	Reducer func(int, int) int
 }
 
-// DataProcessorMockReduceCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockReduceCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockReduceCall struct {
 	*_imptest.DependencyCall
 }
@@ -77,6 +82,11 @@ func (c *DataProcessorMockReduceCall) GetArgs() DataProcessorMockReduceArgs {
 		Initial: raw[1].(int),
 		Reducer: raw[2].(func(int, int) int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockReduceCall) InjectReturnValues(result0 int) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockReduceMethod wraps DependencyMethod with typed returns.
@@ -102,7 +112,7 @@ type DataProcessorMockTransformArgs struct {
 	Fn    func(int) (int, error)
 }
 
-// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockTransformCall struct {
 	*_imptest.DependencyCall
 }
@@ -114,6 +124,11 @@ func (c *DataProcessorMockTransformCall) GetArgs() DataProcessorMockTransformArg
 		Items: raw[0].([]int),
 		Fn:    raw[1].(func(int) (int, error)),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockTransformCall) InjectReturnValues(result0 []int, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.

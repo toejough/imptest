@@ -26,7 +26,7 @@ type DataProcessorMockProcessArgs struct {
 	Sink   samepackage.DataSink
 }
 
-// DataProcessorMockProcessCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -38,6 +38,11 @@ func (c *DataProcessorMockProcessCall) GetArgs() DataProcessorMockProcessArgs {
 		Source: raw[0].(samepackage.DataSource),
 		Sink:   raw[1].(samepackage.DataSink),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockProcessCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockProcessMethod wraps DependencyMethod with typed returns.
@@ -62,7 +67,7 @@ type DataProcessorMockTransformArgs struct {
 	Input samepackage.DataSource
 }
 
-// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockTransformCall struct {
 	*_imptest.DependencyCall
 }
@@ -73,6 +78,11 @@ func (c *DataProcessorMockTransformCall) GetArgs() DataProcessorMockTransformArg
 	return DataProcessorMockTransformArgs{
 		Input: raw[0].(samepackage.DataSource),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockTransformCall) InjectReturnValues(result0 samepackage.DataSource, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
@@ -97,7 +107,7 @@ type DataProcessorMockValidateArgs struct {
 	Sink samepackage.DataSink
 }
 
-// DataProcessorMockValidateCall wraps DependencyCall with typed GetArgs.
+// DataProcessorMockValidateCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataProcessorMockValidateCall struct {
 	*_imptest.DependencyCall
 }
@@ -108,6 +118,11 @@ func (c *DataProcessorMockValidateCall) GetArgs() DataProcessorMockValidateArgs 
 	return DataProcessorMockValidateArgs{
 		Sink: raw[0].(samepackage.DataSink),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataProcessorMockValidateCall) InjectReturnValues(result0 bool) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataProcessorMockValidateMethod wraps DependencyMethod with typed returns.

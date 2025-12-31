@@ -28,7 +28,7 @@ type FileHandlerMockOpenFileArgs struct {
 	Mode os.FileMode
 }
 
-// FileHandlerMockOpenFileCall wraps DependencyCall with typed GetArgs.
+// FileHandlerMockOpenFileCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type FileHandlerMockOpenFileCall struct {
 	*_imptest.DependencyCall
 }
@@ -40,6 +40,11 @@ func (c *FileHandlerMockOpenFileCall) GetArgs() FileHandlerMockOpenFileArgs {
 		Path: raw[0].(string),
 		Mode: raw[1].(os.FileMode),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *FileHandlerMockOpenFileCall) InjectReturnValues(result0 *os.File, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // FileHandlerMockOpenFileMethod wraps DependencyMethod with typed returns.
@@ -64,7 +69,7 @@ type FileHandlerMockReadAllArgs struct {
 	R io.Reader
 }
 
-// FileHandlerMockReadAllCall wraps DependencyCall with typed GetArgs.
+// FileHandlerMockReadAllCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type FileHandlerMockReadAllCall struct {
 	*_imptest.DependencyCall
 }
@@ -75,6 +80,11 @@ func (c *FileHandlerMockReadAllCall) GetArgs() FileHandlerMockReadAllArgs {
 	return FileHandlerMockReadAllArgs{
 		R: raw[0].(io.Reader),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *FileHandlerMockReadAllCall) InjectReturnValues(result0 []byte, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // FileHandlerMockReadAllMethod wraps DependencyMethod with typed returns.
@@ -99,7 +109,7 @@ type FileHandlerMockStatsArgs struct {
 	Path string
 }
 
-// FileHandlerMockStatsCall wraps DependencyCall with typed GetArgs.
+// FileHandlerMockStatsCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type FileHandlerMockStatsCall struct {
 	*_imptest.DependencyCall
 }
@@ -110,6 +120,11 @@ func (c *FileHandlerMockStatsCall) GetArgs() FileHandlerMockStatsArgs {
 	return FileHandlerMockStatsArgs{
 		Path: raw[0].(string),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *FileHandlerMockStatsCall) InjectReturnValues(result0 os.FileInfo, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // FileHandlerMockStatsMethod wraps DependencyMethod with typed returns.

@@ -26,7 +26,7 @@ type TreeWalkerMockWalkArgs struct {
 	Fn   func(string, fs.DirEntry, error) error
 }
 
-// TreeWalkerMockWalkCall wraps DependencyCall with typed GetArgs.
+// TreeWalkerMockWalkCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type TreeWalkerMockWalkCall struct {
 	*_imptest.DependencyCall
 }
@@ -38,6 +38,11 @@ func (c *TreeWalkerMockWalkCall) GetArgs() TreeWalkerMockWalkArgs {
 		Root: raw[0].(string),
 		Fn:   raw[1].(func(string, fs.DirEntry, error) error),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *TreeWalkerMockWalkCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // TreeWalkerMockWalkMethod wraps DependencyMethod with typed returns.
@@ -63,7 +68,7 @@ type TreeWalkerMockWalkWithNamedTypeArgs struct {
 	Fn   visitor.WalkFunc
 }
 
-// TreeWalkerMockWalkWithNamedTypeCall wraps DependencyCall with typed GetArgs.
+// TreeWalkerMockWalkWithNamedTypeCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type TreeWalkerMockWalkWithNamedTypeCall struct {
 	*_imptest.DependencyCall
 }
@@ -75,6 +80,11 @@ func (c *TreeWalkerMockWalkWithNamedTypeCall) GetArgs() TreeWalkerMockWalkWithNa
 		Root: raw[0].(string),
 		Fn:   raw[1].(visitor.WalkFunc),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *TreeWalkerMockWalkWithNamedTypeCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // TreeWalkerMockWalkWithNamedTypeMethod wraps DependencyMethod with typed returns.

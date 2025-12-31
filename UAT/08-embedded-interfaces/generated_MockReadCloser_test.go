@@ -19,12 +19,22 @@ func (m *ReadCloserMock) Interface() embedded.ReadCloser {
 	return &mockReadCloserImpl{mock: m}
 }
 
+// ReadCloserMockCloseCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type ReadCloserMockCloseCall struct {
+	*_imptest.DependencyCall
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ReadCloserMockCloseCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
+}
+
 // ReadCloserMockReadArgs holds typed arguments for Read.
 type ReadCloserMockReadArgs struct {
 	P []byte
 }
 
-// ReadCloserMockReadCall wraps DependencyCall with typed GetArgs.
+// ReadCloserMockReadCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ReadCloserMockReadCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,6 +45,11 @@ func (c *ReadCloserMockReadCall) GetArgs() ReadCloserMockReadArgs {
 	return ReadCloserMockReadArgs{
 		P: raw[0].([]byte),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ReadCloserMockReadCall) InjectReturnValues(result0 int, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // ReadCloserMockReadMethod wraps DependencyMethod with typed returns.

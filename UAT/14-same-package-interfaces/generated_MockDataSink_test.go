@@ -23,7 +23,7 @@ type DataSinkMockPutDataArgs struct {
 	Data []byte
 }
 
-// DataSinkMockPutDataCall wraps DependencyCall with typed GetArgs.
+// DataSinkMockPutDataCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataSinkMockPutDataCall struct {
 	*_imptest.DependencyCall
 }
@@ -34,6 +34,11 @@ func (c *DataSinkMockPutDataCall) GetArgs() DataSinkMockPutDataArgs {
 	return DataSinkMockPutDataArgs{
 		Data: raw[0].([]byte),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *DataSinkMockPutDataCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // DataSinkMockPutDataMethod wraps DependencyMethod with typed returns.

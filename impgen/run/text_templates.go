@@ -157,11 +157,11 @@ type {{.ArgsTypeName}}{{.TypeParamsDecl}} struct {
 
 	// V2 Dependency Call Wrapper template
 	//nolint:lll // Template string
-	registry.v2DepCallWrapperTmpl, err = parseTemplate("v2DepCallWrapper", `{{if .HasParams}}// {{.CallTypeName}} wraps DependencyCall with typed GetArgs.
+	registry.v2DepCallWrapperTmpl, err = parseTemplate("v2DepCallWrapper", `{{if or .HasParams .HasResults}}// {{.CallTypeName}} wraps DependencyCall with typed GetArgs{{if .HasResults}} and InjectReturnValues{{end}}.
 type {{.CallTypeName}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.DependencyCall
 }
-
+{{if .HasParams}}
 // GetArgs returns the typed arguments for this call.
 func (c *{{.CallTypeName}}{{.TypeParamsUse}}) GetArgs() {{.ArgsTypeName}}{{.TypeParamsUse}} {
 	raw := c.RawArgs()
@@ -169,7 +169,12 @@ func (c *{{.CallTypeName}}{{.TypeParamsUse}}) GetArgs() {{.ArgsTypeName}}{{.Type
 {{range .ParamFields}}		{{.Name}}: raw[{{.Index}}].({{.Type}}),
 {{end}}	}
 }
-{{end}}
+{{end}}{{if .HasResults}}
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *{{.CallTypeName}}{{.TypeParamsUse}}) InjectReturnValues({{.TypedReturnParams}}) {
+	c.DependencyCall.InjectReturnValues({{.ReturnParamNames}})
+}
+{{end}}{{end}}
 `)
 	if err != nil {
 		return nil, err

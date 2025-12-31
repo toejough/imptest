@@ -26,7 +26,7 @@ type ChannelHandlerMockBidirectionalArgs struct {
 	Ch chan bool
 }
 
-// ChannelHandlerMockBidirectionalCall wraps DependencyCall with typed GetArgs.
+// ChannelHandlerMockBidirectionalCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ChannelHandlerMockBidirectionalCall struct {
 	*_imptest.DependencyCall
 }
@@ -37,6 +37,11 @@ func (c *ChannelHandlerMockBidirectionalCall) GetArgs() ChannelHandlerMockBidire
 	return ChannelHandlerMockBidirectionalArgs{
 		Ch: raw[0].(chan bool),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ChannelHandlerMockBidirectionalCall) InjectReturnValues(result0 bool) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // ChannelHandlerMockBidirectionalMethod wraps DependencyMethod with typed returns.
@@ -61,7 +66,7 @@ type ChannelHandlerMockReceiveOnlyArgs struct {
 	Ch <-chan string
 }
 
-// ChannelHandlerMockReceiveOnlyCall wraps DependencyCall with typed GetArgs.
+// ChannelHandlerMockReceiveOnlyCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ChannelHandlerMockReceiveOnlyCall struct {
 	*_imptest.DependencyCall
 }
@@ -72,6 +77,11 @@ func (c *ChannelHandlerMockReceiveOnlyCall) GetArgs() ChannelHandlerMockReceiveO
 	return ChannelHandlerMockReceiveOnlyArgs{
 		Ch: raw[0].(<-chan string),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ChannelHandlerMockReceiveOnlyCall) InjectReturnValues(result0 string, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
 // ChannelHandlerMockReceiveOnlyMethod wraps DependencyMethod with typed returns.
@@ -91,12 +101,22 @@ func (m *ChannelHandlerMockReceiveOnlyMethod) ExpectCalledWithMatches(matchers .
 	return &ChannelHandlerMockReceiveOnlyCall{DependencyCall: call}
 }
 
+// ChannelHandlerMockReturnChannelCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type ChannelHandlerMockReturnChannelCall struct {
+	*_imptest.DependencyCall
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ChannelHandlerMockReturnChannelCall) InjectReturnValues(result0 <-chan int) {
+	c.DependencyCall.InjectReturnValues(result0)
+}
+
 // ChannelHandlerMockSendOnlyArgs holds typed arguments for SendOnly.
 type ChannelHandlerMockSendOnlyArgs struct {
 	Ch chan<- int
 }
 
-// ChannelHandlerMockSendOnlyCall wraps DependencyCall with typed GetArgs.
+// ChannelHandlerMockSendOnlyCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ChannelHandlerMockSendOnlyCall struct {
 	*_imptest.DependencyCall
 }
@@ -107,6 +127,11 @@ func (c *ChannelHandlerMockSendOnlyCall) GetArgs() ChannelHandlerMockSendOnlyArg
 	return ChannelHandlerMockSendOnlyArgs{
 		Ch: raw[0].(chan<- int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ChannelHandlerMockSendOnlyCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // ChannelHandlerMockSendOnlyMethod wraps DependencyMethod with typed returns.

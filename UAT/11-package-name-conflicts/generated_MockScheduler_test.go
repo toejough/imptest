@@ -28,7 +28,7 @@ type SchedulerMockDelayArgs struct {
 	Duration time.Duration
 }
 
-// SchedulerMockDelayCall wraps DependencyCall with typed GetArgs.
+// SchedulerMockDelayCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type SchedulerMockDelayCall struct {
 	*_imptest.DependencyCall
 }
@@ -40,6 +40,11 @@ func (c *SchedulerMockDelayCall) GetArgs() SchedulerMockDelayArgs {
 		TaskID:   raw[0].(string),
 		Duration: raw[1].(time.Duration),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *SchedulerMockDelayCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // SchedulerMockDelayMethod wraps DependencyMethod with typed returns.
@@ -64,7 +69,7 @@ type SchedulerMockGetIntervalArgs struct {
 	TaskID string
 }
 
-// SchedulerMockGetIntervalCall wraps DependencyCall with typed GetArgs.
+// SchedulerMockGetIntervalCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type SchedulerMockGetIntervalCall struct {
 	*_imptest.DependencyCall
 }
@@ -75,6 +80,11 @@ func (c *SchedulerMockGetIntervalCall) GetArgs() SchedulerMockGetIntervalArgs {
 	return SchedulerMockGetIntervalArgs{
 		TaskID: raw[0].(string),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *SchedulerMockGetIntervalCall) InjectReturnValues(result0 time.Duration) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // SchedulerMockGetIntervalMethod wraps DependencyMethod with typed returns.
@@ -94,13 +104,23 @@ func (m *SchedulerMockGetIntervalMethod) ExpectCalledWithMatches(matchers ...any
 	return &SchedulerMockGetIntervalCall{DependencyCall: call}
 }
 
+// SchedulerMockNextRunCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type SchedulerMockNextRunCall struct {
+	*_imptest.DependencyCall
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *SchedulerMockNextRunCall) InjectReturnValues(result0 time.Time, result1 error) {
+	c.DependencyCall.InjectReturnValues(result0, result1)
+}
+
 // SchedulerMockScheduleAtArgs holds typed arguments for ScheduleAt.
 type SchedulerMockScheduleAtArgs struct {
 	TaskID string
 	When   time.Time
 }
 
-// SchedulerMockScheduleAtCall wraps DependencyCall with typed GetArgs.
+// SchedulerMockScheduleAtCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type SchedulerMockScheduleAtCall struct {
 	*_imptest.DependencyCall
 }
@@ -112,6 +132,11 @@ func (c *SchedulerMockScheduleAtCall) GetArgs() SchedulerMockScheduleAtArgs {
 		TaskID: raw[0].(string),
 		When:   raw[1].(time.Time),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *SchedulerMockScheduleAtCall) InjectReturnValues(result0 error) {
+	c.DependencyCall.InjectReturnValues(result0)
 }
 
 // SchedulerMockScheduleAtMethod wraps DependencyMethod with typed returns.
