@@ -58,7 +58,7 @@ This matrix documents where the types to be wrapped/mocked can be defined. Packa
 | Standard library | Yes | Yes | [18](../UAT/18-external-function-types/), [08](../UAT/08-embedded-interfaces/) | `http.HandlerFunc`, `io.Reader` |
 | Standard library shadowing | Yes | Yes | [11](../UAT/11-package-name-conflicts/) | 4-tier resolution (see below) |
 | Aliased import | Yes | Yes | — | `import alias "github.com/foo/bar"` |
-| Dot import | ? | ? | — | `import . "pkg"` - untested |
+| Dot import | Yes | Yes | [26](../UAT/26-dot-imports/) | `import . "pkg"` - symbols available without qualification |
 
 **Legend**: Yes = supported, ? = untested
 
@@ -628,32 +628,30 @@ See [Package Variations Matrix](#package-variations-matrix) for details on the 4
 
 ---
 
-### 4. Dot Imports
+### 4. Dot Imports (Now Supported ✓)
 
-**Problem**: Dot imports (`import . "pkg"`) make package boundaries unclear and complicate code generation.
+**Previous Problem**: Dot imports (`import . "pkg"`) made package boundaries unclear during symbol resolution.
 
-```go
-import . "github.com/example/utils"
-
-// Which package does ProcessData come from?
-//go:generate impgen ProcessData --target
-```
-
-**Workaround**: Use explicit package imports with aliases if needed.
+**Example that now works**:
 
 ```go
-import "github.com/example/utils"
-// Or with alias:
-import util "github.com/example/utils"
+import . "github.com/example/helpers"
 
-//go:generate impgen utils.ProcessData --target
-// Or:
-//go:generate impgen util.ProcessData --target
+// impgen can now find Storage from the dot-imported package
+//go:generate impgen Storage --dependency
+
+func TestWithDotImport(t *testing.T) {
+	mock := MockStorage(t)
+	// Storage is available without package qualification
+	var _ Storage = mock.Interface()
+}
 ```
 
-**Rationale**: Explicit imports improve code clarity and make generated code more maintainable.
+**Implementation**: When a symbol is not found in the current package, impgen now checks all dot-imported packages, loads each one, and searches for the symbol. The generated mock correctly imports the source package where the symbol was found.
 
-**Status**: Dot imports are untested and not recommended for use with imptest
+**Supported**: Yes (as of [UAT-26](../UAT/26-dot-imports/))
+
+**Note**: While dot imports are now supported for mocking, they are generally discouraged in Go code for clarity. Use explicit imports when practical.
 
 ---
 

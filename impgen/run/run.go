@@ -171,16 +171,28 @@ func generateCode(
 	pkgLoader PackageLoader,
 ) (string, error) {
 	// Auto-detect the symbol type
-	symbol, err := findSymbol(astFiles, fset, info.localInterfaceName, pkgImportPath)
+	symbol, err := findSymbol(astFiles, fset, info.localInterfaceName, pkgImportPath, pkgLoader)
 	if err != nil {
 		return "", err
+	}
+
+	// Use the actual package path where the symbol was found
+	// (important for dot imports where symbol.pkgPath differs from pkgImportPath)
+	actualPkgPath := symbol.pkgPath
+
+	// If symbol was found via dot import, we need to load that package's AST
+	if actualPkgPath != pkgImportPath {
+		astFiles, fset, _, err = pkgLoader.Load(actualPkgPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to load package %s: %w", actualPkgPath, err)
+		}
 	}
 
 	// Route to appropriate generator based on symbol type and mode
 	if symbol.kind == symbolFunction {
 		// For functions: require --target flag (V1 callable wrappers deprecated)
 		if info.mode == namingModeTarget {
-			return generateV2TargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, symbol.funcDecl)
+			return generateV2TargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
 		}
 
 		return "", ErrV1CallableDeprecated
@@ -188,12 +200,12 @@ func generateCode(
 
 	// For function types: use v2 target generator (function types are always wrapped as targets)
 	if symbol.kind == symbolFunctionType {
-		return generateV2TargetCodeFromFuncType(astFiles, info, fset, pkgImportPath, pkgLoader, symbol.funcType)
+		return generateV2TargetCodeFromFuncType(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
 	}
 
 	// For interfaces: require --dependency flag (V1 interface mocks deprecated)
 	if info.mode == namingModeDependency {
-		return generateV2DependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, symbol.iface)
+		return generateV2DependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
 	}
 
 	return "", ErrV1InterfaceDeprecated

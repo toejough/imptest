@@ -504,7 +504,24 @@ func newV2DependencyGenerator(
 	)
 
 	// Get package info for external interfaces OR when in a _test package
-	if pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test") {
+	if pkgImportPath != "." {
+		// Symbol found in external package (e.g., via dot import or qualified name)
+		// For qualified names (e.g., "basic.Ops"), resolve package info normally
+		// For unqualified names from dot imports (e.g., "Storage"), use pkgImportPath directly
+		if strings.Contains(info.interfaceName, ".") {
+			// Qualified name - use normal resolution
+			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get interface package info: %w", err)
+			}
+		} else {
+			// Unqualified name - must be from dot import, use pkgImportPath directly
+			pkgPath = pkgImportPath
+			parts := strings.Split(pkgImportPath, "/")
+			qualifier = parts[len(parts)-1]
+		}
+	} else if strings.HasSuffix(info.pkgName, "_test") {
+		// In test package, interface is from non-test version of same package
 		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get interface package info: %w", err)

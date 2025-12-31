@@ -91,14 +91,27 @@ A simple md issue tracker.
    - effort: Small (1-2 hours)
    - **NOTE**: After completing UAT, update Signature Variations Matrix in TAXONOMY.md to mark "Struct literal" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
 7. Support dot imports for mocking
-   - status: backlog
+   - status: done
+   - started: 2025-12-31 11:19 EST
+   - completed: 2025-12-31 12:14 EST
+   - timeline:
+     - 2025-12-31 11:19 EST - RED: Created UAT-26 structure, helpers package, comprehensive test file
+     - 2025-12-31 11:40 EST - GREEN: Discovered symbol resolution bug, fixed `findSymbol()` to check dot imports
+     - 2025-12-31 11:50 EST - GREEN: Fixed package import path issue in generated mocks
+     - 2025-12-31 12:05 EST - REFACTOR: Fixed all linter errors, added unit test for `getDotImportPaths()`
+     - 2025-12-31 12:10 EST - REFACTOR: mage check passes with 0 issues
+     - 2025-12-31 12:14 EST - Complete: TAXONOMY.md updated, all tests passing
    - description: Enable impgen to generate mocks for types/functions available via dot imports (`import . "pkg"`). If someone wants to mock something that is available in a dot import, we need to be able to do that.
    - rationale: Currently marked "?" in Package Matrix. Dot imports are a valid Go pattern and users should be able to mock dot-imported symbols.
-   - current behavior: Unknown - may fail or have issues with symbol resolution
-   - expected behavior: impgen should correctly identify and generate mocks for dot-imported symbols
-   - acceptance: UAT demonstrating that dot-imported symbols can be mocked successfully
-   - effort: Medium (2-3 hours) - may require import resolution changes
-   - **NOTE**: After implementation, update Package Variations Matrix in TAXONOMY.md to mark "Dot import" as "Yes" with UAT reference
+   - solution: Modified symbol resolution to check dot-imported packages when symbol not found in current package:
+     1. Added `getDotImportPaths()` to collect dot import paths from AST
+     2. Modified `findSymbol()` to recursively search dot-imported packages when symbol not found
+     3. Added `pkgPath` field to `symbolDetails` to track which package symbol was found in
+     4. Updated `generateCode()` to reload package AST when symbol found via dot import
+     5. Modified `newV2DependencyGenerator()` to use actual package path for unqualified names from dot imports
+   - acceptance: UAT-26 demonstrates mocking of dot-imported symbols (Storage, Processor interfaces)
+   - effort: Medium (~55 minutes actual, 2-3 hours estimated)
+   - **NOTE**: TAXONOMY.md updated - Dot import marked as "Yes" with UAT-26 reference
 8. Update taxonomy for resolved stdlib shadowing
    - status: done
    - started: 2025-12-31 01:14 EST

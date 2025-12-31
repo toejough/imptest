@@ -127,6 +127,9 @@ type symbolDetails struct {
 	iface    ifaceWithDetails
 	funcDecl *dst.FuncDecl
 	funcType funcTypeWithDetails
+	// pkgPath tracks which package the symbol was found in.
+	// For symbols found via dot imports, this differs from the search package.
+	pkgPath string
 }
 
 // checkImport checks if an import matches the target package name.
@@ -357,14 +360,15 @@ func findImportPath(
 
 // findSymbol looks for either an interface, function type, or function/method in the given AST files.
 func findSymbol(
-	astFiles []*dst.File, fset *token.FileSet, symbolName string, pkgImportPath string,
+	astFiles []*dst.File, fset *token.FileSet, symbolName string, pkgImportPath string, pkgLoader PackageLoader,
 ) (symbolDetails, error) {
 	// 1. Try finding it as an interface first
 	iface, err := getMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
 	if err == nil {
 		return symbolDetails{
-			kind:  symbolInterface,
-			iface: iface,
+			kind:    symbolInterface,
+			iface:   iface,
+			pkgPath: pkgImportPath,
 		}, nil
 	}
 
@@ -374,6 +378,7 @@ func findSymbol(
 		return symbolDetails{
 			kind:     symbolFunctionType,
 			funcType: funcType,
+			pkgPath:  pkgImportPath,
 		}, nil
 	}
 
@@ -383,10 +388,50 @@ func findSymbol(
 		return symbolDetails{
 			kind:     symbolFunction,
 			funcDecl: funcDecl,
+			pkgPath:  pkgImportPath,
 		}, nil
 	}
 
+	// 4. If not found in current package and this is the current package (".")
+	// check dot-imported packages
+	if pkgImportPath == "." {
+		dotImports := getDotImportPaths(astFiles)
+
+		for _, dotImportPath := range dotImports {
+			// Load the dot-imported package
+			dotFiles, dotFset, _, err := pkgLoader.Load(dotImportPath)
+			if err != nil {
+				continue // Skip if we can't load this package
+			}
+
+			// Try to find the symbol in the dot-imported package
+			// The recursive call will set pkgPath to dotImportPath
+			symbol, err := findSymbol(dotFiles, dotFset, symbolName, dotImportPath, pkgLoader)
+			if err == nil {
+				return symbol, nil
+			}
+		}
+	}
+
 	return symbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
+}
+
+// getDotImportPaths collects all dot-imported package paths from AST files.
+// Dot imports use the syntax: import . "path/to/package"
+func getDotImportPaths(astFiles []*dst.File) []string {
+	var dotImports []string
+
+	for _, file := range astFiles {
+		for _, imp := range file.Imports {
+			// Check if this is a dot import (imp.Name.Name == ".")
+			if imp.Name != nil && imp.Name.Name == "." {
+				path := strings.Trim(imp.Path.Value, `"`)
+				dotImports = append(dotImports, path)
+			}
+		}
+	}
+
+	return dotImports
 }
 
 // getImportPathFromFiles determines the import path of a package by examining its loaded files.
