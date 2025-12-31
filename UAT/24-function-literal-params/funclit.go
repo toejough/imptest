@@ -17,9 +17,9 @@ type DataProcessor interface {
 	// Filter applies a predicate function to select items.
 	Filter(items []int, predicate func(int) bool) []int
 
-	// Reduce aggregates items using a reducer function.
-	// Note: Using single-param function literal due to impgen limitation with multi-param literals
-	Reduce(items []int, reducer func(int) int) int
+	// Reduce aggregates items using a reducer function with accumulator.
+	// Multi-parameter function literals like func(acc, item int) are common in reduce operations.
+	Reduce(items []int, initial int, reducer func(acc, item int) int) int
 }
 
 // Executor demonstrates a struct with methods accepting function literals.

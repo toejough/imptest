@@ -60,7 +60,8 @@ func (m *DataProcessorMockFilterMethod) ExpectCalledWithMatches(matchers ...any)
 // DataProcessorMockReduceArgs holds typed arguments for Reduce.
 type DataProcessorMockReduceArgs struct {
 	Items   []int
-	Reducer func(int) int
+	Initial int
+	Reducer func(int, int) int
 }
 
 // DataProcessorMockReduceCall wraps DependencyCall with typed GetArgs.
@@ -73,7 +74,8 @@ func (c *DataProcessorMockReduceCall) GetArgs() DataProcessorMockReduceArgs {
 	raw := c.RawArgs()
 	return DataProcessorMockReduceArgs{
 		Items:   raw[0].([]int),
-		Reducer: raw[1].(func(int) int),
+		Initial: raw[1].(int),
+		Reducer: raw[2].(func(int, int) int),
 	}
 }
 
@@ -83,8 +85,8 @@ type DataProcessorMockReduceMethod struct {
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockReduceMethod) ExpectCalledWithExactly(items []int, reducer func(int) int) *DataProcessorMockReduceCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(items, reducer)
+func (m *DataProcessorMockReduceMethod) ExpectCalledWithExactly(items []int, initial int, reducer func(int, int) int) *DataProcessorMockReduceCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(items, initial, reducer)
 	return &DataProcessorMockReduceCall{DependencyCall: call}
 }
 
@@ -171,10 +173,10 @@ func (impl *mockDataProcessorImpl) Filter(items []int, predicate func(int) bool)
 }
 
 // Reduce implements funclit.DataProcessor.Reduce.
-func (impl *mockDataProcessorImpl) Reduce(items []int, reducer func(int) int) int {
+func (impl *mockDataProcessorImpl) Reduce(items []int, initial int, reducer func(int, int) int) int {
 	call := &_imptest.GenericCall{
 		MethodName:   "Reduce",
-		Args:         []any{items, reducer},
+		Args:         []any{items, initial, reducer},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
 	impl.mock.imp.CallChan <- call

@@ -478,6 +478,29 @@ func collectImportsFromFuncDecl(funcDecl *dst.FuncDecl, astFiles []*dst.File) []
 	return result
 }
 
+// expandFieldListTypes expands a field list into individual type strings.
+// For fields with multiple names (e.g., "a, b int"), outputs the type multiple times.
+// For fields with no names (e.g., unnamed params), outputs the type once.
+func expandFieldListTypes(fields []*dst.Field, typeFormatter func(dst.Expr) string) []string {
+	var parts []string
+
+	for _, f := range fields {
+		typeStr := typeFormatter(f.Type)
+		// If field has names (e.g., "a, b int"), output type once per name
+		// If field has no names (e.g., unnamed "int, int"), output type once
+		count := len(f.Names)
+		if count == 0 {
+			count = 1
+		}
+
+		for range count {
+			parts = append(parts, typeStr)
+		}
+	}
+
+	return parts
+}
+
 // exprToString renders a dst.Expr to Go code.
 // This function converts DST expressions back to their string representation.
 func exprToString(_ *token.FileSet, expr dst.Expr) string {
@@ -951,9 +974,9 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *dst.FuncType, typeFormatt
 
 	if funcType.Params != nil {
 		buf.WriteString("(")
-		buf.WriteString(joinWith(funcType.Params.List, func(f *dst.Field) string {
-			return typeFormatter(f.Type)
-		}, ", "))
+
+		paramParts := expandFieldListTypes(funcType.Params.List, typeFormatter)
+		buf.WriteString(strings.Join(paramParts, ", "))
 		buf.WriteString(")")
 	}
 
@@ -964,9 +987,8 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *dst.FuncType, typeFormatt
 			buf.WriteString(" ")
 		}
 
-		buf.WriteString(joinWith(funcType.Results.List, func(f *dst.Field) string {
-			return typeFormatter(f.Type)
-		}, ", "))
+		resultParts := expandFieldListTypes(funcType.Results.List, typeFormatter)
+		buf.WriteString(strings.Join(resultParts, ", "))
 
 		if len(funcType.Results.List) > 1 {
 			buf.WriteString(")")

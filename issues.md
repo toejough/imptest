@@ -106,3 +106,31 @@ A simple md issue tracker.
 9. dependency.go does not use typesafe return values
    - status: backlog
    - description: In dependency.go, the generated wrapper functions do not use typesafe return values, leading to potential runtime panics when type assertions fail or someone passes the wrong number of return values. This can be improved by generating typesafe return values in the mocks.
+10. Fix multi-parameter function literal code generation bug
+   - status: done
+   - started: 2025-12-31 02:12 EST
+   - completed: 2025-12-31 02:20 EST
+   - timeline:
+     - 2025-12-31 02:12 EST - Started: Created issue and began investigation
+     - 2025-12-31 02:13 EST - Analysis: Wrote test to understand AST structure for multi-param function literals
+     - 2025-12-31 02:15 EST - Bug found: typeWithQualifierFunc was not expanding fields with multiple names
+     - 2025-12-31 02:17 EST - Fix implemented: Created expandFieldListTypes helper to expand multi-name fields
+     - 2025-12-31 02:18 EST - Verification: All UAT-24 tests passing with original multi-param interface
+     - 2025-12-31 02:20 EST - Refactor: Fixed linter errors (cyclop, intrange, wsl_v5), mage check clean
+   - description: impgen incorrectly parses multi-parameter function literal types (e.g., `func(int, int) int`), dropping all but the first parameter in generated code. This prevented testing functions with multi-param callbacks/reducers.
+   - discovered: During UAT-24 (Issue #4), discovered impgen generates `func(int) int` when interface specifies `func(int, int) int`
+   - root cause: In Go AST, `func(a, b int)` is represented as ONE field with Names=[a,b] and Type=int. The typeWithQualifierFunc function only called typeFormatter once per field, resulting in `func(int)` instead of `func(int, int)`.
+   - solution: Created expandFieldListTypes helper function that checks field.Names length and repeats the type string for each name, properly expanding multi-name fields into multiple type occurrences.
+   - acceptance: UAT-24 tests pass with original multi-parameter function literal signatures (e.g., `Reduce(items []int, initial int, reducer func(acc, item int) int) int`)
+   - effort: Medium (2-4 hours) - actual: ~8 minutes
+   - priority: High - blocks testing of common Go patterns (reducers, accumulators, callbacks with context)
+11. Prevent ExpectCalledWithExactly generation for function types
+   - status: backlog
+   - description: impgen generates ExpectCalledWithExactly() methods for function type parameters, but Go cannot compare functions with `==`, causing reflect.DeepEqual to hang. Since we perform code generation based on known types, we should detect function types and skip generating equality methods.
+   - discovered: During UAT-24 (Issue #4), tests with ExpectCalledWithExactly() on function params timeout
+   - current behavior: Generates equality methods for all parameter types including functions
+   - expected behavior: Detect function types in parameters and only generate ExpectCalledWithMatches(), not ExpectCalledWithExactly()
+   - workaround: Use ExpectCalledWithMatches() with imptest.Any() for function parameters
+   - acceptance: impgen detects function types and omits equality method generation
+   - effort: Medium (2-4 hours)
+   - priority: Medium - workaround exists, but better UX to prevent the footgun

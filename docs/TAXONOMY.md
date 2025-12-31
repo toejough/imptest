@@ -107,7 +107,7 @@ This matrix documents what parameter and return types are supported in wrapped/m
 | Non-comparable types | Yes | Yes | [03](../UAT/03-non-comparable-arguments/) |
 | Simple types (int, string, etc.) | Yes | Yes | Most UATs |
 | Struct literal | ? | ? | — |
-| Function literal | Partial | Partial | [24](../UAT/24-function-literal-params/) | Single-param works; multi-param bug (see below) |
+| Function literal | Yes | Yes | [24](../UAT/24-function-literal-params/) | Multi-param function literals now supported |
 | Interface literal | ? | ? | — |
 | Channel | Yes | Yes | [20](../UAT/20-channel-types/) |
 | Directional channel | Yes | Yes | [20](../UAT/20-channel-types/) |
@@ -657,47 +657,39 @@ import util "github.com/example/utils"
 
 ---
 
-### 5. Multi-Parameter Function Literals (Known Bug)
+### 5. Multi-Parameter Function Literals (Now Fixed ✓)
 
-**Problem**: Function literal parameters with multiple arguments have their parameters incorrectly parsed by impgen code generation.
+**Previous Problem**: Function literal parameters with multiple arguments had their parameters incorrectly parsed by impgen code generation, dropping all but the first parameter.
 
+**Example that now works**:
 ```go
 type DataProcessor interface {
-    // The reducer has TWO parameters: acc and item
+    // Multi-parameter function literals now work correctly
     Reduce(items []int, initial int, reducer func(acc, item int) int) int
 }
 
 //go:generate impgen DataProcessor --dependency
 ```
 
-**Generated Code Bug**: impgen incorrectly generates `func(int) int` instead of `func(int, int) int`, dropping the second parameter.
+**Fix Applied**: Created `expandFieldListTypes` helper function that properly expands fields with multiple names. In Go AST, `func(a, b int)` is represented as ONE field with `Names=[a,b]` and `Type=int`. The fix ensures the type string is repeated for each name, correctly rendering `func(int, int)` instead of `func(int)`.
 
-**Workaround 1**: Use single-parameter function literals when possible.
-
-```go
-type DataProcessor interface {
-    // Workaround: single parameter
-    Reduce(items []int, reducer func(int) int) []int
-}
-```
-
-**Workaround 2**: When testing with function literal parameters, use matchers instead of exact equality (required because Go functions cannot be compared with `==`).
+**Important Note**: When testing with function literal parameters, you **must** use matchers instead of exact equality, because Go functions cannot be compared with `==`:
 
 ```go
 // In tests - ALWAYS use matchers for function literal params
-transformFn := func(x int) int { return x * 2 }
+reducer := func(acc, item int) int { return acc + item }
 
 // Don't use ExpectCalledWithExactly - will hang!
-// mock.Transform.ExpectCalledWithExactly(items, transformFn)
+// mock.Reduce.ExpectCalledWithExactly(items, 0, reducer)
 
 // DO use ExpectCalledWithMatches with imptest.Any()
-mock.Transform.ExpectCalledWithMatches(items, imptest.Any()).
-    InjectReturnValues(result, nil)
+mock.Reduce.ExpectCalledWithMatches(items, imptest.Any(), imptest.Any()).
+    InjectReturnValues(10)
 ```
 
 **Example UAT**: [UAT/24-function-literal-params](../UAT/24-function-literal-params/)
 
-**Status**: Single-parameter function literals work correctly. Multi-parameter function literals are a known impgen bug requiring code generation fixes.
+**Status**: ✅ Fixed in issue #10 (2025-12-31). Multi-parameter function literals now work correctly. Use matchers for function parameters in tests to avoid comparison issues.
 
 ---
 

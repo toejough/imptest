@@ -57,22 +57,22 @@ func TestDependencyWithPredicate(t *testing.T) {
 		InjectReturnValues([]int{2, 4})
 }
 
-// TestDependencyWithReducer demonstrates mocking with reducer function literals.
-// Note: Using single-param function due to impgen limitation with multi-param function literals
+// TestDependencyWithReducer demonstrates mocking with multi-parameter function literals.
+// The reducer function takes an accumulator and item, a common pattern in functional programming.
 func TestDependencyWithReducer(t *testing.T) {
 	t.Parallel()
 
 	mock := MockDataProcessor(t)
 	items := []int{1, 2, 3, 4}
-	double := func(x int) int { return x * 2 }
+	sum := func(acc, item int) int { return acc + item }
 
 	go func() {
-		result := mock.Interface().Reduce(items, double)
+		result := mock.Interface().Reduce(items, 0, sum)
 		_ = result
 	}()
 
-	mock.Reduce.ExpectCalledWithMatches(items, imptest.Any()).
-		InjectReturnValues([]int{2, 4, 6, 8})
+	mock.Reduce.ExpectCalledWithMatches(items, imptest.Any(), imptest.Any()).
+		InjectReturnValues(10)
 }
 
 // TestFunctionWithPredicate demonstrates wrapping functions with predicate literals.
