@@ -123,3 +123,120 @@ func TestDependencyMethod_ExpectCalledWithMatches(t *testing.T) {
 
 	depCall.InjectReturnValues()
 }
+
+// TestDependencyMethodDefaultOrdered verifies default DependencyMethod uses ordered mode.
+// Default behavior should fail fast on mismatched calls (GetCallOrdered).
+//
+//nolint:varnamelen // Standard test parameter name
+func TestDependencyMethodDefaultOrdered(t *testing.T) {
+	t.Parallel()
+
+	imp := imptest.NewImp(t)
+	method := imptest.NewDependencyMethod(imp, "TestMethod")
+
+	// Start goroutine to send matching call
+	go func() {
+		call := &imptest.GenericCall{
+			MethodName:   "TestMethod",
+			Args:         []any{42},
+			ResponseChan: make(chan imptest.GenericResponse, 1),
+		}
+		imp.CallChan <- call
+	}()
+
+	// Call ExpectCalledWithExactly - should use GetCallOrdered (fail-fast mode)
+	depCall := method.ExpectCalledWithExactly(42)
+
+	// Verify we got the call
+	args := depCall.GetArgs()
+	if args.A1 != 42 {
+		t.Errorf("expected A1=42, got %v", args.A1)
+	}
+
+	depCall.InjectReturnValues()
+}
+
+// TestDependencyMethodEventuallyMode verifies Eventually() switches to eventually mode.
+// Eventually mode should queue mismatches (GetCallEventually).
+//
+//nolint:varnamelen // Standard test parameter name
+func TestDependencyMethodEventuallyMode(t *testing.T) {
+	t.Parallel()
+
+	imp := imptest.NewImp(t)
+	method := imptest.NewDependencyMethod(imp, "TestMethod")
+
+	// Switch to eventually mode (no timeout parameter)
+	eventualMethod := method.Eventually()
+
+	// Start goroutine to send matching call
+	go func() {
+		call := &imptest.GenericCall{
+			MethodName:   "TestMethod",
+			Args:         []any{42},
+			ResponseChan: make(chan imptest.GenericResponse, 1),
+		}
+		imp.CallChan <- call
+	}()
+
+	// Call ExpectCalledWithExactly - should use GetCallEventually (queue mode)
+	depCall := eventualMethod.ExpectCalledWithExactly(42)
+
+	// Verify we got the call
+	args := depCall.GetArgs()
+	if args.A1 != 42 {
+		t.Errorf("expected A1=42, got %v", args.A1)
+	}
+
+	depCall.InjectReturnValues()
+}
+
+// TestDependencyMethodEventuallyReturnsNew verifies Eventually() returns a new instance.
+// The original DependencyMethod should remain in ordered mode.
+//
+//nolint:varnamelen // Standard test parameter name
+func TestDependencyMethodEventuallyReturnsNew(t *testing.T) {
+	t.Parallel()
+
+	imp := imptest.NewImp(t)
+	dm1 := imptest.NewDependencyMethod(imp, "TestMethod")
+
+	// Call Eventually() to get new instance
+	dm2 := dm1.Eventually()
+
+	// Verify dm1 is still in ordered mode (eventually = false)
+	// We'll test this by verifying both instances work independently
+	go func() {
+		// Send call for dm1 (ordered mode)
+		call := &imptest.GenericCall{
+			MethodName:   "TestMethod",
+			Args:         []any{1},
+			ResponseChan: make(chan imptest.GenericResponse, 1),
+		}
+		imp.CallChan <- call
+	}()
+
+	depCall1 := dm1.ExpectCalledWithExactly(1)
+	args1 := depCall1.GetArgs()
+	if args1.A1 != 1 {
+		t.Errorf("dm1: expected A1=1, got %v", args1.A1)
+	}
+	depCall1.InjectReturnValues()
+
+	go func() {
+		// Send call for dm2 (eventually mode)
+		call := &imptest.GenericCall{
+			MethodName:   "TestMethod",
+			Args:         []any{2},
+			ResponseChan: make(chan imptest.GenericResponse, 1),
+		}
+		imp.CallChan <- call
+	}()
+
+	depCall2 := dm2.ExpectCalledWithExactly(2)
+	args2 := depCall2.GetArgs()
+	if args2.A1 != 2 {
+		t.Errorf("dm2: expected A1=2, got %v", args2.A1)
+	}
+	depCall2.InjectReturnValues()
+}

@@ -304,6 +304,13 @@ A simple md issue tracker.
       - 2025-12-31 16:00 EST: AUDIT phase - Step 5: auditor reviewing Imp layer
       - 2025-12-31 16:02 EST: AUDIT NOTE - Step 5: Tests pass, some linter warnings (may be pre-existing), continuing
       - 2025-12-31 16:05 EST: Phases 1-2 CHECKPOINT - Controller & Imp layers functional, committing progress
+      - 2025-12-31 16:08 EST: COMMITTED - feat(imptest): implement ordered vs eventually call matching modes (3629eeb)
+      - 2025-12-31 16:10 EST: Phase 3 START - DependencyMethod layer: removing timeout, adding eventually flag
+      - 2025-12-31 16:12 EST: RED phase - Step 6: test-writer writing tests for DependencyMethod transformation
+      - 2025-12-31 16:15 EST: RED complete - Step 6: 3 failing tests written (Eventually() API transformation)
+      - 2025-12-31 16:18 EST: GREEN phase - Step 6: implementer transforming DependencyMethod to mode-based
+      - 2025-12-31 16:22 EST: GREEN complete - Step 6: Timeout removed! Eventually() now no-param, mode-based API working
+      - 2025-12-31 16:23 EST: MILESTONE - Issue #20 core complete: Eventually() has NO timeout parameter!
 20. Remove timeout parameter from Eventually() (TOE-107)
    - status: in progress
    - started: 2025-12-31 14:00 EST

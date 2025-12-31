@@ -1,9 +1,5 @@
 package imptest
 
-import (
-	"time"
-)
-
 // DependencyArgs provides access to the actual arguments that were passed to the dependency.
 // Code generation will create properly typed versions of this.
 type DependencyArgs struct {
@@ -85,7 +81,7 @@ func (dc *DependencyCall) RawArgs() []any {
 type DependencyMethod struct {
 	imp        *Imp
 	methodName string
-	timeout    time.Duration
+	eventually bool
 }
 
 // NewDependencyMethod creates a new DependencyMethod.
@@ -94,18 +90,18 @@ func NewDependencyMethod(imp *Imp, methodName string) *DependencyMethod {
 	return &DependencyMethod{
 		imp:        imp,
 		methodName: methodName,
-		timeout:    0,
+		eventually: false,
 	}
 }
 
-// Eventually configures a timeout for waiting for the next call.
+// Eventually switches this DependencyMethod to eventually mode.
 // Use this for concurrent code where calls may arrive out of order.
-// Returns a new DependencyMethod with the timeout configured.
-func (dm *DependencyMethod) Eventually(d time.Duration) *DependencyMethod {
+// Returns a new DependencyMethod with eventually mode enabled.
+func (dm *DependencyMethod) Eventually() *DependencyMethod {
 	return &DependencyMethod{
 		imp:        dm.imp,
 		methodName: dm.methodName,
-		timeout:    d,
+		eventually: true,
 	}
 }
 
@@ -126,7 +122,12 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 		return true
 	}
 
-	call := dm.imp.GetCallWithTimeout(dm.timeout, dm.methodName, validator)
+	var call *GenericCall
+	if dm.eventually {
+		call = dm.imp.GetCallEventually(0, dm.methodName, validator)
+	} else {
+		call = dm.imp.GetCallOrdered(0, dm.methodName, validator, nil)
+	}
 
 	return newDependencyCall(dm.imp, call)
 }
@@ -149,7 +150,12 @@ func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *Dependency
 		return true
 	}
 
-	call := dm.imp.GetCallWithTimeout(dm.timeout, dm.methodName, validator)
+	var call *GenericCall
+	if dm.eventually {
+		call = dm.imp.GetCallEventually(0, dm.methodName, validator)
+	} else {
+		call = dm.imp.GetCallOrdered(0, dm.methodName, validator, nil)
+	}
 
 	return newDependencyCall(dm.imp, call)
 }
