@@ -225,12 +225,14 @@ A simple md issue tracker.
    - effort: Small (~20 minutes actual)
    - **NOTE**: This complements UAT-26 which tests dot imports in test code itself
 14. Fix stale 'copy-files' reference in documentation (TOE-87)
-   - status: in progress
+   - status: migrated
+   - migrated_to: glowsync/issues.md #16
    - description: Remaining reference to old 'copy-files' repository name that needs updating to 'glowsync'
    - acceptance: All documentation uses correct repository name
    - effort: Trivial
    - priority: Low
    - linear: TOE-87
+   - note: Migrated to glowsync project as it was mistakenly assigned to imptest
 15. Consolidate duplicate Tester and TestReporter interfaces (TOE-105)
    - status: backlog
    - description: `Tester` and `TestReporter` interfaces in imptest/controller.go and imptest/imp.go are identical, causing code confusion
