@@ -81,9 +81,8 @@ A simple md issue tracker.
    - rationale: Common ad-hoc interface pattern, currently untested
    - acceptance: UAT demonstrating interface literals in method signatures
    - effort: Small (1-2 hours) - actual: ~65 minutes
-   - bug discovered: impgen was stripping interface literal method signatures (e.g., `interface{ Get() string }` became `interface{}`), causing compiler errors
-   - solution: Added `stringifyInterfaceType` helper function in `codegen_common.go` to properly iterate over `dst.InterfaceType.Methods` and build correct signature strings
    - **NOTE**: TAXONOMY.md updated - Interface literal marked as "Yes" with UAT-25 reference
+   - **NOTE**: Discovered critical bug during test creation (tracked separately as Issue #12) - impgen was stripping interface literal method signatures, had to fix before tests could pass
 6. Add UAT for struct literal parameters
    - status: backlog
    - description: Verify struct literals in signatures work (e.g., `func Accept(cfg struct{ Timeout int })`)
@@ -177,3 +176,21 @@ A simple md issue tracker.
    - acceptance: impgen detects function types and omits equality method generation
    - effort: Medium (2-4 hours)
    - priority: Medium - workaround exists, but better UX to prevent the footgun
+12. Fix interface literal method signature stripping
+   - status: done
+   - started: 2025-12-31 10:30 EST
+   - completed: 2025-12-31 11:00 EST
+   - timeline:
+     - 2025-12-31 10:30 EST - Discovered: Generated mocks for UAT-25, compiler errors showed stripped signatures
+     - 2025-12-31 10:35 EST - Root cause: `stringifyDSTExpr` returns `"interface{}"` for all `*dst.InterfaceType` nodes
+     - 2025-12-31 10:40 EST - Implementation: Added `stringifyInterfaceType` helper function
+     - 2025-12-31 10:50 EST - Verification: Rebuilt impgen, regenerated mocks, all tests passing
+     - 2025-12-31 11:00 EST - Complete: Single-line and multi-line interface literals working correctly
+   - description: impgen strips interface literal method signatures during code generation, converting `interface{ Get() string }` to plain `interface{}`, causing compiler errors in generated mocks
+   - discovered: During UAT-25 (Issue #5) test creation, when running `go generate` on interface with interface literal parameters
+   - root cause: In `codegen_common.go` line 949, `case *dst.InterfaceType: return "interface{}"` unconditionally returns empty interface instead of preserving method signatures from `typedExpr.Methods` field list
+   - solution: Added `stringifyInterfaceType` helper function that checks `Methods` field, iterates over method list, and builds proper signature strings (e.g., `interface{ Get() string }` for single methods, multi-line format for multiple methods)
+   - acceptance: Generated code preserves interface literal signatures for both parameters and return types
+   - effort: Small (1 hour) - actual: ~30 minutes
+   - priority: Critical - causes compiler errors, blocks any use of interface literals in mocked interfaces
+   - commit: 68a312c
