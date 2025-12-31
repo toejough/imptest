@@ -94,7 +94,7 @@ This matrix documents what parameter and return types are supported in wrapped/m
 | One (1) | Yes | Yes | [02](../UAT/02-callable-wrappers/) |
 | Multiple (n) | Yes | Yes | [10](../UAT/10-edge-many-params/) |
 | Variadic | Yes | — | [01](../UAT/01-basic-interface-mocking/) |
-| Named | ? | ? | — |
+| Named | Yes | Yes | [23](../UAT/23-named-params-returns/) |
 | Anonymous | Yes | Yes | Most UATs |
 
 ### Type Complexity
@@ -685,6 +685,7 @@ Quick reference for locating User Acceptance Tests by feature coverage.
 | [20](../UAT/20-channel-types/) | channel-types | Channel types | Interface (dep) | Local | Channels (all directions) |
 | [21](../UAT/21-parameterized-types/) | parameterized-types | Constrained generics | Generic interface (dep) | Local | Type constraints |
 | [22](../UAT/22-test-package-import/) | test-package-import | External module imports | Interface (dep) | External module | Standard methods |
+| [23](../UAT/23-named-params-returns/) | named-params-returns | Named parameters/returns | Interface (dep)<br>Method + Function (target) | Local | Named params/returns |
 
 ### Legend
 

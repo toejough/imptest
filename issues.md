@@ -37,11 +37,18 @@ A simple md issue tracker.
      3. Detect ambiguity and error with helpful message
      4. Fallback to existing logic
 3. Add UAT for named parameters and returns
-   - status: backlog
+   - status: done
+   - started: 2025-12-31 01:29 EST
+   - completed: 2025-12-31 01:40 EST
+   - timeline:
+     - 2025-12-31 01:29 EST - RED: Wrote test file with named param/return expectations
+     - 2025-12-31 01:30 EST - GREEN: Generated mocks/wrappers, fixed invocation errors
+     - 2025-12-31 01:35 EST - REFACTOR: Fixed linter errors (err113, nlreturn, wrapcheck)
+     - 2025-12-31 01:40 EST - Complete: All tests passing, mage check clean
    - description: Verify impgen handles named parameters and returns correctly (e.g., `func Process(ctx context.Context, id int) (user User, err error)`)
    - rationale: Common Go pattern for readability, currently untested ("?" in Signature Matrix)
    - acceptance: UAT demonstrating named params/returns in both target and dependency modes
-   - effort: Small (1-2 hours)
+   - effort: Small (1-2 hours) - actual: ~11 minutes
    - **NOTE**: After completing UAT, update Signature Variations Matrix in TAXONOMY.md to mark "Named" parameters/returns as "Yes" with UAT reference
 4. Add UAT for function literal parameters
    - status: backlog
