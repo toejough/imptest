@@ -207,3 +207,20 @@ A simple md issue tracker.
    - effort: Small (1 hour) - actual: ~30 minutes
    - priority: Critical - causes compiler errors, blocks any use of interface literals in mocked interfaces
    - commit: 68a312c
+13. Add UAT for business logic dot imports
+   - status: done
+   - started: 2025-12-31 15:30 EST
+   - completed: 2025-12-31 15:50 EST
+   - timeline:
+     - 2025-12-31 15:30 EST - RED: Created UAT-27 structure (storage, service, test packages)
+     - 2025-12-31 15:35 EST - RED: Wrote service package with dot import of storage
+     - 2025-12-31 15:40 EST - RED: Wrote comprehensive test file mocking dot-imported Repository
+     - 2025-12-31 15:42 EST - GREEN: Generated mocks successfully with `go generate`
+     - 2025-12-31 15:43 EST - GREEN: All 4 test cases passing
+     - 2025-12-31 15:45 EST - REFACTOR: Fixed linter errors (depguard, noinlineerr, staticcheck)
+     - 2025-12-31 15:50 EST - Complete: mage check clean, all tests passing
+   - description: Verify impgen works when business logic (not test code) uses dot imports. Service package imports storage via `import . "storage"` and uses Repository interface. Test package imports service normally and mocks the dot-imported Repository interface.
+   - rationale: Tests real-world pattern where production code uses dot imports and test code needs to mock those types
+   - acceptance: UAT-27 demonstrates mocking interfaces that are dot-imported by production code (not test code)
+   - effort: Small (~20 minutes actual)
+   - **NOTE**: This complements UAT-26 which tests dot imports in test code itself
