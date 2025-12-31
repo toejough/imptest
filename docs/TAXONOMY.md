@@ -108,7 +108,7 @@ This matrix documents what parameter and return types are supported in wrapped/m
 | Simple types (int, string, etc.) | Yes | Yes | Most UATs |
 | Struct literal | ? | ? | — |
 | Function literal | Yes | Yes | [24](../UAT/24-function-literal-params/) | Multi-param function literals now supported |
-| Interface literal | ? | ? | — |
+| Interface literal | Yes | Yes | [25](../UAT/25-interface-literal-params/) |
 | Channel | Yes | Yes | [20](../UAT/20-channel-types/) |
 | Directional channel | Yes | Yes | [20](../UAT/20-channel-types/) |
 | Slice | Yes | Yes | [03](../UAT/03-non-comparable-arguments/) |

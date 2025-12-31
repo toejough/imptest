@@ -67,12 +67,23 @@ A simple md issue tracker.
    - **NOTE**: After completing UAT, update Signature Variations Matrix in TAXONOMY.md to mark "Function literal" as "Yes" with UAT reference
    - **DISCOVERY**: Found impgen bug - multi-parameter function literals (e.g., `func(int, int) int`) have parameters dropped in code generation. Workaround: use single-param function literals and matchers
 5. Add UAT for interface literal parameters
-   - status: backlog
+   - status: done
+   - started: 2025-12-31 10:25 EST
+   - completed: 2025-12-31 11:30 EST
+   - timeline:
+     - 2025-12-31 10:25 EST - RED: Created UAT structure, defined interface, wrote failing tests
+     - 2025-12-31 10:30 EST - Generated mocks with impgen, discovered critical bug
+     - 2025-12-31 10:45 EST - BUG FIX: Implemented `stringifyInterfaceType` to preserve interface literal method signatures
+     - 2025-12-31 11:00 EST - GREEN: All 5 test cases passing (single-method, multi-method, error returns, return types, matchers)
+     - 2025-12-31 11:15 EST - REFACTOR: Fixed 10 linter errors (funlen, cyclop, nestif, inamedparam, nlreturn, revive, wsl_v5)
+     - 2025-12-31 11:20 EST - Updated TAXONOMY.md, mage check clean
    - description: Verify interface literals in signatures are handled (e.g., `func Process(obj interface{ Get() string })`)
    - rationale: Common ad-hoc interface pattern, currently untested
    - acceptance: UAT demonstrating interface literals in method signatures
-   - effort: Small (1-2 hours)
-   - **NOTE**: After completing UAT, update Signature Variations Matrix in TAXONOMY.md to mark "Interface literal" as "Yes" with UAT reference
+   - effort: Small (1-2 hours) - actual: ~65 minutes
+   - bug discovered: impgen was stripping interface literal method signatures (e.g., `interface{ Get() string }` became `interface{}`), causing compiler errors
+   - solution: Added `stringifyInterfaceType` helper function in `codegen_common.go` to properly iterate over `dst.InterfaceType.Methods` and build correct signature strings
+   - **NOTE**: TAXONOMY.md updated - Interface literal marked as "Yes" with UAT-25 reference
 6. Add UAT for struct literal parameters
    - status: backlog
    - description: Verify struct literals in signatures work (e.g., `func Accept(cfg struct{ Timeout int })`)

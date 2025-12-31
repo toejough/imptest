@@ -902,15 +902,6 @@ func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
 	return ""
 }
 
-// resolveToFuncType resolves a type expression to a function type if possible.
-// Supports inline function types, local type aliases, and external types.
-
-// Case 1: Already a function type
-
-// Case 2: Local type alias (e.g., WalkFunc)
-
-// Case 3: External type (e.g., fs.WalkDirFunc)
-
 // stringifyDSTExpr converts a DST expression to its string representation.
 //
 //nolint:cyclop,funlen // Type-switch dispatcher handling all DST expression types; complexity is inherent
@@ -946,7 +937,7 @@ func stringifyDSTExpr(expr dst.Expr) string {
 			return "chan " + stringifyDSTExpr(typedExpr.Value)
 		}
 	case *dst.InterfaceType:
-		return "interface{}"
+		return stringifyInterfaceType(typedExpr)
 	case *dst.StructType:
 		return "struct{}"
 	case *dst.Ellipsis:
@@ -965,6 +956,82 @@ func stringifyDSTExpr(expr dst.Expr) string {
 	default:
 		return fmt.Sprintf("%T", expr)
 	}
+}
+
+// resolveToFuncType resolves a type expression to a function type if possible.
+// Supports inline function types, local type aliases, and external types.
+
+// Case 1: Already a function type
+
+// Case 2: Local type alias (e.g., WalkFunc)
+
+// Case 3: External type (e.g., fs.WalkDirFunc)
+
+// stringifyInterfaceType converts an interface type to its string representation,
+// preserving method signatures for interface literals.
+//
+//nolint:cyclop,nestif // Complexity inherent to building interface string representation
+func stringifyInterfaceType(interfaceType *dst.InterfaceType) string {
+	// Empty interface
+	if interfaceType.Methods == nil || len(interfaceType.Methods.List) == 0 {
+		return "interface{}"
+	}
+
+	var buf strings.Builder
+	buf.WriteString("interface{")
+
+	// For single method, use compact format: interface{ MethodName(...) ... }
+	// For multiple methods, use multi-line format
+	methodCount := len(interfaceType.Methods.List)
+
+	for _, method := range interfaceType.Methods.List {
+		if methodCount > 1 {
+			buf.WriteString("\n\t")
+		} else {
+			buf.WriteString(" ")
+		}
+
+		// Method name (if any - embedded interfaces have no name)
+		if len(method.Names) > 0 {
+			buf.WriteString(method.Names[0].Name)
+		}
+
+		// Method signature (function type)
+		if funcType, ok := method.Type.(*dst.FuncType); ok {
+			// Don't write "func" prefix for interface methods
+			if funcType.Params != nil {
+				buf.WriteString("(")
+
+				paramParts := expandFieldListTypes(funcType.Params.List, stringifyDSTExpr)
+				buf.WriteString(strings.Join(paramParts, ", "))
+				buf.WriteString(")")
+			}
+
+			if funcType.Results != nil && len(funcType.Results.List) > 0 {
+				buf.WriteString(" ")
+
+				resultParts := expandFieldListTypes(funcType.Results.List, stringifyDSTExpr)
+				if len(resultParts) > 1 {
+					buf.WriteString("(")
+					buf.WriteString(strings.Join(resultParts, ", "))
+					buf.WriteString(")")
+				} else {
+					buf.WriteString(resultParts[0])
+				}
+			}
+		} else {
+			// Embedded interface - just the type
+			buf.WriteString(stringifyDSTExpr(method.Type))
+		}
+	}
+
+	if methodCount > 1 {
+		buf.WriteString("\n}")
+	} else {
+		buf.WriteString(" }")
+	}
+
+	return buf.String()
 }
 
 // typeWithQualifierFunc handles function types.
