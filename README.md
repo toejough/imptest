@@ -205,6 +205,7 @@ go generate ./...
 
 ## Learn More
 
+- **Capability Reference**: [TAXONOMY.md](./docs/TAXONOMY.md) - comprehensive matrix of what imptest can and cannot do, with examples and workarounds
 - **API Reference**: [pkg.go.dev/github.com/toejough/imptest](https://pkg.go.dev/github.com/toejough/imptest)
 - **More Examples**: See the [UAT](https://github.com/toejough/imptest/tree/main/UAT) directory for comprehensive examples
 - **How It Works**: imptest generates mocks that communicate via channels, enabling interactive test control of even asynchronous function behavior
