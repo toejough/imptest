@@ -224,3 +224,109 @@ A simple md issue tracker.
    - acceptance: UAT-27 demonstrates mocking interfaces that are dot-imported by production code (not test code)
    - effort: Small (~20 minutes actual)
    - **NOTE**: This complements UAT-26 which tests dot imports in test code itself
+14. Fix stale 'copy-files' reference in documentation (TOE-87)
+   - status: in progress
+   - description: Remaining reference to old 'copy-files' repository name that needs updating to 'glowsync'
+   - acceptance: All documentation uses correct repository name
+   - effort: Trivial
+   - priority: Low
+   - linear: TOE-87
+15. Consolidate duplicate Tester and TestReporter interfaces (TOE-105)
+   - status: backlog
+   - description: `Tester` and `TestReporter` interfaces in imptest/controller.go and imptest/imp.go are identical, causing code confusion
+   - acceptance: Single interface used consistently throughout codebase
+   - effort: Low
+   - priority: Low
+   - linear: TOE-105
+16. Remove 'v2' from file and package names (TOE-109)
+   - status: backlog
+   - description: Now that V2 is the only implementation, remove "v2" suffix from filenames (codegen_v2_dependency.go → codegen_dependency.go, etc.)
+   - acceptance: All V2 references removed from file and package names, functionality unchanged
+   - effort: Small
+   - priority: Low
+   - linear: TOE-109
+17. Remove stale .out and .test files (TOE-110)
+   - status: backlog
+   - description: Audit repository for stale build artifacts (*.out, *.test) and add to .gitignore
+   - acceptance: No build artifacts in version control, .gitignore updated
+   - effort: Trivial
+   - priority: Low
+   - linear: TOE-110
+18. Reduce blanket nolint directives in V2 generators (TOE-106)
+   - status: backlog
+   - description: codegen_v2_dependency.go and codegen_v2_target.go suppress many linters with blanket directives, may hide code quality issues
+   - acceptance: Targeted nolint directives or refactored code to reduce suppression needs
+   - effort: Medium
+   - priority: Low
+   - linear: TOE-106
+19. Fix Eventually() type loss in concurrent call matching (TOE-104)
+   - status: backlog
+   - description: Eventually() returns base *DependencyCall instead of typed wrapper, losing type-safe GetArgs() access
+   - acceptance: Eventually() returns same typed wrapper as synchronous call matching
+   - effort: High - requires changes to controller/dependency interaction
+   - priority: Medium
+   - linear: TOE-104
+20. Remove timeout parameter from Eventually() (TOE-107)
+   - status: backlog
+   - description: Eventually(time.Second) requires timeout, but timeout is only for handling unordered concurrent code, not real delays. Should use sensible default instead.
+   - acceptance: Eventually() has no timeout parameter, uses internal default
+   - effort: Medium
+   - priority: Medium
+   - linear: TOE-107
+21. Rename --target/--dependency flags to --wrap/--mock (TOE-108)
+   - status: backlog
+   - description: Current flag names describe user intent rather than what generator does. Rename to focus on action: --wrap for WrapX, --mock for MockX
+   - acceptance: Flags renamed, documentation updated, backward compatibility considered
+   - effort: Medium
+   - priority: Medium
+   - linear: TOE-108
+22. Re-evaluate and reorganize file structure for clarity (TOE-115)
+   - status: backlog
+   - description: Audit current file organization and evaluate whether it clearly communicates imptest/impgen architecture
+   - acceptance: File structure clearly separates concerns (templates, codegen, runtime, etc.)
+   - effort: Large
+   - priority: Low
+   - linear: TOE-115
+23. Verify dogfooding: use imptest in all applicable tests (TOE-111)
+   - status: backlog
+   - description: Audit all *_test.go files to ensure we use imptest's mocking where applicable - serves as dogfooding and improves test quality
+   - acceptance: All applicable tests use imptest patterns, gaps documented
+   - effort: Medium
+   - priority: Medium
+   - linear: TOE-111
+24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
+   - status: backlog
+   - description: Once taxonomy is clear, audit existing UATs to remove tests that duplicate coverage without adding value
+   - acceptance: Each UAT demonstrates unique taxonomy aspect, redundant tests removed
+   - effort: Medium
+   - priority: Low
+   - dependencies: Requires clear taxonomy definition
+   - linear: TOE-114
+25. Consolidate API and usage documentation (TOE-112)
+   - status: backlog
+   - description: Multiple documents (README.md, docs/V1_TO_V2_MIGRATION.md, etc.) describe API/usage with redundancy
+   - acceptance: Consolidated documentation with clear organization, no redundancy
+   - effort: Medium
+   - priority: Medium
+   - linear: TOE-112
+26. Document architecture with diagrams (TOE-116)
+   - status: backlog
+   - description: Create architectural documentation with diagrams: high-level flow, runtime architecture, code generation pipeline, test execution lifecycle
+   - acceptance: Clear diagrams explaining imptest architecture for users and contributors
+   - effort: Large
+   - priority: Medium
+   - linear: TOE-116
+27. Better support for channel interactions (TOE-80)
+   - status: backlog
+   - description: Support testing patterns where submission results in channel message rather than return value
+   - acceptance: Can mock/test channel-based interactions
+   - effort: Large
+   - priority: Low
+   - linear: TOE-80
+28. Investigate SSA format for codebase restructuring (TOE-78)
+   - status: backlog
+   - description: Investigate using SSA format to understand and possibly restructure codebase to simplify data/control flow
+   - acceptance: Analysis complete, recommendation documented
+   - effort: Large
+   - priority: Low
+   - linear: TOE-78
