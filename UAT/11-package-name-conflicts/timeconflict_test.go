@@ -6,14 +6,14 @@ import (
 	timeconflict "github.com/toejough/imptest/UAT/11-package-name-conflicts"
 )
 
-//go:generate impgen time.Timer --dependency
+//go:generate impgen --import-path=github.com/toejough/imptest/UAT/11-package-name-conflicts/time time.Timer --dependency
 
 // TestUseTimer demonstrates testing with a package that shadows stdlib time.
 //
 // Key Requirements Met:
-//  1. Package name conflicts: The generated code must handle the case where the user
-//     has a local package named "time" that shadows the stdlib time package.
-//  2. The generator should alias the stdlib packages when there's a conflict.
+//  1. Package name conflicts: Uses --import-path flag to explicitly specify the local
+//     time package when there's ambiguity with stdlib time.
+//  2. The generator correctly resolves the local time package using the explicit path.
 func TestUseTimer(t *testing.T) {
 	t.Parallel()
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"os"
@@ -76,10 +77,12 @@ const (
 
 // unexported variables.
 var (
-	errFunctionNotFound  = errors.New("function or method not found")
-	errInterfaceNotFound = errors.New("interface not found")
-	errPackageNotFound   = errors.New("package not found in imports or as a loadable package")
-	errSymbolNotFound    = errors.New("symbol (interface or function) not found")
+	errFunctionNotFound    = errors.New("function or method not found")
+	errGOFILENotSet        = errors.New("GOFILE environment variable not set")
+	errInterfaceNotFound   = errors.New("interface not found")
+	errPackageNotFound     = errors.New("package not found in imports or as a loadable package")
+	errPackageNotInImports = errors.New("package not found in imports")
+	errSymbolNotFound      = errors.New("symbol (interface or function) not found")
 	// goListCache caches results of 'go list' subprocess calls to avoid redundant execution.
 	//nolint:gochecknoglobals // Cache for performance optimization
 	goListCache = make(map[string]string)
@@ -153,6 +156,20 @@ func checkImport(imp *dst.ImportSpec, pkgName string, pkgLoader PackageLoader) (
 	}
 
 	return "", errPackageNotFound
+}
+
+// detectPackageAmbiguity checks if a package name is ambiguous - i.e., whether
+// both a stdlib package and a local package with the same name exist.
+// Returns flags indicating presence and the local path if it exists.
+func detectPackageAmbiguity(pkgName string) (hasStdlib bool, hasLocal bool, localPath string) {
+	// Check if it's a stdlib package
+	hasStdlib = isStdlibPackage(pkgName)
+
+	// Check if a local package exists
+	localPath = ResolveLocalPackagePath(pkgName)
+	hasLocal = localPath != pkgName // ResolveLocalPackagePath returns original if not found
+
+	return hasStdlib, hasLocal, localPath
 }
 
 // extractPackageName extracts the package name from a fully qualified name (e.g., "pkg.Interface" -> "pkg").
@@ -485,6 +502,46 @@ func getMatchingInterfaceFromAST(
 	}
 
 	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
+}
+
+// inferImportPathFromTestFile parses the given test file and attempts to find
+// the import path for a package with the given name. It checks both aliased
+// and non-aliased imports. Returns the import path if found, or an error if
+// the package is not imported in the test file.
+func inferImportPathFromTestFile(goFilePath string, pkgName string) (string, error) {
+	if goFilePath == "" {
+		return "", errGOFILENotSet
+	}
+
+	// Parse the test file
+	fset := token.NewFileSet()
+
+	file, err := parser.ParseFile(fset, goFilePath, nil, parser.ImportsOnly)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse test file %s: %w", goFilePath, err)
+	}
+
+	// Search through imports for the package name
+	for _, imp := range file.Imports {
+		if imp.Path == nil {
+			continue
+		}
+
+		importPath := strings.Trim(imp.Path.Value, `"`)
+
+		// Check for aliased import: `import alias "path/to/pkg"`
+		if imp.Name != nil && imp.Name.Name == pkgName {
+			return importPath, nil
+		}
+
+		// Check for non-aliased import: `import "path/to/pkg"`
+		// Match if the last component of the path equals pkgName
+		if strings.HasSuffix(importPath, "/"+pkgName) || importPath == pkgName {
+			return importPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("%w: %s in %s", errPackageNotInImports, pkgName, goFilePath)
 }
 
 // isStdlibPackage checks if a package name is a standard library package.

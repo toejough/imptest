@@ -53,7 +53,7 @@ func Run(
 		return err
 	}
 
-	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader)
+	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader, info.importPathFlag, getEnv)
 	if err != nil {
 		return err
 	}
@@ -115,6 +115,7 @@ const (
 
 // unexported variables.
 var (
+	errAmbiguousPackage       = errors.New("package is ambiguous: both stdlib and local package exist")
 	errMutuallyExclusiveFlags = errors.New("--target and --dependency flags are mutually exclusive")
 )
 
@@ -126,12 +127,14 @@ type cliArgs struct {
 	Name       string `arg:"--name"              help:"name for the generated code (overrides default naming)"`
 	Target     bool   `arg:"--target"            help:"generate target wrapper (WrapXxx) instead of dependency mock"`
 	Dependency bool   `arg:"--dependency"        help:"generate dependency mock (MockXxx) - this is the default behavior"`
+	ImportPath string `arg:"--import-path"       help:"explicit import path when ambiguous"`
 }
 
 // generatorInfo holds information gathered for generation.
 type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
 	mode                                                namingMode
+	importPathFlag                                      string
 }
 
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
@@ -238,17 +241,66 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		localInterfaceName: localInterfaceName,
 		impName:            impName,
 		mode:               mode,
+		importPathFlag:     parsed.ImportPath,
 	}, nil
 }
 
 // getInterfacePackagePath resolves the import path for the package containing the target interface.
-func getInterfacePackagePath(interfaceName string, pkgLoader PackageLoader) (string, error) {
+// It uses a 4-tier resolution strategy:
+// 1. Explicit --import-path flag takes precedence
+// 2. Infer from test file imports if package is imported
+// 3. Detect ambiguity (stdlib + local package) and error with helpful message
+// 4. Fallback to existing import resolution logic
+func getInterfacePackagePath(
+	interfaceName string,
+	pkgLoader PackageLoader,
+	importPathFlag string,
+	getEnv func(string) string,
+) (string, error) {
 	if !strings.Contains(interfaceName, ".") {
 		return ".", nil
 	}
 
 	pkgName := extractPackageName(interfaceName)
 
+	// Tier 1: Explicit --import-path flag
+	if importPathFlag != "" {
+		// Validate the path is loadable
+		_, _, _, err := pkgLoader.Load(importPathFlag)
+		if err != nil {
+			return "", fmt.Errorf("--import-path=%q is not loadable: %w", importPathFlag, err)
+		}
+
+		return importPathFlag, nil
+	}
+
+	// Tier 2: Infer from test file imports
+	goFile := getEnv("GOFILE")
+	if goFile != "" {
+		inferredPath, err := inferImportPathFromTestFile(goFile, pkgName)
+		if err == nil {
+			// Found in imports - use it
+			return inferredPath, nil
+		}
+		// Not found in imports - continue to next tier
+	}
+
+	// Tier 3: Ambiguity detection
+	hasStdlib, hasLocal, localPath := detectPackageAmbiguity(pkgName)
+	if hasStdlib && hasLocal {
+		return "", fmt.Errorf(
+			"%w: %q\n"+
+				"  Use --import-path=%s for stdlib\n"+
+				"  Use --import-path=%s for local package\n"+
+				"  Or import the desired package in your test file",
+			errAmbiguousPackage,
+			pkgName,
+			pkgName,
+			localPath,
+		)
+	}
+
+	// Tier 4: Fallback to existing logic
 	astFiles, _, _, err := pkgLoader.Load(".")
 	if err != nil {
 		return "", fmt.Errorf("failed to load local package to resolve import: %w", err)
