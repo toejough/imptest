@@ -508,12 +508,19 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface
 **Taxonomy Gap**
 Capability Matrix - "Interface type" row, "As Target" column
 
+
+---
+## Selected
+
+Issues selected for upcoming work.
+
+
 ### 33. Add UAT for struct type as target (comprehensive)
 
 #### Universal
 
 **Status**
-backlog
+selected
 
 **Description**
 Verify wrapping struct types with --target flag comprehensively (beyond just methods)
@@ -539,12 +546,6 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Struct ty
 
 **Taxonomy Gap**
 Capability Matrix - "Struct type" row, "As Target" column
-
----
-## Selected
-
-Issues selected for upcoming work.
-
 
 ### 30. Add UAT for function as dependency
 
