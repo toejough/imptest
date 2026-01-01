@@ -2290,7 +2290,7 @@ func IssuesValidate() error {
 	}
 
 	if len(errors) > 0 {
-		fmt.Println("Validation errors found:\n")
+		fmt.Println("Validation errors found:")
 		for _, err := range errors {
 			fmt.Printf("  ✗ %s\n", err)
 		}
@@ -2300,6 +2300,330 @@ func IssuesValidate() error {
 
 	fmt.Printf("✓ All %d issues validated successfully\n", len(matches))
 	return nil
+}
+
+// issueData represents metadata about an issue found in issues.md
+type issueData struct {
+	start   int
+	end     int
+	status  string
+	content string
+}
+
+// sectionInfo represents metadata about a status section in issues.md
+type sectionInfo struct {
+	name      string
+	start     int
+	end       int
+	headerEnd int
+	issues    []issueData
+}
+
+// moveIssuesToCorrectSections scans issues.md and moves any issue whose status
+// doesn't match its current section to the correct section based on status.
+// Returns the number of issues moved.
+func moveIssuesToCorrectSections(filepath string) (int, error) {
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	content := string(data)
+
+	// Map section names to their expected status values
+	sectionToStatus := map[string]string{
+		"## Backlog":     "backlog",
+		"## Selected":    "selected",
+		"## In Progress": "in progress",
+		"## Review":      "review",
+		"## Done":        "done",
+		"## Migrated":    "migrated",
+		"## Cancelled":   "cancelled",
+		"## Blocked":     "blocked",
+	}
+
+	// Find all sections
+	var sections []sectionInfo
+	for sectionName := range sectionToStatus {
+		idx := strings.Index(content, sectionName)
+		if idx != -1 {
+			sections = append(sections, sectionInfo{
+				name:  sectionName,
+				start: idx,
+			})
+		}
+	}
+
+	// Sort sections by position using sort.Slice
+	sort.Slice(sections, func(i, j int) bool {
+		return sections[i].start < sections[j].start
+	})
+
+	// Calculate section boundaries
+	for i := range sections {
+		// Set end boundary: either start of next section or end of file
+		if i+1 < len(sections) {
+			sections[i].end = sections[i+1].start
+		} else {
+			sections[i].end = len(content)
+		}
+
+		// Find where section description ends (before first issue or placeholder)
+		sectionContent := content[sections[i].start:sections[i].end]
+		firstIssueIdx := strings.Index(sectionContent, "\n### ")
+		placeholderIdx := strings.Index(sectionContent, "\n*No")
+
+		headerEnd := sections[i].start + len(sections[i].name) + 1
+		if firstIssueIdx != -1 {
+			headerEnd = sections[i].start + firstIssueIdx
+		} else if placeholderIdx != -1 {
+			headerEnd = sections[i].start + placeholderIdx
+		}
+		sections[i].headerEnd = headerEnd
+	}
+
+	// Find all issues in each section and extract their status
+	for i := range sections {
+		sectionContent := content[sections[i].start:sections[i].end]
+
+		// Find all issue starts
+		issueStarts := []int{}
+		searchPos := 0
+		for {
+			idx := strings.Index(sectionContent[searchPos:], "\n### ")
+			if idx == -1 {
+				break
+			}
+			issueStarts = append(issueStarts, searchPos+idx)
+			searchPos += idx + 1
+		}
+
+		// Extract each issue
+		for j, issueRelStart := range issueStarts {
+			issueStart := sections[i].start + issueRelStart
+			var issueEnd int
+			if j+1 < len(issueStarts) {
+				issueEnd = sections[i].start + issueStarts[j+1]
+			} else {
+				issueEnd = sections[i].end
+			}
+
+			issueContent := content[issueStart:issueEnd]
+
+			// Extract status
+			statusIdx := strings.Index(issueContent, "\n**Status**\n")
+			status := ""
+			if statusIdx != -1 {
+				afterStatus := issueContent[statusIdx+len("\n**Status**\n"):]
+				endIdx := strings.Index(afterStatus, "\n")
+				if endIdx != -1 {
+					status = strings.TrimSpace(afterStatus[:endIdx])
+				}
+			}
+
+			sections[i].issues = append(sections[i].issues, issueData{
+				start:   issueStart,
+				end:     issueEnd,
+				status:  status,
+				content: issueContent,
+			})
+		}
+	}
+
+	// Find issues that need to be moved
+	type moveOp struct {
+		issue       issueData
+		fromSection int
+		toSection   int
+	}
+	var moves []moveOp
+
+	for i, sec := range sections {
+		expectedStatus := sectionToStatus[sec.name]
+		for _, issue := range sec.issues {
+			if issue.status != "" && issue.status != expectedStatus {
+				// Find target section
+				for j, targetSec := range sections {
+					if sectionToStatus[targetSec.name] == issue.status {
+						moves = append(moves, moveOp{
+							issue:       issue,
+							fromSection: i,
+							toSection:   j,
+						})
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// No moves needed
+	if len(moves) == 0 {
+		return 0, nil
+	}
+
+	// Apply moves in reverse order to maintain indices
+	for i := len(moves) - 1; i >= 0; i-- {
+		m := moves[i]
+
+		// Extract issue number for logging
+		issueNumMatch := regexp.MustCompile(`### (\d+)\.`).FindStringSubmatch(m.issue.content)
+		issueNum := "unknown"
+		if len(issueNumMatch) > 1 {
+			issueNum = issueNumMatch[1]
+		}
+
+		fromSectionName := strings.TrimPrefix(sections[m.fromSection].name, "## ")
+		toSectionName := strings.TrimPrefix(sections[m.toSection].name, "## ")
+		fmt.Printf("✓ Moving issue #%s from %s to %s\n", issueNum, fromSectionName, toSectionName)
+
+		// Extract issue content (trim leading newline)
+		issueText := strings.TrimPrefix(m.issue.content, "\n")
+
+		// Remove from source section
+		content = content[:m.issue.start] + content[m.issue.end:]
+
+		// Adjust all indices after removal
+		// When we remove text, everything after it shifts left by the removal length
+		adjustment := m.issue.end - m.issue.start
+		for j := range sections {
+			// Sections that start after the removed text shift left
+			if sections[j].start > m.issue.start {
+				sections[j].start -= adjustment
+				sections[j].end -= adjustment
+				sections[j].headerEnd -= adjustment
+			} else if sections[j].end > m.issue.start {
+				// Sections that contain the removed text have their end shift left
+				sections[j].end -= adjustment
+			}
+
+			// Issues in all sections that are after the removed text also shift
+			for k := range sections[j].issues {
+				if sections[j].issues[k].start > m.issue.start {
+					sections[j].issues[k].start -= adjustment
+					sections[j].issues[k].end -= adjustment
+				}
+			}
+		}
+
+		// Remove placeholder from target section if present
+		targetSec := &sections[m.toSection]
+		targetContent := content[targetSec.start:targetSec.end]
+		placeholderStart := strings.Index(targetContent, "\n*No")
+		if placeholderStart != -1 {
+			placeholderEnd := strings.Index(targetContent[placeholderStart+1:], "\n")
+			if placeholderEnd != -1 {
+				placeholderEnd += placeholderStart + 2 // +2 for the two newlines
+				absPlaceholderStart := targetSec.start + placeholderStart
+				absPlaceholderEnd := targetSec.start + placeholderEnd
+
+				content = content[:absPlaceholderStart] + content[absPlaceholderEnd:]
+
+				// Adjust indices after placeholder removal
+				placeholderLen := absPlaceholderEnd - absPlaceholderStart
+				for j := range sections {
+					if sections[j].start > absPlaceholderStart {
+						sections[j].start -= placeholderLen
+						sections[j].end -= placeholderLen
+						sections[j].headerEnd -= placeholderLen
+					} else if sections[j].end > absPlaceholderStart {
+						sections[j].end -= placeholderLen
+					}
+				}
+			}
+		}
+
+		// Find insertion point in target section
+		targetSec = &sections[m.toSection]
+		insertPos := targetSec.headerEnd
+
+		// Skip to newline
+		for insertPos < targetSec.end && content[insertPos] != '\n' {
+			insertPos++
+		}
+		if insertPos < targetSec.end {
+			insertPos++
+		}
+
+		// Insert issue
+		insertText := "\n" + issueText
+		content = content[:insertPos] + insertText + content[insertPos:]
+
+		// Adjust indices after insertion
+		// When we insert text, everything after it shifts right by the insertion length
+		adjustment = len(insertText)
+		for j := range sections {
+			if sections[j].start > insertPos {
+				sections[j].start += adjustment
+				sections[j].end += adjustment
+				sections[j].headerEnd += adjustment
+			} else if sections[j].end > insertPos {
+				sections[j].end += adjustment
+			}
+		}
+	}
+
+	// Add placeholders to empty sections
+	for i := range sections {
+		sec := &sections[i]
+		sectionContent := content[sec.start:sec.end]
+
+		hasIssues := strings.Contains(sectionContent, "\n### ")
+		hasPlaceholder := strings.Contains(sectionContent, "*No")
+
+		if !hasIssues && !hasPlaceholder {
+			placeholder := ""
+			switch sec.name {
+			case "## Backlog":
+				placeholder = "*No backlog issues*"
+			case "## Selected":
+				placeholder = "*No issues currently selected*"
+			case "## In Progress":
+				placeholder = "*No issues in progress*"
+			case "## Review":
+				placeholder = "*No issues currently in review*"
+			case "## Done":
+				placeholder = "*No completed issues*"
+			case "## Migrated":
+				placeholder = "*No migrated issues*"
+			case "## Cancelled":
+				placeholder = "*No cancelled issues*"
+			case "## Blocked":
+				placeholder = "*No blocked issues*"
+			}
+
+			// Find insertion point
+			insertPos := sec.headerEnd
+			for insertPos < sec.end && content[insertPos] != '\n' {
+				insertPos++
+			}
+			if insertPos < sec.end {
+				insertPos++
+			}
+
+			insertText := "\n" + placeholder + "\n"
+			content = content[:insertPos] + insertText + content[insertPos:]
+
+			adjustment := len(insertText)
+			for j := range sections {
+				if sections[j].start > insertPos {
+					sections[j].start += adjustment
+					sections[j].end += adjustment
+					sections[j].headerEnd += adjustment
+				} else if sections[j].end > insertPos {
+					sections[j].end += adjustment
+				}
+			}
+		}
+	}
+
+	// Write back
+	err = os.WriteFile(filepath, []byte(content), 0o600)
+	if err != nil {
+		return 0, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return len(moves), nil
 }
 
 // IssuesFix - auto-repair common validation failures (adds missing sections, infers status from location)
@@ -2426,6 +2750,18 @@ func IssuesFix() error {
 			fmt.Printf("  - %s\n", fix)
 		}
 		return fmt.Errorf("some issues require manual intervention")
+	}
+
+	// Move issues to correct sections based on status
+	fmt.Println("\nChecking issue locations...")
+	moveCount, err := moveIssuesToCorrectSections(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to move issues: %w", err)
+	}
+	if moveCount > 0 {
+		fmt.Printf("\n✓ Moved %d issue(s) to correct sections\n", moveCount)
+	} else {
+		fmt.Println("✓ All issues are in correct sections")
 	}
 
 	// Run validation to confirm
