@@ -433,3 +433,20 @@ A simple md issue tracker.
    - effort: Large
    - priority: Low
    - linear: TOE-78
+29. Fix missing imports for interface parameters/returns with external types
+   - status: in progress
+   - started: 2026-01-01 00:43 EST
+   - description: When generating mocks for an interface, `collectExternalImports()` uses imports from the wrong source file. It takes imports from the first file with imports in the AST file list, instead of from the file that defines the interface. This causes generated mocks to reference external types (e.g., `time.Time`, `os.FileMode`) without importing the required packages.
+   - discovered: Real-world example in glowsync codebase - FileSystem interface uses `os.FileMode`, `time.Time` but generated mocks missing `import "os"` and `import "time"`
+   - root cause: `codegen_v2_dependency.go:267-271` iterates through all AST files and takes the first file's imports, not the interface's file imports
+   - classification: Both implementation bug AND taxonomy gap (no UAT for test-package → main-package with external types)
+   - acceptance: UAT-29 demonstrates cross-file external imports, generated mocks include correct imports
+   - effort: Small (2-3 hours)
+   - priority: High - causes compilation errors in generated mocks
+   - timeline:
+     - 2026-01-01 00:43 EST - RED: Planning complete, starting UAT-29 creation
+     - 2026-01-01 01:02 EST - RED: Created UAT-29 structure (aaa_dummy.go, types.go, types_test.go)
+     - 2026-01-01 01:02 EST - RED: Generated mocks FAIL - missing `os` and `time` imports (as expected)
+     - 2026-01-01 01:13 EST - GREEN: Fixed bug - added sourceImports to ifaceWithDetails struct
+     - 2026-01-01 01:13 EST - GREEN: UAT-29 now passes, all 29 UAT suites passing, 0 linter errors
+     - 2026-01-01 01:16 EST - REFACTOR: Auditor PASS - clean implementation, 0 auditor failures

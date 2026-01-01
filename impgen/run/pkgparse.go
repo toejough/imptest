@@ -115,8 +115,9 @@ type funcTypeWithDetails struct {
 
 // ifaceWithDetails is a helper struct to return both the interface and its type parameters.
 type ifaceWithDetails struct {
-	iface      *dst.InterfaceType
-	typeParams *dst.FieldList
+	iface         *dst.InterfaceType
+	typeParams    *dst.FieldList
+	sourceImports []*dst.ImportSpec // imports from the file containing the interface
 }
 
 // symbolDetails holds information about the detected symbol.
@@ -499,9 +500,9 @@ func getMatchingInterfaceFromAST(
 	astFiles []*dst.File, interfaceName string, pkgImportPath string,
 ) (ifaceWithDetails, error) {
 	var (
-		targetIface *dst.InterfaceType
-
-		typeParams *dst.FieldList
+		targetIface   *dst.InterfaceType
+		typeParams    *dst.FieldList
+		sourceImports []*dst.ImportSpec
 	)
 
 	for _, file := range astFiles {
@@ -528,8 +529,8 @@ func getMatchingInterfaceFromAST(
 				// Found it!
 
 				targetIface = iface
-
 				typeParams = typeSpec.TypeParams // Capture type parameters
+				sourceImports = file.Imports     // Capture imports from THIS file
 
 				return false // Stop inspecting
 			}
@@ -546,7 +547,7 @@ func getMatchingInterfaceFromAST(
 		return ifaceWithDetails{}, fmt.Errorf("%w: %s in package %s", errInterfaceNotFound, interfaceName, pkgImportPath)
 	}
 
-	return ifaceWithDetails{iface: targetIface, typeParams: typeParams}, nil
+	return ifaceWithDetails{iface: targetIface, typeParams: typeParams, sourceImports: sourceImports}, nil
 }
 
 // inferImportPathFromTestFile parses the given test file and attempts to find
