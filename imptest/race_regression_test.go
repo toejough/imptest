@@ -60,20 +60,29 @@ func TestProperSynchronization_AtomicBased(t *testing.T) {
 
 	var fatalfMsg string
 
-	mockTester := &mockTester{
-		helper: func() {},
-		fatalf: func(format string, args ...any) {
-			fatalfCalled.Store(true) // Atomic write
+	testerMock := NewTesterImp(t)
 
-			msgMu.Lock()
+	// Handle Helper() call
+	go func() {
+		testerMock.ExpectCallIs.Helper().Resolve()
+	}()
 
-			fatalfMsg = fmt.Sprintf(format, args...)
+	// Handle expected Fatalf call
+	go func() {
+		fatalfCall := testerMock.ExpectCallIs.Fatalf().ExpectArgsShould(imptest.Any(), imptest.Any())
 
-			msgMu.Unlock()
-		},
-	}
+		fatalfCalled.Store(true) // Atomic write
 
-	ctrl := imptest.NewController[*testCall](mockTester)
+		msgMu.Lock()
+
+		fatalfMsg = fmt.Sprintf(fatalfCall.format, fatalfCall.args...)
+
+		msgMu.Unlock()
+
+		fatalfCall.Resolve()
+	}()
+
+	ctrl := imptest.NewController[*testCall](testerMock.Mock)
 	callB := &testCall{name: "CallB"}
 
 	go func() {
@@ -122,15 +131,24 @@ func TestProperSynchronization_ChannelBased(t *testing.T) {
 	// CORRECT: Use a channel for synchronization
 	fatalfChan := make(chan string, 1)
 
-	mockTester := &mockTester{
-		helper: func() {},
-		fatalf: func(format string, args ...any) {
-			msg := fmt.Sprintf(format, args...)
-			fatalfChan <- msg // Send to channel - provides synchronization
-		},
-	}
+	testerMock := NewTesterImp(t)
 
-	ctrl := imptest.NewController[*testCall](mockTester)
+	// Handle Helper() call
+	go func() {
+		testerMock.ExpectCallIs.Helper().Resolve()
+	}()
+
+	// Handle expected Fatalf call
+	go func() {
+		fatalfCall := testerMock.ExpectCallIs.Fatalf().ExpectArgsShould(imptest.Any(), imptest.Any())
+
+		msg := fmt.Sprintf(fatalfCall.format, fatalfCall.args...)
+		fatalfChan <- msg // Send to channel - provides synchronization
+
+		fatalfCall.Resolve()
+	}()
+
+	ctrl := imptest.NewController[*testCall](testerMock.Mock)
 	callB := &testCall{name: "CallB"}
 
 	go func() {

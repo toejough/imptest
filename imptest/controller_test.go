@@ -1,6 +1,7 @@
 package imptest_test
 
 //go:generate ../bin/impgen Tester --dependency
+//go:generate ../bin/impgen Timer --dependency
 
 import (
 	"fmt"

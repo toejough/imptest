@@ -391,12 +391,23 @@ A simple md issue tracker.
    - priority: Low
    - linear: TOE-115
 23. Verify dogfooding: use imptest in all applicable tests (TOE-111)
-   - status: backlog
+   - status: in progress
    - description: Audit all *_test.go files to ensure we use imptest's mocking where applicable - serves as dogfooding and improves test quality
    - acceptance: All applicable tests use imptest patterns, gaps documented
    - effort: Medium
    - priority: Medium
    - linear: TOE-111
+   - timeline:
+     - 2026-01-01 00:05 EST - Started: Routing to Explore agent to audit test files for imptest usage opportunities
+     - 2026-01-01 00:08 EST - Audit complete: 90 test files analyzed, ~75 already using imptest correctly (controller_test.go is gold standard, all 78 UATs correct). Found 2 high-priority opportunities: (1) imp_test.go should use generated MockTestReporter instead of manual mockTestReporter, (2) race_regression_test.go "proper sync" tests should use TesterImp. Medium priority: generate MockTimer for timeout testing, document dogfooding pattern.
+     - 2026-01-01 00:14 EST - REFACTOR: Starting Step 1 of 4 - Generate MockTestReporter and refactor imp_test.go (5 tests affected)
+     - 2026-01-01 00:44 EST - REFACTOR: Step 1 auditor found linter issue - generate directive missing --dependency flag, fixing now
+     - 2026-01-01 01:00 EST - CRITICAL: Step 1 implementer fix caused test deadlock - TestImpFatalf hangs/times out after 2m, external package approach broke mock expectations, routing back to implementer to fix or revert
+     - 2026-01-01 01:05 EST - REFACTOR: Implementer reverted to manual mock (wrong direction) - controller_test.go shows external package DOES work with generated mocks, routing back with correct instructions to follow controller_test.go pattern exactly
+     - 2026-01-01 01:13 EST - REFACTOR: Step 1 implementation complete using controller_test.go pattern (external package + generated MockTestReporter), routing to auditor for verification
+     - 2026-01-01 01:16 EST - REFACTOR: Step 1 COMPLETE ✓ - imp_test.go now uses generated MockTestReporter, no manual mocks, all tests pass, mage check clean. Starting Step 2 of 4 - Update race_regression_test.go proper sync tests to use TesterImp
+     - 2026-01-01 01:21 EST - REFACTOR: Step 2 COMPLETE ✓ - race_regression_test.go proper sync tests now use TesterImp, regression tests preserved with manual mocks (intentional), all tests pass, mage check clean. Starting Step 3 of 4 - Generate MockTimer
+     - 2026-01-01 01:25 EST - REFACTOR: Step 3 COMPLETE ✓ - MockTimer generated successfully, infrastructure ready for deterministic timeout testing, mage check clean. Starting Step 4 of 4 - Document dogfooding pattern in README
 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
    - status: backlog
    - description: Once taxonomy is clear, audit existing UATs to remove tests that duplicate coverage without adding value
