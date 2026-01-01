@@ -552,6 +552,16 @@ Issues currently being worked on.
 
 ---
 
+### 35. Fix issuesfix to move issues to correct sections
+
+#### Universal
+
+**Status**
+in progress
+
+**Description**
+
+
 ## Review
 
 Issues ready for review/testing.
@@ -563,6 +573,18 @@ Issues ready for review/testing.
 ## Done
 
 Completed issues.
+#### Work Tracking
+
+**Timeline**
+- 2026-01-01 16:19 EST - Implementer fixed integration: moved code to magefile.go, integrated into IssuesFix(), all tests pass
+- 2026-01-01 16:16 EST - Auditor FAILED: Function not integrated into IssuesFix(), production code in test file
+- 2026-01-01 16:12 EST - Used implementer agent - implemented moveIssuesToCorrectSections, all tests pass (GREEN phase)
+- 2026-01-01 16:12 EST - Used test-writer agent - wrote 10 comprehensive failing tests (RED phase)
+- 2026-01-01 16:12 EST - Used problem-clarifier agent - identified 5 root causes of file corruption
+- 2026-01-01 16:12 EST - Added EXP-018 to patterns.md about orchestrator doing implementation instead of routing
+- 2026-01-01 16:12 EST - Started: User reported issuesfix doesn't move issues to correct sections
+
+
 
 ### 2. Fix stdlib package shadowing ambiguity (UAT-11)
 
