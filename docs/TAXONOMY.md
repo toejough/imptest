@@ -106,7 +106,7 @@ This matrix documents what parameter and return types are supported in wrapped/m
 | Comparable types | Yes | Yes | [02](../UAT/02-callable-wrappers/) |
 | Non-comparable types | Yes | Yes | [03](../UAT/03-non-comparable-arguments/) |
 | Simple types (int, string, etc.) | Yes | Yes | Most UATs |
-| Struct literal | ? | ? | — |
+| Struct literal | Yes | Yes | [30](../UAT/30-struct-literal-params/) |
 | Function literal | Yes | Yes | [24](../UAT/24-function-literal-params/) | Multi-param function literals now supported |
 | Interface literal | Yes | Yes | [25](../UAT/25-interface-literal-params/) |
 | Channel | Yes | Yes | [20](../UAT/20-channel-types/) |
@@ -726,6 +726,7 @@ Quick reference for locating User Acceptance Tests by feature coverage.
 | [27](../UAT/27-business-logic-dot-imports/) | business-logic-dot-imports | Dot imports in production code | Interface (dep) | Dot-imported (production) | Repository interface |
 | [28](../UAT/28-ordered-eventually-modes/) | ordered-eventually-modes | Ordered vs Eventually modes | Interface (dep) | Local | Call matching modes |
 | [29](../UAT/29-cross-file-external-imports/) | cross-file-external-imports | Cross-file import resolution | Interface (dep) | Local + External types (cross-file) | External types from interface file |
+| [30](../UAT/30-struct-literal-params/) | struct-literal-params | Struct literal parameters/returns | Interface (dep)<br>Function + Method (target) | Local | Struct literal params/returns; field preservation |
 
 ### Legend
 
