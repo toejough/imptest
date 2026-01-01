@@ -2127,17 +2127,39 @@ func IssuesStatus(issueNum int, newStatus string) error {
 		fmt.Printf("Moving issue #%d from '%s' to '%s' section\n", issueNum, oldStatus, newStatus)
 
 		// Extract full issue
-		issueEnd := strings.Index(newContent[issueStart:], "\n### ")
+		// Try to find the end of the issue by looking for boundaries in order:
+		// 1. Horizontal rule (---)
+		// 2. Next issue (\n### )
+		// 3. Next section (\n## )
+		// 4. End of file
+		issueEnd := strings.Index(newContent[issueStart:], "\n---\n")
+		includeSeparator := false
+		if issueEnd == -1 {
+			issueEnd = strings.Index(newContent[issueStart:], "\n### ")
+		}
 		if issueEnd == -1 {
 			issueEnd = strings.Index(newContent[issueStart:], "\n## ")
+			if issueEnd != -1 {
+				// Found section boundary - include the newline in the extraction
+				// to avoid leaving "\n## " orphaned
+				includeSeparator = true
+			}
 		}
 		if issueEnd == -1 {
 			issueEnd = len(newContent) - issueStart
 		}
+
+		// Extract issue content
 		fullIssue := newContent[issueStart : issueStart+issueEnd]
 
+		// Calculate removal range (include separator if needed)
+		removalEnd := issueEnd
+		if includeSeparator {
+			removalEnd++ // Include the "\n" before the next section
+		}
+
 		// Remove from old location
-		newContent = newContent[:issueStart] + newContent[issueStart+issueEnd:]
+		newContent = newContent[:issueStart] + newContent[issueStart+removalEnd:]
 
 		// Find new section
 		newSectionStart := strings.Index(newContent, newSectionHeader)
@@ -2159,12 +2181,38 @@ func IssuesStatus(issueNum int, newStatus string) error {
 			insertPoint = newSectionStart + firstIssueIdx + 1
 		} else {
 			// No issues in section, insert after section description
+			// Find the end of the section by looking for a blank line after the header
+			// Section format: "## Header\n\nDescription text\n"
 			lines := strings.Split(sectionContent, "\n")
-			for i := 2; i < len(lines); i++ {
-				if strings.TrimSpace(lines[i]) == "" {
-					insertPoint = newSectionStart + strings.Index(sectionContent, lines[i]) + len(lines[i]) + 1
-					break
+			linePos := 0
+			foundContent := false
+			for i := 0; i < len(lines); i++ {
+				if i == 0 {
+					// Skip header line
+					linePos += len(lines[i]) + 1
+					continue
 				}
+				if i == 1 && strings.TrimSpace(lines[i]) == "" {
+					// Skip blank line after header
+					linePos += len(lines[i]) + 1
+					continue
+				}
+				if strings.TrimSpace(lines[i]) != "" {
+					// Found description content
+					foundContent = true
+					linePos += len(lines[i]) + 1
+				} else if foundContent {
+					// Found blank line after description
+					insertPoint = newSectionStart + linePos
+					break
+				} else {
+					// Blank line before content
+					linePos += len(lines[i]) + 1
+				}
+			}
+			// If no blank line found, insert at end of section
+			if insertPoint == newSectionStart {
+				insertPoint = newSectionStart + len(sectionContent)
 			}
 		}
 
