@@ -503,6 +503,10 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Struct ty
 Capability Matrix - "Struct type" row, "As Target" column
 
 ---
+## Selected
+
+Issues selected for upcoming work.
+
 
 ### 30. Add UAT for function as dependency
 
@@ -536,12 +540,6 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function 
 **Taxonomy Gap**
 Capability Matrix - "Function" row, "As Dependency" column
 
-## Selected
-
-Issues selected for upcoming work.
-
-*No issues currently selected*
-
 ---
 
 ## In Progress
@@ -551,17 +549,6 @@ Issues currently being worked on.
 *No issues currently in progress*
 
 ---
-
-### 35. Fix issuesfix to move issues to correct sections
-
-#### Universal
-
-**Status**
-in progress
-
-**Description**
-
-
 ## Review
 
 Issues ready for review/testing.
@@ -573,9 +560,24 @@ Issues ready for review/testing.
 ## Done
 
 Completed issues.
+
+---
+
+### 35. Fix issuesfix to move issues to correct sections
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+
+
 #### Work Tracking
 
 **Timeline**
+- 2026-01-01 16:31 EST - Git-workflow created 3 commits: 90509ad (tests), 6d02fc3 (feat), 52483cd (docs)
+- 2026-01-01 16:31 EST - Auditor re-audit PASSED - all tests passing, code quality verified
 - 2026-01-01 16:19 EST - Implementer fixed integration: moved code to magefile.go, integrated into IssuesFix(), all tests pass
 - 2026-01-01 16:16 EST - Auditor FAILED: Function not integrated into IssuesFix(), production code in test file
 - 2026-01-01 16:12 EST - Used implementer agent - implemented moveIssuesToCorrectSections, all tests pass (GREEN phase)
@@ -583,8 +585,6 @@ Completed issues.
 - 2026-01-01 16:12 EST - Used problem-clarifier agent - identified 5 root causes of file corruption
 - 2026-01-01 16:12 EST - Added EXP-018 to patterns.md about orchestrator doing implementation instead of routing
 - 2026-01-01 16:12 EST - Started: User reported issuesfix doesn't move issues to correct sections
-
-
 
 ### 2. Fix stdlib package shadowing ambiguity (UAT-11)
 
@@ -1529,6 +1529,10 @@ glowsync/issues.md #16
 Migrated to glowsync project as it was mistakenly assigned to imptest
 
 ---
+## Cancelled
+
+Issues that will not be completed.
+
 
 ### 21. Rename --target/--dependency flags to --wrap/--mock (TOE-108)
 
@@ -1553,12 +1557,6 @@ Medium
 
 **Linear**
 TOE-108
-
-## Cancelled
-
-Issues that will not be completed.
-
-*No cancelled issues*
 
 ---
 
