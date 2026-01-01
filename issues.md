@@ -262,8 +262,10 @@ A simple md issue tracker.
    - priority: Low
    - linear: TOE-106
 19. Fix Eventually() type loss in concurrent call matching (TOE-104)
-   - status: in progress
+   - status: done
    - started: 2025-12-31 14:00 EST
+   - completed: 2025-12-31
+   - commits: 3629eeb, 46c6966, d66a013
    - description: Eventually() returns base *DependencyCall instead of typed wrapper, losing type-safe GetArgs() access
    - acceptance: Eventually() returns same typed wrapper as synchronous call matching
    - effort: High - requires changes to controller/dependency interaction
@@ -363,14 +365,17 @@ A simple md issue tracker.
       - 2025-12-31 22:50 EST: ✅ VERIFIED - mage check PASSES with 0 issues
       - 2025-12-31 22:50 EST: STATUS: Issues #19 and #20 COMPLETE - All race conditions fixed, all tests passing, mage check clean
 20. Remove timeout parameter from Eventually() (TOE-107)
-   - status: in progress
+   - status: done
    - started: 2025-12-31 14:00 EST
+   - completed: 2025-12-31
+   - commits: 3629eeb, 46c6966, d66a013
    - description: Eventually(time.Second) requires timeout, but timeout is only for handling unordered concurrent code, not real delays. Should use sensible default instead.
    - acceptance: Eventually() has no timeout parameter, waits indefinitely (test framework handles timeout)
    - effort: Medium
    - priority: Medium
    - linear: TOE-107
    - combined_with: Issue #19 (both related to Eventually() API)
+   - solution: Implemented ordered vs eventually modes - ordered mode fails fast on mismatch, eventually mode queues mismatches and waits indefinitely. Eventually() no longer takes timeout parameter. Added type-safe Eventually() methods to generated mock templates. Created UAT-28 demonstrating both modes.
    - timeline:
       - 2025-12-31 14:00 EST: Combined with issue #19 for unified solution
       - 2025-12-31 14:20 EST: DESIGN - Decision: NO timeout parameter, wait indefinitely
@@ -479,3 +484,39 @@ A simple md issue tracker.
      - impgen/run/codegen_v2_dependency.go: Updated to use interface file's imports
      - UAT/29-cross-file-external-imports/: New UAT demonstrating bug scenario
      - docs/TAXONOMY.md: Added UAT-29 to directory index
+30. Add UAT for function as dependency
+   - status: backlog
+   - description: Verify mocking bare package-level functions with --dependency flag (not interface methods)
+   - rationale: Taxonomy matrix shows "?" for "Function as Dependency", capability untested
+   - acceptance: UAT demonstrating function mocking with --dependency, or documented limitation with workaround
+   - effort: Small (1-2 hours)
+   - priority: Medium
+   - taxonomy_gap: Capability Matrix - "Function" row, "As Dependency" column
+   - **NOTE**: After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function as Dependency" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
+31. Add UAT for function type as dependency
+   - status: backlog
+   - description: Verify mocking function types (e.g., http.HandlerFunc) with --dependency flag
+   - rationale: Taxonomy matrix shows "?" for "Function type as Dependency", capability untested
+   - acceptance: UAT demonstrating function type mocking with --dependency, or documented limitation with workaround
+   - effort: Small (1-2 hours)
+   - priority: Medium
+   - taxonomy_gap: Capability Matrix - "Function type" row, "As Dependency" column
+   - **NOTE**: After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function type as Dependency" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
+32. Add UAT for interface as target
+   - status: backlog
+   - description: Verify wrapping interfaces with --target flag (not mocking)
+   - rationale: Taxonomy matrix shows "?" for "Interface type as Target", capability untested
+   - acceptance: UAT demonstrating interface wrapping with --target, or documented limitation with workaround
+   - effort: Small (1-2 hours)
+   - priority: Medium
+   - taxonomy_gap: Capability Matrix - "Interface type" row, "As Target" column
+   - **NOTE**: After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface type as Target" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
+33. Add UAT for struct type as target (comprehensive)
+   - status: backlog
+   - description: Verify wrapping struct types with --target flag comprehensively (beyond just methods)
+   - rationale: Taxonomy matrix shows "?" for "Struct type as Target", partially covered in UAT-02 but needs comprehensive coverage
+   - acceptance: UAT demonstrating full struct type wrapping capabilities with --target
+   - effort: Small (1-2 hours)
+   - priority: Low
+   - taxonomy_gap: Capability Matrix - "Struct type" row, "As Target" column
+   - **NOTE**: After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Struct type as Target" as "Yes" with comprehensive UAT reference
