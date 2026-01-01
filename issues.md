@@ -504,7 +504,7 @@ Capability Matrix - "Struct type" row, "As Target" column
 
 ---
 
-#### 30. Add UAT for function as dependency
+### 30. Add UAT for function as dependency
 
 #### Universal
 
@@ -536,7 +536,7 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function 
 **Taxonomy Gap**
 Capability Matrix - "Function" row, "As Dependency" column
 
-# Selected
+## Selected
 
 Issues selected for upcoming work.
 
@@ -1508,7 +1508,7 @@ Migrated to glowsync project as it was mistakenly assigned to imptest
 
 ---
 
-#### 21. Rename --target/--dependency flags to --wrap/--mock (TOE-108)
+### 21. Rename --target/--dependency flags to --wrap/--mock (TOE-108)
 
 #### Universal
 
@@ -1532,7 +1532,7 @@ Medium
 **Linear**
 TOE-108
 
-# Cancelled
+## Cancelled
 
 Issues that will not be completed.
 
