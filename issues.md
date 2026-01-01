@@ -405,37 +405,6 @@ Low
 **Linear**
 TOE-78
 
-### 30. Add UAT for function as dependency
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-Verify mocking bare package-level functions with --dependency flag (not interface methods)
-
-#### Planning
-
-**Rationale**
-Taxonomy matrix shows "?" for "Function as Dependency", capability untested
-
-**Acceptance**
-UAT demonstrating function mocking with --dependency, or documented limitation with workaround
-
-**Effort**
-Small (1-2 hours)
-
-**Priority**
-Medium
-
-**Note**
-After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function as Dependency" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
-
-#### Special Fields
-
-**Taxonomy Gap**
-Capability Matrix - "Function" row, "As Dependency" column
 
 ### 31. Add UAT for function type as dependency
 
@@ -535,7 +504,39 @@ Capability Matrix - "Struct type" row, "As Target" column
 
 ---
 
-## Selected
+#### 30. Add UAT for function as dependency
+
+#### Universal
+
+**Status**
+selected
+
+**Description**
+Verify mocking bare package-level functions with --dependency flag (not interface methods)
+
+#### Planning
+
+**Rationale**
+Taxonomy matrix shows "?" for "Function as Dependency", capability untested
+
+**Acceptance**
+UAT demonstrating function mocking with --dependency, or documented limitation with workaround
+
+**Effort**
+Small (1-2 hours)
+
+**Priority**
+Medium
+
+**Note**
+After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function as Dependency" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
+
+#### Special Fields
+
+**Taxonomy Gap**
+Capability Matrix - "Function" row, "As Dependency" column
+
+# Selected
 
 Issues selected for upcoming work.
 
