@@ -23,7 +23,7 @@ type v2DependencyGenerator struct {
 	pkgImportPath       string
 	pkgLoader           PackageLoader
 	methodNames         []string
-	identifiedInterface *dst.InterfaceType
+	identifiedInterface ifaceWithDetails // full interface details including source imports
 }
 
 func (gen *v2DependencyGenerator) buildMethodTemplateData(
@@ -246,7 +246,7 @@ func (gen *v2DependencyGenerator) buildVariadicArgs(
 // checkIfQualifierNeeded determines if we need a package qualifier.
 func (gen *v2DependencyGenerator) checkIfQualifierNeeded() {
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(_ string, ftype *dst.FuncType) {
 			gen.baseGenerator.checkIfQualifierNeeded(ftype)
 		},
@@ -261,13 +261,15 @@ func (gen *v2DependencyGenerator) collectAdditionalImports() []importInfo {
 		return nil
 	}
 
-	// Get source imports from the first AST file
-	var sourceImports []*dst.ImportSpec
+	// Use the source imports from the interface's file (tracked during parsing)
+	sourceImports := gen.identifiedInterface.sourceImports
 
-	for _, file := range gen.astFiles {
-		if len(file.Imports) > 0 {
-			sourceImports = file.Imports
-			break
+	// Fallback: if interface's file has no imports, collect from all files
+	if len(sourceImports) == 0 {
+		for _, file := range gen.astFiles {
+			if len(file.Imports) > 0 {
+				sourceImports = append(sourceImports, file.Imports...)
+			}
 		}
 	}
 
@@ -275,7 +277,7 @@ func (gen *v2DependencyGenerator) collectAdditionalImports() []importInfo {
 
 	// Iterate over all interface methods to collect imports from their signatures
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(_ string, ftype *dst.FuncType) {
 			// Collect from parameters
 			if ftype.Params != nil {
@@ -380,7 +382,7 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 	// Collect method data for all methods first (needed for typed wrappers)
 	var methods []v2DepMethodTemplateData
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(methodName string, ftype *dst.FuncType) {
 			methodData := gen.buildMethodTemplateData(methodName, ftype, interfaceType)
 			methods = append(methods, methodData)
@@ -546,7 +548,7 @@ func newV2DependencyGenerator(
 		astFiles:            astFiles,
 		pkgImportPath:       pkgImportPath,
 		pkgLoader:           pkgLoader,
-		identifiedInterface: ifaceWithDetails.iface,
+		identifiedInterface: ifaceWithDetails,
 	}
 
 	// Collect method names

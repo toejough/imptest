@@ -721,6 +721,11 @@ Quick reference for locating User Acceptance Tests by feature coverage.
 | [22](../UAT/22-test-package-import/) | test-package-import | External module imports | Interface (dep) | External module | Standard methods |
 | [23](../UAT/23-named-params-returns/) | named-params-returns | Named parameters/returns | Interface (dep)<br>Method + Function (target) | Local | Named params/returns |
 | [24](../UAT/24-function-literal-params/) | function-literal-params | Function literal parameters | Interface (dep)<br>Method + Function (target) | Local | Function literal params; matcher usage |
+| [25](../UAT/25-interface-literal-params/) | interface-literal-params | Interface literal parameters | Interface (dep) | Local | Interface literal params |
+| [26](../UAT/26-dot-imports/) | dot-imports | Dot imports in test code | Interface (dep) | Dot-imported | Storage, Processor interfaces |
+| [27](../UAT/27-business-logic-dot-imports/) | business-logic-dot-imports | Dot imports in production code | Interface (dep) | Dot-imported (production) | Repository interface |
+| [28](../UAT/28-ordered-eventually-modes/) | ordered-eventually-modes | Ordered vs Eventually modes | Interface (dep) | Local | Call matching modes |
+| [29](../UAT/29-cross-file-external-imports/) | cross-file-external-imports | Cross-file import resolution | Interface (dep) | Local + External types (cross-file) | External types from interface file |
 
 ### Legend
 
