@@ -391,7 +391,9 @@ A simple md issue tracker.
    - priority: Low
    - linear: TOE-115
 23. Verify dogfooding: use imptest in all applicable tests (TOE-111)
-   - status: in progress
+   - status: done
+   - completed: 2026-01-01
+   - commit: 32443a6
    - description: Audit all *_test.go files to ensure we use imptest's mocking where applicable - serves as dogfooding and improves test quality
    - acceptance: All applicable tests use imptest patterns, gaps documented
    - effort: Medium
@@ -408,6 +410,13 @@ A simple md issue tracker.
      - 2026-01-01 01:16 EST - REFACTOR: Step 1 COMPLETE ✓ - imp_test.go now uses generated MockTestReporter, no manual mocks, all tests pass, mage check clean. Starting Step 2 of 4 - Update race_regression_test.go proper sync tests to use TesterImp
      - 2026-01-01 01:21 EST - REFACTOR: Step 2 COMPLETE ✓ - race_regression_test.go proper sync tests now use TesterImp, regression tests preserved with manual mocks (intentional), all tests pass, mage check clean. Starting Step 3 of 4 - Generate MockTimer
      - 2026-01-01 01:25 EST - REFACTOR: Step 3 COMPLETE ✓ - MockTimer generated successfully, infrastructure ready for deterministic timeout testing, mage check clean. Starting Step 4 of 4 - Document dogfooding pattern in README
+     - 2026-01-01 01:30 EST - REFACTOR: Step 4 COMPLETE ✓ - Added comprehensive "How imptest Tests Itself (Dogfooding)" section to README.md with 3 patterns, API comparison, and race detection guidance
+     - 2026-01-01 01:35 EST - Committed: refactor(test): use generated mocks to test imptest (dogfooding) - 7 files changed (+492/-124), 2 new generated mocks, all tests pass with -race
+   - solution: Completed 4-step dogfooding implementation:
+     1. Generated MockTestReporter and refactored imp_test.go (5 tests) to external package with --dependency flag
+     2. Refactored race_regression_test.go proper sync tests to use TesterImp (preserved regression tests as anti-pattern documentation)
+     3. Generated MockTimer infrastructure for deterministic timeout testing
+     4. Documented dogfooding patterns in README.md with real examples
 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
    - status: backlog
    - description: Once taxonomy is clear, audit existing UATs to remove tests that duplicate coverage without adding value
