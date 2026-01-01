@@ -939,7 +939,9 @@ func stringifyDSTExpr(expr dst.Expr) string {
 	case *dst.InterfaceType:
 		return stringifyInterfaceType(typedExpr)
 	case *dst.StructType:
-		return "struct{}"
+		return stringifyStructType(typedExpr)
+	case *dst.FuncType:
+		return stringifyFuncType(typedExpr)
 	case *dst.Ellipsis:
 		return "..." + stringifyDSTExpr(typedExpr.Elt)
 	case *dst.IndexExpr:
@@ -966,6 +968,37 @@ func stringifyDSTExpr(expr dst.Expr) string {
 // Case 2: Local type alias (e.g., WalkFunc)
 
 // Case 3: External type (e.g., fs.WalkDirFunc)
+
+// stringifyFuncType converts a DST FuncType to its string representation.
+func stringifyFuncType(funcType *dst.FuncType) string {
+	var buf strings.Builder
+	buf.WriteString("func")
+
+	// Parameters
+	if funcType.Params != nil {
+		buf.WriteString("(")
+
+		paramParts := expandFieldListTypes(funcType.Params.List, stringifyDSTExpr)
+		buf.WriteString(strings.Join(paramParts, ", "))
+		buf.WriteString(")")
+	}
+
+	// Results
+	if funcType.Results != nil && len(funcType.Results.List) > 0 {
+		buf.WriteString(" ")
+
+		resultParts := expandFieldListTypes(funcType.Results.List, stringifyDSTExpr)
+		if len(resultParts) > 1 {
+			buf.WriteString("(")
+			buf.WriteString(strings.Join(resultParts, ", "))
+			buf.WriteString(")")
+		} else {
+			buf.WriteString(resultParts[0])
+		}
+	}
+
+	return buf.String()
+}
 
 // stringifyInterfaceType converts an interface type to its string representation,
 // preserving method signatures for interface literals.
@@ -1032,6 +1065,48 @@ func stringifyInterfaceType(interfaceType *dst.InterfaceType) string {
 	}
 
 	return buf.String()
+}
+
+// stringifyStructType converts a DST StructType to its string representation,
+// preserving all field information including names, types, and tags.
+func stringifyStructType(structType *dst.StructType) string {
+	// Handle nil/empty cases
+	if structType.Fields == nil || structType.Fields.List == nil || len(structType.Fields.List) == 0 {
+		return "struct{}"
+	}
+
+	// Build field list
+	fields := make([]string, 0, len(structType.Fields.List))
+
+	for _, field := range structType.Fields.List {
+		var fieldStr strings.Builder
+
+		// Handle field names (can have multiple names OR be embedded with no names)
+		if len(field.Names) > 0 {
+			// Named field(s) - e.g., "Host, Port string"
+			nameStrs := make([]string, len(field.Names))
+			for i, name := range field.Names {
+				nameStrs[i] = name.Name
+			}
+
+			fieldStr.WriteString(strings.Join(nameStrs, ", "))
+			fieldStr.WriteString(" ")
+		}
+
+		// Get type string recursively
+		fieldStr.WriteString(stringifyDSTExpr(field.Type))
+
+		// Add tag if present
+		if field.Tag != nil {
+			fieldStr.WriteString(" ")
+			fieldStr.WriteString(field.Tag.Value)
+		}
+
+		fields = append(fields, fieldStr.String())
+	}
+
+	// Return formatted struct literal
+	return fmt.Sprintf("struct{ %s }", strings.Join(fields, "; "))
 }
 
 // typeWithQualifierFunc handles function types.

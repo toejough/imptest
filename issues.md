@@ -84,12 +84,22 @@ A simple md issue tracker.
    - **NOTE**: TAXONOMY.md updated - Interface literal marked as "Yes" with UAT-25 reference
    - **NOTE**: Discovered critical bug during test creation (tracked separately as Issue #12) - impgen was stripping interface literal method signatures, had to fix before tests could pass
 6. Add UAT for struct literal parameters
-   - status: backlog
+   - status: in progress
+   - started: 2026-01-01 03:12 EST
    - description: Verify struct literals in signatures work (e.g., `func Accept(cfg struct{ Timeout int })`)
    - rationale: Valid Go pattern, should verify support or document limitation
    - acceptance: UAT or documented limitation with workaround
    - effort: Small (1-2 hours)
    - **NOTE**: After completing UAT, update Signature Variations Matrix in TAXONOMY.md to mark "Struct literal" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
+   - timeline:
+     - 2026-01-01 03:12 EST - GREEN complete: stringifyStructType implemented, all 18 unit tests pass, UAT-30 passes
+     - 2026-01-01 03:12 EST - REFACTOR: Routing to auditor for Step 4 (code quality review)
+     - 2026-01-01 11:05 EST - REFACTOR: Auditor found 15 linter violations (5 wsl_v5 + 10 others), routing to implementer
+     - 2026-01-01 11:05 EST - REFACTOR: Routing to implementer to fix linter violations
+     - 2026-01-01 11:14 EST - REFACTOR: All 15 linter violations fixed, mage check passes with 0 issues
+     - 2026-01-01 11:14 EST - REFACTOR: Routing to auditor for re-verification
+     - 2026-01-01 11:15 EST - REFACTOR: Auditor PASS - ready for commit
+     - 2026-01-01 11:15 EST - Routing to git-workflow to commit struct literal fix
 7. Support dot imports for mocking
    - status: done
    - started: 2025-12-31 11:19 EST
