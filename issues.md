@@ -120,6 +120,44 @@ Standard issue structure organized by category:
 
 Issues to choose from for future work.
 
+### 39. Fix timeline entries added outside issue section
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+
+
+### 37. Explore mage replacement with subcommands and flags (go-arg syntax)
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+
+
+### 36. Split issue tracker into separate repository
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+
+#### Work Tracking
+
+**Timeline**
+- 2026-01-01 17:09 EST - Implementer fixed auditor issues + discovered and fixed 3 additional bugs (insertion point, horizontal rule boundary, section header orphan)
+- 2026-01-01 17:09 EST - Auditor FAILED - found ineffectual assignment and test data bug
+- 2026-01-01 17:09 EST - Implementer applied fix - changed boundary detection to 'first boundary wins' logic
+
+
+
 ### 1. remove the deprecation messages and any hint of V1/V2
 
 #### Universal
@@ -549,11 +587,6 @@ Issues currently being worked on.
 *No issues currently in progress*
 
 ---
-## Review
-
-Issues ready for review/testing.
-
-*No issues currently in review*
 
 ---
 
@@ -562,6 +595,31 @@ Issues ready for review/testing.
 Completed issues.
 
 ---
+
+### 38. Fix issuesStatus section not found error when moving last issue
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+
+
+#### Work Tracking
+
+**Timeline**
+- 2026-01-01 17:23 EST - Git-workflow created 2 commits: 6c4739b (tests), f1f773f (fix)
+- 2026-01-01 17:20 EST - Auditor PASSED - all tests passing, no new linter violations, ready for commit
+- 2026-01-01 17:18 EST - Implementer applied fix and discovered 3 additional bugs - all tests passing
+- 2026-01-01 17:18 EST - failure-debugger identified root cause and created regression test
+- 2026-01-01 17:18 EST - User reported: mage issuesstatus 33 selected fails with 'section not found: ## Selected'
+
+## Review
+
+Issues ready for review/testing.
+
+*No issues currently in review*
 
 ### 35. Fix issuesfix to move issues to correct sections
 
