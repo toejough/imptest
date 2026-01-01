@@ -47,6 +47,13 @@ type ServiceMockExecuteMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ServiceMockExecuteMethod) Eventually() *ServiceMockExecuteMethod {
+	return &ServiceMockExecuteMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *ServiceMockExecuteMethod) ExpectCalledWithExactly(input string) *ServiceMockExecuteCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(input)
@@ -85,6 +92,13 @@ func (c *ServiceMockValidateCall) InjectReturnValues(result0 bool) {
 // ServiceMockValidateMethod wraps DependencyMethod with typed returns.
 type ServiceMockValidateMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ServiceMockValidateMethod) Eventually() *ServiceMockValidateMethod {
+	return &ServiceMockValidateMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

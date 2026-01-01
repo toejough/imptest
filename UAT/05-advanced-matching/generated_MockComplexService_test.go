@@ -46,6 +46,13 @@ type ComplexServiceMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ComplexServiceMockProcessMethod) Eventually() *ComplexServiceMockProcessMethod {
+	return &ComplexServiceMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *ComplexServiceMockProcessMethod) ExpectCalledWithExactly(d matching.Data) *ComplexServiceMockProcessCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(d)

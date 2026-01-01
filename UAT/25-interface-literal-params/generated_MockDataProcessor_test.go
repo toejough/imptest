@@ -49,6 +49,13 @@ type DataProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockProcessMethod) Eventually() *DataProcessorMockProcessMethod {
+	return &DataProcessorMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataProcessorMockProcessMethod) ExpectCalledWithExactly(obj interface{ Get() string }) *DataProcessorMockProcessCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(obj)
@@ -87,6 +94,13 @@ func (c *DataProcessorMockProcessWithReturnCall) InjectReturnValues(result0 inte
 // DataProcessorMockProcessWithReturnMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessWithReturnMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockProcessWithReturnMethod) Eventually() *DataProcessorMockProcessWithReturnMethod {
+	return &DataProcessorMockProcessWithReturnMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -135,6 +149,13 @@ type DataProcessorMockTransformMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockTransformMethod) Eventually() *DataProcessorMockTransformMethod {
+	return &DataProcessorMockTransformMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataProcessorMockTransformMethod) ExpectCalledWithExactly(obj interface {
 	GetValue() int
@@ -176,6 +197,13 @@ func (c *DataProcessorMockValidateCall) InjectReturnValues(result0 error) {
 // DataProcessorMockValidateMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockValidateMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockValidateMethod) Eventually() *DataProcessorMockValidateMethod {
+	return &DataProcessorMockValidateMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

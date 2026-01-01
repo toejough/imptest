@@ -46,6 +46,13 @@ type ProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ProcessorMockProcessMethod) Eventually() *ProcessorMockProcessMethod {
+	return &ProcessorMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *ProcessorMockProcessMethod) ExpectCalledWithExactly(input string) *ProcessorMockProcessCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(input)

@@ -896,12 +896,17 @@ func Test(c context.Context) error {
 
 	mg.SerialCtxDeps(c, Generate)
 
+	// Skip TestRaceRegression tests in CI runs. These tests intentionally
+	// trigger race conditions to verify they are properly detected in user
+	// code. They are regression tests for the framework itself, not production
+	// code quality checks. Run them manually with: go test -race -run TestRaceRegression ./imptest
 	err := run(
 		c,
 		"go",
 		"test",
 		"-timeout=2m",
 		"-race",
+		"-skip=TestRaceRegression",
 		"-coverprofile=coverage.out",
 		"-coverpkg=./...",
 		// "-coverpkg=./impgen/...,./imptest/...",

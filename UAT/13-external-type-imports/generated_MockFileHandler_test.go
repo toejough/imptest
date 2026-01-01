@@ -52,6 +52,13 @@ type FileHandlerMockOpenFileMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *FileHandlerMockOpenFileMethod) Eventually() *FileHandlerMockOpenFileMethod {
+	return &FileHandlerMockOpenFileMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *FileHandlerMockOpenFileMethod) ExpectCalledWithExactly(path string, mode os.FileMode) *FileHandlerMockOpenFileCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(path, mode)
@@ -92,6 +99,13 @@ type FileHandlerMockReadAllMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *FileHandlerMockReadAllMethod) Eventually() *FileHandlerMockReadAllMethod {
+	return &FileHandlerMockReadAllMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *FileHandlerMockReadAllMethod) ExpectCalledWithExactly(r io.Reader) *FileHandlerMockReadAllCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(r)
@@ -130,6 +144,13 @@ func (c *FileHandlerMockStatsCall) InjectReturnValues(result0 os.FileInfo, resul
 // FileHandlerMockStatsMethod wraps DependencyMethod with typed returns.
 type FileHandlerMockStatsMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *FileHandlerMockStatsMethod) Eventually() *FileHandlerMockStatsMethod {
+	return &FileHandlerMockStatsMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

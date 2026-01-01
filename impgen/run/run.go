@@ -393,7 +393,7 @@ func writeGeneratedCodeToFile(
 	reordered, err := reorder.Source(code)
 	if err != nil {
 		// If reordering fails, log but continue with original code
-		fmt.Fprintf(output, "Warning: failed to reorder %s: %v\n", filename, err)
+		_, _ = fmt.Fprintf(output, "Warning: failed to reorder %s: %v\n", filename, err)
 
 		reordered = code
 	}
@@ -403,7 +403,7 @@ func writeGeneratedCodeToFile(
 		return fmt.Errorf("error writing %s: %w", filename, err)
 	}
 
-	fmt.Fprintf(output, "%s written successfully.\n", filename)
+	_, _ = fmt.Fprintf(output, "%s written successfully.\n", filename)
 
 	return nil
 }

@@ -57,6 +57,13 @@ type ReadCloserMockReadMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ReadCloserMockReadMethod) Eventually() *ReadCloserMockReadMethod {
+	return &ReadCloserMockReadMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *ReadCloserMockReadMethod) ExpectCalledWithExactly(p []byte) *ReadCloserMockReadCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(p)

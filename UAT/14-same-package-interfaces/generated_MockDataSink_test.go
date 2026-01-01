@@ -46,6 +46,13 @@ type DataSinkMockPutDataMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataSinkMockPutDataMethod) Eventually() *DataSinkMockPutDataMethod {
+	return &DataSinkMockPutDataMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataSinkMockPutDataMethod) ExpectCalledWithExactly(data []byte) *DataSinkMockPutDataCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(data)

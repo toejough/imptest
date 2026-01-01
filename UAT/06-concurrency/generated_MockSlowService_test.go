@@ -47,6 +47,13 @@ type SlowServiceMockDoAMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *SlowServiceMockDoAMethod) Eventually() *SlowServiceMockDoAMethod {
+	return &SlowServiceMockDoAMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *SlowServiceMockDoAMethod) ExpectCalledWithExactly(id int) *SlowServiceMockDoACall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(id)
@@ -85,6 +92,13 @@ func (c *SlowServiceMockDoBCall) InjectReturnValues(result0 string) {
 // SlowServiceMockDoBMethod wraps DependencyMethod with typed returns.
 type SlowServiceMockDoBMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *SlowServiceMockDoBMethod) Eventually() *SlowServiceMockDoBMethod {
+	return &SlowServiceMockDoBMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

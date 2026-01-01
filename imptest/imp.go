@@ -1,6 +1,7 @@
 package imptest
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 )
@@ -61,44 +62,46 @@ func (i *Imp) Fatalf(format string, args ...any) {
 	i.t.Fatalf(format, args...)
 }
 
-// GetCallWithTimeout waits for a call matching the validator with a timeout.
-// This is used internally by generated mock code for ExpectCalledWithExactly and ExpectCalledWithMatches.
-func (i *Imp) GetCallWithTimeout(timeout time.Duration, methodName string, validator func([]any) bool) *GenericCall {
-	callValidator := func(call *GenericCall) bool {
+// GetCallEventually waits indefinitely for a call matching both the method name and
+// argument validator, scanning the entire queue first. The validator returns nil for
+// matching args, or an error describing why they didn't match.
+func (i *Imp) GetCallEventually(methodName string, validator func([]any) error) *GenericCall {
+	combinedValidator := func(call *GenericCall) error {
 		if call.MethodName != methodName {
-			return false
+			//nolint:err113 // validation error with dynamic context
+			return fmt.Errorf("expected method %q, got %q", methodName, call.MethodName)
 		}
 
-		return validator(call.Args)
+		err := validator(call.Args)
+		if err != nil {
+			return fmt.Errorf("method %q: %w", methodName, err)
+		}
+
+		return nil
 	}
 
-	return i.GetCall(timeout, callValidator)
+	return i.Controller.GetCallEventually(combinedValidator)
 }
 
 // GetCallOrdered waits for a call matching both the method name and argument validator,
-// but fails fast if a non-matching call arrives first by sending it to mismatchChan.
-func (i *Imp) GetCallOrdered(timeout time.Duration, methodName string, validator func([]any) bool, mismatchChan chan *GenericCall) *GenericCall {
-	combinedValidator := func(call *GenericCall) bool {
+// but fails fast if a non-matching call arrives first. The validator returns nil for
+// matching args, or an error describing why they didn't match.
+func (i *Imp) GetCallOrdered(timeout time.Duration, methodName string, validator func([]any) error) *GenericCall {
+	combinedValidator := func(call *GenericCall) error {
 		if call.MethodName != methodName {
-			return false
+			//nolint:err113 // validation error with dynamic context
+			return fmt.Errorf("expected method %q, got %q", methodName, call.MethodName)
 		}
-		return validator(call.Args)
+
+		err := validator(call.Args)
+		if err != nil {
+			return fmt.Errorf("method %q: %w", methodName, err)
+		}
+
+		return nil
 	}
 
-	return i.Controller.GetCallOrdered(timeout, combinedValidator, mismatchChan)
-}
-
-// GetCallEventually waits for a call matching both the method name and argument validator,
-// queuing calls with different method names while waiting for a match.
-func (i *Imp) GetCallEventually(timeout time.Duration, methodName string, validator func([]any) bool) *GenericCall {
-	combinedValidator := func(call *GenericCall) bool {
-		if call.MethodName != methodName {
-			return false
-		}
-		return validator(call.Args)
-	}
-
-	return i.Controller.GetCallEventually(timeout, combinedValidator)
+	return i.Controller.GetCallOrdered(timeout, combinedValidator)
 }
 
 // Helper marks the calling function as a test helper.

@@ -94,36 +94,6 @@ func TestDependencyCall_InjectPanicValue(t *testing.T) {
 	<-done
 }
 
-// TestDependencyMethod_ExpectCalledWithMatches verifies matcher-based expectations work.
-//
-//nolint:varnamelen // Standard test parameter name
-func TestDependencyMethod_ExpectCalledWithMatches(t *testing.T) {
-	t.Parallel()
-
-	imp := imptest.NewImp(t)
-	method := imptest.NewDependencyMethod(imp, "MatcherMethod")
-
-	// Start goroutine to send call
-	go func() {
-		call := &imptest.GenericCall{
-			MethodName:   "MatcherMethod",
-			Args:         []any{42},
-			ResponseChan: make(chan imptest.GenericResponse, 1),
-		}
-		imp.CallChan <- call
-	}()
-
-	// Expect call with matcher
-	depCall := method.ExpectCalledWithMatches(imptest.Any())
-	args := depCall.GetArgs()
-
-	if args.A1 != 42 {
-		t.Errorf("expected A1=42, got %v", args.A1)
-	}
-
-	depCall.InjectReturnValues()
-}
-
 // TestDependencyMethodDefaultOrdered verifies default DependencyMethod uses ordered mode.
 // Default behavior should fail fast on mismatched calls (GetCallOrdered).
 //
@@ -217,10 +187,12 @@ func TestDependencyMethodEventuallyReturnsNew(t *testing.T) {
 	}()
 
 	depCall1 := dm1.ExpectCalledWithExactly(1)
+
 	args1 := depCall1.GetArgs()
 	if args1.A1 != 1 {
 		t.Errorf("dm1: expected A1=1, got %v", args1.A1)
 	}
+
 	depCall1.InjectReturnValues()
 
 	go func() {
@@ -234,9 +206,41 @@ func TestDependencyMethodEventuallyReturnsNew(t *testing.T) {
 	}()
 
 	depCall2 := dm2.ExpectCalledWithExactly(2)
+
 	args2 := depCall2.GetArgs()
 	if args2.A1 != 2 {
 		t.Errorf("dm2: expected A1=2, got %v", args2.A1)
 	}
+
 	depCall2.InjectReturnValues()
+}
+
+// TestDependencyMethod_ExpectCalledWithMatches verifies matcher-based expectations work.
+//
+//nolint:varnamelen // Standard test parameter name
+func TestDependencyMethod_ExpectCalledWithMatches(t *testing.T) {
+	t.Parallel()
+
+	imp := imptest.NewImp(t)
+	method := imptest.NewDependencyMethod(imp, "MatcherMethod")
+
+	// Start goroutine to send call
+	go func() {
+		call := &imptest.GenericCall{
+			MethodName:   "MatcherMethod",
+			Args:         []any{42},
+			ResponseChan: make(chan imptest.GenericResponse, 1),
+		}
+		imp.CallChan <- call
+	}()
+
+	// Expect call with matcher
+	depCall := method.ExpectCalledWithMatches(imptest.Any())
+	args := depCall.GetArgs()
+
+	if args.A1 != 42 {
+		t.Errorf("expected A1=42, got %v", args.A1)
+	}
+
+	depCall.InjectReturnValues()
 }

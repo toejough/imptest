@@ -47,6 +47,13 @@ type ExternalServiceMockFetchDataMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ExternalServiceMockFetchDataMethod) Eventually() *ExternalServiceMockFetchDataMethod {
+	return &ExternalServiceMockFetchDataMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithExactly(id int) *ExternalServiceMockFetchDataCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(id)
@@ -85,6 +92,13 @@ func (c *ExternalServiceMockProcessCall) InjectReturnValues(result0 string) {
 // ExternalServiceMockProcessMethod wraps DependencyMethod with typed returns.
 type ExternalServiceMockProcessMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ExternalServiceMockProcessMethod) Eventually() *ExternalServiceMockProcessMethod {
+	return &ExternalServiceMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

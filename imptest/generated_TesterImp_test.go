@@ -3,6 +3,7 @@
 package imptest_test
 
 import (
+	_fmt "fmt"
 	_reflect "reflect"
 
 	_imptest "github.com/toejough/imptest/imptest"
@@ -55,7 +56,7 @@ func (i *TesterImp) GetCurrentCall() *TesterImpCall {
 	if i.currentCall != nil && !i.currentCall.Done() {
 		return i.currentCall
 	}
-	i.currentCall = i.GetCall(0, func(c *TesterImpCall) bool { return true })
+	i.currentCall = i.GetCall(0, func(c *TesterImpCall) error { return nil })
 	return i.currentCall
 }
 
@@ -145,18 +146,18 @@ type TesterImpFatalfBuilder struct {
 // doesn't arrive within the timeout or if arguments don't match exactly.
 // Uses == for comparable types and reflect.DeepEqual for others.
 func (bldr *TesterImpFatalfBuilder) ExpectArgsAre(format string, args ...any) *TesterImpFatalfCall {
-	validator := func(callToCheck *TesterImpCall) bool {
+	validator := func(callToCheck *TesterImpCall) error {
 		if callToCheck.Name() != "Fatalf" {
-			return false
+			return _fmt.Errorf("expected Fatalf, got %q", callToCheck.Name())
 		}
 		methodCall := callToCheck.AsFatalf()
 		if methodCall.format != format {
-			return false
+			return _fmt.Errorf("format mismatch: expected %q, got %q", format, methodCall.format)
 		}
 		if !_reflect.DeepEqual(methodCall.args, args) {
-			return false
+			return _fmt.Errorf("args mismatch: expected %#v, got %#v", args, methodCall.args)
 		}
-		return true
+		return nil
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -168,21 +169,28 @@ func (bldr *TesterImpFatalfBuilder) ExpectArgsAre(format string, args ...any) *T
 // Returns the call object for response injection. Fails the test if the call
 // doesn't arrive within the timeout or if any matcher fails.
 func (bldr *TesterImpFatalfBuilder) ExpectArgsShould(format any, args any) *TesterImpFatalfCall {
-	validator := func(callToCheck *TesterImpCall) bool {
+	validator := func(callToCheck *TesterImpCall) error {
 		if callToCheck.Name() != "Fatalf" {
-			return false
+			return _fmt.Errorf("expected Fatalf, got %q", callToCheck.Name())
 		}
 		methodCall := callToCheck.AsFatalf()
 		var ok bool
-		ok, _ = _imptest.MatchValue(methodCall.format, format)
+		var failureMsg string
+		ok, failureMsg = _imptest.MatchValue(methodCall.format, format)
 		if !ok {
-			return false
+			if failureMsg != "" {
+				return _fmt.Errorf("format matcher failed: %s", failureMsg)
+			}
+			return _fmt.Errorf("format matcher failed for value %#v", methodCall.format)
 		}
-		ok, _ = _imptest.MatchValue(methodCall.args, args)
+		ok, failureMsg = _imptest.MatchValue(methodCall.args, args)
 		if !ok {
-			return false
+			if failureMsg != "" {
+				return _fmt.Errorf("args matcher failed: %s", failureMsg)
+			}
+			return _fmt.Errorf("args matcher failed for value %#v", methodCall.args)
 		}
-		return true
+		return nil
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -193,8 +201,11 @@ func (bldr *TesterImpFatalfBuilder) ExpectArgsShould(format any, args any) *Test
 // This is a shortcut that combines waiting for the call with injecting a panic.
 // Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *TesterImpFatalfBuilder) InjectPanic(msg any) *TesterImpFatalfCall {
-	validator := func(callToCheck *TesterImpCall) bool {
-		return callToCheck.Name() == "Fatalf"
+	validator := func(callToCheck *TesterImpCall) error {
+		if callToCheck.Name() != "Fatalf" {
+			return _fmt.Errorf("expected Fatalf, got %q", callToCheck.Name())
+		}
+		return nil
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -207,8 +218,11 @@ func (bldr *TesterImpFatalfBuilder) InjectPanic(msg any) *TesterImpFatalfCall {
 // This is a shortcut that combines waiting for the call with resolving it.
 // Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *TesterImpFatalfBuilder) Resolve() *TesterImpFatalfCall {
-	validator := func(callToCheck *TesterImpCall) bool {
-		return callToCheck.Name() == "Fatalf"
+	validator := func(callToCheck *TesterImpCall) error {
+		if callToCheck.Name() != "Fatalf" {
+			return _fmt.Errorf("expected Fatalf, got %q", callToCheck.Name())
+		}
+		return nil
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -260,8 +274,11 @@ type TesterImpHelperBuilder struct {
 // This is a shortcut that combines waiting for the call with injecting a panic.
 // Use this to test panic handling in code under test. Returns the call object for further operations.
 func (bldr *TesterImpHelperBuilder) InjectPanic(msg any) *TesterImpHelperCall {
-	validator := func(callToCheck *TesterImpCall) bool {
-		return callToCheck.Name() == "Helper"
+	validator := func(callToCheck *TesterImpCall) error {
+		if callToCheck.Name() != "Helper" {
+			return _fmt.Errorf("expected Helper, got %q", callToCheck.Name())
+		}
+		return nil
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)
@@ -274,8 +291,11 @@ func (bldr *TesterImpHelperBuilder) InjectPanic(msg any) *TesterImpHelperCall {
 // This is a shortcut that combines waiting for the call with resolving it.
 // Returns the call object for further operations. Fails if no call arrives within the timeout.
 func (bldr *TesterImpHelperBuilder) Resolve() *TesterImpHelperCall {
-	validator := func(callToCheck *TesterImpCall) bool {
-		return callToCheck.Name() == "Helper"
+	validator := func(callToCheck *TesterImpCall) error {
+		if callToCheck.Name() != "Helper" {
+			return _fmt.Errorf("expected Helper, got %q", callToCheck.Name())
+		}
+		return nil
 	}
 
 	call := bldr.imp.GetCall(bldr.timeout, validator)

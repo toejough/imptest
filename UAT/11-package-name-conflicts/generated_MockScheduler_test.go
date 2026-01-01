@@ -52,6 +52,13 @@ type SchedulerMockDelayMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *SchedulerMockDelayMethod) Eventually() *SchedulerMockDelayMethod {
+	return &SchedulerMockDelayMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *SchedulerMockDelayMethod) ExpectCalledWithExactly(taskID string, duration time.Duration) *SchedulerMockDelayCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(taskID, duration)
@@ -90,6 +97,13 @@ func (c *SchedulerMockGetIntervalCall) InjectReturnValues(result0 time.Duration)
 // SchedulerMockGetIntervalMethod wraps DependencyMethod with typed returns.
 type SchedulerMockGetIntervalMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *SchedulerMockGetIntervalMethod) Eventually() *SchedulerMockGetIntervalMethod {
+	return &SchedulerMockGetIntervalMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -142,6 +156,13 @@ func (c *SchedulerMockScheduleAtCall) InjectReturnValues(result0 error) {
 // SchedulerMockScheduleAtMethod wraps DependencyMethod with typed returns.
 type SchedulerMockScheduleAtMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *SchedulerMockScheduleAtMethod) Eventually() *SchedulerMockScheduleAtMethod {
+	return &SchedulerMockScheduleAtMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

@@ -47,6 +47,13 @@ type HTTPMiddlewareMockWrapMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *HTTPMiddlewareMockWrapMethod) Eventually() *HTTPMiddlewareMockWrapMethod {
+	return &HTTPMiddlewareMockWrapMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *HTTPMiddlewareMockWrapMethod) ExpectCalledWithExactly(handler http.HandlerFunc) *HTTPMiddlewareMockWrapCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(handler)

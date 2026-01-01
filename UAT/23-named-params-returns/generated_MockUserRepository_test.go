@@ -50,6 +50,13 @@ type UserRepositoryMockCountUsersMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *UserRepositoryMockCountUsersMethod) Eventually() *UserRepositoryMockCountUsersMethod {
+	return &UserRepositoryMockCountUsersMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *UserRepositoryMockCountUsersMethod) ExpectCalledWithExactly(ctx context.Context) *UserRepositoryMockCountUsersCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(ctx)
@@ -90,6 +97,13 @@ func (c *UserRepositoryMockDeleteUserCall) InjectReturnValues(result0 error) {
 // UserRepositoryMockDeleteUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockDeleteUserMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *UserRepositoryMockDeleteUserMethod) Eventually() *UserRepositoryMockDeleteUserMethod {
+	return &UserRepositoryMockDeleteUserMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -134,6 +148,13 @@ type UserRepositoryMockGetUserMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *UserRepositoryMockGetUserMethod) Eventually() *UserRepositoryMockGetUserMethod {
+	return &UserRepositoryMockGetUserMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *UserRepositoryMockGetUserMethod) ExpectCalledWithExactly(ctx context.Context, userID int) *UserRepositoryMockGetUserCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(ctx, userID)
@@ -174,6 +195,13 @@ func (c *UserRepositoryMockSaveUserCall) InjectReturnValues(result0 named.User, 
 // UserRepositoryMockSaveUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockSaveUserMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *UserRepositoryMockSaveUserMethod) Eventually() *UserRepositoryMockSaveUserMethod {
+	return &UserRepositoryMockSaveUserMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

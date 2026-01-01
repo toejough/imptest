@@ -50,6 +50,13 @@ type DataProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockProcessMethod) Eventually() *DataProcessorMockProcessMethod {
+	return &DataProcessorMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataProcessorMockProcessMethod) ExpectCalledWithExactly(source samepackage.DataSource, sink samepackage.DataSink) *DataProcessorMockProcessCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(source, sink)
@@ -90,6 +97,13 @@ type DataProcessorMockTransformMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockTransformMethod) Eventually() *DataProcessorMockTransformMethod {
+	return &DataProcessorMockTransformMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataProcessorMockTransformMethod) ExpectCalledWithExactly(input samepackage.DataSource) *DataProcessorMockTransformCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(input)
@@ -128,6 +142,13 @@ func (c *DataProcessorMockValidateCall) InjectReturnValues(result0 bool) {
 // DataProcessorMockValidateMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockValidateMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockValidateMethod) Eventually() *DataProcessorMockValidateMethod {
+	return &DataProcessorMockValidateMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

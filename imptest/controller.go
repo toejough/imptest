@@ -70,15 +70,16 @@ func NewControllerWithTimer[T Call](t Tester, timer Timer) *Controller[T] {
 	return ctrl
 }
 
-// GetCall waits for a call that matches the given validator.
-func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T {
+// GetCall waits for a call that matches the given validator. The validator returns
+// nil for a match, or an error describing why the call didn't match.
+func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) error) T {
 	c.T.Helper()
 
 	c.mu.Lock()
 
-	// Check queue first (while holding lock)
+	// Check queue first (while holding lock) - scans entire queue
 	for i, call := range c.callQueue {
-		if validator(call) {
+		if validator(call) == nil {
 			c.callQueue = append(c.callQueue[:i], c.callQueue[i+1:]...)
 			c.mu.Unlock()
 
@@ -126,16 +127,17 @@ func (c *Controller[T]) GetCall(timeout time.Duration, validator func(T) bool) T
 	}
 }
 
-// GetCallEventually waits for a call that matches the given validator,
-// checking the queue first before registering as a waiter.
-func (c *Controller[T]) GetCallEventually(timeout time.Duration, validator func(T) bool) T {
+// GetCallEventually waits indefinitely for a call that matches the given validator,
+// scanning the entire queue before waiting. The validator returns nil for a match,
+// or an error describing why the call didn't match.
+func (c *Controller[T]) GetCallEventually(validator func(T) error) T {
 	c.T.Helper()
 
 	c.mu.Lock()
 
-	// Check queue first (while holding lock)
+	// Eventually mode: scan ENTIRE queue for a match
 	for i, call := range c.callQueue {
-		if validator(call) {
+		if validator(call) == nil {
 			c.callQueue = append(c.callQueue[:i], c.callQueue[i+1:]...)
 			c.mu.Unlock()
 
@@ -151,57 +153,45 @@ func (c *Controller[T]) GetCallEventually(timeout time.Duration, validator func(
 	c.waiters = append(c.waiters, myWaiter)
 	c.mu.Unlock()
 
-	// Wait for result with timeout
-	var timeoutChan <-chan time.Time
-
-	if timeout > 0 {
-		timeoutChan = c.Timer.After(timeout)
-	}
-
-	select {
-	case call := <-myWaiter.result:
-		return call
-	case <-timeoutChan:
-		// Remove self from waiters list
-		c.mu.Lock()
-
-		for i, waiter := range c.waiters {
-			if waiter == myWaiter {
-				c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
-
-				break
-			}
-		}
-
-		c.mu.Unlock()
-
-		c.T.Fatalf("timeout waiting for call matching validator")
-
-		var zero T
-
-		return zero
-	}
+	// Wait indefinitely for a matching call
+	return <-myWaiter.result
 }
 
 // GetCallOrdered waits for a call that matches the given validator, but fails
-// fast if a non-matching call arrives first (sends it to mismatchChan).
+// fast if a non-matching call arrives first. The validator returns nil for a match,
+// or an error describing why the call didn't match.
+//
+//nolint:funlen // sequential logic for ordered call matching cannot be easily extracted
 func (c *Controller[T]) GetCallOrdered(
 	timeout time.Duration,
-	validator func(T) bool,
-	mismatchChan chan T,
+	validator func(T) error,
 ) T {
 	c.T.Helper()
 
 	c.mu.Lock()
 
-	// Check queue first (while holding lock)
-	for i, call := range c.callQueue {
-		if validator(call) {
-			c.callQueue = append(c.callQueue[:i], c.callQueue[i+1:]...)
+	// Check queue first (while holding lock) - ordered mode checks FIRST call only
+	if len(c.callQueue) > 0 {
+		firstCall := c.callQueue[0]
+
+		err := validator(firstCall)
+		if err == nil {
+			// First queued call matches - return it
+			c.callQueue = c.callQueue[1:]
 			c.mu.Unlock()
 
-			return call
+			return firstCall
 		}
+
+		// First queued call doesn't match - fail fast in ordered mode
+		c.callQueue = c.callQueue[1:]
+		c.mu.Unlock()
+
+		c.T.Fatalf("ordered mode fail-fast: %v", err)
+
+		var zero T
+
+		return zero
 	}
 
 	// Register as ordered waiter (fail-fast mode)
@@ -209,7 +199,6 @@ func (c *Controller[T]) GetCallOrdered(
 		validator:      validator,
 		result:         make(chan T, 1),
 		failOnMismatch: true,
-		mismatchChan:   mismatchChan,
 	}
 	c.waiters = append(c.waiters, myWaiter)
 	c.mu.Unlock()
@@ -254,17 +243,27 @@ func (c *Controller[T]) dispatchLoop() {
 		// Check first waiter for fail-fast mode BEFORE trying other waiters
 		matched := false
 
-		if len(c.waiters) > 0 && c.waiters[0].failOnMismatch && !c.waiters[0].validator(call) {
-			// First waiter is ordered and call doesn't match - fail it
-			c.waiters[0].mismatchChan <- call
-			c.waiters = c.waiters[1:] // Remove failed waiter
-			// Don't set matched yet - try remaining waiters with this call
+		if len(c.waiters) > 0 {
+			firstWaiter := c.waiters[0]
+
+			if firstWaiter.failOnMismatch {
+				err := firstWaiter.validator(call)
+				if err != nil {
+					// First waiter is ordered and call doesn't match - fail immediately
+					c.waiters = c.waiters[1:] // Remove failed waiter
+					c.mu.Unlock()
+
+					c.T.Fatalf("ordered mode fail-fast: %v", err)
+
+					return
+				}
+			}
 		}
 
-		// Try to match with (remaining) waiters
+		// Try to match with waiters
 		if !matched {
 			for i, w := range c.waiters {
-				if w.validator(call) {
+				if w.validator(call) == nil {
 					w.result <- call
 
 					c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
@@ -304,8 +303,7 @@ func (realTimer) After(d time.Duration) <-chan time.Time {
 
 // waiter represents a goroutine waiting for a matching call.
 type waiter[T any] struct {
-	validator      func(T) bool
+	validator      func(T) error // Returns nil for match, error for mismatch
 	result         chan T
-	failOnMismatch bool
-	mismatchChan   chan T
+	failOnMismatch bool // If true, fail immediately on mismatch instead of queuing
 }

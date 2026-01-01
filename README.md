@@ -100,7 +100,7 @@ func Test_PrintSum_Flexible(t *testing.T) {
 | **Callable Wrappers** | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target` |
 | **Two-Step Matching** | Access methods directly (`mock.Method`), then specify matching mode (`ExpectCalledWithExactly()` for exact, `ExpectCalledWithMatches()` for matchers) |
 | **Type Safety** | `ExpectCalledWithExactly(int, int)` is compile-time checked; `ExpectCalledWithMatches(matcher, matcher)` accepts matchers |
-| **Concurrent Support** | Use `Eventually(timeout)` to handle out-of-order calls: `mock.Add.Eventually(time.Second).ExpectCalledWithExactly(1, 2)` |
+| **Concurrent Support** | Use `Eventually()` to handle out-of-order calls: `mock.Add.Eventually().ExpectCalledWithExactly(1, 2)` |
 | **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
 
 ## Examples
@@ -114,9 +114,9 @@ func Test_Concurrent(t *testing.T) {
     go func() { mock.Interface().Add(1, 2) }()
     go func() { mock.Interface().Add(5, 6) }()
 
-    // Match specific calls out-of-order within timeout
-    mock.Add.Eventually(time.Second).ExpectCalledWithExactly(5, 6).InjectReturnValues(11)
-    mock.Add.Eventually(time.Second).ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
+    // Match specific calls out-of-order (Eventually mode queues mismatches)
+    mock.Add.Eventually().ExpectCalledWithExactly(5, 6).InjectReturnValues(11)
+    mock.Add.Eventually().ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
 }
 ```
 
@@ -164,7 +164,7 @@ When your code passes callback functions to mocked dependencies, imptest makes i
 mock := MockTreeWalker(t)
 
 // Wait for the call with a callback parameter (use imptest.Any() to match any function)
-call := mock.Walk.Eventually(time.Second).ExpectCalledWithMatches("/test", imptest.Any())
+call := mock.Walk.Eventually().ExpectCalledWithMatches("/test", imptest.Any())
 
 // Extract the callback from the arguments
 rawArgs := call.RawArgs()

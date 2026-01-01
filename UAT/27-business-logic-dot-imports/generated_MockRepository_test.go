@@ -48,6 +48,13 @@ type RepositoryMockDeleteMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *RepositoryMockDeleteMethod) Eventually() *RepositoryMockDeleteMethod {
+	return &RepositoryMockDeleteMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *RepositoryMockDeleteMethod) ExpectCalledWithExactly(key string) *RepositoryMockDeleteCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(key)
@@ -86,6 +93,13 @@ func (c *RepositoryMockLoadCall) InjectReturnValues(result0 []byte, result1 erro
 // RepositoryMockLoadMethod wraps DependencyMethod with typed returns.
 type RepositoryMockLoadMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *RepositoryMockLoadMethod) Eventually() *RepositoryMockLoadMethod {
+	return &RepositoryMockLoadMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -128,6 +142,13 @@ func (c *RepositoryMockSaveCall) InjectReturnValues(result0 error) {
 // RepositoryMockSaveMethod wraps DependencyMethod with typed returns.
 type RepositoryMockSaveMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *RepositoryMockSaveMethod) Eventually() *RepositoryMockSaveMethod {
+	return &RepositoryMockSaveMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

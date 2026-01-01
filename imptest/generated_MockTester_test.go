@@ -44,6 +44,13 @@ type TesterMockFatalfMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *TesterMockFatalfMethod) Eventually() *TesterMockFatalfMethod {
+	return &TesterMockFatalfMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *TesterMockFatalfMethod) ExpectCalledWithExactly(format string, args ...any) *TesterMockFatalfCall {
 	callArgs := []any{format}

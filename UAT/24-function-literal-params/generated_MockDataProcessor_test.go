@@ -50,6 +50,13 @@ type DataProcessorMockFilterMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockFilterMethod) Eventually() *DataProcessorMockFilterMethod {
+	return &DataProcessorMockFilterMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataProcessorMockFilterMethod) ExpectCalledWithExactly(items []int, predicate func(int) bool) *DataProcessorMockFilterCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(items, predicate)
@@ -94,6 +101,13 @@ type DataProcessorMockReduceMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockReduceMethod) Eventually() *DataProcessorMockReduceMethod {
+	return &DataProcessorMockReduceMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataProcessorMockReduceMethod) ExpectCalledWithExactly(items []int, initial int, reducer func(int, int) int) *DataProcessorMockReduceCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(items, initial, reducer)
@@ -134,6 +148,13 @@ func (c *DataProcessorMockTransformCall) InjectReturnValues(result0 []int, resul
 // DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockTransformMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockTransformMethod) Eventually() *DataProcessorMockTransformMethod {
+	return &DataProcessorMockTransformMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

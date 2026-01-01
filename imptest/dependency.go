@@ -1,5 +1,7 @@
 package imptest
 
+import "fmt"
+
 // DependencyArgs provides access to the actual arguments that were passed to the dependency.
 // Code generation will create properly typed versions of this.
 type DependencyArgs struct {
@@ -106,27 +108,30 @@ func (dm *DependencyMethod) Eventually() *DependencyMethod {
 }
 
 // ExpectCalledWithExactly waits for a call to this method with exactly the specified arguments.
-// Uses reflection-based DeepEqual for argument matching.
+// Uses reflection-based DeepEqual for argument matching. Returns detailed error messages
+// when arguments don't match.
 func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall {
-	validator := func(actualArgs []any) bool {
+	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(args) {
-			return false
+			//nolint:err113 // validation error with dynamic context
+			return fmt.Errorf("expected %d args, got %d", len(args), len(actualArgs))
 		}
 
 		for i, expected := range args {
 			if !valuesEqual(actualArgs[i], expected) {
-				return false
+				//nolint:err113 // validation error with dynamic context
+				return fmt.Errorf("arg %d: expected %#v, got %#v", i, expected, actualArgs[i])
 			}
 		}
 
-		return true
+		return nil
 	}
 
 	var call *GenericCall
 	if dm.eventually {
-		call = dm.imp.GetCallEventually(0, dm.methodName, validator)
+		call = dm.imp.GetCallEventually(dm.methodName, validator)
 	} else {
-		call = dm.imp.GetCallOrdered(0, dm.methodName, validator, nil)
+		call = dm.imp.GetCallOrdered(0, dm.methodName, validator)
 	}
 
 	return newDependencyCall(dm.imp, call)
@@ -134,27 +139,34 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 
 // ExpectCalledWithMatches waits for a call to this method with arguments matching the given matchers.
 // Each matcher should implement the Matcher interface (compatible with gomega matchers).
+// Returns detailed error messages when matchers don't match.
 func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
-	validator := func(actualArgs []any) bool {
+	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(matchers) {
-			return false
+			//nolint:err113 // validation error with dynamic context
+			return fmt.Errorf("expected %d args, got %d", len(matchers), len(actualArgs))
 		}
 
 		for index, m := range matchers {
-			ok, _ := MatchValue(actualArgs[index], m)
+			ok, failureMsg := MatchValue(actualArgs[index], m)
 			if !ok {
-				return false
+				if failureMsg != "" {
+					//nolint:err113 // validation error with dynamic context
+					return fmt.Errorf("arg %d: %s", index, failureMsg)
+				}
+				//nolint:err113 // validation error with dynamic context
+				return fmt.Errorf("arg %d: matcher failed for value %#v", index, actualArgs[index])
 			}
 		}
 
-		return true
+		return nil
 	}
 
 	var call *GenericCall
 	if dm.eventually {
-		call = dm.imp.GetCallEventually(0, dm.methodName, validator)
+		call = dm.imp.GetCallEventually(dm.methodName, validator)
 	} else {
-		call = dm.imp.GetCallOrdered(0, dm.methodName, validator, nil)
+		call = dm.imp.GetCallOrdered(0, dm.methodName, validator)
 	}
 
 	return newDependencyCall(dm.imp, call)

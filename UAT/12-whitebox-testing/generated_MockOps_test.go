@@ -46,6 +46,13 @@ type OpsMockPublicMethodMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *OpsMockPublicMethodMethod) Eventually() *OpsMockPublicMethodMethod {
+	return &OpsMockPublicMethodMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *OpsMockPublicMethodMethod) ExpectCalledWithExactly(x int) *OpsMockPublicMethodCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(x)
@@ -84,6 +91,13 @@ func (c *OpsMockinternalMethodCall) InjectReturnValues(result0 int) {
 // OpsMockinternalMethodMethod wraps DependencyMethod with typed returns.
 type OpsMockinternalMethodMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *OpsMockinternalMethodMethod) Eventually() *OpsMockinternalMethodMethod {
+	return &OpsMockinternalMethodMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

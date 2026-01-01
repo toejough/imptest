@@ -16,25 +16,25 @@ func TestEventuallyTypePreservation(t *testing.T) {
 	// If Eventually() didn't return the right type, these would fail to compile.
 
 	// Verify Eventually() returns *OpsMockAddMethod
-	var addMethod *OpsMockAddMethod = mock.Add.Eventually()
+	addMethod := mock.Add.Eventually()
 	if addMethod == nil {
 		t.Fatal("Eventually() should return non-nil typed wrapper")
 	}
 
 	// Verify Eventually() returns *OpsMockStoreMethod
-	var storeMethod *OpsMockStoreMethod = mock.Store.Eventually()
+	storeMethod := mock.Store.Eventually()
 	if storeMethod == nil {
 		t.Fatal("Eventually() should return non-nil typed wrapper")
 	}
 
 	// Verify Eventually() returns *OpsMockLogMethod
-	var logMethod *OpsMockLogMethod = mock.Log.Eventually()
+	logMethod := mock.Log.Eventually()
 	if logMethod == nil {
 		t.Fatal("Eventually() should return non-nil typed wrapper")
 	}
 
 	// Verify Eventually() returns *OpsMockNotifyMethod
-	var notifyMethod *OpsMockNotifyMethod = mock.Notify.Eventually()
+	notifyMethod := mock.Notify.Eventually()
 	if notifyMethod == nil {
 		t.Fatal("Eventually() should return non-nil typed wrapper")
 	}

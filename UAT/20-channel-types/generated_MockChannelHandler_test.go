@@ -49,6 +49,13 @@ type ChannelHandlerMockBidirectionalMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ChannelHandlerMockBidirectionalMethod) Eventually() *ChannelHandlerMockBidirectionalMethod {
+	return &ChannelHandlerMockBidirectionalMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *ChannelHandlerMockBidirectionalMethod) ExpectCalledWithExactly(ch chan bool) *ChannelHandlerMockBidirectionalCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(ch)
@@ -87,6 +94,13 @@ func (c *ChannelHandlerMockReceiveOnlyCall) InjectReturnValues(result0 string, r
 // ChannelHandlerMockReceiveOnlyMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockReceiveOnlyMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ChannelHandlerMockReceiveOnlyMethod) Eventually() *ChannelHandlerMockReceiveOnlyMethod {
+	return &ChannelHandlerMockReceiveOnlyMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -137,6 +151,13 @@ func (c *ChannelHandlerMockSendOnlyCall) InjectReturnValues(result0 error) {
 // ChannelHandlerMockSendOnlyMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockSendOnlyMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ChannelHandlerMockSendOnlyMethod) Eventually() *ChannelHandlerMockSendOnlyMethod {
+	return &ChannelHandlerMockSendOnlyMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

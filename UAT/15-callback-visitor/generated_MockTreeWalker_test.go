@@ -50,6 +50,13 @@ type TreeWalkerMockWalkMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *TreeWalkerMockWalkMethod) Eventually() *TreeWalkerMockWalkMethod {
+	return &TreeWalkerMockWalkMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *TreeWalkerMockWalkMethod) ExpectCalledWithExactly(root string, fn func(string, fs.DirEntry, error) error) *TreeWalkerMockWalkCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(root, fn)
@@ -90,6 +97,13 @@ func (c *TreeWalkerMockWalkWithNamedTypeCall) InjectReturnValues(result0 error) 
 // TreeWalkerMockWalkWithNamedTypeMethod wraps DependencyMethod with typed returns.
 type TreeWalkerMockWalkWithNamedTypeMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *TreeWalkerMockWalkWithNamedTypeMethod) Eventually() *TreeWalkerMockWalkWithNamedTypeMethod {
+	return &TreeWalkerMockWalkWithNamedTypeMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

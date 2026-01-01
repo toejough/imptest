@@ -47,6 +47,13 @@ type StorageMockLoadMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *StorageMockLoadMethod) Eventually() *StorageMockLoadMethod {
+	return &StorageMockLoadMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *StorageMockLoadMethod) ExpectCalledWithExactly(key string) *StorageMockLoadCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(key)
@@ -87,6 +94,13 @@ func (c *StorageMockSaveCall) InjectReturnValues(result0 error) {
 // StorageMockSaveMethod wraps DependencyMethod with typed returns.
 type StorageMockSaveMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *StorageMockSaveMethod) Eventually() *StorageMockSaveMethod {
+	return &StorageMockSaveMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

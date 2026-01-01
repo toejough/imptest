@@ -1,6 +1,7 @@
 package imptest
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -50,36 +51,75 @@ func TestImpFatalf(t *testing.T) {
 	}
 }
 
-// TestTesterAdapterFatalf tests that testerAdapter.Fatalf delegates correctly.
-func TestTesterAdapterFatalf(t *testing.T) {
+// TestImpGetCallEventually_QueuesOtherMethods tests that Imp.GetCallEventually
+// queues calls with different method names while waiting for the matching method.
+func TestImpGetCallEventually_QueuesOtherMethods(t *testing.T) {
 	t.Parallel()
 
-	called := false
 	mockReporter := &mockTestReporter{
 		fatal: func(_ string, _ ...any) {
-			called = true
+			t.Fatal("unexpected call to Fatalf")
 		},
 	}
 
-	adapter := &testerAdapter{t: mockReporter}
-	adapter.Fatalf("test")
+	imp := NewImp(mockReporter)
 
-	if !called {
-		t.Error("expected Fatalf to be called on underlying reporter")
+	// Validator that accepts any arguments
+	validator := func(_ []any) error {
+		return nil // Accept any args
+	}
+
+	// Start waiter for "Add" method
+	resultChan := make(chan *GenericCall, 1)
+
+	go func() {
+		call := imp.GetCallEventually("Add", validator)
+		resultChan <- call
+	}()
+
+	// Give waiter time to register
+	time.Sleep(50 * time.Millisecond)
+
+	// Send "Multiply" call first (should be queued)
+	multiplyCall := &GenericCall{
+		MethodName:   "Multiply",
+		Args:         []any{5, 6},
+		ResponseChan: make(chan GenericResponse, 1),
+	}
+	imp.CallChan <- multiplyCall
+
+	// Send "Add" call second (should match the waiter)
+	addCall := &GenericCall{
+		MethodName:   "Add",
+		Args:         []any{2, 3},
+		ResponseChan: make(chan GenericResponse, 1),
+	}
+	imp.CallChan <- addCall
+
+	// Verify we received the "Add" call
+	select {
+	case received := <-resultChan:
+		if received != addCall {
+			t.Errorf("expected to receive addCall, got different call")
+		}
+	case <-time.After(1 * time.Second):
+		t.Error("timeout waiting for GetCallEventually to return")
+	}
+
+	// Verify "Multiply" call is still queued
+	// We use GetCall (which checks queue first) with a validator for "Multiply"
+	queuedCall := imp.GetCall(500*time.Millisecond, func(call *GenericCall) error {
+		if call.MethodName != "Multiply" {
+			return fmt.Errorf("expected method 'Multiply', got %q", call.MethodName)
+		}
+
+		return nil
+	})
+
+	if queuedCall != multiplyCall {
+		t.Errorf("expected multiplyCall to be queued, got different call")
 	}
 }
-
-type mockTestReporter struct {
-	fatal func(string, ...any)
-}
-
-func (m *mockTestReporter) Fatalf(format string, args ...any) {
-	if m.fatal != nil {
-		m.fatal(format, args...)
-	}
-}
-
-func (m *mockTestReporter) Helper() {}
 
 // TestImpGetCallOrdered_MatchingCall tests that Imp.GetCallOrdered returns
 // a call when it arrives with the expected method name.
@@ -96,17 +136,23 @@ func TestImpGetCallOrdered_MatchingCall(t *testing.T) {
 	mismatchChan := make(chan *GenericCall, 1)
 
 	// Validator that accepts calls with Args matching [2, 3]
-	validator := func(args []any) bool {
+	validator := func(args []any) error {
 		if len(args) != 2 {
-			return false
+			return fmt.Errorf("expected 2 args, got %d", len(args))
 		}
-		return args[0] == 2 && args[1] == 3
+
+		if args[0] != 2 || args[1] != 3 {
+			return fmt.Errorf("expected args [2, 3], got %v", args)
+		}
+
+		return nil
 	}
 
 	// Start waiter in background
 	resultChan := make(chan *GenericCall, 1)
+
 	go func() {
-		call := imp.GetCallOrdered(1*time.Second, "Add", validator, mismatchChan)
+		call := imp.GetCallOrdered(1*time.Second, "Add", validator)
 		resultChan <- call
 	}()
 
@@ -145,29 +191,23 @@ func TestImpGetCallOrdered_MatchingCall(t *testing.T) {
 func TestImpGetCallOrdered_WrongMethod(t *testing.T) {
 	t.Parallel()
 
+	// Channel for synchronized Fatalf communication
+	fatalfChan := make(chan string, 1)
+
 	mockReporter := &mockTestReporter{
-		fatal: func(_ string, _ ...any) {
-			t.Fatal("unexpected call to Fatalf")
+		fatal: func(format string, args ...any) {
+			fatalfChan <- fmt.Sprintf(format, args...)
 		},
 	}
 
 	imp := NewImp(mockReporter)
-	mismatchChan := make(chan *GenericCall, 1)
 
-	// Validator that accepts any arguments
-	validator := func(_ []any) bool {
-		return true
+	// Validator that accepts "Add" calls with any args
+	validator := func(_ []any) error {
+		return nil // Accept any args
 	}
 
-	// Start waiter for "Add" method
-	go func() {
-		imp.GetCallOrdered(2*time.Second, "Add", validator, mismatchChan)
-	}()
-
-	// Give waiter time to register
-	time.Sleep(50 * time.Millisecond)
-
-	// Send call with wrong method name
+	// Send call with wrong method name BEFORE registering waiter
 	wrongMethodCall := &GenericCall{
 		MethodName:   "Multiply",
 		Args:         []any{5, 6},
@@ -175,78 +215,67 @@ func TestImpGetCallOrdered_WrongMethod(t *testing.T) {
 	}
 	imp.CallChan <- wrongMethodCall
 
-	// Verify mismatch signal received
+	// Give dispatcher time to queue the call
+	time.Sleep(10 * time.Millisecond)
+
+	// Now call GetCallOrdered - it should fail-fast on queued mismatch with good error message
+	imp.GetCallOrdered(1*time.Second, "Add", validator)
+
+	// Wait for Fatalf with proper synchronization
 	select {
-	case mismatched := <-mismatchChan:
-		if mismatched != wrongMethodCall {
-			t.Errorf("expected wrongMethodCall on mismatch channel, got different call")
+	case fatalfMsg := <-fatalfChan:
+		// Verify error message mentions both expected and actual methods
+		if !contains(fatalfMsg, "Add") || !contains(fatalfMsg, "Multiply") {
+			t.Errorf("expected error message to mention both 'Add' and 'Multiply', got: %s", fatalfMsg)
 		}
-	case <-time.After(1 * time.Second):
-		t.Error("timeout waiting for mismatch signal")
+	case <-time.After(500 * time.Millisecond):
+		t.Error("timeout waiting for Fatalf to be called for queued mismatch")
 	}
 }
 
-// TestImpGetCallEventually_QueuesOtherMethods tests that Imp.GetCallEventually
-// queues calls with different method names while waiting for the matching method.
-func TestImpGetCallEventually_QueuesOtherMethods(t *testing.T) {
+// TestTesterAdapterFatalf tests that testerAdapter.Fatalf delegates correctly.
+func TestTesterAdapterFatalf(t *testing.T) {
 	t.Parallel()
 
+	called := false
 	mockReporter := &mockTestReporter{
 		fatal: func(_ string, _ ...any) {
-			t.Fatal("unexpected call to Fatalf")
+			called = true
 		},
 	}
 
-	imp := NewImp(mockReporter)
+	adapter := &testerAdapter{t: mockReporter}
+	adapter.Fatalf("test")
 
-	// Validator that accepts any arguments
-	validator := func(_ []any) bool {
-		return true
+	if !called {
+		t.Error("expected Fatalf to be called on underlying reporter")
 	}
+}
 
-	// Start waiter for "Add" method
-	resultChan := make(chan *GenericCall, 1)
-	go func() {
-		call := imp.GetCallEventually(2*time.Second, "Add", validator)
-		resultChan <- call
-	}()
+type mockTestReporter struct {
+	fatal func(string, ...any)
+}
 
-	// Give waiter time to register
-	time.Sleep(50 * time.Millisecond)
-
-	// Send "Multiply" call first (should be queued)
-	multiplyCall := &GenericCall{
-		MethodName:   "Multiply",
-		Args:         []any{5, 6},
-		ResponseChan: make(chan GenericResponse, 1),
+func (m *mockTestReporter) Fatalf(format string, args ...any) {
+	if m.fatal != nil {
+		m.fatal(format, args...)
 	}
-	imp.CallChan <- multiplyCall
+}
 
-	// Send "Add" call second (should match the waiter)
-	addCall := &GenericCall{
-		MethodName:   "Add",
-		Args:         []any{2, 3},
-		ResponseChan: make(chan GenericResponse, 1),
-	}
-	imp.CallChan <- addCall
+func (m *mockTestReporter) Helper() {}
 
-	// Verify we received the "Add" call
-	select {
-	case received := <-resultChan:
-		if received != addCall {
-			t.Errorf("expected to receive addCall, got different call")
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
+		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+			findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
 		}
-	case <-time.After(1 * time.Second):
-		t.Error("timeout waiting for GetCallEventually to return")
 	}
 
-	// Verify "Multiply" call is still queued
-	// We use GetCall (which checks queue first) with a validator for "Multiply"
-	queuedCall := imp.GetCall(500*time.Millisecond, func(call *GenericCall) bool {
-		return call.MethodName == "Multiply"
-	})
-
-	if queuedCall != multiplyCall {
-		t.Errorf("expected multiplyCall to be queued, got different call")
-	}
+	return false
 }

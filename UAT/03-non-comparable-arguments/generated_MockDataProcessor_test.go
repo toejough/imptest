@@ -47,6 +47,13 @@ type DataProcessorMockProcessMapMethod struct {
 	*_imptest.DependencyMethod
 }
 
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockProcessMapMethod) Eventually() *DataProcessorMockProcessMapMethod {
+	return &DataProcessorMockProcessMapMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
 func (m *DataProcessorMockProcessMapMethod) ExpectCalledWithExactly(config map[string]int) *DataProcessorMockProcessMapCall {
 	call := m.DependencyMethod.ExpectCalledWithExactly(config)
@@ -85,6 +92,13 @@ func (c *DataProcessorMockProcessSliceCall) InjectReturnValues(result0 int) {
 // DataProcessorMockProcessSliceMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessSliceMethod struct {
 	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *DataProcessorMockProcessSliceMethod) Eventually() *DataProcessorMockProcessSliceMethod {
+	return &DataProcessorMockProcessSliceMethod{DependencyMethod: m.DependencyMethod.Eventually()}
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.

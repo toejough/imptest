@@ -152,7 +152,7 @@ Along with the explicit flag syntax, V2 includes:
 Dependency mocks now have type-safe argument access:
 
 ```go
-call := calc.Add.Eventually(time.Second).ExpectCalledWithExactly(10, 20)
+call := calc.Add.Eventually().ExpectCalledWithExactly(10, 20)
 args := call.GetArgs()
 a := args.A  // Type-safe int ✅ (no type assertion needed)
 b := args.B  // Type-safe int ✅
