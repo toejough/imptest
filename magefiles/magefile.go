@@ -1,5 +1,4 @@
 //go:build mage
-// +build mage
 
 package main
 
@@ -639,6 +638,706 @@ func InstallTools(c context.Context) error {
 	return run(c, "./dev/dev-install.sh")
 }
 
+// IssuesAdd - create new issue interactively (prompts for title and status)
+func IssuesAdd() error {
+	return addIssue("", "")
+}
+
+// IssuesAddWith <title> <status> - create new issue non-interactively (e.g., mage issuesaddwith "Fix bug" backlog)
+func IssuesAddWith(title, status string) error {
+	if title == "" {
+		return fmt.Errorf("title cannot be empty")
+	}
+	return addIssue(title, status)
+}
+
+// IssuesFix - auto-repair common validation failures (adds missing sections, infers status from location)
+func IssuesFix() error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+	modified := false
+	manualFixes := []string{}
+
+	// Find all issues
+	issuePattern := regexp.MustCompile(`### (\d+)\. (.+)`)
+	matches := issuePattern.FindAllStringSubmatchIndex(content, -1)
+
+	// Process issues in reverse order to maintain indices
+	for i := len(matches) - 1; i >= 0; i-- {
+		match := matches[i]
+		issueNum := content[match[2]:match[3]]
+		issueTitle := content[match[4]:match[5]]
+
+		// Find issue content
+		issueStart := match[0]
+		var issueEnd int
+		if i+1 < len(matches) {
+			issueEnd = matches[i+1][0]
+		} else {
+			issueEnd = len(content)
+		}
+		issueContent := content[issueStart:issueEnd]
+
+		needsFix := false
+		fixedContent := issueContent
+
+		// Check for missing #### Universal section
+		if !strings.Contains(issueContent, "#### Universal") {
+			needsFix = true
+			// Insert #### Universal after title
+			titleEnd := strings.Index(issueContent, "\n")
+			if titleEnd != -1 {
+				fixedContent = issueContent[:titleEnd+1] + "\n#### Universal\n" + issueContent[titleEnd+1:]
+				fmt.Printf("✓ Issue #%s: Added missing '#### Universal' section\n", issueNum)
+			}
+		}
+
+		// Check for missing **Status** field
+		if !strings.Contains(fixedContent, "**Status**") {
+			needsFix = true
+			// Insert **Status** after #### Universal
+			universalIdx := strings.Index(fixedContent, "#### Universal")
+			if universalIdx != -1 {
+				insertPoint := universalIdx + len("#### Universal\n")
+				// Find next line after Universal
+				nextLineIdx := strings.Index(fixedContent[insertPoint:], "\n")
+				if nextLineIdx == -1 {
+					nextLineIdx = len(fixedContent) - insertPoint
+				}
+				insertPoint += nextLineIdx + 1
+
+				// Determine status from section location
+				status := "backlog" // default
+				for sectionName, sectionStatus := range map[string]string{
+					"## Backlog":     "backlog",
+					"## Selected":    "selected",
+					"## In Progress": "in progress",
+					"## Review":      "review",
+					"## Done":        "done",
+					"## Migrated":    "migrated",
+					"## Cancelled":   "cancelled",
+					"## Blocked":     "blocked",
+				} {
+					sectionStart := strings.LastIndex(content[:issueStart], sectionName)
+					if sectionStart != -1 {
+						// Check if this section is before our issue
+						nextSectionAfter := strings.Index(content[sectionStart+len(sectionName):issueStart], "\n## ")
+						if nextSectionAfter == -1 {
+							// This is the section containing our issue
+							status = sectionStatus
+							break
+						}
+					}
+				}
+
+				fixedContent = fixedContent[:insertPoint] +
+					"\n**Status**\n" + status + "\n" +
+					fixedContent[insertPoint:]
+				fmt.Printf("✓ Issue #%s: Added missing '**Status**' field with value '%s'\n", issueNum, status)
+			}
+		}
+
+		// Check for empty status value
+		statusPattern := regexp.MustCompile(`\*\*Status\*\*\n([^\n]+)`)
+		statusMatch := statusPattern.FindStringSubmatch(fixedContent)
+		if len(statusMatch) >= 2 && strings.TrimSpace(statusMatch[1]) == "" {
+			manualFixes = append(manualFixes, fmt.Sprintf("Issue #%s (%s): Status value is empty - needs manual value", issueNum, issueTitle))
+		}
+
+		// Apply fixes if needed
+		if needsFix {
+			content = content[:issueStart] + fixedContent + content[issueEnd:]
+			modified = true
+		}
+	}
+
+	// Write back if modified
+	if modified {
+		err = os.WriteFile(issuesFile, []byte(content), 0o600)
+		if err != nil {
+			return fmt.Errorf("failed to write %s: %w", issuesFile, err)
+		}
+		fmt.Println("\n✓ File updated successfully")
+	} else {
+		fmt.Println("✓ No automatic fixes needed")
+	}
+
+	// Report manual fixes needed
+	if len(manualFixes) > 0 {
+		fmt.Printf("\n⚠ Manual fixes required (%d):\n", len(manualFixes))
+		for _, fix := range manualFixes {
+			fmt.Printf("  - %s\n", fix)
+		}
+		return fmt.Errorf("some issues require manual intervention")
+	}
+
+	// Move issues to correct sections based on status
+	fmt.Println("\nChecking issue locations...")
+	moveCount, err := moveIssuesToCorrectSections(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to move issues: %w", err)
+	}
+	if moveCount > 0 {
+		fmt.Printf("\n✓ Moved %d issue(s) to correct sections\n", moveCount)
+	} else {
+		fmt.Println("✓ All issues are in correct sections")
+	}
+
+	// Run validation to confirm
+	fmt.Println("\nRunning validation...")
+	return IssuesValidate()
+}
+
+// Issue management commands
+
+// IssuesList - list all issues grouped by status
+func IssuesList() error {
+	return listIssuesByStatus("")
+}
+
+// IssuesListStatus <status> - list issues with the given status (e.g., backlog, done)
+func IssuesListStatus(status string) error {
+	return listIssuesByStatus(status)
+}
+
+// IssuesSearch <keyword> - search for issues containing keyword (e.g., mage issuessearch "struct literal")
+func IssuesSearch(keyword string) error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+	lowerKeyword := strings.ToLower(keyword)
+
+	// Find all issues
+	issuePattern := regexp.MustCompile(`### (\d+)\. (.+)`)
+	matches := issuePattern.FindAllStringSubmatchIndex(content, -1)
+
+	fmt.Printf("Issues matching '%s':\n\n", keyword)
+	matchCount := 0
+
+	for i, match := range matches {
+		issueNum := content[match[2]:match[3]]
+		issueTitle := content[match[4]:match[5]]
+
+		// Find issue content
+		issueStart := match[0]
+		var issueEnd int
+		if i+1 < len(matches) {
+			issueEnd = matches[i+1][0]
+		} else {
+			issueEnd = len(content)
+		}
+		issueContent := content[issueStart:issueEnd]
+
+		// Check if keyword matches
+		if strings.Contains(strings.ToLower(issueContent), lowerKeyword) {
+			matchCount++
+
+			// Extract status
+			statusPattern := regexp.MustCompile(`\*\*Status\*\*\n([^\n]+)`)
+			statusMatch := statusPattern.FindStringSubmatch(issueContent)
+			status := "unknown"
+			if len(statusMatch) > 1 {
+				status = strings.TrimSpace(statusMatch[1])
+			}
+
+			fmt.Printf("%s. %s [%s]\n", issueNum, issueTitle, status)
+		}
+	}
+
+	if matchCount == 0 {
+		fmt.Println("No matches found.")
+	} else {
+		fmt.Printf("\nFound %d issue(s)\n", matchCount)
+	}
+
+	return nil
+}
+
+// IssuesShow <number> - display full details of a specific issue (e.g., mage issuesshow 5)
+func IssuesShow(issueNum int) error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+
+	// Find issue by number
+	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
+	issueStart := strings.Index(content, issuePrefix)
+	if issueStart == -1 {
+		return fmt.Errorf("issue #%d not found", issueNum)
+	}
+
+	// Find end of issue (next ### or next ##)
+	remaining := content[issueStart:]
+	lines := strings.Split(remaining, "\n")
+	var issueLines []string
+	for i, line := range lines {
+		if i > 0 && (strings.HasPrefix(line, "### ") || strings.HasPrefix(line, "## ")) {
+			break
+		}
+		issueLines = append(issueLines, line)
+	}
+
+	fmt.Println(strings.Join(issueLines, "\n"))
+	return nil
+}
+
+// IssuesStatus <number> <new-status> - update issue status and move to correct section (e.g., mage issuesstatus 5 done)
+func IssuesStatus(issueNum int, newStatus string) error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+
+	// Find issue
+	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
+	issueStart := strings.Index(content, issuePrefix)
+	if issueStart == -1 {
+		return fmt.Errorf("issue #%d not found", issueNum)
+	}
+
+	// Find status line
+	statusPrefix := "**Status**\n"
+	statusStart := strings.Index(content[issueStart:], statusPrefix)
+	if statusStart == -1 {
+		return fmt.Errorf("status field not found in issue #%d", issueNum)
+	}
+	statusStart += issueStart + len(statusPrefix)
+
+	// Find end of status value (next blank line or next field)
+	statusEnd := statusStart
+	for statusEnd < len(content) && content[statusEnd] != '\n' {
+		statusEnd++
+	}
+
+	// Replace status
+	oldStatus := strings.TrimSpace(content[statusStart:statusEnd])
+	newContent := content[:statusStart] + newStatus + content[statusEnd:]
+
+	// Move issue to new section if needed
+	validStatuses := map[string]string{
+		"backlog":     "## Backlog",
+		"selected":    "## Selected",
+		"in progress": "## In Progress",
+		"review":      "## Review",
+		"done":        "## Done",
+		"migrated":    "## Migrated",
+		"cancelled":   "## Cancelled",
+		"blocked":     "## Blocked",
+	}
+
+	newSectionHeader, ok := validStatuses[newStatus]
+	if !ok {
+		return fmt.Errorf("invalid status: %s", newStatus)
+	}
+
+	oldSectionHeader, ok := validStatuses[oldStatus]
+	if !ok {
+		// If old status was invalid, proceed with move anyway
+		oldSectionHeader = ""
+	}
+
+	// Only move if status changed to different section
+	if oldSectionHeader != newSectionHeader {
+		fmt.Printf("Moving issue #%d from '%s' to '%s' section\n", issueNum, oldStatus, newStatus)
+
+		// Extract full issue
+		// Try to find the end of the issue by looking for boundaries in order:
+		// 1. Horizontal rule (---)
+		// 2. Next issue (\n### )
+		// 3. Next section (\n## )
+		// 4. End of file
+		issueEnd := strings.Index(newContent[issueStart:], "\n---\n")
+		includeSeparator := false
+		if issueEnd == -1 {
+			issueEnd = strings.Index(newContent[issueStart:], "\n### ")
+		}
+		if issueEnd == -1 {
+			issueEnd = strings.Index(newContent[issueStart:], "\n## ")
+			if issueEnd != -1 {
+				// Found section boundary - include the newline in the extraction
+				// to avoid leaving "\n## " orphaned
+				includeSeparator = true
+			}
+		}
+		if issueEnd == -1 {
+			issueEnd = len(newContent) - issueStart
+		}
+
+		// Extract issue content
+		fullIssue := newContent[issueStart : issueStart+issueEnd]
+
+		// Calculate removal range (include separator if needed)
+		removalEnd := issueEnd
+		if includeSeparator {
+			removalEnd++ // Include the "\n" before the next section
+		}
+
+		// Remove from old location
+		newContent = newContent[:issueStart] + newContent[issueStart+removalEnd:]
+
+		// Find new section
+		newSectionStart := strings.Index(newContent, newSectionHeader)
+		if newSectionStart == -1 {
+			return fmt.Errorf("section not found: %s", newSectionHeader)
+		}
+
+		// Find insertion point in new section
+		insertPoint := newSectionStart
+		sectionContent := newContent[newSectionStart:]
+		nextSectionIdx := strings.Index(sectionContent[len(newSectionHeader):], "\n## ")
+		if nextSectionIdx != -1 {
+			sectionContent = sectionContent[:len(newSectionHeader)+nextSectionIdx]
+		}
+
+		// Find first issue in section or end of section
+		firstIssueIdx := strings.Index(sectionContent, "\n### ")
+		if firstIssueIdx != -1 {
+			insertPoint = newSectionStart + firstIssueIdx + 1
+		} else {
+			// No issues in section, insert after section description
+			// Find the end of the section by looking for a blank line after the header
+			// Section format: "## Header\n\nDescription text\n"
+			lines := strings.Split(sectionContent, "\n")
+			linePos := 0
+			foundContent := false
+			for i := 0; i < len(lines); i++ {
+				if i == 0 {
+					// Skip header line
+					linePos += len(lines[i]) + 1
+					continue
+				}
+				if i == 1 && strings.TrimSpace(lines[i]) == "" {
+					// Skip blank line after header
+					linePos += len(lines[i]) + 1
+					continue
+				}
+				if strings.TrimSpace(lines[i]) != "" {
+					// Found description content
+					foundContent = true
+					linePos += len(lines[i]) + 1
+				} else if foundContent {
+					// Found blank line after description
+					insertPoint = newSectionStart + linePos
+					break
+				} else {
+					// Blank line before content
+					linePos += len(lines[i]) + 1
+				}
+			}
+			// If no blank line found, insert at end of section
+			if insertPoint == newSectionStart {
+				insertPoint = newSectionStart + len(sectionContent)
+			}
+		}
+
+		// Insert issue in new section
+		newContent = newContent[:insertPoint] + fullIssue + "\n" + newContent[insertPoint:]
+	}
+
+	// Write back
+	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
+	}
+
+	fmt.Printf("Updated issue #%d status: %s → %s\n", issueNum, oldStatus, newStatus)
+	return nil
+}
+
+// IssuesTimeline <number> <entry> - add timeline entry with auto-timestamp (e.g., mage issuestimeline 5 "Started work")
+func IssuesTimeline(issueNum int, entry string) error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+
+	// Find issue
+	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
+	issueStart := strings.Index(content, issuePrefix)
+	if issueStart == -1 {
+		return fmt.Errorf("issue #%d not found", issueNum)
+	}
+
+	// Find end of issue
+	issueEnd := len(content)
+	nextIssueIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n### ")
+	if nextIssueIdx != -1 {
+		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
+	} else {
+		nextSectionIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n## ")
+		if nextSectionIdx != -1 {
+			issueEnd = issueStart + len(issuePrefix) + nextSectionIdx
+		}
+	}
+
+	issueContent := content[issueStart:issueEnd]
+
+	// Generate timestamp in EST
+	now := time.Now()
+	est, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		est = time.FixedZone("EST", -5*60*60) // Fallback to fixed offset
+	}
+	timestamp := now.In(est).Format("2006-01-02 15:04 MST")
+
+	// Create timeline entry
+	timelineEntry := fmt.Sprintf("- %s - %s\n", timestamp, entry)
+
+	// Check if issue has Timeline field
+	var newContent string
+	if strings.Contains(issueContent, "**Timeline**\n") {
+		// Add to existing timeline
+		timelineIdx := strings.Index(issueContent, "**Timeline**\n")
+		insertPoint := issueStart + timelineIdx + len("**Timeline**\n")
+
+		// Find first timeline entry to insert before it (prepend to timeline)
+		remainingContent := content[insertPoint:]
+		firstEntryIdx := strings.Index(remainingContent, "- ")
+		if firstEntryIdx != -1 && firstEntryIdx < 200 { // Within reasonable distance
+			insertPoint += firstEntryIdx
+		} else {
+			// No entries yet, insert right after Timeline header
+		}
+
+		newContent = content[:insertPoint] + timelineEntry + content[insertPoint:]
+	} else {
+		// Need to add Work Tracking section with Timeline
+		workTrackingSection := `
+#### Work Tracking
+
+**Timeline**
+` + timelineEntry
+
+		// Find where to insert Work Tracking section
+		// Look for Planning section end or Universal section end
+		insertPoint := issueEnd - 1 // Default to end of issue
+
+		// Try to find #### Planning section
+		planningIdx := strings.Index(issueContent, "#### Planning")
+		if planningIdx != -1 {
+			// Insert after Planning section
+			nextSectionIdx := strings.Index(issueContent[planningIdx+len("#### Planning"):], "\n#### ")
+			if nextSectionIdx != -1 {
+				insertPoint = issueStart + planningIdx + len("#### Planning") + nextSectionIdx
+			}
+		} else {
+			// Try to find #### Universal section
+			universalIdx := strings.Index(issueContent, "#### Universal")
+			if universalIdx != -1 {
+				nextSectionIdx := strings.Index(issueContent[universalIdx+len("#### Universal"):], "\n#### ")
+				if nextSectionIdx != -1 {
+					insertPoint = issueStart + universalIdx + len("#### Universal") + nextSectionIdx
+				} else {
+					// No next section, insert at end
+					insertPoint = issueEnd - 1
+				}
+			}
+		}
+
+		newContent = content[:insertPoint] + workTrackingSection + "\n" + content[insertPoint:]
+	}
+
+	// Write back
+	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
+	}
+
+	fmt.Printf("✓ Added timeline entry to issue #%d: %s - %s\n", issueNum, timestamp, entry)
+	return nil
+}
+
+// IssuesUpdate <number> <field> <value> - update issue field (e.g., mage issuesupdate 5 priority "High")
+func IssuesUpdate(issueNum int, field, value string) error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+
+	// Find issue
+	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
+	issueStart := strings.Index(content, issuePrefix)
+	if issueStart == -1 {
+		return fmt.Errorf("issue #%d not found", issueNum)
+	}
+
+	// Find end of issue
+	issueEnd := len(content)
+	nextIssueIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n### ")
+	if nextIssueIdx != -1 {
+		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
+	} else {
+		nextSectionIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n## ")
+		if nextSectionIdx != -1 {
+			issueEnd = issueStart + len(issuePrefix) + nextSectionIdx
+		}
+	}
+
+	issueContent := content[issueStart:issueEnd]
+
+	// Map field names to their markdown format
+	fieldMap := map[string]struct {
+		markdown string
+		section  string
+	}{
+		"description": {"**Description**", "#### Universal"},
+		"priority":    {"**Priority**", "#### Planning"},
+		"effort":      {"**Effort**", "#### Planning"},
+		"rationale":   {"**Rationale**", "#### Planning"},
+		"acceptance":  {"**Acceptance**", "#### Planning"},
+		"solution":    {"**Solution**", "#### Documentation"},
+		"note":        {"**Note**", "#### Special Fields"},
+		"discovered":  {"**Discovered**", "#### Bug Details"},
+		"rootcause":   {"**Root Cause**", "#### Bug Details"},
+	}
+
+	fieldInfo, ok := fieldMap[strings.ToLower(field)]
+	if !ok {
+		return fmt.Errorf("unsupported field: %s (supported: %v)", field, getKeys(fieldMap))
+	}
+
+	var newContent string
+
+	// Check if field exists
+	fieldPattern := regexp.MustCompile(regexp.QuoteMeta(fieldInfo.markdown) + `\n([^\n]*(?:\n(?!\*\*)[^\n]*)*)`)
+	if fieldPattern.MatchString(issueContent) {
+		// Update existing field
+		match := fieldPattern.FindStringSubmatchIndex(issueContent)
+		if len(match) >= 4 {
+			fieldStart := issueStart + match[2]
+			fieldEnd := issueStart + match[3]
+			newContent = content[:fieldStart] + value + content[fieldEnd:]
+		}
+	} else {
+		// Add new field - find or create appropriate section
+		sectionIdx := strings.Index(issueContent, fieldInfo.section)
+		if sectionIdx == -1 {
+			// Section doesn't exist - would need to create it
+			return fmt.Errorf("section %s not found in issue #%d - please add it manually first", fieldInfo.section, issueNum)
+		}
+
+		// Find insertion point (after section header, before next field or next section)
+		insertPoint := issueStart + sectionIdx + len(fieldInfo.section) + 1
+		remainingContent := content[insertPoint:]
+
+		// Find next field or section
+		nextFieldIdx := strings.Index(remainingContent, "\n**")
+		nextSectionIdx := strings.Index(remainingContent, "\n#### ")
+		if nextFieldIdx != -1 && (nextSectionIdx == -1 || nextFieldIdx < nextSectionIdx) {
+			// Insert before next field
+			insertPoint += nextFieldIdx
+		} else if nextSectionIdx != -1 {
+			// Insert before next section
+			insertPoint += nextSectionIdx
+		} else {
+			// Insert at end of issue
+			insertPoint = issueEnd - 1
+		}
+
+		newField := fmt.Sprintf("\n%s\n%s\n", fieldInfo.markdown, value)
+		newContent = content[:insertPoint] + newField + content[insertPoint:]
+	}
+
+	// Write back
+	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
+	}
+
+	fmt.Printf("✓ Updated issue #%d: %s = %s\n", issueNum, field, value)
+	return nil
+}
+
+// IssuesValidate - check that all issues follow the template format
+func IssuesValidate() error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+	errors := []string{}
+
+	// Find all issues
+	issuePattern := regexp.MustCompile(`### (\d+)\. (.+)`)
+	matches := issuePattern.FindAllStringSubmatchIndex(content, -1)
+
+	for i, match := range matches {
+		issueNum := content[match[2]:match[3]]
+
+		// Find issue content
+		issueStart := match[0]
+		var issueEnd int
+		if i+1 < len(matches) {
+			issueEnd = matches[i+1][0]
+		} else {
+			issueEnd = len(content)
+		}
+		issueContent := content[issueStart:issueEnd]
+
+		// Check required sections
+		requiredSections := []string{
+			"#### Universal",
+			"**Status**",
+		}
+
+		for _, section := range requiredSections {
+			if !strings.Contains(issueContent, section) {
+				errors = append(errors, fmt.Sprintf("Issue #%s: missing required section '%s'", issueNum, section))
+			}
+		}
+
+		// Check status value exists
+		statusPattern := regexp.MustCompile(`\*\*Status\*\*\n([^\n]+)`)
+		statusMatch := statusPattern.FindStringSubmatch(issueContent)
+		if len(statusMatch) < 2 || strings.TrimSpace(statusMatch[1]) == "" {
+			errors = append(errors, fmt.Sprintf("Issue #%s: status value is empty", issueNum))
+		}
+	}
+
+	if len(errors) > 0 {
+		fmt.Println("Validation errors found:")
+		for _, err := range errors {
+			fmt.Printf("  ✗ %s\n", err)
+		}
+		fmt.Printf("\nRun 'mage issuesfix' to automatically repair common issues.\n")
+		return fmt.Errorf("found %d validation error(s)", len(errors))
+	}
+
+	fmt.Printf("✓ All %d issues validated successfully\n", len(matches))
+	return nil
+}
+
 // Lint lints the codebase.
 func Lint(c context.Context) error {
 	fmt.Println("Linting...")
@@ -1061,6 +1760,14 @@ type deadFunc struct {
 	line int
 }
 
+// issueData represents metadata about an issue found in issues.md
+type issueData struct {
+	start   int
+	end     int
+	status  string
+	content string
+}
+
 // Types
 
 type lineAndCoverage struct {
@@ -1091,11 +1798,127 @@ func (p position) compare(other position) int {
 	return 0
 }
 
+// sectionInfo represents metadata about a status section in issues.md
+type sectionInfo struct {
+	name      string
+	start     int
+	end       int
+	headerEnd int
+	issues    []issueData
+}
+
 // segment represents a coverage segment with summed counts from all overlapping blocks.
 type segment struct {
 	start position
 	end   position
 	count int
+}
+
+// addIssue is the implementation for creating issues.
+func addIssue(title, status string) error {
+	const issuesFile = "issues.md"
+
+	// Read current issues to find next number
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+
+	// Find highest issue number
+	issuePattern := regexp.MustCompile(`### (\d+)\. `)
+	matches := issuePattern.FindAllStringSubmatch(content, -1)
+	maxNum := 0
+	for _, match := range matches {
+		num, _ := strconv.Atoi(match[1])
+		if num > maxNum {
+			maxNum = num
+		}
+	}
+	nextNum := maxNum + 1
+
+	// Get title (from param or prompt)
+	if title == "" {
+		fmt.Printf("Issue title: ")
+		fmt.Scanln(&title)
+	}
+	if title == "" {
+		return fmt.Errorf("title cannot be empty")
+	}
+
+	// Get status (from param or prompt)
+	if status == "" {
+		fmt.Printf("Status (backlog/selected/in progress/review/done/blocked): ")
+		fmt.Scanln(&status)
+	}
+	if status == "" {
+		status = "backlog"
+	}
+
+	// Create issue content
+	issueContent := fmt.Sprintf(`### %d. %s
+
+#### Universal
+
+**Status**
+%s
+
+**Description**
+
+`, nextNum, title, status)
+
+	// Find appropriate section
+	sectionHeaders := map[string]string{
+		"backlog":     "## Backlog",
+		"selected":    "## Selected",
+		"in progress": "## In Progress",
+		"review":      "## Review",
+		"done":        "## Done",
+		"blocked":     "## Blocked",
+	}
+
+	sectionHeader, ok := sectionHeaders[status]
+	if !ok {
+		return fmt.Errorf("invalid status: %s", status)
+	}
+
+	// Find section and insert issue
+	sectionStart := strings.Index(content, sectionHeader)
+	if sectionStart == -1 {
+		return fmt.Errorf("section not found: %s", sectionHeader)
+	}
+
+	// Find insertion point (after section header and description)
+	insertPoint := sectionStart
+	lines := strings.Split(content[sectionStart:], "\n")
+	for i, line := range lines {
+		if i > 0 && strings.HasPrefix(line, "### ") {
+			insertPoint = sectionStart + strings.Index(content[sectionStart:], line)
+			break
+		}
+		if i > 0 && strings.HasPrefix(line, "## ") {
+			insertPoint = sectionStart + strings.Index(content[sectionStart:], line)
+			break
+		}
+		if i > 2 && strings.TrimSpace(line) == "" && i == len(lines)-1 {
+			// End of section
+			insertPoint = len(content)
+			break
+		}
+	}
+
+	// Insert issue
+	newContent := content[:insertPoint] + issueContent + "\n" + content[insertPoint:]
+
+	// Write back
+	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
+	}
+
+	fmt.Printf("Created issue #%d: %s\n", nextNum, title)
+	return nil
 }
 
 // calculateFileHashes computes SHA256 hashes for all files matching the given extensions.
@@ -1324,6 +2147,19 @@ func getFunctionsAboveThreshold(coverageFile string, threshold float64) (map[str
 	return funcs, nil
 }
 
+// getKeys returns the keys of a map as a slice (for error messages).
+func getKeys(m map[string]struct {
+	markdown string
+	section  string
+}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // better glob expansion
 // https://stackoverflow.com/a/26809999
 func globs(dir string, ext []string) ([]string, error) {
@@ -1406,6 +2242,79 @@ func isGeneratedFile(path string) (bool, error) {
 	content := string(buf[:n])
 	// Standard generated file marker per https://golang.org/s/generatedcode
 	return strings.Contains(content, "Code generated") || strings.Contains(content, "DO NOT EDIT"), nil
+}
+
+// listIssuesByStatus is the implementation for listing issues.
+func listIssuesByStatus(filterStatus string) error {
+	const issuesFile = "issues.md"
+
+	data, err := os.ReadFile(issuesFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	}
+
+	content := string(data)
+
+	// Parse issues by section - order matters for display
+	sectionsOrdered := []struct {
+		header string
+		status string
+	}{
+		{"## Backlog", "backlog"},
+		{"## Selected", "selected"},
+		{"## In Progress", "in progress"},
+		{"## Review", "review"},
+		{"## Done", "done"},
+		{"## Migrated", "migrated"},
+		{"## Cancelled", "cancelled"},
+		{"## Blocked", "blocked"},
+	}
+
+	for _, section := range sectionsOrdered {
+		// Skip if filtering and doesn't match
+		if filterStatus != "" && filterStatus != section.status {
+			continue
+		}
+
+		// Find section
+		sectionStart := strings.Index(content, section.header)
+		if sectionStart == -1 {
+			continue
+		}
+
+		// Find next section or end of file
+		sectionContent := content[sectionStart:]
+		nextSection := strings.Index(sectionContent[len(section.header):], "\n## ")
+		if nextSection != -1 {
+			sectionContent = sectionContent[:len(section.header)+nextSection]
+		}
+
+		// Extract issue titles (lines starting with "### ")
+		lines := strings.Split(sectionContent, "\n")
+		var issueCount int
+		var issues []string
+		for _, line := range lines {
+			if strings.HasPrefix(line, "### ") {
+				issueCount++
+				issues = append(issues, line[4:]) // Strip "### "
+			}
+		}
+
+		// Print section if has issues
+		if issueCount > 0 {
+			if filterStatus == "" {
+				fmt.Printf("## %s (%d)\n", strings.TrimPrefix(section.header, "## "), issueCount)
+			}
+			for _, issue := range issues {
+				fmt.Println(issue)
+			}
+			if filterStatus == "" {
+				fmt.Printf("\n")
+			}
+		}
+	}
+
+	return nil
 }
 
 // listTestFunctions lists all test functions in the given package.
@@ -1686,685 +2595,6 @@ func mergeMultipleCoverageFiles(files []string, output string) error {
 
 	// Merge overlapping blocks using existing logic
 	return mergeCoverageBlocksFile(output)
-}
-
-func output(c context.Context, command string, arg ...string) (string, error) {
-	buf := &bytes.Buffer{}
-	cmd := exec.CommandContext(c, command, arg...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = buf
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-
-	return strings.TrimSuffix(buf.String(), "\n"), err
-}
-
-// parseBlockID parses a block ID like "file.go:10.5,20.10" into components.
-func parseBlockID(blockID string) (file string, startLine, startCol, endLine, endCol int, err error) {
-	// Format: file:startLine.startCol,endLine.endCol
-	fileParts := strings.Split(blockID, ":")
-	if len(fileParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid block ID format: %s", blockID)
-	}
-	file = fileParts[0]
-
-	rangeParts := strings.Split(fileParts[1], ",")
-	if len(rangeParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid range format: %s", blockID)
-	}
-
-	startParts := strings.Split(rangeParts[0], ".")
-	if len(startParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid start position: %s", blockID)
-	}
-
-	endParts := strings.Split(rangeParts[1], ".")
-	if len(endParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid end position: %s", blockID)
-	}
-
-	startLine, _ = strconv.Atoi(startParts[0])
-	startCol, _ = strconv.Atoi(startParts[1])
-	endLine, _ = strconv.Atoi(endParts[0])
-	endCol, _ = strconv.Atoi(endParts[1])
-
-	return file, startLine, startCol, endLine, endCol, nil
-}
-
-func run(c context.Context, command string, arg ...string) error {
-	cmd := exec.CommandContext(c, command, arg...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
-}
-
-// runQuiet runs a command, suppressing stdout unless mg.Verbose() is true.
-// Stderr is always shown to display errors.
-func runQuiet(c context.Context, command string, arg ...string) error {
-	cmd := exec.CommandContext(c, command, arg...)
-	cmd.Stdin = os.Stdin
-	cmd.Stderr = os.Stderr
-
-	// Only show stdout if verbose mode is enabled
-	if mg.Verbose() {
-		cmd.Stdout = os.Stdout
-	}
-
-	return cmd.Run()
-}
-
-// splitBlocksIntoSegments splits overlapping blocks into non-overlapping segments,
-// summing counts for each segment from all blocks that cover it.
-func splitBlocksIntoSegments(blocks []coverageBlock) []coverageBlock {
-	if len(blocks) == 0 {
-		return nil
-	}
-
-	// Collect all unique boundary positions
-	boundarySet := make(map[position]bool)
-	for _, block := range blocks {
-		boundarySet[position{block.startLine, block.startCol}] = true
-		boundarySet[position{block.endLine, block.endCol}] = true
-	}
-
-	// Convert to sorted slice
-	var boundaries []position
-	for pos := range boundarySet {
-		boundaries = append(boundaries, pos)
-	}
-	sort.Slice(boundaries, func(i, j int) bool {
-		return boundaries[i].compare(boundaries[j]) < 0
-	})
-
-	// Create segments between consecutive boundaries
-	var segments []segment
-	for i := 0; i < len(boundaries)-1; i++ {
-		seg := segment{
-			start: boundaries[i],
-			end:   boundaries[i+1],
-			count: 0,
-		}
-
-		// Sum counts from all blocks that cover this segment
-		for _, block := range blocks {
-			blockStart := position{block.startLine, block.startCol}
-			blockEnd := position{block.endLine, block.endCol}
-
-			// Check if block covers this segment
-			// Segment is covered if: blockStart <= segStart AND segEnd <= blockEnd
-			if blockStart.compare(seg.start) <= 0 && seg.end.compare(blockEnd) <= 0 {
-				seg.count += block.count
-			}
-		}
-
-		// Only keep segments with non-zero count
-		if seg.count > 0 {
-			segments = append(segments, seg)
-		}
-	}
-
-	// Convert segments back to coverageBlocks
-	// We need to estimate the number of statements in each segment
-	var result []coverageBlock
-	for _, seg := range segments {
-		// For simplicity, use 1 statement per segment
-		// The actual number doesn't affect coverage percentage calculations
-		result = append(result, coverageBlock{
-			file:       blocks[0].file, // All blocks in input have same file
-			startLine:  seg.start.line,
-			startCol:   seg.start.col,
-			endLine:    seg.end.line,
-			endCol:     seg.end.col,
-			statements: 1,
-			count:      seg.count,
-		})
-	}
-
-	return result
-}
-
-// Issue management commands
-
-// IssuesList - list all issues grouped by status
-func IssuesList() error {
-	return listIssuesByStatus("")
-}
-
-// IssuesListStatus <status> - list issues with the given status (e.g., backlog, done)
-func IssuesListStatus(status string) error {
-	return listIssuesByStatus(status)
-}
-
-// listIssuesByStatus is the implementation for listing issues.
-func listIssuesByStatus(filterStatus string) error {
-	const issuesFile = "issues.md"
-
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-
-	// Parse issues by section - order matters for display
-	sectionsOrdered := []struct {
-		header string
-		status string
-	}{
-		{"## Backlog", "backlog"},
-		{"## Selected", "selected"},
-		{"## In Progress", "in progress"},
-		{"## Review", "review"},
-		{"## Done", "done"},
-		{"## Migrated", "migrated"},
-		{"## Cancelled", "cancelled"},
-		{"## Blocked", "blocked"},
-	}
-
-	for _, section := range sectionsOrdered {
-		// Skip if filtering and doesn't match
-		if filterStatus != "" && filterStatus != section.status {
-			continue
-		}
-
-		// Find section
-		sectionStart := strings.Index(content, section.header)
-		if sectionStart == -1 {
-			continue
-		}
-
-		// Find next section or end of file
-		sectionContent := content[sectionStart:]
-		nextSection := strings.Index(sectionContent[len(section.header):], "\n## ")
-		if nextSection != -1 {
-			sectionContent = sectionContent[:len(section.header)+nextSection]
-		}
-
-		// Extract issue titles (lines starting with "### ")
-		lines := strings.Split(sectionContent, "\n")
-		var issueCount int
-		var issues []string
-		for _, line := range lines {
-			if strings.HasPrefix(line, "### ") {
-				issueCount++
-				issues = append(issues, line[4:]) // Strip "### "
-			}
-		}
-
-		// Print section if has issues
-		if issueCount > 0 {
-			if filterStatus == "" {
-				fmt.Printf("## %s (%d)\n", strings.TrimPrefix(section.header, "## "), issueCount)
-			}
-			for _, issue := range issues {
-				fmt.Println(issue)
-			}
-			if filterStatus == "" {
-				fmt.Printf("\n")
-			}
-		}
-	}
-
-	return nil
-}
-
-// IssuesShow <number> - display full details of a specific issue (e.g., mage issuesshow 5)
-func IssuesShow(issueNum int) error {
-	const issuesFile = "issues.md"
-
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-
-	// Find issue by number
-	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
-	issueStart := strings.Index(content, issuePrefix)
-	if issueStart == -1 {
-		return fmt.Errorf("issue #%d not found", issueNum)
-	}
-
-	// Find end of issue (next ### or next ##)
-	remaining := content[issueStart:]
-	lines := strings.Split(remaining, "\n")
-	var issueLines []string
-	for i, line := range lines {
-		if i > 0 && (strings.HasPrefix(line, "### ") || strings.HasPrefix(line, "## ")) {
-			break
-		}
-		issueLines = append(issueLines, line)
-	}
-
-	fmt.Println(strings.Join(issueLines, "\n"))
-	return nil
-}
-
-// IssuesAdd - create new issue interactively (prompts for title and status)
-func IssuesAdd() error {
-	return addIssue("", "")
-}
-
-// IssuesAddWith <title> <status> - create new issue non-interactively (e.g., mage issuesaddwith "Fix bug" backlog)
-func IssuesAddWith(title, status string) error {
-	if title == "" {
-		return fmt.Errorf("title cannot be empty")
-	}
-	return addIssue(title, status)
-}
-
-// addIssue is the implementation for creating issues.
-func addIssue(title, status string) error {
-	const issuesFile = "issues.md"
-
-	// Read current issues to find next number
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-
-	// Find highest issue number
-	issuePattern := regexp.MustCompile(`### (\d+)\. `)
-	matches := issuePattern.FindAllStringSubmatch(content, -1)
-	maxNum := 0
-	for _, match := range matches {
-		num, _ := strconv.Atoi(match[1])
-		if num > maxNum {
-			maxNum = num
-		}
-	}
-	nextNum := maxNum + 1
-
-	// Get title (from param or prompt)
-	if title == "" {
-		fmt.Printf("Issue title: ")
-		fmt.Scanln(&title)
-	}
-	if title == "" {
-		return fmt.Errorf("title cannot be empty")
-	}
-
-	// Get status (from param or prompt)
-	if status == "" {
-		fmt.Printf("Status (backlog/selected/in progress/review/done/blocked): ")
-		fmt.Scanln(&status)
-	}
-	if status == "" {
-		status = "backlog"
-	}
-
-	// Create issue content
-	issueContent := fmt.Sprintf(`### %d. %s
-
-#### Universal
-
-**Status**
-%s
-
-**Description**
-
-`, nextNum, title, status)
-
-	// Find appropriate section
-	sectionHeaders := map[string]string{
-		"backlog":     "## Backlog",
-		"selected":    "## Selected",
-		"in progress": "## In Progress",
-		"review":      "## Review",
-		"done":        "## Done",
-		"blocked":     "## Blocked",
-	}
-
-	sectionHeader, ok := sectionHeaders[status]
-	if !ok {
-		return fmt.Errorf("invalid status: %s", status)
-	}
-
-	// Find section and insert issue
-	sectionStart := strings.Index(content, sectionHeader)
-	if sectionStart == -1 {
-		return fmt.Errorf("section not found: %s", sectionHeader)
-	}
-
-	// Find insertion point (after section header and description)
-	insertPoint := sectionStart
-	lines := strings.Split(content[sectionStart:], "\n")
-	for i, line := range lines {
-		if i > 0 && strings.HasPrefix(line, "### ") {
-			insertPoint = sectionStart + strings.Index(content[sectionStart:], line)
-			break
-		}
-		if i > 0 && strings.HasPrefix(line, "## ") {
-			insertPoint = sectionStart + strings.Index(content[sectionStart:], line)
-			break
-		}
-		if i > 2 && strings.TrimSpace(line) == "" && i == len(lines)-1 {
-			// End of section
-			insertPoint = len(content)
-			break
-		}
-	}
-
-	// Insert issue
-	newContent := content[:insertPoint] + issueContent + "\n" + content[insertPoint:]
-
-	// Write back
-	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
-	}
-
-	fmt.Printf("Created issue #%d: %s\n", nextNum, title)
-	return nil
-}
-
-// IssuesStatus <number> <new-status> - update issue status and move to correct section (e.g., mage issuesstatus 5 done)
-func IssuesStatus(issueNum int, newStatus string) error {
-	const issuesFile = "issues.md"
-
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-
-	// Find issue
-	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
-	issueStart := strings.Index(content, issuePrefix)
-	if issueStart == -1 {
-		return fmt.Errorf("issue #%d not found", issueNum)
-	}
-
-	// Find status line
-	statusPrefix := "**Status**\n"
-	statusStart := strings.Index(content[issueStart:], statusPrefix)
-	if statusStart == -1 {
-		return fmt.Errorf("status field not found in issue #%d", issueNum)
-	}
-	statusStart += issueStart + len(statusPrefix)
-
-	// Find end of status value (next blank line or next field)
-	statusEnd := statusStart
-	for statusEnd < len(content) && content[statusEnd] != '\n' {
-		statusEnd++
-	}
-
-	// Replace status
-	oldStatus := strings.TrimSpace(content[statusStart:statusEnd])
-	newContent := content[:statusStart] + newStatus + content[statusEnd:]
-
-	// Move issue to new section if needed
-	validStatuses := map[string]string{
-		"backlog":     "## Backlog",
-		"selected":    "## Selected",
-		"in progress": "## In Progress",
-		"review":      "## Review",
-		"done":        "## Done",
-		"migrated":    "## Migrated",
-		"cancelled":   "## Cancelled",
-		"blocked":     "## Blocked",
-	}
-
-	newSectionHeader, ok := validStatuses[newStatus]
-	if !ok {
-		return fmt.Errorf("invalid status: %s", newStatus)
-	}
-
-	oldSectionHeader, ok := validStatuses[oldStatus]
-	if !ok {
-		// If old status was invalid, proceed with move anyway
-		oldSectionHeader = ""
-	}
-
-	// Only move if status changed to different section
-	if oldSectionHeader != newSectionHeader {
-		fmt.Printf("Moving issue #%d from '%s' to '%s' section\n", issueNum, oldStatus, newStatus)
-
-		// Extract full issue
-		// Try to find the end of the issue by looking for boundaries in order:
-		// 1. Horizontal rule (---)
-		// 2. Next issue (\n### )
-		// 3. Next section (\n## )
-		// 4. End of file
-		issueEnd := strings.Index(newContent[issueStart:], "\n---\n")
-		includeSeparator := false
-		if issueEnd == -1 {
-			issueEnd = strings.Index(newContent[issueStart:], "\n### ")
-		}
-		if issueEnd == -1 {
-			issueEnd = strings.Index(newContent[issueStart:], "\n## ")
-			if issueEnd != -1 {
-				// Found section boundary - include the newline in the extraction
-				// to avoid leaving "\n## " orphaned
-				includeSeparator = true
-			}
-		}
-		if issueEnd == -1 {
-			issueEnd = len(newContent) - issueStart
-		}
-
-		// Extract issue content
-		fullIssue := newContent[issueStart : issueStart+issueEnd]
-
-		// Calculate removal range (include separator if needed)
-		removalEnd := issueEnd
-		if includeSeparator {
-			removalEnd++ // Include the "\n" before the next section
-		}
-
-		// Remove from old location
-		newContent = newContent[:issueStart] + newContent[issueStart+removalEnd:]
-
-		// Find new section
-		newSectionStart := strings.Index(newContent, newSectionHeader)
-		if newSectionStart == -1 {
-			return fmt.Errorf("section not found: %s", newSectionHeader)
-		}
-
-		// Find insertion point in new section
-		insertPoint := newSectionStart
-		sectionContent := newContent[newSectionStart:]
-		nextSectionIdx := strings.Index(sectionContent[len(newSectionHeader):], "\n## ")
-		if nextSectionIdx != -1 {
-			sectionContent = sectionContent[:len(newSectionHeader)+nextSectionIdx]
-		}
-
-		// Find first issue in section or end of section
-		firstIssueIdx := strings.Index(sectionContent, "\n### ")
-		if firstIssueIdx != -1 {
-			insertPoint = newSectionStart + firstIssueIdx + 1
-		} else {
-			// No issues in section, insert after section description
-			// Find the end of the section by looking for a blank line after the header
-			// Section format: "## Header\n\nDescription text\n"
-			lines := strings.Split(sectionContent, "\n")
-			linePos := 0
-			foundContent := false
-			for i := 0; i < len(lines); i++ {
-				if i == 0 {
-					// Skip header line
-					linePos += len(lines[i]) + 1
-					continue
-				}
-				if i == 1 && strings.TrimSpace(lines[i]) == "" {
-					// Skip blank line after header
-					linePos += len(lines[i]) + 1
-					continue
-				}
-				if strings.TrimSpace(lines[i]) != "" {
-					// Found description content
-					foundContent = true
-					linePos += len(lines[i]) + 1
-				} else if foundContent {
-					// Found blank line after description
-					insertPoint = newSectionStart + linePos
-					break
-				} else {
-					// Blank line before content
-					linePos += len(lines[i]) + 1
-				}
-			}
-			// If no blank line found, insert at end of section
-			if insertPoint == newSectionStart {
-				insertPoint = newSectionStart + len(sectionContent)
-			}
-		}
-
-		// Insert issue in new section
-		newContent = newContent[:insertPoint] + fullIssue + "\n" + newContent[insertPoint:]
-	}
-
-	// Write back
-	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
-	}
-
-	fmt.Printf("Updated issue #%d status: %s → %s\n", issueNum, oldStatus, newStatus)
-	return nil
-}
-
-// IssuesSearch <keyword> - search for issues containing keyword (e.g., mage issuessearch "struct literal")
-func IssuesSearch(keyword string) error {
-	const issuesFile = "issues.md"
-
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-	lowerKeyword := strings.ToLower(keyword)
-
-	// Find all issues
-	issuePattern := regexp.MustCompile(`### (\d+)\. (.+)`)
-	matches := issuePattern.FindAllStringSubmatchIndex(content, -1)
-
-	fmt.Printf("Issues matching '%s':\n\n", keyword)
-	matchCount := 0
-
-	for i, match := range matches {
-		issueNum := content[match[2]:match[3]]
-		issueTitle := content[match[4]:match[5]]
-
-		// Find issue content
-		issueStart := match[0]
-		var issueEnd int
-		if i+1 < len(matches) {
-			issueEnd = matches[i+1][0]
-		} else {
-			issueEnd = len(content)
-		}
-		issueContent := content[issueStart:issueEnd]
-
-		// Check if keyword matches
-		if strings.Contains(strings.ToLower(issueContent), lowerKeyword) {
-			matchCount++
-
-			// Extract status
-			statusPattern := regexp.MustCompile(`\*\*Status\*\*\n([^\n]+)`)
-			statusMatch := statusPattern.FindStringSubmatch(issueContent)
-			status := "unknown"
-			if len(statusMatch) > 1 {
-				status = strings.TrimSpace(statusMatch[1])
-			}
-
-			fmt.Printf("%s. %s [%s]\n", issueNum, issueTitle, status)
-		}
-	}
-
-	if matchCount == 0 {
-		fmt.Println("No matches found.")
-	} else {
-		fmt.Printf("\nFound %d issue(s)\n", matchCount)
-	}
-
-	return nil
-}
-
-// IssuesValidate - check that all issues follow the template format
-func IssuesValidate() error {
-	const issuesFile = "issues.md"
-
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-	errors := []string{}
-
-	// Find all issues
-	issuePattern := regexp.MustCompile(`### (\d+)\. (.+)`)
-	matches := issuePattern.FindAllStringSubmatchIndex(content, -1)
-
-	for i, match := range matches {
-		issueNum := content[match[2]:match[3]]
-
-		// Find issue content
-		issueStart := match[0]
-		var issueEnd int
-		if i+1 < len(matches) {
-			issueEnd = matches[i+1][0]
-		} else {
-			issueEnd = len(content)
-		}
-		issueContent := content[issueStart:issueEnd]
-
-		// Check required sections
-		requiredSections := []string{
-			"#### Universal",
-			"**Status**",
-		}
-
-		for _, section := range requiredSections {
-			if !strings.Contains(issueContent, section) {
-				errors = append(errors, fmt.Sprintf("Issue #%s: missing required section '%s'", issueNum, section))
-			}
-		}
-
-		// Check status value exists
-		statusPattern := regexp.MustCompile(`\*\*Status\*\*\n([^\n]+)`)
-		statusMatch := statusPattern.FindStringSubmatch(issueContent)
-		if len(statusMatch) < 2 || strings.TrimSpace(statusMatch[1]) == "" {
-			errors = append(errors, fmt.Sprintf("Issue #%s: status value is empty", issueNum))
-		}
-	}
-
-	if len(errors) > 0 {
-		fmt.Println("Validation errors found:")
-		for _, err := range errors {
-			fmt.Printf("  ✗ %s\n", err)
-		}
-		fmt.Printf("\nRun 'mage issuesfix' to automatically repair common issues.\n")
-		return fmt.Errorf("found %d validation error(s)", len(errors))
-	}
-
-	fmt.Printf("✓ All %d issues validated successfully\n", len(matches))
-	return nil
-}
-
-// issueData represents metadata about an issue found in issues.md
-type issueData struct {
-	start   int
-	end     int
-	status  string
-	content string
-}
-
-// sectionInfo represents metadata about a status section in issues.md
-type sectionInfo struct {
-	name      string
-	start     int
-	end       int
-	headerEnd int
-	issues    []issueData
 }
 
 // moveIssuesToCorrectSections scans issues.md and moves any issue whose status
@@ -2674,370 +2904,139 @@ func moveIssuesToCorrectSections(filepath string) (int, error) {
 	return len(moves), nil
 }
 
-// IssuesFix - auto-repair common validation failures (adds missing sections, infers status from location)
-func IssuesFix() error {
-	const issuesFile = "issues.md"
+func output(c context.Context, command string, arg ...string) (string, error) {
+	buf := &bytes.Buffer{}
+	cmd := exec.CommandContext(c, command, arg...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = buf
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
 
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-	modified := false
-	manualFixes := []string{}
-
-	// Find all issues
-	issuePattern := regexp.MustCompile(`### (\d+)\. (.+)`)
-	matches := issuePattern.FindAllStringSubmatchIndex(content, -1)
-
-	// Process issues in reverse order to maintain indices
-	for i := len(matches) - 1; i >= 0; i-- {
-		match := matches[i]
-		issueNum := content[match[2]:match[3]]
-		issueTitle := content[match[4]:match[5]]
-
-		// Find issue content
-		issueStart := match[0]
-		var issueEnd int
-		if i+1 < len(matches) {
-			issueEnd = matches[i+1][0]
-		} else {
-			issueEnd = len(content)
-		}
-		issueContent := content[issueStart:issueEnd]
-
-		needsFix := false
-		fixedContent := issueContent
-
-		// Check for missing #### Universal section
-		if !strings.Contains(issueContent, "#### Universal") {
-			needsFix = true
-			// Insert #### Universal after title
-			titleEnd := strings.Index(issueContent, "\n")
-			if titleEnd != -1 {
-				fixedContent = issueContent[:titleEnd+1] + "\n#### Universal\n" + issueContent[titleEnd+1:]
-				fmt.Printf("✓ Issue #%s: Added missing '#### Universal' section\n", issueNum)
-			}
-		}
-
-		// Check for missing **Status** field
-		if !strings.Contains(fixedContent, "**Status**") {
-			needsFix = true
-			// Insert **Status** after #### Universal
-			universalIdx := strings.Index(fixedContent, "#### Universal")
-			if universalIdx != -1 {
-				insertPoint := universalIdx + len("#### Universal\n")
-				// Find next line after Universal
-				nextLineIdx := strings.Index(fixedContent[insertPoint:], "\n")
-				if nextLineIdx == -1 {
-					nextLineIdx = len(fixedContent) - insertPoint
-				}
-				insertPoint += nextLineIdx + 1
-
-				// Determine status from section location
-				status := "backlog" // default
-				for sectionName, sectionStatus := range map[string]string{
-					"## Backlog":     "backlog",
-					"## Selected":    "selected",
-					"## In Progress": "in progress",
-					"## Review":      "review",
-					"## Done":        "done",
-					"## Migrated":    "migrated",
-					"## Cancelled":   "cancelled",
-					"## Blocked":     "blocked",
-				} {
-					sectionStart := strings.LastIndex(content[:issueStart], sectionName)
-					if sectionStart != -1 {
-						// Check if this section is before our issue
-						nextSectionAfter := strings.Index(content[sectionStart+len(sectionName):issueStart], "\n## ")
-						if nextSectionAfter == -1 {
-							// This is the section containing our issue
-							status = sectionStatus
-							break
-						}
-					}
-				}
-
-				fixedContent = fixedContent[:insertPoint] +
-					"\n**Status**\n" + status + "\n" +
-					fixedContent[insertPoint:]
-				fmt.Printf("✓ Issue #%s: Added missing '**Status**' field with value '%s'\n", issueNum, status)
-			}
-		}
-
-		// Check for empty status value
-		statusPattern := regexp.MustCompile(`\*\*Status\*\*\n([^\n]+)`)
-		statusMatch := statusPattern.FindStringSubmatch(fixedContent)
-		if len(statusMatch) >= 2 && strings.TrimSpace(statusMatch[1]) == "" {
-			manualFixes = append(manualFixes, fmt.Sprintf("Issue #%s (%s): Status value is empty - needs manual value", issueNum, issueTitle))
-		}
-
-		// Apply fixes if needed
-		if needsFix {
-			content = content[:issueStart] + fixedContent + content[issueEnd:]
-			modified = true
-		}
-	}
-
-	// Write back if modified
-	if modified {
-		err = os.WriteFile(issuesFile, []byte(content), 0o600)
-		if err != nil {
-			return fmt.Errorf("failed to write %s: %w", issuesFile, err)
-		}
-		fmt.Println("\n✓ File updated successfully")
-	} else {
-		fmt.Println("✓ No automatic fixes needed")
-	}
-
-	// Report manual fixes needed
-	if len(manualFixes) > 0 {
-		fmt.Printf("\n⚠ Manual fixes required (%d):\n", len(manualFixes))
-		for _, fix := range manualFixes {
-			fmt.Printf("  - %s\n", fix)
-		}
-		return fmt.Errorf("some issues require manual intervention")
-	}
-
-	// Move issues to correct sections based on status
-	fmt.Println("\nChecking issue locations...")
-	moveCount, err := moveIssuesToCorrectSections(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to move issues: %w", err)
-	}
-	if moveCount > 0 {
-		fmt.Printf("\n✓ Moved %d issue(s) to correct sections\n", moveCount)
-	} else {
-		fmt.Println("✓ All issues are in correct sections")
-	}
-
-	// Run validation to confirm
-	fmt.Println("\nRunning validation...")
-	return IssuesValidate()
+	return strings.TrimSuffix(buf.String(), "\n"), err
 }
 
-// IssuesTimeline <number> <entry> - add timeline entry with auto-timestamp (e.g., mage issuestimeline 5 "Started work")
-func IssuesTimeline(issueNum int, entry string) error {
-	const issuesFile = "issues.md"
+// parseBlockID parses a block ID like "file.go:10.5,20.10" into components.
+func parseBlockID(blockID string) (file string, startLine, startCol, endLine, endCol int, err error) {
+	// Format: file:startLine.startCol,endLine.endCol
+	fileParts := strings.Split(blockID, ":")
+	if len(fileParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid block ID format: %s", blockID)
+	}
+	file = fileParts[0]
 
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
+	rangeParts := strings.Split(fileParts[1], ",")
+	if len(rangeParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid range format: %s", blockID)
 	}
 
-	content := string(data)
-
-	// Find issue
-	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
-	issueStart := strings.Index(content, issuePrefix)
-	if issueStart == -1 {
-		return fmt.Errorf("issue #%d not found", issueNum)
+	startParts := strings.Split(rangeParts[0], ".")
+	if len(startParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid start position: %s", blockID)
 	}
 
-	// Find end of issue
-	issueEnd := len(content)
-	nextIssueIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n### ")
-	if nextIssueIdx != -1 {
-		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
-	} else {
-		nextSectionIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n## ")
-		if nextSectionIdx != -1 {
-			issueEnd = issueStart + len(issuePrefix) + nextSectionIdx
-		}
+	endParts := strings.Split(rangeParts[1], ".")
+	if len(endParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid end position: %s", blockID)
 	}
 
-	issueContent := content[issueStart:issueEnd]
+	startLine, _ = strconv.Atoi(startParts[0])
+	startCol, _ = strconv.Atoi(startParts[1])
+	endLine, _ = strconv.Atoi(endParts[0])
+	endCol, _ = strconv.Atoi(endParts[1])
 
-	// Generate timestamp in EST
-	now := time.Now()
-	est, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		est = time.FixedZone("EST", -5*60*60) // Fallback to fixed offset
-	}
-	timestamp := now.In(est).Format("2006-01-02 15:04 MST")
-
-	// Create timeline entry
-	timelineEntry := fmt.Sprintf("- %s - %s\n", timestamp, entry)
-
-	// Check if issue has Timeline field
-	var newContent string
-	if strings.Contains(issueContent, "**Timeline**\n") {
-		// Add to existing timeline
-		timelineIdx := strings.Index(issueContent, "**Timeline**\n")
-		insertPoint := issueStart + timelineIdx + len("**Timeline**\n")
-
-		// Find first timeline entry to insert before it (prepend to timeline)
-		remainingContent := content[insertPoint:]
-		firstEntryIdx := strings.Index(remainingContent, "- ")
-		if firstEntryIdx != -1 && firstEntryIdx < 200 { // Within reasonable distance
-			insertPoint += firstEntryIdx
-		} else {
-			// No entries yet, insert right after Timeline header
-		}
-
-		newContent = content[:insertPoint] + timelineEntry + content[insertPoint:]
-	} else {
-		// Need to add Work Tracking section with Timeline
-		workTrackingSection := `
-#### Work Tracking
-
-**Timeline**
-` + timelineEntry
-
-		// Find where to insert Work Tracking section
-		// Look for Planning section end or Universal section end
-		insertPoint := issueEnd - 1 // Default to end of issue
-
-		// Try to find #### Planning section
-		planningIdx := strings.Index(issueContent, "#### Planning")
-		if planningIdx != -1 {
-			// Insert after Planning section
-			nextSectionIdx := strings.Index(issueContent[planningIdx+len("#### Planning"):], "\n#### ")
-			if nextSectionIdx != -1 {
-				insertPoint = issueStart + planningIdx + len("#### Planning") + nextSectionIdx
-			}
-		} else {
-			// Try to find #### Universal section
-			universalIdx := strings.Index(issueContent, "#### Universal")
-			if universalIdx != -1 {
-				nextSectionIdx := strings.Index(issueContent[universalIdx+len("#### Universal"):], "\n#### ")
-				if nextSectionIdx != -1 {
-					insertPoint = issueStart + universalIdx + len("#### Universal") + nextSectionIdx
-				} else {
-					// No next section, insert at end
-					insertPoint = issueEnd - 1
-				}
-			}
-		}
-
-		newContent = content[:insertPoint] + workTrackingSection + "\n" + content[insertPoint:]
-	}
-
-	// Write back
-	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
-	}
-
-	fmt.Printf("✓ Added timeline entry to issue #%d: %s - %s\n", issueNum, timestamp, entry)
-	return nil
+	return file, startLine, startCol, endLine, endCol, nil
 }
 
-// IssuesUpdate <number> <field> <value> - update issue field (e.g., mage issuesupdate 5 priority "High")
-func IssuesUpdate(issueNum int, field, value string) error {
-	const issuesFile = "issues.md"
+func run(c context.Context, command string, arg ...string) error {
+	cmd := exec.CommandContext(c, command, arg...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	data, err := os.ReadFile(issuesFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
-	}
-
-	content := string(data)
-
-	// Find issue
-	issuePrefix := fmt.Sprintf("### %d. ", issueNum)
-	issueStart := strings.Index(content, issuePrefix)
-	if issueStart == -1 {
-		return fmt.Errorf("issue #%d not found", issueNum)
-	}
-
-	// Find end of issue
-	issueEnd := len(content)
-	nextIssueIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n### ")
-	if nextIssueIdx != -1 {
-		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
-	} else {
-		nextSectionIdx := strings.Index(content[issueStart+len(issuePrefix):], "\n## ")
-		if nextSectionIdx != -1 {
-			issueEnd = issueStart + len(issuePrefix) + nextSectionIdx
-		}
-	}
-
-	issueContent := content[issueStart:issueEnd]
-
-	// Map field names to their markdown format
-	fieldMap := map[string]struct {
-		markdown string
-		section  string
-	}{
-		"description": {"**Description**", "#### Universal"},
-		"priority":    {"**Priority**", "#### Planning"},
-		"effort":      {"**Effort**", "#### Planning"},
-		"rationale":   {"**Rationale**", "#### Planning"},
-		"acceptance":  {"**Acceptance**", "#### Planning"},
-		"solution":    {"**Solution**", "#### Documentation"},
-		"note":        {"**Note**", "#### Special Fields"},
-		"discovered":  {"**Discovered**", "#### Bug Details"},
-		"rootcause":   {"**Root Cause**", "#### Bug Details"},
-	}
-
-	fieldInfo, ok := fieldMap[strings.ToLower(field)]
-	if !ok {
-		return fmt.Errorf("unsupported field: %s (supported: %v)", field, getKeys(fieldMap))
-	}
-
-	var newContent string
-
-	// Check if field exists
-	fieldPattern := regexp.MustCompile(regexp.QuoteMeta(fieldInfo.markdown) + `\n([^\n]*(?:\n(?!\*\*)[^\n]*)*)`)
-	if fieldPattern.MatchString(issueContent) {
-		// Update existing field
-		match := fieldPattern.FindStringSubmatchIndex(issueContent)
-		if len(match) >= 4 {
-			fieldStart := issueStart + match[2]
-			fieldEnd := issueStart + match[3]
-			newContent = content[:fieldStart] + value + content[fieldEnd:]
-		}
-	} else {
-		// Add new field - find or create appropriate section
-		sectionIdx := strings.Index(issueContent, fieldInfo.section)
-		if sectionIdx == -1 {
-			// Section doesn't exist - would need to create it
-			return fmt.Errorf("section %s not found in issue #%d - please add it manually first", fieldInfo.section, issueNum)
-		}
-
-		// Find insertion point (after section header, before next field or next section)
-		insertPoint := issueStart + sectionIdx + len(fieldInfo.section) + 1
-		remainingContent := content[insertPoint:]
-
-		// Find next field or section
-		nextFieldIdx := strings.Index(remainingContent, "\n**")
-		nextSectionIdx := strings.Index(remainingContent, "\n#### ")
-		if nextFieldIdx != -1 && (nextSectionIdx == -1 || nextFieldIdx < nextSectionIdx) {
-			// Insert before next field
-			insertPoint += nextFieldIdx
-		} else if nextSectionIdx != -1 {
-			// Insert before next section
-			insertPoint += nextSectionIdx
-		} else {
-			// Insert at end of issue
-			insertPoint = issueEnd - 1
-		}
-
-		newField := fmt.Sprintf("\n%s\n%s\n", fieldInfo.markdown, value)
-		newContent = content[:insertPoint] + newField + content[insertPoint:]
-	}
-
-	// Write back
-	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write %s: %w", issuesFile, err)
-	}
-
-	fmt.Printf("✓ Updated issue #%d: %s = %s\n", issueNum, field, value)
-	return nil
+	return cmd.Run()
 }
 
-// getKeys returns the keys of a map as a slice (for error messages).
-func getKeys(m map[string]struct {
-	markdown string
-	section  string
-}) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+// runQuiet runs a command, suppressing stdout unless mg.Verbose() is true.
+// Stderr is always shown to display errors.
+func runQuiet(c context.Context, command string, arg ...string) error {
+	cmd := exec.CommandContext(c, command, arg...)
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+
+	// Only show stdout if verbose mode is enabled
+	if mg.Verbose() {
+		cmd.Stdout = os.Stdout
 	}
-	sort.Strings(keys)
-	return keys
+
+	return cmd.Run()
+}
+
+// splitBlocksIntoSegments splits overlapping blocks into non-overlapping segments,
+// summing counts for each segment from all blocks that cover it.
+func splitBlocksIntoSegments(blocks []coverageBlock) []coverageBlock {
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	// Collect all unique boundary positions
+	boundarySet := make(map[position]bool)
+	for _, block := range blocks {
+		boundarySet[position{block.startLine, block.startCol}] = true
+		boundarySet[position{block.endLine, block.endCol}] = true
+	}
+
+	// Convert to sorted slice
+	var boundaries []position
+	for pos := range boundarySet {
+		boundaries = append(boundaries, pos)
+	}
+	sort.Slice(boundaries, func(i, j int) bool {
+		return boundaries[i].compare(boundaries[j]) < 0
+	})
+
+	// Create segments between consecutive boundaries
+	var segments []segment
+	for i := 0; i < len(boundaries)-1; i++ {
+		seg := segment{
+			start: boundaries[i],
+			end:   boundaries[i+1],
+			count: 0,
+		}
+
+		// Sum counts from all blocks that cover this segment
+		for _, block := range blocks {
+			blockStart := position{block.startLine, block.startCol}
+			blockEnd := position{block.endLine, block.endCol}
+
+			// Check if block covers this segment
+			// Segment is covered if: blockStart <= segStart AND segEnd <= blockEnd
+			if blockStart.compare(seg.start) <= 0 && seg.end.compare(blockEnd) <= 0 {
+				seg.count += block.count
+			}
+		}
+
+		// Only keep segments with non-zero count
+		if seg.count > 0 {
+			segments = append(segments, seg)
+		}
+	}
+
+	// Convert segments back to coverageBlocks
+	// We need to estimate the number of statements in each segment
+	var result []coverageBlock
+	for _, seg := range segments {
+		// For simplicity, use 1 statement per segment
+		// The actual number doesn't affect coverage percentage calculations
+		result = append(result, coverageBlock{
+			file:       blocks[0].file, // All blocks in input have same file
+			startLine:  seg.start.line,
+			startCol:   seg.start.col,
+			endLine:    seg.end.line,
+			endCol:     seg.end.col,
+			statements: 1,
+			count:      seg.count,
+		})
+	}
+
+	return result
 }

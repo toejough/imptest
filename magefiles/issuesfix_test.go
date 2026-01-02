@@ -1,5 +1,4 @@
 //go:build mage
-// +build mage
 
 package main
 
@@ -8,6 +7,88 @@ import (
 	"strings"
 	"testing"
 )
+
+// TestIssuesFix_BlankLinesPreserved verifies that the structure and
+// formatting of the file is preserved, including blank lines between
+// sections and around issues.
+//
+// This tests the formatting preservation requirement.
+func TestIssuesFix_BlankLinesPreserved(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	content := `# Issue Tracker
+
+## Backlog
+
+Issues to choose from for future work.
+
+### 70. Test issue
+
+#### Universal
+
+**Status**
+selected
+
+---
+
+## Selected
+
+Issues selected for upcoming work.
+
+*No issues currently selected*
+
+---
+
+## Done
+
+Completed issues.
+`
+
+	testFile := t.TempDir() + "/issues.md"
+	err := os.WriteFile(testFile, []byte(content), 0o600)
+	if err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Act
+	_, err = moveIssuesToCorrectSections(testFile)
+	if err != nil {
+		t.Fatalf("moveIssuesToCorrectSections failed: %v", err)
+	}
+
+	// Assert
+	resultContent, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to read result file: %v", err)
+	}
+	result := string(resultContent)
+
+	// Verify section separators (---) are preserved
+	separatorCount := strings.Count(result, "---")
+	if separatorCount < 2 {
+		t.Errorf("Expected at least 2 section separators, found %d", separatorCount)
+	}
+
+	// Verify descriptive text is preserved
+	if !strings.Contains(result, "Issues selected for upcoming work.") {
+		t.Error("Section description should be preserved")
+	}
+
+	// Verify proper spacing after section headers
+	selectedSection := result[strings.Index(result, "## Selected"):]
+	lines := strings.Split(selectedSection[:strings.Index(selectedSection, "---")], "\n")
+
+	// Should have: section header, blank line, description, blank line, issue
+	if len(lines) < 4 {
+		t.Error("Selected section should have proper formatting with blank lines")
+	}
+
+	// Verify blank line after section header
+	if strings.TrimSpace(lines[1]) != "" && !strings.Contains(lines[1], "Issues selected") {
+		t.Error("Should have blank line or description after section header")
+	}
+}
 
 // TestIssuesFix_MoveIssueFromBacklogToSelected verifies that when an issue
 // has status "selected" but is in the "## Backlog" section, it gets moved
@@ -378,6 +459,99 @@ done
 	}
 }
 
+// TestIssuesFix_MultipleIssuesMove verifies that multiple issues can be
+// moved in a single operation, and all are moved correctly.
+//
+// This tests batch processing without interference.
+func TestIssuesFix_MultipleIssuesMove(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	content := `# Issue Tracker
+
+## Backlog
+
+### 80. First mismatch
+
+#### Universal
+
+**Status**
+done
+
+### 81. Second mismatch
+
+#### Universal
+
+**Status**
+selected
+
+### 82. Correct placement
+
+#### Universal
+
+**Status**
+backlog
+
+## Selected
+
+*No issues currently selected*
+
+---
+
+## Done
+
+*No completed issues*
+`
+
+	testFile := t.TempDir() + "/issues.md"
+	err := os.WriteFile(testFile, []byte(content), 0o600)
+	if err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Act
+	_, err = moveIssuesToCorrectSections(testFile)
+	if err != nil {
+		t.Fatalf("moveIssuesToCorrectSections failed: %v", err)
+	}
+
+	// Assert
+	resultContent, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to read result file: %v", err)
+	}
+	result := string(resultContent)
+
+	selectedStart := strings.Index(result, "## Selected")
+	doneStart := strings.Index(result, "## Done")
+
+	// Verify issue #80 in Done section
+	if !strings.Contains(result[doneStart:], "### 80.") {
+		t.Error("Issue #80 should be in Done section")
+	}
+
+	// Verify issue #81 in Selected section
+	selectedContent := result[selectedStart:doneStart]
+	if !strings.Contains(selectedContent, "### 81.") {
+		t.Error("Issue #81 should be in Selected section")
+	}
+
+	// Verify issue #82 stays in Backlog
+	backlogStart := strings.Index(result, "## Backlog")
+	backlogContent := result[backlogStart:selectedStart]
+	if !strings.Contains(backlogContent, "### 82.") {
+		t.Error("Issue #82 should remain in Backlog section")
+	}
+
+	// Verify issues that moved are NOT in Backlog
+	if strings.Contains(backlogContent, "### 80.") {
+		t.Error("Issue #80 should not be in Backlog")
+	}
+	if strings.Contains(backlogContent, "### 81.") {
+		t.Error("Issue #81 should not be in Backlog")
+	}
+}
+
 // TestIssuesFix_NoMidLineInsertion verifies that issues are never inserted
 // mid-line (e.g., partway through another issue's content).
 //
@@ -559,256 +733,6 @@ Completed issues.
 	}
 }
 
-// TestIssuesFix_BlankLinesPreserved verifies that the structure and
-// formatting of the file is preserved, including blank lines between
-// sections and around issues.
-//
-// This tests the formatting preservation requirement.
-func TestIssuesFix_BlankLinesPreserved(t *testing.T) {
-	t.Parallel()
-
-	// Arrange
-	content := `# Issue Tracker
-
-## Backlog
-
-Issues to choose from for future work.
-
-### 70. Test issue
-
-#### Universal
-
-**Status**
-selected
-
----
-
-## Selected
-
-Issues selected for upcoming work.
-
-*No issues currently selected*
-
----
-
-## Done
-
-Completed issues.
-`
-
-	testFile := t.TempDir() + "/issues.md"
-	err := os.WriteFile(testFile, []byte(content), 0o600)
-	if err != nil {
-		t.Fatalf("failed to write test file: %v", err)
-	}
-
-	// Act
-	_, err = moveIssuesToCorrectSections(testFile)
-	if err != nil {
-		t.Fatalf("moveIssuesToCorrectSections failed: %v", err)
-	}
-
-	// Assert
-	resultContent, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Fatalf("failed to read result file: %v", err)
-	}
-	result := string(resultContent)
-
-	// Verify section separators (---) are preserved
-	separatorCount := strings.Count(result, "---")
-	if separatorCount < 2 {
-		t.Errorf("Expected at least 2 section separators, found %d", separatorCount)
-	}
-
-	// Verify descriptive text is preserved
-	if !strings.Contains(result, "Issues selected for upcoming work.") {
-		t.Error("Section description should be preserved")
-	}
-
-	// Verify proper spacing after section headers
-	selectedSection := result[strings.Index(result, "## Selected"):]
-	lines := strings.Split(selectedSection[:strings.Index(selectedSection, "---")], "\n")
-
-	// Should have: section header, blank line, description, blank line, issue
-	if len(lines) < 4 {
-		t.Error("Selected section should have proper formatting with blank lines")
-	}
-
-	// Verify blank line after section header
-	if strings.TrimSpace(lines[1]) != "" && !strings.Contains(lines[1], "Issues selected") {
-		t.Error("Should have blank line or description after section header")
-	}
-}
-
-// TestIssuesFix_MultipleIssuesMove verifies that multiple issues can be
-// moved in a single operation, and all are moved correctly.
-//
-// This tests batch processing without interference.
-func TestIssuesFix_MultipleIssuesMove(t *testing.T) {
-	t.Parallel()
-
-	// Arrange
-	content := `# Issue Tracker
-
-## Backlog
-
-### 80. First mismatch
-
-#### Universal
-
-**Status**
-done
-
-### 81. Second mismatch
-
-#### Universal
-
-**Status**
-selected
-
-### 82. Correct placement
-
-#### Universal
-
-**Status**
-backlog
-
-## Selected
-
-*No issues currently selected*
-
----
-
-## Done
-
-*No completed issues*
-`
-
-	testFile := t.TempDir() + "/issues.md"
-	err := os.WriteFile(testFile, []byte(content), 0o600)
-	if err != nil {
-		t.Fatalf("failed to write test file: %v", err)
-	}
-
-	// Act
-	_, err = moveIssuesToCorrectSections(testFile)
-	if err != nil {
-		t.Fatalf("moveIssuesToCorrectSections failed: %v", err)
-	}
-
-	// Assert
-	resultContent, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Fatalf("failed to read result file: %v", err)
-	}
-	result := string(resultContent)
-
-	selectedStart := strings.Index(result, "## Selected")
-	doneStart := strings.Index(result, "## Done")
-
-	// Verify issue #80 in Done section
-	if !strings.Contains(result[doneStart:], "### 80.") {
-		t.Error("Issue #80 should be in Done section")
-	}
-
-	// Verify issue #81 in Selected section
-	selectedContent := result[selectedStart:doneStart]
-	if !strings.Contains(selectedContent, "### 81.") {
-		t.Error("Issue #81 should be in Selected section")
-	}
-
-	// Verify issue #82 stays in Backlog
-	backlogStart := strings.Index(result, "## Backlog")
-	backlogContent := result[backlogStart:selectedStart]
-	if !strings.Contains(backlogContent, "### 82.") {
-		t.Error("Issue #82 should remain in Backlog section")
-	}
-
-	// Verify issues that moved are NOT in Backlog
-	if strings.Contains(backlogContent, "### 80.") {
-		t.Error("Issue #80 should not be in Backlog")
-	}
-	if strings.Contains(backlogContent, "### 81.") {
-		t.Error("Issue #81 should not be in Backlog")
-	}
-}
-
-// TestIssuesFix_StatusMatchesSection verifies that issues already in the
-// correct section (status matches section) are not moved or modified.
-//
-// This tests the idempotency and correctness of the move logic.
-func TestIssuesFix_StatusMatchesSection(t *testing.T) {
-	t.Parallel()
-
-	// Arrange
-	content := `# Issue Tracker
-
-## Backlog
-
-### 90. Correctly placed
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-This issue is already in the right place.
-
-## Done
-
-### 91. Also correct
-
-#### Universal
-
-**Status**
-done
-`
-
-	testFile := t.TempDir() + "/issues.md"
-	err := os.WriteFile(testFile, []byte(content), 0o600)
-	if err != nil {
-		t.Fatalf("failed to write test file: %v", err)
-	}
-
-	// Act
-	_, err = moveIssuesToCorrectSections(testFile)
-	if err != nil {
-		t.Fatalf("moveIssuesToCorrectSections failed: %v", err)
-	}
-
-	// Assert
-	resultContent, err := os.ReadFile(testFile)
-	if err != nil {
-		t.Fatalf("failed to read result file: %v", err)
-	}
-	result := string(resultContent)
-
-	// Content should be unchanged (or only whitespace normalized)
-	// Since no moves needed
-	if !strings.Contains(result, "### 90. Correctly placed") {
-		t.Error("Issue #90 should still exist")
-	}
-	if !strings.Contains(result, "### 91. Also correct") {
-		t.Error("Issue #91 should still exist")
-	}
-
-	// Verify sections still contain their issues
-	backlogStart := strings.Index(result, "## Backlog")
-	doneStart := strings.Index(result, "## Done")
-
-	backlogContent := result[backlogStart:doneStart]
-	if !strings.Contains(backlogContent, "### 90.") {
-		t.Error("Issue #90 should remain in Backlog")
-	}
-
-	doneContent := result[doneStart:]
-	if !strings.Contains(doneContent, "### 91.") {
-		t.Error("Issue #91 should remain in Done")
-	}
-}
-
 // TestIssuesFix_SectionBoundaryDetection verifies that section boundaries
 // are correctly detected including trailing blank lines and separators.
 //
@@ -903,5 +827,80 @@ done
 	// between sections (before next section header)
 	if !strings.Contains(result, "---") {
 		t.Error("Section separator should be preserved between sections")
+	}
+}
+
+// TestIssuesFix_StatusMatchesSection verifies that issues already in the
+// correct section (status matches section) are not moved or modified.
+//
+// This tests the idempotency and correctness of the move logic.
+func TestIssuesFix_StatusMatchesSection(t *testing.T) {
+	t.Parallel()
+
+	// Arrange
+	content := `# Issue Tracker
+
+## Backlog
+
+### 90. Correctly placed
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+This issue is already in the right place.
+
+## Done
+
+### 91. Also correct
+
+#### Universal
+
+**Status**
+done
+`
+
+	testFile := t.TempDir() + "/issues.md"
+	err := os.WriteFile(testFile, []byte(content), 0o600)
+	if err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Act
+	_, err = moveIssuesToCorrectSections(testFile)
+	if err != nil {
+		t.Fatalf("moveIssuesToCorrectSections failed: %v", err)
+	}
+
+	// Assert
+	resultContent, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatalf("failed to read result file: %v", err)
+	}
+	result := string(resultContent)
+
+	// Content should be unchanged (or only whitespace normalized)
+	// Since no moves needed
+	if !strings.Contains(result, "### 90. Correctly placed") {
+		t.Error("Issue #90 should still exist")
+	}
+	if !strings.Contains(result, "### 91. Also correct") {
+		t.Error("Issue #91 should still exist")
+	}
+
+	// Verify sections still contain their issues
+	backlogStart := strings.Index(result, "## Backlog")
+	doneStart := strings.Index(result, "## Done")
+
+	backlogContent := result[backlogStart:doneStart]
+	if !strings.Contains(backlogContent, "### 90.") {
+		t.Error("Issue #90 should remain in Backlog")
+	}
+
+	doneContent := result[doneStart:]
+	if !strings.Contains(doneContent, "### 91.") {
+		t.Error("Issue #91 should remain in Done")
 	}
 }

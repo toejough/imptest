@@ -61,6 +61,7 @@ Standard issue structure organized by category:
 [commit hash or multiple hashes for multi-commit work]
 
 **Timeline**
+
 - YYYY-MM-DD HH:MM TZ - [Phase/milestone]: [Activity description]
 - YYYY-MM-DD HH:MM TZ - [Phase/milestone]: [Activity description]
 - ...
@@ -103,6 +104,7 @@ Standard issue structure organized by category:
 ```
 
 **Template Usage Notes:**
+
 - Required field: Status (Universal) - only field that's always needed
 - Description is optional but recommended (skip for self-explanatory titles like "Fix typo in README")
 - Use category sections (`#### Category`) as needed for the issue type
@@ -120,16 +122,6 @@ Standard issue structure organized by category:
 
 Issues to choose from for future work.
 
-### 39. Fix timeline entries added outside issue section
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-
-
 ### 37. Explore mage replacement with subcommands and flags (go-arg syntax)
 
 #### Universal
@@ -139,6 +131,11 @@ backlog
 
 **Description**
 
+#### Work Tracking
+
+**Timeline**
+
+- 2026-01-01 18:03 EST - Testing without Work Tracking section
 
 ### 36. Split issue tracker into separate repository
 
@@ -152,11 +149,11 @@ backlog
 #### Work Tracking
 
 **Timeline**
+
+- 2026-01-01 18:03 EST - Testing timeline orphaning
 - 2026-01-01 17:09 EST - Implementer fixed auditor issues + discovered and fixed 3 additional bugs (insertion point, horizontal rule boundary, section header orphan)
 - 2026-01-01 17:09 EST - Auditor FAILED - found ineffectual assignment and test data bug
 - 2026-01-01 17:09 EST - Implementer applied fix - changed boundary detection to 'first boundary wins' logic
-
-
 
 ### 1. remove the deprecation messages and any hint of V1/V2
 
@@ -164,6 +161,12 @@ backlog
 
 **Status**
 backlog
+#### Work Tracking
+
+**Timeline**
+- 2026-01-01 18:06 EST - test entry
+
+
 
 ### 11. Prevent ExpectCalledWithExactly generation for function types
 
@@ -255,7 +258,7 @@ TOE-109
 backlog
 
 **Description**
-Audit repository for stale build artifacts (*.out, *.test) and add to .gitignore
+Audit repository for stale build artifacts (_.out, _.test) and add to .gitignore
 
 #### Planning
 
@@ -294,7 +297,6 @@ Low
 
 **Linear**
 TOE-106
-
 
 ### 22. Re-evaluate and reorganize file structure for clarity (TOE-115)
 
@@ -444,44 +446,18 @@ Low
 TOE-78
 
 
-### 31. Add UAT for function type as dependency
+---
 
-#### Universal
+## Selected
 
-**Status**
-backlog
-
-**Description**
-Verify mocking function types (e.g., http.HandlerFunc) with --dependency flag
-
-#### Planning
-
-**Rationale**
-Taxonomy matrix shows "?" for "Function type as Dependency", capability untested
-
-**Acceptance**
-UAT demonstrating function type mocking with --dependency, or documented limitation with workaround
-
-**Effort**
-Small (1-2 hours)
-
-**Priority**
-Medium
-
-**Note**
-After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function type as Dependency" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
-
-#### Special Fields
-
-**Taxonomy Gap**
-Capability Matrix - "Function type" row, "As Dependency" column
+Issues selected for upcoming work.
 
 ### 32. Add UAT for interface as target
 
 #### Universal
 
 **Status**
-backlog
+selected
 
 **Description**
 Verify wrapping interfaces with --target flag (not mocking)
@@ -507,13 +483,6 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface
 
 **Taxonomy Gap**
 Capability Matrix - "Interface type" row, "As Target" column
-
-
----
-## Selected
-
-Issues selected for upcoming work.
-
 
 ### 33. Add UAT for struct type as target (comprehensive)
 
@@ -585,15 +554,103 @@ Capability Matrix - "Function" row, "As Dependency" column
 
 Issues currently being worked on.
 
-*No issues currently in progress*
-
----
-
 ---
 
 ## Done
 
 Completed issues.
+
+---
+
+### 31. Add UAT for function type as dependency
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Verify mocking function types (e.g., http.HandlerFunc) with --dependency flag
+
+#### Planning
+
+**Rationale**
+Taxonomy matrix shows "?" for "Function type as Dependency", capability untested
+
+**Acceptance**
+UAT demonstrating function type mocking with --dependency, or documented limitation with workaround
+
+**Effort**
+Small (1-2 hours)
+
+**Priority**
+Medium
+
+#### Work Tracking
+
+**Completed**
+2026-01-01
+
+**Commit**
+ad7a465, 96f7104
+
+**Timeline**
+- 2026-01-01 22:34 EST - Complete: TAXONOMY.md updated (96f7104), function type as dependency marked as supported
+- 2026-01-01 22:33 EST - Committed: UAT-31 test files (ad7a465) - all 8 tests passing
+- 2026-01-01 22:14 EST - REFACTOR: Auditor PASS - all tests passing, 0 violations in UAT-31, ready to commit
+- 2026-01-01 22:12 EST - REFACTOR: Fixed all 4 linter violations - routing to auditor for re-verification
+- 2026-01-01 22:10 EST - REFACTOR: Auditor found 4 linter violations - routing to implementer to fix
+- 2026-01-01 21:57 EST - GREEN: Fixed timing issues - all 8 tests passing with correct imptest pattern
+- 2026-01-01 21:57 EST - REFACTOR: Auditing code quality and running linter
+- 2026-01-01 21:28 EST - GREEN: Tests created but 4 failing due to timing/synchronization issues
+- 2026-01-01 18:20 EST - RED: Creating UAT-31 test file with function type dependency tests
+- 2026-01-01 18:19 EST - Started: Creating UAT for function type as dependency
+
+#### Documentation
+
+**Solution**
+Created UAT-31 demonstrating function type mocking with --dependency flag. Function types (e.g., http.HandlerFunc) can be mocked successfully when used as interface method parameters and return values.
+
+**Workaround**: Use imptest.Any() matcher for function type parameters in tests, as Go functions cannot be compared with ==.
+
+**Files Modified**
+- UAT/31-function-type-dependency/handlers.go (interface definitions with function types)
+- UAT/31-function-type-dependency/functype_test.go (8 comprehensive test cases)
+- UAT/31-function-type-dependency/generated_MockRouter_test.go (generated mock file)
+- docs/TAXONOMY.md (Capability Matrix + UAT Directory Index updated)
+
+#### Special Fields
+
+**Taxonomy Gap**
+Capability Matrix - "Function type" row, "As Dependency" column - NOW FILLED
+
+---
+
+### 39. Fix timeline entries added outside issue section
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+When using `mage issuestimeline` command, timeline entries were reported to be added outside the issue's Work Tracking section, appearing orphaned in other sections.
+
+#### Work Tracking
+
+**Timeline**
+- 2026-01-01 18:07 EST - Closed: Bug could not be reproduced with current code - appears to have been inadvertently fixed
+- 2026-01-01 18:05 EST - Testing: Multiple test cases all work correctly, timeline entries added in proper location
+- 2026-01-01 18:02 EST - RED: Unable to reproduce bug - existing code works correctly in tests
+- 2026-01-01 17:53 EST - RED: Creating regression tests to demonstrate orphaning bug
+- 2026-01-01 17:52 EST - Started: Investigating IssuesTimeline function to reproduce and fix bug
+
+#### Documentation
+
+**Solution**
+Bug could not be reproduced with current code. Multiple test cases (issues with and without existing Work Tracking sections) all correctly placed timeline entries within the issue's Work Tracking section.
+
+Likely inadvertently fixed by recent boundary detection improvements in IssuesStatus function (Issue #38), which uses similar insertion point calculation logic.
 
 ---
 
@@ -606,10 +663,10 @@ done
 
 **Description**
 
-
 #### Work Tracking
 
 **Timeline**
+
 - 2026-01-01 17:23 EST - Git-workflow created 2 commits: 6c4739b (tests), f1f773f (fix)
 - 2026-01-01 17:20 EST - Auditor PASSED - all tests passing, no new linter violations, ready for commit
 - 2026-01-01 17:18 EST - Implementer applied fix and discovered 3 additional bugs - all tests passing
@@ -620,7 +677,7 @@ done
 
 Issues ready for review/testing.
 
-*No issues currently in review*
+_No issues currently in review_
 
 ### 35. Fix issuesfix to move issues to correct sections
 
@@ -631,10 +688,10 @@ done
 
 **Description**
 
-
 #### Work Tracking
 
 **Timeline**
+
 - 2026-01-01 16:31 EST - Git-workflow created 3 commits: 90509ad (tests), 6d02fc3 (feat), 52483cd (docs)
 - 2026-01-01 16:31 EST - Auditor re-audit PASSED - all tests passing, code quality verified
 - 2026-01-01 16:19 EST - Implementer fixed integration: moved code to magefile.go, integrated into IssuesFix(), all tests pass
@@ -664,6 +721,7 @@ When a local package shadows a stdlib package name (e.g., local `time` package s
 cae3385
 
 **Timeline**
+
 - 2025-12-31 ~14:15 - Started: Design phase with solution-architect
 - 2025-12-31 ~14:20 - Planning: Broke down into 7 steps with solution-planner
 - 2025-12-31 ~14:25 - Implementation: Added --import-path flag, inference, and ambiguity detection
@@ -675,6 +733,7 @@ cae3385
 
 **Solution**
 Implemented 4-tier package resolution strategy:
+
 1. Explicit --import-path flag (highest priority)
 2. Infer from test file imports (automatic)
 3. Detect ambiguity and error with helpful message
@@ -723,6 +782,7 @@ Small (1-2 hours) - actual: ~11 minutes
 2025-12-31 01:40 EST
 
 **Timeline**
+
 - 2025-12-31 01:29 EST - RED: Wrote test file with named param/return expectations
 - 2025-12-31 01:30 EST - GREEN: Generated mocks/wrappers, fixed invocation errors
 - 2025-12-31 01:35 EST - REFACTOR: Fixed linter errors (err113, nlreturn, wrapcheck)
@@ -763,6 +823,7 @@ Small (1-2 hours) - actual: ~9 minutes
 2025-12-31 01:59 EST
 
 **Timeline**
+
 - 2025-12-31 01:50 EST - RED: Wrote test file with function literal expectations
 - 2025-12-31 01:52 EST - GREEN: Generated mocks/wrappers, discovered impgen bug with multi-param function literals
 - 2025-12-31 01:55 EST - GREEN: Fixed tests to use matchers for function literal params
@@ -772,6 +833,7 @@ Small (1-2 hours) - actual: ~9 minutes
 #### Special Fields
 
 **Note**
+
 - After completing UAT, update Signature Variations Matrix in TAXONOMY.md to mark "Function literal" as "Yes" with UAT reference
 - DISCOVERY: Found impgen bug - multi-parameter function literals (e.g., `func(int, int) int`) have parameters dropped in code generation. Workaround: use single-param function literals and matchers
 
@@ -805,6 +867,7 @@ Small (1-2 hours) - actual: ~65 minutes
 2025-12-31 11:30 EST
 
 **Timeline**
+
 - 2025-12-31 10:25 EST - RED: Created UAT structure, defined interface, wrote failing tests
 - 2025-12-31 10:30 EST - Generated mocks with impgen, discovered critical bug
 - 2025-12-31 10:45 EST - BUG FIX: Implemented `stringifyInterfaceType` to preserve interface literal method signatures
@@ -815,6 +878,7 @@ Small (1-2 hours) - actual: ~65 minutes
 #### Special Fields
 
 **Note**
+
 - TAXONOMY.md updated - Interface literal marked as "Yes" with UAT-25 reference
 - Discovered critical bug during test creation (tracked separately as Issue #12) - impgen was stripping interface literal method signatures, had to fix before tests could pass
 
@@ -851,6 +915,7 @@ Small (1-2 hours)
 bb59a33
 
 **Timeline**
+
 - 2026-01-01 01:40 EST - Started: Planning phase with solution-planner
 - 2026-01-01 03:04 EST - Planning complete: 10-step plan created, bug location identified (line 942 in codegen_common.go)
 - 2026-01-01 03:04 EST - RED: Test-writer creating UAT-30 structure
@@ -906,6 +971,7 @@ Medium (~55 minutes actual, 2-3 hours estimated)
 2025-12-31 12:14 EST
 
 **Timeline**
+
 - 2025-12-31 11:19 EST - RED: Created UAT-26 structure, helpers package, comprehensive test file
 - 2025-12-31 11:40 EST - GREEN: Discovered symbol resolution bug, fixed `findSymbol()` to check dot imports
 - 2025-12-31 11:50 EST - GREEN: Fixed package import path issue in generated mocks
@@ -917,6 +983,7 @@ Medium (~55 minutes actual, 2-3 hours estimated)
 
 **Solution**
 Modified symbol resolution to check dot-imported packages when symbol not found in current package:
+
 1. Added `getDotImportPaths()` to collect dot import paths from AST
 2. Modified `findSymbol()` to recursively search dot-imported packages when symbol not found
 3. Added `pkgPath` field to `symbolDetails` to track which package symbol was found in
@@ -945,6 +1012,7 @@ Taxonomy still lists this as a "**Hole**" but implementation is complete (commit
 
 **Acceptance**
 TAXONOMY.md updated in following sections:
+
 - Package Variations Matrix: Change "Standard library shadowing" from "**Hole**" to "Yes" with UAT-11 reference
 - Known Issues section: Remove or update to indicate this is resolved
 - Cannot Do section: Remove stdlib shadowing entry or update to show it's now supported
@@ -966,6 +1034,7 @@ Trivial (15-30 min)
 The 4-tier resolution strategy is: (1) Explicit --import-path flag, (2) Infer from test file imports, (3) Detect ambiguity and error with helpful message, (4) Fallback to existing logic
 
 Changes made:
+
 - Package Variations Matrix: Changed "**Hole**" to "Yes" with note "4-tier resolution (see below)"
 - Renamed "Known Issues" to "Standard Library Shadowing Resolution" with full explanation of 4-tier strategy
 - Cannot Do section: Changed "Known Hole" to "Now Supported ✓" with usage examples
@@ -997,6 +1066,7 @@ Dependency mocks have same type-safe return value guarantees as target wrappers
 2025-12-31 03:25 EST
 
 **Timeline**
+
 - 2025-12-31 02:42 EST - Started issue, entered PLAN MODE
 - 2025-12-31 02:43 EST - Launched 2 Explore agents in parallel:
   - Agent 1: Exploring target wrapper typesafe return pattern
@@ -1014,12 +1084,14 @@ Dependency mocks have same type-safe return value guarantees as target wrappers
 
 **Solution**
 Generated typed InjectReturnValues(result0 T1, result1 T2, ...) methods on call wrappers that shadow the untyped base method, providing:
+
 - Compile-time type safety (wrong types = compiler error)
 - Compile-time arity checking (wrong number of params = compiler error)
 - Zero migration impact (same method name, calling pattern unchanged)
 - Full backward compatibility (all existing tests pass)
 
 **Files Modified**
+
 - impgen/run/templates.go: Added TypedReturnParams and ReturnParamNames fields
 - impgen/run/text_templates.go: Modified v2DepCallWrapperTmpl to generate typed method
 - impgen/run/codegen_v2_dependency.go: Added buildTypedReturnParams helper and updated buildMethodTemplateData
@@ -1064,6 +1136,7 @@ High - blocks testing of common Go patterns (reducers, accumulators, callbacks w
 2025-12-31 02:20 EST
 
 **Timeline**
+
 - 2025-12-31 02:12 EST - Started: Created issue and began investigation
 - 2025-12-31 02:13 EST - Analysis: Wrote test to understand AST structure for multi-param function literals
 - 2025-12-31 02:15 EST - Bug found: typeWithQualifierFunc was not expanding fields with multiple names
@@ -1117,6 +1190,7 @@ Critical - causes compiler errors, blocks any use of interface literals in mocke
 68a312c
 
 **Timeline**
+
 - 2025-12-31 10:30 EST - Discovered: Generated mocks for UAT-25, compiler errors showed stripped signatures
 - 2025-12-31 10:35 EST - Root cause: `stringifyDSTExpr` returns `"interface{}"` for all `*dst.InterfaceType` nodes
 - 2025-12-31 10:40 EST - Implementation: Added `stringifyInterfaceType` helper function
@@ -1166,6 +1240,7 @@ Small (~20 minutes actual)
 2025-12-31 15:50 EST
 
 **Timeline**
+
 - 2025-12-31 15:30 EST - RED: Created UAT-27 structure (storage, service, test packages)
 - 2025-12-31 15:35 EST - RED: Wrote service package with dot import of storage
 - 2025-12-31 15:40 EST - RED: Wrote comprehensive test file mocking dot-imported Repository
@@ -1187,7 +1262,7 @@ This complements UAT-26 which tests dot imports in test code itself
 done
 
 **Description**
-Eventually() returns base *DependencyCall instead of typed wrapper, losing type-safe GetArgs() access
+Eventually() returns base \*DependencyCall instead of typed wrapper, losing type-safe GetArgs() access
 
 #### Planning
 
@@ -1214,96 +1289,8 @@ TOE-104
 **Commit**
 3629eeb, 46c6966, d66a013
 
-**Timeline**
-      - 2025-12-31 14:00 EST: DESIGN phase - Routed to solution-architect
-      - 2025-12-31 14:15 EST: DESIGN - User clarified: no timeout at all, ordered mode should fail-fast
-      - 2025-12-31 14:20 EST: DESIGN - Solution-architect redesigned with ordered vs eventually modes
-      - 2025-12-31 14:25 EST: DESIGN complete - User approved: ordered (fail-fast) vs eventually (queue)
-      - 2025-12-31 14:30 EST: PLANNING phase - Routed to solution-planner
-      - 2025-12-31 14:35 EST: PLANNING - Architectural decisions confirmed (hard break, wait forever, per-expectation, FIFO)
-      - 2025-12-31 14:45 EST: PLANNING complete - 13-step plan created (~10 hours estimated)
-      - 2025-12-31 14:50 EST: RED phase - Step 1: test-writer writing tests for failOnMismatch
-      - 2025-12-31 14:55 EST: RED complete - 2 failing tests written (GetCallOrdered, GetCallEventually)
-      - 2025-12-31 15:00 EST: GREEN phase - Step 1: implementer adding failOnMismatch to waiter struct
-      - 2025-12-31 15:05 EST: GREEN complete - Step 1 done: waiter struct extended, GetCallOrdered implemented, tests passing
-      - 2025-12-31 15:10 EST: AUDIT phase - Step 1: auditor reviewing code quality
-      - 2025-12-31 15:12 EST: AUDIT PASS - Step 1: Clean implementation, thread-safe, comprehensive tests, ready for Step 2
-      - 2025-12-31 15:15 EST: RED phase - Step 2: test-writer writing tests for GetCallEventually
-      - 2025-12-31 15:18 EST: RED complete - Step 2: 2 failing tests written (WaitsForMatch, ChecksQueueFirst)
-      - 2025-12-31 15:20 EST: GREEN phase - Step 2: implementer creating GetCallEventually method
-      - 2025-12-31 15:23 EST: GREEN complete - Step 2: GetCallEventually implemented, all tests passing
-      - 2025-12-31 15:25 EST: AUDIT phase - Step 2: auditor reviewing code quality
-      - 2025-12-31 15:27 EST: AUDIT PASS - Step 2: Functional and safe, minor code duplication (temp), ready for Step 3
-      - 2025-12-31 15:30 EST: RED phase - Step 3: test-writer writing tests for mixed ordered/eventually waiters
-      - 2025-12-31 15:35 EST: RED complete - Step 3: 3 tests written, 2 failing (exposed dispatcher missing fail-fast priority)
-      - 2025-12-31 15:38 EST: GREEN phase - Step 3: implementer fixing dispatcher fail-fast priority logic
-      - 2025-12-31 15:41 EST: GREEN complete - Step 3: Dispatcher fixed, all 19 tests passing, FIFO with fail-fast working
-      - 2025-12-31 15:43 EST: AUDIT phase - Step 3: auditor reviewing dispatcher logic
-      - 2025-12-31 15:46 EST: AUDIT PASS - Step 3: Correct logic, thread-safe, 100% coverage, ready for next phase
-      - 2025-12-31 15:48 EST: Phase 1 (Controller Layer) COMPLETE - Steps 1-3 done, moving to Phase 2 (Imp Layer)
-      - 2025-12-31 15:50 EST: RED phase - Step 5: test-writer writing tests for Imp layer methods
-      - 2025-12-31 15:53 EST: RED complete - Step 5: 3 failing tests written (GetCallOrdered/Eventually on Imp)
-      - 2025-12-31 15:55 EST: GREEN phase - Step 5: implementer adding GetCallOrdered/Eventually to Imp
-      - 2025-12-31 15:58 EST: GREEN complete - Step 5: Imp layer methods implemented, all tests passing
-      - 2025-12-31 16:00 EST: AUDIT phase - Step 5: auditor reviewing Imp layer
-      - 2025-12-31 16:02 EST: AUDIT NOTE - Step 5: Tests pass, some linter warnings (may be pre-existing), continuing
-      - 2025-12-31 16:05 EST: Phases 1-2 CHECKPOINT - Controller & Imp layers functional, committing progress
-      - 2025-12-31 16:08 EST: COMMITTED - feat(imptest): implement ordered vs eventually call matching modes (3629eeb)
-      - 2025-12-31 16:10 EST: Phase 3 START - DependencyMethod layer: removing timeout, adding eventually flag
-      - 2025-12-31 16:12 EST: RED phase - Step 6: test-writer writing tests for DependencyMethod transformation
-      - 2025-12-31 16:15 EST: RED complete - Step 6: 3 failing tests written (Eventually() API transformation)
-      - 2025-12-31 16:18 EST: GREEN phase - Step 6: implementer transforming DependencyMethod to mode-based
-      - 2025-12-31 16:22 EST: GREEN complete - Step 6: Timeout removed! Eventually() now no-param, mode-based API working
-      - 2025-12-31 15:23 EST: MILESTONE - Issue #20 core complete: Eventually() has NO timeout parameter!
-      - 2025-12-31 15:25 EST: COMMITTED - feat(imptest): remove timeout from Eventually() (46c6966)
-      - 2025-12-31 15:27 EST: Phase 4 START - Code generation: Add typed Eventually() to templates for Issue #19
-      - 2025-12-31 15:27 EST: GREEN phase - Routed to implementer for template changes
-      - 2025-12-31 15:28 EST: GREEN - implementer: Added Eventually() to v2DepMethodWrapperTmpl
-      - 2025-12-31 15:29 EST: GREEN - implementer: Updated 5 UAT test files (removed timeout parameter)
-      - 2025-12-31 15:30 EST: GREEN - implementer: Regenerated mocks, created eventually_test.go
-      - 2025-12-31 15:31 EST: GREEN - All UAT tests passing
-      - 2025-12-31 17:40 EST: Step 7 complete: Added typed Eventually() to templates, Issue #19 COMPLETE
-      - 2025-12-31 17:45 EST: COMMITTED - feat(imptest): add type-safe Eventually() to generated mocks (d66a013)
-      - 2025-12-31 17:47 EST: Step 8 START - Cleanup: Remove remaining timeout-related template code
-      - 2025-12-31 17:49 EST: Step 8 complete - Verified no timeout references remain (all cleaned in Step 7)
-      - 2025-12-31 17:49 EST: Steps 9-10 SKIP - UAT test updates already completed in Step 7
-      - 2025-12-31 17:50 EST: Step 11 START - Create new UAT test demonstrating ordered vs eventually modes
-      - 2025-12-31 17:52 EST: GREEN - implementer: Created UAT/28 directory structure
-      - 2025-12-31 17:53 EST: GREEN - implementer: Created service.go interface
-      - 2025-12-31 17:55 EST: GREEN - implementer: Created modes_test.go with 6 comprehensive tests
-      - 2025-12-31 17:58 EST: GREEN - implementer: Generated mock, fixed test issues
-      - 2025-12-31 18:00 EST: GREEN - All 5 UAT-28 tests passing with race detector
-      - 2025-12-31 18:01 EST: Step 11 complete - UAT-28 demonstrates ordered vs eventually modes
-      - 2025-12-31 18:02 EST: Step 12 START - Update documentation and comments
-      - 2025-12-31 18:05 EST: Step 12 - Updated README.md (3 Eventually() examples)
-      - 2025-12-31 18:06 EST: Step 12 - Updated V1_TO_V2_MIGRATION.md
-      - 2025-12-31 18:07 EST: Step 12 complete - All documentation updated
-      - 2025-12-31 18:08 EST: Step 13 START - Run full test suite and verify
-      - 2025-12-31 18:20 EST: BLOCKER FOUND - Regression in commit 3629eeb: fail-fast logic has bugs
-      - 2025-12-31 18:21 EST: Bug details: TestImpGetCallOrdered_WrongMethod, TestDispatchLoop_OrderedFailsEventuallyWaits failing
-      - 2025-12-31 18:22 EST: Root cause: matched=true fix reveals deeper dispatcher logic issues
-      - 2025-12-31 18:23 EST: STATUS: Steps 7-12 COMPLETE and working, but blocked by earlier commit bug
-      - 2025-12-31 21:00 EST: REFACTOR - User identified: violated TDD by updating library before tests
-      - 2025-12-31 21:05 EST: REFACTOR - Systematically updated all validators: bool→error-based (controller, imp, dependency, tests)
-      - 2025-12-31 21:25 EST: REFACTOR - Fixed hanging test: TestDispatchLoop_FIFOPriority (Eventually no longer times out)
-      - 2025-12-31 21:30 EST: REFACTOR PASS - All tests passing (0.463s)
-      - 2025-12-31 21:35 EST: BLOCKER - Data races detected by race detector
-      - 2025-12-31 21:40 EST: INVESTIGATION - Routed to failure-debugger agent
-      - 2025-12-31 21:50 EST: INVESTIGATION - Agent identified 3 racy tests using mockTester pattern (unsynchronized variable access)
-      - 2025-12-31 21:52 EST: INVESTIGATION - Root cause: test goroutine reads variables while dispatcher goroutine writes them
-      - 2025-12-31 21:52 EST: STATUS: Regression tests created in race_regression_test.go, ready for TDD fix cycle
-      - 2025-12-31 22:05 EST: FIX - User insight: use imptest to test imptest (TesterImp/MockTester generated mocks)
-      - 2025-12-31 22:10 EST: FIX - Updated controller_test.go: 2 racy tests now use TesterImp (proper sync via Controller)
-      - 2025-12-31 22:12 EST: FIX - Hit import cycle for imp_test.go (package imptest can't import itself)
-      - 2025-12-31 22:15 EST: FIX - Used channel-based sync for imp_test.go (mockTestReporter with fatalfChan)
-      - 2025-12-31 22:20 EST: FIX - All 3 fixed tests pass with -race (0 races detected)
-      - 2025-12-31 22:22 EST: VERIFIED - All production tests pass with -race (excluding intentional regression tests)
-      - 2025-12-31 22:23 EST: STATUS: Race conditions FIXED, all tests passing
-      - 2025-12-31 22:25 EST: MAGE CHECK - Updated magefile to skip TestRaceRegression tests in CI (using -skip flag)
-      - 2025-12-31 22:30 EST: CLEANUP - Removed deprecated GetCallWithTimeout (0% coverage, no callers)
-      - 2025-12-31 22:35 EST: LINTING - Fixed 14 new linting issues in race_regression_test.go (wsl whitespace + revive)
-      - 2025-12-31 22:40 EST: STATUS: Race fix work COMPLETE - 35 pre-existing linting issues remain (tracked separately)
-      - 2025-12-31 22:45 EST: LINTING - Fixed all 35 pre-existing linting issues (err113, wsl, nolintlint, staticcheck, nlreturn, noinlineerr, funlen, revive, errcheck)
+**Timeline** - 2025-12-31 14:00 EST: DESIGN phase - Routed to solution-architect - 2025-12-31 14:15 EST: DESIGN - User clarified: no timeout at all, ordered mode should fail-fast - 2025-12-31 14:20 EST: DESIGN - Solution-architect redesigned with ordered vs eventually modes - 2025-12-31 14:25 EST: DESIGN complete - User approved: ordered (fail-fast) vs eventually (queue) - 2025-12-31 14:30 EST: PLANNING phase - Routed to solution-planner - 2025-12-31 14:35 EST: PLANNING - Architectural decisions confirmed (hard break, wait forever, per-expectation, FIFO) - 2025-12-31 14:45 EST: PLANNING complete - 13-step plan created (~10 hours estimated) - 2025-12-31 14:50 EST: RED phase - Step 1: test-writer writing tests for failOnMismatch - 2025-12-31 14:55 EST: RED complete - 2 failing tests written (GetCallOrdered, GetCallEventually) - 2025-12-31 15:00 EST: GREEN phase - Step 1: implementer adding failOnMismatch to waiter struct - 2025-12-31 15:05 EST: GREEN complete - Step 1 done: waiter struct extended, GetCallOrdered implemented, tests passing - 2025-12-31 15:10 EST: AUDIT phase - Step 1: auditor reviewing code quality - 2025-12-31 15:12 EST: AUDIT PASS - Step 1: Clean implementation, thread-safe, comprehensive tests, ready for Step 2 - 2025-12-31 15:15 EST: RED phase - Step 2: test-writer writing tests for GetCallEventually - 2025-12-31 15:18 EST: RED complete - Step 2: 2 failing tests written (WaitsForMatch, ChecksQueueFirst) - 2025-12-31 15:20 EST: GREEN phase - Step 2: implementer creating GetCallEventually method - 2025-12-31 15:23 EST: GREEN complete - Step 2: GetCallEventually implemented, all tests passing - 2025-12-31 15:25 EST: AUDIT phase - Step 2: auditor reviewing code quality - 2025-12-31 15:27 EST: AUDIT PASS - Step 2: Functional and safe, minor code duplication (temp), ready for Step 3 - 2025-12-31 15:30 EST: RED phase - Step 3: test-writer writing tests for mixed ordered/eventually waiters - 2025-12-31 15:35 EST: RED complete - Step 3: 3 tests written, 2 failing (exposed dispatcher missing fail-fast priority) - 2025-12-31 15:38 EST: GREEN phase - Step 3: implementer fixing dispatcher fail-fast priority logic - 2025-12-31 15:41 EST: GREEN complete - Step 3: Dispatcher fixed, all 19 tests passing, FIFO with fail-fast working - 2025-12-31 15:43 EST: AUDIT phase - Step 3: auditor reviewing dispatcher logic - 2025-12-31 15:46 EST: AUDIT PASS - Step 3: Correct logic, thread-safe, 100% coverage, ready for next phase - 2025-12-31 15:48 EST: Phase 1 (Controller Layer) COMPLETE - Steps 1-3 done, moving to Phase 2 (Imp Layer) - 2025-12-31 15:50 EST: RED phase - Step 5: test-writer writing tests for Imp layer methods - 2025-12-31 15:53 EST: RED complete - Step 5: 3 failing tests written (GetCallOrdered/Eventually on Imp) - 2025-12-31 15:55 EST: GREEN phase - Step 5: implementer adding GetCallOrdered/Eventually to Imp - 2025-12-31 15:58 EST: GREEN complete - Step 5: Imp layer methods implemented, all tests passing - 2025-12-31 16:00 EST: AUDIT phase - Step 5: auditor reviewing Imp layer - 2025-12-31 16:02 EST: AUDIT NOTE - Step 5: Tests pass, some linter warnings (may be pre-existing), continuing - 2025-12-31 16:05 EST: Phases 1-2 CHECKPOINT - Controller & Imp layers functional, committing progress - 2025-12-31 16:08 EST: COMMITTED - feat(imptest): implement ordered vs eventually call matching modes (3629eeb) - 2025-12-31 16:10 EST: Phase 3 START - DependencyMethod layer: removing timeout, adding eventually flag - 2025-12-31 16:12 EST: RED phase - Step 6: test-writer writing tests for DependencyMethod transformation - 2025-12-31 16:15 EST: RED complete - Step 6: 3 failing tests written (Eventually() API transformation) - 2025-12-31 16:18 EST: GREEN phase - Step 6: implementer transforming DependencyMethod to mode-based - 2025-12-31 16:22 EST: GREEN complete - Step 6: Timeout removed! Eventually() now no-param, mode-based API working - 2025-12-31 15:23 EST: MILESTONE - Issue #20 core complete: Eventually() has NO timeout parameter! - 2025-12-31 15:25 EST: COMMITTED - feat(imptest): remove timeout from Eventually() (46c6966) - 2025-12-31 15:27 EST: Phase 4 START - Code generation: Add typed Eventually() to templates for Issue #19 - 2025-12-31 15:27 EST: GREEN phase - Routed to implementer for template changes - 2025-12-31 15:28 EST: GREEN - implementer: Added Eventually() to v2DepMethodWrapperTmpl - 2025-12-31 15:29 EST: GREEN - implementer: Updated 5 UAT test files (removed timeout parameter) - 2025-12-31 15:30 EST: GREEN - implementer: Regenerated mocks, created eventually_test.go - 2025-12-31 15:31 EST: GREEN - All UAT tests passing - 2025-12-31 17:40 EST: Step 7 complete: Added typed Eventually() to templates, Issue #19 COMPLETE - 2025-12-31 17:45 EST: COMMITTED - feat(imptest): add type-safe Eventually() to generated mocks (d66a013) - 2025-12-31 17:47 EST: Step 8 START - Cleanup: Remove remaining timeout-related template code - 2025-12-31 17:49 EST: Step 8 complete - Verified no timeout references remain (all cleaned in Step 7) - 2025-12-31 17:49 EST: Steps 9-10 SKIP - UAT test updates already completed in Step 7 - 2025-12-31 17:50 EST: Step 11 START - Create new UAT test demonstrating ordered vs eventually modes - 2025-12-31 17:52 EST: GREEN - implementer: Created UAT/28 directory structure - 2025-12-31 17:53 EST: GREEN - implementer: Created service.go interface - 2025-12-31 17:55 EST: GREEN - implementer: Created modes_test.go with 6 comprehensive tests - 2025-12-31 17:58 EST: GREEN - implementer: Generated mock, fixed test issues - 2025-12-31 18:00 EST: GREEN - All 5 UAT-28 tests passing with race detector - 2025-12-31 18:01 EST: Step 11 complete - UAT-28 demonstrates ordered vs eventually modes - 2025-12-31 18:02 EST: Step 12 START - Update documentation and comments - 2025-12-31 18:05 EST: Step 12 - Updated README.md (3 Eventually() examples) - 2025-12-31 18:06 EST: Step 12 - Updated V1_TO_V2_MIGRATION.md - 2025-12-31 18:07 EST: Step 12 complete - All documentation updated - 2025-12-31 18:08 EST: Step 13 START - Run full test suite and verify - 2025-12-31 18:20 EST: BLOCKER FOUND - Regression in commit 3629eeb: fail-fast logic has bugs - 2025-12-31 18:21 EST: Bug details: TestImpGetCallOrdered_WrongMethod, TestDispatchLoop_OrderedFailsEventuallyWaits failing - 2025-12-31 18:22 EST: Root cause: matched=true fix reveals deeper dispatcher logic issues - 2025-12-31 18:23 EST: STATUS: Steps 7-12 COMPLETE and working, but blocked by earlier commit bug - 2025-12-31 21:00 EST: REFACTOR - User identified: violated TDD by updating library before tests - 2025-12-31 21:05 EST: REFACTOR - Systematically updated all validators: bool→error-based (controller, imp, dependency, tests) - 2025-12-31 21:25 EST: REFACTOR - Fixed hanging test: TestDispatchLoop_FIFOPriority (Eventually no longer times out) - 2025-12-31 21:30 EST: REFACTOR PASS - All tests passing (0.463s) - 2025-12-31 21:35 EST: BLOCKER - Data races detected by race detector - 2025-12-31 21:40 EST: INVESTIGATION - Routed to failure-debugger agent - 2025-12-31 21:50 EST: INVESTIGATION - Agent identified 3 racy tests using mockTester pattern (unsynchronized variable access) - 2025-12-31 21:52 EST: INVESTIGATION - Root cause: test goroutine reads variables while dispatcher goroutine writes them - 2025-12-31 21:52 EST: STATUS: Regression tests created in race_regression_test.go, ready for TDD fix cycle - 2025-12-31 22:05 EST: FIX - User insight: use imptest to test imptest (TesterImp/MockTester generated mocks) - 2025-12-31 22:10 EST: FIX - Updated controller_test.go: 2 racy tests now use TesterImp (proper sync via Controller) - 2025-12-31 22:12 EST: FIX - Hit import cycle for imp_test.go (package imptest can't import itself) - 2025-12-31 22:15 EST: FIX - Used channel-based sync for imp_test.go (mockTestReporter with fatalfChan) - 2025-12-31 22:20 EST: FIX - All 3 fixed tests pass with -race (0 races detected) - 2025-12-31 22:22 EST: VERIFIED - All production tests pass with -race (excluding intentional regression tests) - 2025-12-31 22:23 EST: STATUS: Race conditions FIXED, all tests passing - 2025-12-31 22:25 EST: MAGE CHECK - Updated magefile to skip TestRaceRegression tests in CI (using -skip flag) - 2025-12-31 22:30 EST: CLEANUP - Removed deprecated GetCallWithTimeout (0% coverage, no callers) - 2025-12-31 22:35 EST: LINTING - Fixed 14 new linting issues in race_regression_test.go (wsl whitespace + revive) - 2025-12-31 22:40 EST: STATUS: Race fix work COMPLETE - 35 pre-existing linting issues remain (tracked separately) - 2025-12-31 22:45 EST: LINTING - Fixed all 35 pre-existing linting issues (err113, wsl, nolintlint, staticcheck, nlreturn, noinlineerr, funlen, revive, errcheck)
+
 - 2025-12-31 22:50 EST: ✅ VERIFIED - mage check PASSES with 0 issues
 - 2025-12-31 22:50 EST: STATUS: Issues #19 and #20 COMPLETE - All race conditions fixed, all tests passing, mage check clean
 
@@ -1348,6 +1335,7 @@ TOE-107
 3629eeb, 46c6966, d66a013
 
 **Timeline**
+
 - 2025-12-31 14:00 EST: Combined with issue #19 for unified solution
 - 2025-12-31 14:20 EST: DESIGN - Decision: NO timeout parameter, wait indefinitely
 - 2025-12-31 14:45 EST: PLANNING - Timeout removed entirely from design
@@ -1371,7 +1359,7 @@ Issue #19 (both related to Eventually() API)
 done
 
 **Description**
-Audit all *_test.go files to ensure we use imptest's mocking where applicable - serves as dogfooding and improves test quality
+Audit all \*\_test.go files to ensure we use imptest's mocking where applicable - serves as dogfooding and improves test quality
 
 #### Planning
 
@@ -1396,6 +1384,7 @@ TOE-111
 32443a6
 
 **Timeline**
+
 - 2026-01-01 00:05 EST - Started: Routing to Explore agent to audit test files for imptest usage opportunities
 - 2026-01-01 00:08 EST - Audit complete: 90 test files analyzed, ~75 already using imptest correctly (controller_test.go is gold standard, all 78 UATs correct). Found 2 high-priority opportunities: (1) imp_test.go should use generated MockTestReporter instead of manual mockTestReporter, (2) race_regression_test.go "proper sync" tests should use TesterImp. Medium priority: generate MockTimer for timeout testing, document dogfooding pattern.
 - 2026-01-01 00:14 EST - REFACTOR: Starting Step 1 of 4 - Generate MockTestReporter and refactor imp_test.go (5 tests affected)
@@ -1413,6 +1402,7 @@ TOE-111
 
 **Solution**
 Completed 4-step dogfooding implementation:
+
 1. Generated MockTestReporter and refactored imp_test.go (5 tests) to external package with --dependency flag
 2. Refactored race_regression_test.go proper sync tests to use TesterImp (preserved regression tests as anti-pattern documentation)
 3. Generated MockTimer infrastructure for deterministic timeout testing
@@ -1451,6 +1441,7 @@ High - causes compilation errors in generated mocks
 abd895e
 
 **Timeline**
+
 - 2026-01-01 00:43 EST - RED: Planning complete, starting UAT-29 creation
 - 2026-01-01 01:02 EST - RED: Created UAT-29 structure (aaa_dummy.go, types.go, types_test.go)
 - 2026-01-01 01:02 EST - RED: Generated mocks FAIL - missing `os` and `time` imports (as expected)
@@ -1465,6 +1456,7 @@ abd895e
 Track sourceImports in ifaceWithDetails struct, capture imports from interface's file in getMatchingInterfaceFromAST(), use those imports in collectAdditionalImports()
 
 **Files Modified**
+
 - impgen/run/pkgparse.go: Added sourceImports field to ifaceWithDetails struct
 - impgen/run/codegen_v2_dependency.go: Updated to use interface file's imports
 - UAT/29-cross-file-external-imports/: New UAT demonstrating bug scenario
@@ -1516,6 +1508,7 @@ Critical - blocks Issue #6, causes compiler errors in generated code
 bb59a33
 
 **Timeline**
+
 - 2026-01-01 03:06 EST - BUG DISCOVERED: UAT-30 generation revealed struct literal fields being stripped
 - 2026-01-01 03:06 EST - Created Issue #34, decided to fix NOW per EXP-005 (blocks Issue #6)
 - 2026-01-01 03:06 EST - RED: Test-writer creating codegen_common_struct_test.go with 18 unit tests
@@ -1527,12 +1520,14 @@ bb59a33
 
 **Solution**
 Implemented `stringifyStructType()` function following same pattern as `stringifyInterfaceType()` from Issue #12:
+
 - Iterates through struct fields preserving names, types (via recursive stringifyDSTExpr), and tags
 - Handles multiple names per field (e.g., `Host, Port string`)
 - Handles embedded fields (no names)
 - Preserves struct tags (backtick-wrapped)
 
 **Files Modified**
+
 - impgen/run/codegen_common.go: Added stringifyStructType() and stringifyFuncType(), updated line 942
 - impgen/run/codegen_common_struct_test.go: 18 comprehensive unit tests
 
@@ -1588,10 +1583,10 @@ glowsync/issues.md #16
 Migrated to glowsync project as it was mistakenly assigned to imptest
 
 ---
+
 ## Cancelled
 
 Issues that will not be completed.
-
 
 ### 21. Rename --target/--dependency flags to --wrap/--mock (TOE-108)
 
@@ -1623,4 +1618,4 @@ TOE-108
 
 Issues waiting on dependencies.
 
-*No blocked issues*
+_No blocked issues_
