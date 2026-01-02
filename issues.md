@@ -452,38 +452,6 @@ TOE-78
 
 Issues selected for upcoming work.
 
-### 32. Add UAT for interface as target
-
-#### Universal
-
-**Status**
-selected
-
-**Description**
-Verify wrapping interfaces with --target flag (not mocking)
-
-#### Planning
-
-**Rationale**
-Taxonomy matrix shows "?" for "Interface type as Target", capability untested
-
-**Acceptance**
-UAT demonstrating interface wrapping with --target, or documented limitation with workaround
-
-**Effort**
-Small (1-2 hours)
-
-**Priority**
-Medium
-
-**Note**
-After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface type as Target" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
-
-#### Special Fields
-
-**Taxonomy Gap**
-Capability Matrix - "Interface type" row, "As Target" column
-
 ### 33. Add UAT for struct type as target (comprehensive)
 
 #### Universal
@@ -559,6 +527,52 @@ Issues currently being worked on.
 ## Done
 
 Completed issues.
+
+### 32. Add UAT for interface as target
+
+#### Universal
+
+**Status**
+complete
+
+**Description**
+Implement interface wrapping support with --target flag (not just mocking with --dependency)
+
+#### Work Tracking
+
+**Timeline**
+- 2026-01-02 10:44 EST - Complete: Interface wrapping with --target fully implemented and tested (commit 05bf38b)
+- 2026-01-02 10:29 EST - Committing interface wrapper implementation
+- 2026-01-02 10:30 EST - Complete: Creating git commit for interface wrapper feature
+- 2026-01-02 10:16 EST - REFACTOR: Auditing interface wrapper implementation (PASS - 3 minor style suggestions)
+- 2026-01-02 09:44 EST - GREEN: Implementing interface wrapper generation (7-step plan, all tests passing)
+- 2026-01-02 09:42 EST - RED: Fixing UAT-32 test syntax to use correct API (wrapper.Method.Start() pattern)
+- 2026-01-02 09:39 EST - PLAN MODE: Refined approach - compose per-method function wrappers
+- 2026-01-02 09:23 EST - PLAN MODE: Breaking down implementation steps (simple fix - reuse existing wrapper generator)
+- 2026-01-02 09:12 EST - PLAN MODE: Designing interface wrapping implementation approach
+- 2026-01-02 02:07 EST - RED: Created UAT-32 tests (currently failing - feature not implemented)
+
+#### Planning
+
+**Rationale**
+Taxonomy matrix shows "?" for "Interface type as Target", capability untested
+
+**Acceptance**
+UAT demonstrating interface wrapping with --target, or documented limitation with workaround
+
+**Effort**
+Small (1-2 hours)
+
+**Priority**
+Medium
+
+**Note**
+After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface type as Target" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
+
+#### Special Fields
+
+**Taxonomy Gap**
+Capability Matrix - "Interface type" row, "As Target" column
 
 ---
 
