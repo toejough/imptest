@@ -2,7 +2,6 @@
 package run
 
 import (
-	"bytes"
 	"fmt"
 	"go/format"
 	"go/token"
@@ -28,23 +27,7 @@ type v2InterfaceTargetGenerator struct {
 	identifiedInterface ifaceWithDetails // full interface details including source imports
 }
 
-// methodWrapperData holds data for a single method wrapper.
-type methodWrapperData struct {
-	MethodName        string
-	WrapName          string // Internal wrapper constructor (e.g., "wrapWrapLoggerWrapperLog")
-	WrapperType       string // Wrapper type (e.g., "WrapLoggerWrapperLogWrapper")
-	ReturnsType       string // Returns type (e.g., "WrapLoggerWrapperLogReturns")
-	Params            string
-	ParamNames        string
-	HasResults        bool
-	ResultVars        string
-	ReturnAssignments string
-	WaitMethodName    string
-	ExpectedParams    string
-	MatcherParams     string
-	ResultChecks      []resultCheck
-	ResultFields      []resultField
-}
+// methodWrapperData is now defined in templates.go for consistency with other generators
 
 // checkIfQualifierNeeded determines if we need a package qualifier.
 func (gen *v2InterfaceTargetGenerator) checkIfQualifierNeeded() {
@@ -123,9 +106,7 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 ) methodWrapperData {
 	// Build parameter string and collect param names
 	paramsStr, paramNames := gen.buildParamStrings(ftype)
-
-	// Build results string and collect result types
-	_, resultTypes := gen.buildResultStrings(ftype)
+	resultsStr, resultTypes := gen.buildResultStrings(ftype)
 
 	// Build param names comma-separated
 	var paramNamesStr strings.Builder
@@ -136,6 +117,10 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 		paramNamesStr.WriteString(name)
 	}
 
+	// Build parameter fields for call record
+	paramFields := gen.buildParamFieldsFromNames(paramNames, ftype)
+	paramFieldsStruct := gen.buildParamFieldsStruct(paramFields)
+
 	// Build result vars and return assignments
 	var resultVarsStr, returnAssignmentsStr strings.Builder
 	hasResults := len(resultTypes) > 0
@@ -145,8 +130,8 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 				resultVarsStr.WriteString(", ")
 				returnAssignmentsStr.WriteString(", ")
 			}
-			fmt.Fprintf(&resultVarsStr, "ret%d", i)
-			fmt.Fprintf(&returnAssignmentsStr, "Result%d: ret%d", i, i)
+			fmt.Fprintf(&resultVarsStr, "r%d", i)
+			fmt.Fprintf(&returnAssignmentsStr, "Result%d: r%d", i, i)
 		}
 	}
 
@@ -156,7 +141,7 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 		waitMethodName = "WaitForResponse"
 	}
 
-	// Build result fields
+	// Build result fields (preallocating with known capacity)
 	resultFields := make([]resultField, 0, len(resultTypes))
 	if hasResults {
 		for i, resultType := range resultTypes {
@@ -167,9 +152,12 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 		}
 	}
 
+	// Build result return list
+	resultReturnList := gen.buildResultReturnList(resultFields)
+
 	// Build expected params and matcher params for result verification
 	var expectedParamsStr, matcherParamsStr strings.Builder
-	var resultChecks []resultCheck
+	resultChecks := make([]resultCheck, 0, len(resultTypes))
 	if hasResults {
 		for i, resultType := range resultTypes {
 			if i > 0 {
@@ -193,14 +181,18 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 		ReturnsType:       fmt.Sprintf("%s%sReturns", gen.wrapperType, methodName),
 		Params:            paramsStr,
 		ParamNames:        paramNamesStr.String(),
+		ParamFields:       paramFields,
+		ParamFieldsStruct: paramFieldsStruct,
+		Results:           resultsStr,
 		HasResults:        hasResults,
 		ResultVars:        resultVarsStr.String(),
 		ReturnAssignments: returnAssignmentsStr.String(),
+		ResultReturnList:  resultReturnList,
+		ResultFields:      resultFields,
+		ResultChecks:      resultChecks,
 		WaitMethodName:    waitMethodName,
 		ExpectedParams:    expectedParamsStr.String(),
 		MatcherParams:     matcherParamsStr.String(),
-		ResultChecks:      resultChecks,
-		ResultFields:      resultFields,
 	}
 }
 
@@ -286,7 +278,84 @@ func (gen *v2InterfaceTargetGenerator) buildResultStrings(
 	return builder.String(), resultTypes
 }
 
-// generate produces the v2 interface target wrapper code.
+// buildParamFieldsFromNames creates paramField slice from parameter names and types.
+func (gen *v2InterfaceTargetGenerator) buildParamFieldsFromNames(
+	paramNames []string,
+	ftype *dst.FuncType,
+) []paramField {
+	if ftype.Params == nil || len(paramNames) == 0 {
+		return nil
+	}
+
+	// Preallocating with exact capacity needed
+	paramFields := make([]paramField, 0, len(paramNames))
+	paramIndex := 0
+
+	for _, field := range ftype.Params.List {
+		fieldType := gen.typeWithQualifier(field.Type)
+		count := len(field.Names)
+		if count == 0 {
+			count = 1
+		}
+
+		for i := 0; i < count; i++ {
+			if paramIndex < len(paramNames) {
+				name := paramNames[paramIndex]
+				// Capitalize first letter for exported field
+				fieldName := strings.ToUpper(string(name[0])) + name[1:]
+				paramFields = append(paramFields, paramField{
+					Name:  fieldName,
+					Type:  fieldType,
+					Index: paramIndex,
+				})
+				paramIndex++
+			}
+		}
+	}
+
+	return paramFields
+}
+
+// buildParamFieldsStruct builds struct field definition string for inline parameter struct.
+func (gen *v2InterfaceTargetGenerator) buildParamFieldsStruct(fields []paramField) string {
+	if len(fields) == 0 {
+		return ""
+	}
+
+	var result strings.Builder
+	for i, field := range fields {
+		if i > 0 {
+			result.WriteString("; ")
+		}
+		result.WriteString(fmt.Sprintf("%s %s", field.Name, field.Type))
+	}
+
+	return result.String()
+}
+
+// buildResultReturnList builds the return type list from result fields.
+func (gen *v2InterfaceTargetGenerator) buildResultReturnList(fields []resultField) string {
+	if len(fields) == 0 {
+		return ""
+	}
+	if len(fields) == 1 {
+		return fields[0].Type
+	}
+
+	var result strings.Builder
+	result.WriteString("(")
+	for i, field := range fields {
+		if i > 0 {
+			result.WriteString(", ")
+		}
+		result.WriteString(field.Type)
+	}
+	result.WriteString(")")
+
+	return result.String()
+}
+
+// generate produces the v2 interface target wrapper code using templates.
 func (gen *v2InterfaceTargetGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded()
@@ -296,17 +365,38 @@ func (gen *v2InterfaceTargetGenerator) generate() (string, error) {
 		gen.needsQualifier = true
 	}
 
-	// Collect method wrappers for all interface methods
-	var methodWrappers []methodWrapperData
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(methodName string, ftype *dst.FuncType) {
-			methodData := gen.buildMethodWrapperData(methodName, ftype)
-			methodWrappers = append(methodWrappers, methodData)
-		},
-	)
+	// Initialize template registry
+	templates, err := NewTemplateRegistry()
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize template registry: %w", err)
+	}
 
-	// Build the interface type string
+	// Generate using templates
+	gen.generateWithTemplates(templates)
+
+	formatted, err := format.Source(gen.bytes())
+	if err != nil {
+		return "", fmt.Errorf("error formatting generated code: %w", err)
+	}
+
+	return string(formatted), nil
+}
+
+// generateWithTemplates generates code using templates instead of direct code generation.
+func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *TemplateRegistry) {
+	// Build base template data
+	base := baseTemplateData{
+		PkgName:           gen.pkgName,
+		ImpName:           gen.impName,
+		PkgPath:           gen.pkgPath,
+		Qualifier:         gen.qualifier,
+		NeedsQualifier:    gen.needsQualifier,
+		TypeParamsDecl:    gen.formatTypeParamsDecl(),
+		TypeParamsUse:     gen.formatTypeParamsUse(),
+		AdditionalImports: gen.collectAdditionalImports(),
+	}
+
+	// Construct the interface type with qualifier if needed
 	interfaceType := gen.interfaceName
 	if gen.qualifier != "" && gen.needsQualifier {
 		qualifierToUse := gen.qualifier
@@ -321,35 +411,49 @@ func (gen *v2InterfaceTargetGenerator) generate() (string, error) {
 		interfaceType += gen.formatTypeParamsUse()
 	}
 
-	// Generate code manually (without templates for now)
-	var buf bytes.Buffer
+	// Collect method wrappers for all interface methods
+	var methodWrappers []methodWrapperData
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(methodName string, ftype *dst.FuncType) {
+			methodData := gen.buildMethodWrapperData(methodName, ftype)
+			methodWrappers = append(methodWrappers, methodData)
+		},
+	)
 
-	// Write header
-	gen.writeHeader(&buf)
+	// Build v2 interface target template data
+	data := v2InterfaceTargetTemplateData{
+		baseTemplateData: base,
+		WrapName:         gen.wrapName,
+		WrapperType:      gen.wrapperType,
+		InterfaceName:    gen.interfaceName,
+		InterfaceType:    interfaceType,
+		ImplName:         gen.implName,
+		MethodNames:      gen.methodNames,
+		Methods:          methodWrappers,
+	}
 
-	// Write main wrapper struct
-	gen.writeWrapperStruct(&buf, methodWrappers, interfaceType)
+	// Generate each section using templates
+	templates.WriteV2InterfaceTargetHeader(&gen.buf, data)
+	templates.WriteV2InterfaceTargetWrapperStruct(&gen.buf, data)
+	templates.WriteV2InterfaceTargetConstructor(&gen.buf, data)
+	templates.WriteV2InterfaceTargetInterceptorStruct(&gen.buf, data)
 
-	// Write constructor
-	gen.writeConstructor(&buf, methodWrappers, interfaceType)
-
-	// Write interceptor
-	gen.writeInterceptor(&buf, methodWrappers, interfaceType)
-
-	// Write Interface() method
-	gen.writeInterfaceMethod(&buf, interfaceType)
-
-	// Write per-method wrappers
+	// Generate interceptor methods for each interface method
 	for _, methodData := range methodWrappers {
-		gen.writeMethodWrapper(&buf, methodData)
+		templates.WriteV2InterfaceTargetInterceptorMethod(&gen.buf, methodData)
 	}
 
-	formatted, err := format.Source(buf.Bytes())
-	if err != nil {
-		return "", fmt.Errorf("error formatting generated code: %w", err)
-	}
+	templates.WriteV2InterfaceTargetInterfaceMethod(&gen.buf, data)
 
-	return string(formatted), nil
+	// Generate method wrappers for each interface method
+	for _, methodData := range methodWrappers {
+		templates.WriteV2InterfaceTargetMethodWrapperFunc(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetMethodWrapperStruct(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetCallRecordStruct(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetMethodStart(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetMethodReturns(&gen.buf, methodData)
+	}
 }
 
 // generateV2InterfaceTargetCode generates v2-style target wrapper code for an interface.
@@ -433,330 +537,4 @@ func newV2InterfaceTargetGenerator(
 	gen.methodNames = methodNames
 
 	return gen, nil
-}
-
-// writeHeader writes the package declaration and imports.
-func (gen *v2InterfaceTargetGenerator) writeHeader(buf *bytes.Buffer) {
-	buf.WriteString(fmt.Sprintf("package %s\n\n", gen.pkgName))
-
-	// Write imports
-	buf.WriteString("import (\n")
-	buf.WriteString("\t\"testing\"\n")
-
-	// Add external package import if needed
-	if gen.needsQualifier && gen.pkgPath != "" {
-		alias := gen.qualifier
-		if !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
-			alias = "_" + gen.qualifier
-		}
-		buf.WriteString(fmt.Sprintf("\t%s \"%s\"\n", alias, gen.pkgPath))
-	}
-
-	// Add additional imports
-	additionalImports := gen.collectAdditionalImports()
-	for _, imp := range additionalImports {
-		if imp.Alias != "" {
-			buf.WriteString(fmt.Sprintf("\t%s \"%s\"\n", imp.Alias, imp.Path))
-		} else {
-			buf.WriteString(fmt.Sprintf("\t\"%s\"\n", imp.Path))
-		}
-	}
-
-	buf.WriteString(")\n\n")
-}
-
-// writeWrapperStruct writes the main wrapper struct that holds all method wrappers.
-func (gen *v2InterfaceTargetGenerator) writeWrapperStruct(
-	buf *bytes.Buffer,
-	methodWrappers []methodWrapperData,
-	interfaceType string,
-) {
-	buf.WriteString(fmt.Sprintf("// %s wraps an implementation of %s to intercept method calls.\n", gen.wrapperType, interfaceType))
-	buf.WriteString(fmt.Sprintf("type %s struct {\n", gen.wrapperType))
-	buf.WriteString(fmt.Sprintf("\t%s %s\n", gen.implName, interfaceType))
-	buf.WriteString("\tinterceptor *interceptor\n")
-	for _, method := range methodWrappers {
-		buf.WriteString(fmt.Sprintf("\t%s *%s\n", method.MethodName, method.WrapperType))
-	}
-	buf.WriteString("}\n\n")
-}
-
-// writeConstructor writes the constructor function.
-func (gen *v2InterfaceTargetGenerator) writeConstructor(
-	buf *bytes.Buffer,
-	methodWrappers []methodWrapperData,
-	interfaceType string,
-) {
-	buf.WriteString(fmt.Sprintf("// %s creates a new wrapper for the given %s implementation.\n", gen.wrapName, interfaceType))
-	buf.WriteString(fmt.Sprintf("func %s(t *testing.T, %s %s) *%s {\n", gen.wrapName, gen.implName, interfaceType, gen.wrapperType))
-	buf.WriteString(fmt.Sprintf("\tw := &%s{\n", gen.wrapperType))
-	buf.WriteString(fmt.Sprintf("\t\t%s: %s,\n", gen.implName, gen.implName))
-	buf.WriteString("\t}\n")
-	buf.WriteString("\tw.interceptor = &interceptor{wrapper: w, t: t, impl: impl}\n")
-
-	// Initialize each method wrapper - wrap the REAL implementation's methods, not interceptor
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(methodName string, ftype *dst.FuncType) {
-			paramsStr, paramNames := gen.buildParamStrings(ftype)
-			_, resultTypes := gen.buildResultStrings(ftype)
-
-			// Build param names comma-separated
-			var paramNamesStr strings.Builder
-			for i, name := range paramNames {
-				if i > 0 {
-					paramNamesStr.WriteString(", ")
-				}
-				paramNamesStr.WriteString(name)
-			}
-
-			// Find the method wrapper data for this method
-			var methodData methodWrapperData
-			for _, mw := range methodWrappers {
-				if mw.MethodName == methodName {
-					methodData = mw
-					break
-				}
-			}
-
-			// Create a closure that calls the real implementation and returns the result
-			buf.WriteString(fmt.Sprintf("\tw.%s = %s(t, func(%s) %s {\n",
-				methodName, methodData.WrapName, paramsStr,
-				methodData.ReturnsType))
-
-			// Call the real implementation
-			if len(resultTypes) > 0 {
-				// Build result variable list for receiving return values
-				var resultVars strings.Builder
-				for i := range resultTypes {
-					if i > 0 {
-						resultVars.WriteString(", ")
-					}
-					fmt.Fprintf(&resultVars, "r%d", i)
-				}
-
-				buf.WriteString(fmt.Sprintf("\t\t%s := w.%s.%s(%s)\n", resultVars.String(), gen.implName, methodName, paramNamesStr.String()))
-				buf.WriteString(fmt.Sprintf("\t\treturn %s{", methodData.ReturnsType))
-				for i := range resultTypes {
-					if i > 0 {
-						buf.WriteString(", ")
-					}
-					buf.WriteString(fmt.Sprintf("Result%d: r%d", i, i))
-				}
-				buf.WriteString("}\n")
-			} else {
-				buf.WriteString(fmt.Sprintf("\t\tw.%s.%s(%s)\n", gen.implName, methodName, paramNamesStr.String()))
-				buf.WriteString(fmt.Sprintf("\t\treturn %s{}\n", methodData.ReturnsType))
-			}
-
-			buf.WriteString("\t})\n")
-		},
-	)
-
-	buf.WriteString("\treturn w\n")
-	buf.WriteString("}\n\n")
-}
-
-// writeInterceptor writes the interceptor struct and its methods.
-func (gen *v2InterfaceTargetGenerator) writeInterceptor(
-	buf *bytes.Buffer,
-	methodWrappers []methodWrapperData,
-	interfaceType string,
-) {
-	buf.WriteString(fmt.Sprintf("// interceptor implements %s and routes calls through method wrappers.\n", interfaceType))
-	buf.WriteString("type interceptor struct {\n")
-	buf.WriteString(fmt.Sprintf("\twrapper *%s\n", gen.wrapperType))
-	buf.WriteString(fmt.Sprintf("\timpl %s\n", interfaceType))
-	buf.WriteString("\tt *testing.T\n")
-	buf.WriteString("}\n\n")
-
-	// Write each interceptor method
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(methodName string, ftype *dst.FuncType) {
-			gen.writeInterceptorMethod(buf, methodName, ftype)
-		},
-	)
-}
-
-// writeInterceptorMethod writes a single interceptor method.
-func (gen *v2InterfaceTargetGenerator) writeInterceptorMethod(
-	buf *bytes.Buffer,
-	methodName string,
-	ftype *dst.FuncType,
-) {
-	paramsStr, paramNames := gen.buildParamStrings(ftype)
-	resultsStr, _ := gen.buildResultStrings(ftype)
-
-	// Build param names comma-separated
-	var paramNamesStr strings.Builder
-	for i, name := range paramNames {
-		if i > 0 {
-			paramNamesStr.WriteString(", ")
-		}
-		paramNamesStr.WriteString(name)
-	}
-
-	// Write method signature
-	buf.WriteString(fmt.Sprintf("func (i *interceptor) %s(%s)%s {\n", methodName, paramsStr, resultsStr))
-
-	// Call real implementation through wrapper and return
-	if resultsStr != "" {
-		buf.WriteString(fmt.Sprintf("\treturn i.wrapper.%s.Start(%s).%s()\n", methodName, paramNamesStr.String(), "WaitForResponse"))
-	} else {
-		buf.WriteString(fmt.Sprintf("\ti.wrapper.%s.Start(%s).%s()\n", methodName, paramNamesStr.String(), "WaitForCompletion"))
-	}
-
-	buf.WriteString("}\n\n")
-}
-
-// writeInterfaceMethod writes the Interface() method that returns the interceptor.
-func (gen *v2InterfaceTargetGenerator) writeInterfaceMethod(buf *bytes.Buffer, interfaceType string) {
-	buf.WriteString(fmt.Sprintf("// Interface returns the wrapped %s implementation.\n", interfaceType))
-	buf.WriteString(fmt.Sprintf("func (w *%s) Interface() %s {\n", gen.wrapperType, interfaceType))
-	buf.WriteString("\treturn w.interceptor\n")
-	buf.WriteString("}\n\n")
-}
-
-// writeMethodWrapper writes a complete wrapper for a single method (borrowed from v2 target pattern).
-func (gen *v2InterfaceTargetGenerator) writeMethodWrapper(buf *bytes.Buffer, data methodWrapperData) {
-	// Write wrapper function
-	buf.WriteString(fmt.Sprintf("func %s(t *testing.T, fn func(%s)%s) *%s {\n",
-		data.WrapName, data.Params,
-		func() string {
-			if data.HasResults {
-				return " " + data.ReturnsType
-			}
-			return ""
-		}(),
-		data.WrapperType))
-	buf.WriteString(fmt.Sprintf("\treturn &%s{t: t, fn: fn}\n", data.WrapperType))
-	buf.WriteString("}\n\n")
-
-	// Write wrapper struct
-	buf.WriteString(fmt.Sprintf("type %s struct {\n", data.WrapperType))
-	buf.WriteString("\tt *testing.T\n")
-	buf.WriteString(fmt.Sprintf("\tfn func(%s)%s\n", data.Params,
-		func() string {
-			if data.HasResults {
-				return " " + data.ReturnsType
-			}
-			return ""
-		}()))
-	buf.WriteString(fmt.Sprintf("\tcalls []%sCallRecord\n", data.WrapperType))
-	buf.WriteString("}\n\n")
-
-	// Write callRecord helper (unique name per method to avoid conflicts)
-	buf.WriteString(fmt.Sprintf("type %sCallRecord struct {\n", data.WrapperType))
-	if data.Params != "" {
-		buf.WriteString("\tParams struct {\n")
-		// Parse params to extract field names and types
-		gen.writeParamFields(buf, data.Params)
-		buf.WriteString("\t}\n")
-	}
-	if data.HasResults {
-		buf.WriteString(fmt.Sprintf("\tReturns %s\n", data.ReturnsType))
-	}
-	buf.WriteString("}\n\n")
-
-	// Write Start method
-	buf.WriteString(fmt.Sprintf("func (w *%s) Start(%s) *%s {\n", data.WrapperType, data.Params, data.ReturnsType))
-	// Call the wrapper function which returns the Returns struct
-	buf.WriteString(fmt.Sprintf("\treturns := w.fn(%s)\n", data.ParamNames))
-	buf.WriteString(fmt.Sprintf("\tw.calls = append(w.calls, %sCallRecord{", data.WrapperType))
-	if data.Params != "" {
-		buf.WriteString(fmt.Sprintf("Params: struct{%s}{%s}, ", gen.extractParamTypesForStruct(data.Params), data.ParamNames))
-	}
-	buf.WriteString("Returns: returns})\n")
-	buf.WriteString("\treturn &returns\n")
-	buf.WriteString("}\n\n")
-
-	// Write Returns struct
-	buf.WriteString(fmt.Sprintf("type %s struct {\n", data.ReturnsType))
-	for _, field := range data.ResultFields {
-		buf.WriteString(fmt.Sprintf("\t%s %s\n", field.Name, field.Type))
-	}
-	buf.WriteString("}\n\n")
-
-	// Write WaitForResponse/WaitForCompletion methods
-	if data.HasResults {
-		buf.WriteString(fmt.Sprintf("func (r *%s) WaitForResponse() (%s) {\n", data.ReturnsType, gen.buildResultReturnList(data.ResultFields)))
-		buf.WriteString("\treturn ")
-		for i, field := range data.ResultFields {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			buf.WriteString(fmt.Sprintf("r.%s", field.Name))
-		}
-		buf.WriteString("\n}\n\n")
-	} else {
-		buf.WriteString(fmt.Sprintf("func (r *%s) WaitForCompletion() {}\n\n", data.ReturnsType))
-	}
-
-	// Write GetCalls method
-	buf.WriteString(fmt.Sprintf("func (w *%s) GetCalls() []%sCallRecord {\n", data.WrapperType, data.WrapperType))
-	buf.WriteString("\treturn w.calls\n")
-	buf.WriteString("}\n\n")
-}
-
-// writeParamFields writes parameter fields for the callRecord struct.
-func (gen *v2InterfaceTargetGenerator) writeParamFields(buf *bytes.Buffer, params string) {
-	// Parse "name type, name2 type2" format
-	parts := strings.Split(params, ",")
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		fields := strings.Fields(part)
-		if len(fields) >= 2 {
-			name := fields[0]
-			typ := strings.Join(fields[1:], " ")
-			// Capitalize first letter
-			fieldName := strings.ToUpper(name[:1]) + name[1:]
-			buf.WriteString(fmt.Sprintf("\t\t%s %s\n", fieldName, typ))
-		}
-	}
-}
-
-// extractParamTypesForStruct extracts parameter types from "name type, name2 type2" format
-// and returns them in struct field format "FieldName type; FieldName2 type2".
-func (gen *v2InterfaceTargetGenerator) extractParamTypesForStruct(params string) string {
-	var result strings.Builder
-	parts := strings.Split(params, ",")
-	for i, part := range parts {
-		if i > 0 {
-			result.WriteString("; ")
-		}
-		part = strings.TrimSpace(part)
-		fields := strings.Fields(part)
-		if len(fields) >= 2 {
-			name := fields[0]
-			typ := strings.Join(fields[1:], " ")
-			// Capitalize first letter
-			fieldName := strings.ToUpper(name[:1]) + name[1:]
-			result.WriteString(fmt.Sprintf("%s %s", fieldName, typ))
-		}
-	}
-
-	return result.String()
-}
-
-// buildResultReturnList builds the return type list from result fields.
-func (gen *v2InterfaceTargetGenerator) buildResultReturnList(fields []resultField) string {
-	if len(fields) == 0 {
-		return ""
-	}
-	if len(fields) == 1 {
-		return fields[0].Type
-	}
-
-	var result strings.Builder
-	result.WriteString("(")
-	for i, field := range fields {
-		if i > 0 {
-			result.WriteString(", ")
-		}
-		result.WriteString(field.Type)
-	}
-	result.WriteString(")")
-
-	return result.String()
 }

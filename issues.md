@@ -122,6 +122,153 @@ Standard issue structure organized by category:
 
 Issues to choose from for future work.
 
+
+---
+
+## Selected
+
+Issues selected for upcoming work.
+
+### 33. Add UAT for struct type as target (comprehensive)
+
+#### Universal
+
+**Status**
+selected
+
+**Description**
+Verify wrapping struct types with --target flag comprehensively (beyond just methods)
+
+#### Planning
+
+**Rationale**
+Taxonomy matrix shows "?" for "Struct type as Target", partially covered in UAT-02 but needs comprehensive coverage
+
+**Acceptance**
+UAT demonstrating full struct type wrapping capabilities with --target
+
+**Effort**
+Small (1-2 hours)
+
+**Priority**
+Low
+
+**Note**
+After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Struct type as Target" as "Yes" with comprehensive UAT reference
+
+#### Special Fields
+
+**Taxonomy Gap**
+Capability Matrix - "Struct type" row, "As Target" column
+
+### 30. Add UAT for function as dependency
+
+#### Universal
+
+**Status**
+selected
+
+**Description**
+Verify mocking bare package-level functions with --dependency flag (not interface methods)
+
+#### Planning
+
+**Rationale**
+Taxonomy matrix shows "?" for "Function as Dependency", capability untested
+
+**Acceptance**
+UAT demonstrating function mocking with --dependency, or documented limitation with workaround
+
+**Effort**
+Small (1-2 hours)
+
+**Priority**
+Medium
+
+**Note**
+After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function as Dependency" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
+
+#### Special Fields
+
+**Taxonomy Gap**
+Capability Matrix - "Function" row, "As Dependency" column
+
+---
+
+## In Progress
+
+Issues currently being worked on.
+### 41. Migrate interface wrapper generator to template system
+
+#### Universal
+
+**Status**
+in progress
+
+**Description**
+The new `v2InterfaceTargetGenerator` (Issue #32) uses direct string building instead of the template system used by dependency and target generators. This creates inconsistency in the codebase - the interface wrapper manually writes code with `writeHeader()`, `writeWrapperStruct()`, etc., while other generators use `TemplateRegistry` and `text_templates.go`.
+
+#### Planning
+
+**Rationale**
+Consistency in code generation approach makes the codebase easier to understand and maintain. The template system provides better separation of concerns and is easier to modify without introducing bugs. Direct string building is more fragile and harder to review.
+
+**Acceptance**
+- Add wrapper generation templates to `text_templates.go` following existing patterns
+- Migrate `v2InterfaceTargetGenerator` to use `TemplateRegistry` like other generators
+- Remove direct string building methods (`writeHeader()`, `writeWrapperStruct()`, etc.)
+- All existing UAT-32 tests continue to pass
+- Generated wrapper code remains identical (or improves)
+
+**Effort**
+Medium (3-5 hours) - Template extraction and migration, verify identical output
+
+**Priority**
+Important - Address in next refactoring opportunity or when extending interface wrapper functionality
+
+**Note**
+Identified by project-health-auditor. This inconsistency was introduced in Issue #32 to ship the feature quickly. Aligning with the established template pattern will make future maintenance easier.
+#### Work Tracking
+
+**Timeline**
+- 2026-01-02 16:47 EST - Complete: Auditor passed, ready for commit
+- 2026-01-02 16:45 EST - REFACTOR: Implementation complete, routing to auditor
+- 2026-01-02 15:41 EST - GREEN: Implementing Option 1 (Full Template Migration)
+- 2026-01-02 15:32 EST - PLAN MODE: Designing template migration approach
+
+
+
+### 40. Extract shared generator methods to reduce code duplication
+
+- 2026-01-02 16:47 EST - Complete: Creating git commit for template migration
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+The three generator files (`codegen_v2_dependency.go`, `codegen_v2_target.go`, `codegen_v2_interface_target.go`) have significant code duplication. Methods like `buildParamStrings()`, `buildResultStrings()`, `collectAdditionalImports()`, and `checkIfQualifierNeeded()` are nearly identical across generators, creating maintenance burden where bug fixes need to be applied multiple times.
+
+#### Planning
+
+**Rationale**
+Reduces maintenance burden and risk of inconsistent fixes. When bugs are fixed in one generator (like import collection in Issue #29), the same fix must be manually applied to others. Shared utilities would ensure consistent behavior and reduce cognitive load when reading code.
+
+**Acceptance**
+- Common generator utilities extracted to `codegen_common.go` (possibly extending `typeFormatter` or creating `signatureBuilder`)
+- Duplicate `buildParamStrings()`, `buildResultStrings()`, `collectAdditionalImports()`, and `checkIfQualifierNeeded()` methods removed from individual generators
+- All existing tests continue to pass
+- Generators use shared utilities instead of duplicated code
+
+**Effort**
+Medium (4-6 hours) - Requires careful extraction to preserve behavior across all three generators
+
+**Priority**
+Important - Address when making changes to any generator
+
+**Note**
+Identified by project-health-auditor. Complements Issue #18 (nolint cleanup) and would make future generator changes safer and faster.
+
 ### 37. Explore mage replacement with subcommands and flags (go-arg syntax)
 
 #### Universal
@@ -446,81 +593,6 @@ Low
 TOE-78
 
 
----
-
-## Selected
-
-Issues selected for upcoming work.
-
-### 33. Add UAT for struct type as target (comprehensive)
-
-#### Universal
-
-**Status**
-selected
-
-**Description**
-Verify wrapping struct types with --target flag comprehensively (beyond just methods)
-
-#### Planning
-
-**Rationale**
-Taxonomy matrix shows "?" for "Struct type as Target", partially covered in UAT-02 but needs comprehensive coverage
-
-**Acceptance**
-UAT demonstrating full struct type wrapping capabilities with --target
-
-**Effort**
-Small (1-2 hours)
-
-**Priority**
-Low
-
-**Note**
-After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Struct type as Target" as "Yes" with comprehensive UAT reference
-
-#### Special Fields
-
-**Taxonomy Gap**
-Capability Matrix - "Struct type" row, "As Target" column
-
-### 30. Add UAT for function as dependency
-
-#### Universal
-
-**Status**
-selected
-
-**Description**
-Verify mocking bare package-level functions with --dependency flag (not interface methods)
-
-#### Planning
-
-**Rationale**
-Taxonomy matrix shows "?" for "Function as Dependency", capability untested
-
-**Acceptance**
-UAT demonstrating function mocking with --dependency, or documented limitation with workaround
-
-**Effort**
-Small (1-2 hours)
-
-**Priority**
-Medium
-
-**Note**
-After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Function as Dependency" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
-
-#### Special Fields
-
-**Taxonomy Gap**
-Capability Matrix - "Function" row, "As Dependency" column
-
----
-
-## In Progress
-
-Issues currently being worked on.
 
 ---
 
