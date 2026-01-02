@@ -86,6 +86,92 @@ type baseGenerator struct {
 	needsQualifier bool
 }
 
+// buildParamStrings builds the parameter string and collects parameter names from a function type.
+//
+//nolint:nestif,wsl_v5 // Complex logic for handling named/unnamed params; whitespace for readability
+func (baseGen *baseGenerator) buildParamStrings(
+	ftype *dst.FuncType,
+) (paramsStr string, paramNames []string) {
+	var builder strings.Builder
+	first := true
+
+	if ftype.Params != nil {
+		for _, field := range ftype.Params.List {
+			fieldType := baseGen.typeWithQualifier(field.Type)
+
+			if len(field.Names) > 0 {
+				for _, name := range field.Names {
+					if !first {
+						builder.WriteString(", ")
+					}
+					first = false
+					builder.WriteString(name.Name)
+					builder.WriteString(" ")
+					builder.WriteString(fieldType)
+					paramNames = append(paramNames, name.Name)
+				}
+			} else {
+				paramName := fmt.Sprintf("arg%d", len(paramNames)+1)
+				if !first {
+					builder.WriteString(", ")
+				}
+				first = false
+				builder.WriteString(paramName)
+				builder.WriteString(" ")
+				builder.WriteString(fieldType)
+				paramNames = append(paramNames, paramName)
+			}
+		}
+	}
+
+	return builder.String(), paramNames
+}
+
+// buildResultStrings builds the result string and collects result types from a function type.
+//
+//nolint:cyclop,nestif,intrange,wsl_v5 // Complex logic for formatting results; whitespace for readability
+func (baseGen *baseGenerator) buildResultStrings(
+	ftype *dst.FuncType,
+) (resultsStr string, resultTypes []string) {
+	var builder strings.Builder
+
+	if ftype.Results != nil && len(ftype.Results.List) > 0 {
+		hasMultipleResults := len(ftype.Results.List) > 1 ||
+			(len(ftype.Results.List) == 1 && len(ftype.Results.List[0].Names) > 1)
+
+		if hasMultipleResults {
+			builder.WriteString(" (")
+		} else {
+			builder.WriteString(" ")
+		}
+
+		first := true
+		for _, field := range ftype.Results.List {
+			fieldType := baseGen.typeWithQualifier(field.Type)
+
+			count := len(field.Names)
+			if count == 0 {
+				count = 1
+			}
+
+			for i := 0; i < count; i++ {
+				if !first {
+					builder.WriteString(", ")
+				}
+				first = false
+				builder.WriteString(fieldType)
+				resultTypes = append(resultTypes, fieldType)
+			}
+		}
+
+		if hasMultipleResults {
+			builder.WriteString(")")
+		}
+	}
+
+	return builder.String(), resultTypes
+}
+
 // checkIfQualifierNeeded pre-scans to determine if the package qualifier is needed.
 func (baseGen *baseGenerator) checkIfQualifierNeeded(expr dst.Expr) {
 	if baseGen.qualifier == "" {
@@ -95,6 +181,61 @@ func (baseGen *baseGenerator) checkIfQualifierNeeded(expr dst.Expr) {
 	if hasExportedIdent(expr, baseGen.isTypeParam) {
 		baseGen.needsQualifier = true
 	}
+}
+
+// collectAdditionalImportsFromInterface collects imports needed for interface method signatures.
+// This is a helper for v2 generators that need to collect imports from all methods of an interface.
+func (baseGen *baseGenerator) collectAdditionalImportsFromInterface(
+	iface *dst.InterfaceType,
+	astFiles []*dst.File,
+	pkgImportPath string,
+	pkgLoader PackageLoader,
+	sourceImports []*dst.ImportSpec,
+) []importInfo {
+	if len(astFiles) == 0 {
+		return nil
+	}
+
+	allImports := make(map[string]importInfo) // Deduplicate by path
+
+	// Iterate over all interface methods to collect imports from their signatures
+	_ = forEachInterfaceMethod(
+		iface, astFiles, baseGen.fset, pkgImportPath, pkgLoader,
+		func(_ string, ftype *dst.FuncType) {
+			// Collect from parameters
+			if ftype.Params != nil {
+				for _, field := range ftype.Params.List {
+					imports := collectExternalImports(field.Type, sourceImports)
+					for _, imp := range imports {
+						allImports[imp.Path] = imp
+					}
+				}
+			}
+
+			// Collect from return types
+			if ftype.Results != nil {
+				for _, field := range ftype.Results.List {
+					imports := collectExternalImports(field.Type, sourceImports)
+					for _, imp := range imports {
+						allImports[imp.Path] = imp
+					}
+				}
+			}
+		},
+	)
+
+	// Convert map to slice and sort for deterministic output
+	result := make([]importInfo, 0, len(allImports))
+	for _, imp := range allImports {
+		result = append(result, imp)
+	}
+
+	// Sort by import path for consistent ordering
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
+
+	return result
 }
 
 // formatTypeParamsDecl formats type parameters for declaration.

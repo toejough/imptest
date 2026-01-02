@@ -1,11 +1,10 @@
-//nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,intrange,cyclop,funlen
+//nolint:varnamelen,wsl_v5,nestif,intrange,cyclop,funlen
 package run
 
 import (
 	"fmt"
 	"go/format"
 	"go/token"
-	"sort"
 	"strings"
 
 	"github.com/dave/dst"
@@ -25,78 +24,6 @@ type v2InterfaceTargetGenerator struct {
 	pkgLoader           PackageLoader
 	methodNames         []string
 	identifiedInterface ifaceWithDetails // full interface details including source imports
-}
-
-// methodWrapperData is now defined in templates.go for consistency with other generators
-
-// checkIfQualifierNeeded determines if we need a package qualifier.
-func (gen *v2InterfaceTargetGenerator) checkIfQualifierNeeded() {
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(_ string, ftype *dst.FuncType) {
-			gen.baseGenerator.checkIfQualifierNeeded(ftype)
-		},
-	)
-}
-
-// collectAdditionalImports collects all external type imports needed for interface method signatures.
-func (gen *v2InterfaceTargetGenerator) collectAdditionalImports() []importInfo {
-	if len(gen.astFiles) == 0 {
-		return nil
-	}
-
-	// Use the source imports from the interface's file (tracked during parsing)
-	sourceImports := gen.identifiedInterface.sourceImports
-
-	// Fallback: if interface's file has no imports, collect from all files
-	if len(sourceImports) == 0 {
-		for _, file := range gen.astFiles {
-			if len(file.Imports) > 0 {
-				sourceImports = append(sourceImports, file.Imports...)
-			}
-		}
-	}
-
-	allImports := make(map[string]importInfo) // Deduplicate by path
-
-	// Iterate over all interface methods to collect imports from their signatures
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(_ string, ftype *dst.FuncType) {
-			// Collect from parameters
-			if ftype.Params != nil {
-				for _, field := range ftype.Params.List {
-					imports := collectExternalImports(field.Type, sourceImports)
-					for _, imp := range imports {
-						allImports[imp.Path] = imp
-					}
-				}
-			}
-
-			// Collect from return types
-			if ftype.Results != nil {
-				for _, field := range ftype.Results.List {
-					imports := collectExternalImports(field.Type, sourceImports)
-					for _, imp := range imports {
-						allImports[imp.Path] = imp
-					}
-				}
-			}
-		},
-	)
-
-	// Convert map to slice and sort for deterministic output
-	result := make([]importInfo, 0, len(allImports))
-	for _, imp := range allImports {
-		result = append(result, imp)
-	}
-
-	// Sort by import path for consistent ordering
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Path < result[j].Path
-	})
-
-	return result
 }
 
 // buildMethodWrapperData builds wrapper data for a single interface method.
@@ -196,88 +123,6 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 	}
 }
 
-// buildParamStrings builds the parameter string and collects parameter names.
-func (gen *v2InterfaceTargetGenerator) buildParamStrings(
-	ftype *dst.FuncType,
-) (paramsStr string, paramNames []string) {
-	var builder strings.Builder
-	first := true
-
-	if ftype.Params != nil {
-		for _, field := range ftype.Params.List {
-			fieldType := gen.typeWithQualifier(field.Type)
-
-			if len(field.Names) > 0 {
-				for _, name := range field.Names {
-					if !first {
-						builder.WriteString(", ")
-					}
-					first = false
-					builder.WriteString(name.Name)
-					builder.WriteString(" ")
-					builder.WriteString(fieldType)
-					paramNames = append(paramNames, name.Name)
-				}
-			} else {
-				paramName := fmt.Sprintf("arg%d", len(paramNames)+1)
-				if !first {
-					builder.WriteString(", ")
-				}
-				first = false
-				builder.WriteString(paramName)
-				builder.WriteString(" ")
-				builder.WriteString(fieldType)
-				paramNames = append(paramNames, paramName)
-			}
-		}
-	}
-
-	return builder.String(), paramNames
-}
-
-// buildResultStrings builds the result string and collects result types.
-func (gen *v2InterfaceTargetGenerator) buildResultStrings(
-	ftype *dst.FuncType,
-) (resultsStr string, resultTypes []string) {
-	var builder strings.Builder
-
-	if ftype.Results != nil && len(ftype.Results.List) > 0 {
-		hasMultipleResults := len(ftype.Results.List) > 1 ||
-			(len(ftype.Results.List) == 1 && len(ftype.Results.List[0].Names) > 1)
-
-		if hasMultipleResults {
-			builder.WriteString(" (")
-		} else {
-			builder.WriteString(" ")
-		}
-
-		first := true
-		for _, field := range ftype.Results.List {
-			fieldType := gen.typeWithQualifier(field.Type)
-
-			count := len(field.Names)
-			if count == 0 {
-				count = 1
-			}
-
-			for i := 0; i < count; i++ {
-				if !first {
-					builder.WriteString(", ")
-				}
-				first = false
-				builder.WriteString(fieldType)
-				resultTypes = append(resultTypes, fieldType)
-			}
-		}
-
-		if hasMultipleResults {
-			builder.WriteString(")")
-		}
-	}
-
-	return builder.String(), resultTypes
-}
-
 // buildParamFieldsFromNames creates paramField slice from parameter names and types.
 func (gen *v2InterfaceTargetGenerator) buildParamFieldsFromNames(
 	paramNames []string,
@@ -353,6 +198,41 @@ func (gen *v2InterfaceTargetGenerator) buildResultReturnList(fields []resultFiel
 	result.WriteString(")")
 
 	return result.String()
+}
+
+// methodWrapperData is now defined in templates.go for consistency with other generators
+
+// checkIfQualifierNeeded determines if we need a package qualifier.
+func (gen *v2InterfaceTargetGenerator) checkIfQualifierNeeded() {
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(_ string, ftype *dst.FuncType) {
+			gen.baseGenerator.checkIfQualifierNeeded(ftype)
+		},
+	)
+}
+
+// collectAdditionalImports collects imports needed for interface method signatures.
+func (gen *v2InterfaceTargetGenerator) collectAdditionalImports() []importInfo {
+	// Use the source imports from the interface's file (tracked during parsing)
+	sourceImports := gen.identifiedInterface.sourceImports
+
+	// Fallback: if interface's file has no imports, collect from all files
+	if len(sourceImports) == 0 {
+		for _, file := range gen.astFiles {
+			if len(file.Imports) > 0 {
+				sourceImports = append(sourceImports, file.Imports...)
+			}
+		}
+	}
+
+	return gen.collectAdditionalImportsFromInterface(
+		gen.identifiedInterface.iface,
+		gen.astFiles,
+		gen.pkgImportPath,
+		gen.pkgLoader,
+		sourceImports,
+	)
 }
 
 // generate produces the v2 interface target wrapper code using templates.
