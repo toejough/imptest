@@ -34,7 +34,7 @@ The matrices below document what imptest can wrap, mock, and handle. Each cell l
 | What | As Target | As Dependency | Notes |
 |------|-----------|---------------|-------|
 | Function | [Yes](../UAT/02-callable-wrappers/) | ? | `impgen pkg.MyFunc --target` |
-| Function type | [Yes](../UAT/16-function-type-wrapping/) | ? | `impgen pkg.HandlerFunc --target` |
+| Function type | [Yes](../UAT/16-function-type-wrapping/) | [Yes](../UAT/31-function-type-dependency/) | `impgen pkg.HandlerFunc --target` / `impgen handlers.Router --dependency` |
 | Anonymous function | [No](#1-anonymous-functions-function-literals) | [No](#1-anonymous-functions-function-literals) | Create named function type first |
 | Struct type | [Yes](../UAT/02-callable-wrappers/) | ? | `impgen pkg.Calculator.Add --target` |
 | Interface type | ? | [Yes](../UAT/01-basic-interface-mocking/) | `impgen pkg.MyInterface --dependency` |
@@ -727,6 +727,7 @@ Quick reference for locating User Acceptance Tests by feature coverage.
 | [28](../UAT/28-ordered-eventually-modes/) | ordered-eventually-modes | Ordered vs Eventually modes | Interface (dep) | Local | Call matching modes |
 | [29](../UAT/29-cross-file-external-imports/) | cross-file-external-imports | Cross-file import resolution | Interface (dep) | Local + External types (cross-file) | External types from interface file |
 | [30](../UAT/30-struct-literal-params/) | struct-literal-params | Struct literal parameters/returns | Interface (dep)<br>Function + Method (target) | Local | Struct literal params/returns; field preservation |
+| [31](../UAT/31-function-type-dependency/) | function-type-dependency | Function type as dependency | Interface (dep) | Local | Function types as params/returns; matcher usage |
 
 ### Legend
 
