@@ -1,0 +1,126 @@
+package handlers_test
+
+import (
+	context "context"
+	handlers "github.com/toejough/imptest/UAT/32-interface-as-target"
+	"testing"
+)
+
+// WrapLoggerWrapper wraps an implementation of handlers.Logger to intercept method calls.
+type WrapLoggerWrapper struct {
+	impl           handlers.Logger
+	interceptor    *interceptor
+	Log            *WrapLoggerWrapperLogWrapper
+	LogWithContext *WrapLoggerWrapperLogWithContextWrapper
+}
+
+// Interface returns the wrapped handlers.Logger implementation.
+func (w *WrapLoggerWrapper) Interface() handlers.Logger {
+	return w.interceptor
+}
+
+type WrapLoggerWrapperLogReturns struct {
+	Result0 error
+}
+
+func (r *WrapLoggerWrapperLogReturns) WaitForResponse() error {
+	return r.Result0
+}
+
+type WrapLoggerWrapperLogWithContextReturns struct {
+	Result0 error
+}
+
+func (r *WrapLoggerWrapperLogWithContextReturns) WaitForResponse() error {
+	return r.Result0
+}
+
+type WrapLoggerWrapperLogWithContextWrapper struct {
+	t     *testing.T
+	fn    func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns
+	calls []WrapLoggerWrapperLogWithContextWrapperCallRecord
+}
+
+func (w *WrapLoggerWrapperLogWithContextWrapper) GetCalls() []WrapLoggerWrapperLogWithContextWrapperCallRecord {
+	return w.calls
+}
+
+func (w *WrapLoggerWrapperLogWithContextWrapper) Start(ctx context.Context, msg string) *WrapLoggerWrapperLogWithContextReturns {
+	returns := w.fn(ctx, msg)
+	w.calls = append(w.calls, WrapLoggerWrapperLogWithContextWrapperCallRecord{Params: struct {
+		Ctx context.Context
+		Msg string
+	}{ctx, msg}, Returns: returns})
+	return &returns
+}
+
+type WrapLoggerWrapperLogWithContextWrapperCallRecord struct {
+	Params struct {
+		Ctx context.Context
+		Msg string
+	}
+	Returns WrapLoggerWrapperLogWithContextReturns
+}
+
+type WrapLoggerWrapperLogWrapper struct {
+	t     *testing.T
+	fn    func(msg string) WrapLoggerWrapperLogReturns
+	calls []WrapLoggerWrapperLogWrapperCallRecord
+}
+
+func (w *WrapLoggerWrapperLogWrapper) GetCalls() []WrapLoggerWrapperLogWrapperCallRecord {
+	return w.calls
+}
+
+func (w *WrapLoggerWrapperLogWrapper) Start(msg string) *WrapLoggerWrapperLogReturns {
+	returns := w.fn(msg)
+	w.calls = append(w.calls, WrapLoggerWrapperLogWrapperCallRecord{Params: struct{ Msg string }{msg}, Returns: returns})
+	return &returns
+}
+
+type WrapLoggerWrapperLogWrapperCallRecord struct {
+	Params struct {
+		Msg string
+	}
+	Returns WrapLoggerWrapperLogReturns
+}
+
+// WrapLogger creates a new wrapper for the given handlers.Logger implementation.
+func WrapLogger(t *testing.T, impl handlers.Logger) *WrapLoggerWrapper {
+	w := &WrapLoggerWrapper{
+		impl: impl,
+	}
+	w.interceptor = &interceptor{wrapper: w, t: t, impl: impl}
+	w.Log = wrapWrapLoggerWrapperLog(t, func(msg string) WrapLoggerWrapperLogReturns {
+		r0 := w.impl.Log(msg)
+		return WrapLoggerWrapperLogReturns{Result0: r0}
+	})
+	w.LogWithContext = wrapWrapLoggerWrapperLogWithContext(t, func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns {
+		r0 := w.impl.LogWithContext(ctx, msg)
+		return WrapLoggerWrapperLogWithContextReturns{Result0: r0}
+	})
+	return w
+}
+
+// interceptor implements handlers.Logger and routes calls through method wrappers.
+type interceptor struct {
+	wrapper *WrapLoggerWrapper
+	impl    handlers.Logger
+	t       *testing.T
+}
+
+func (i *interceptor) Log(msg string) error {
+	return i.wrapper.Log.Start(msg).WaitForResponse()
+}
+
+func (i *interceptor) LogWithContext(ctx context.Context, msg string) error {
+	return i.wrapper.LogWithContext.Start(ctx, msg).WaitForResponse()
+}
+
+func wrapWrapLoggerWrapperLog(t *testing.T, fn func(msg string) WrapLoggerWrapperLogReturns) *WrapLoggerWrapperLogWrapper {
+	return &WrapLoggerWrapperLogWrapper{t: t, fn: fn}
+}
+
+func wrapWrapLoggerWrapperLogWithContext(t *testing.T, fn func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns) *WrapLoggerWrapperLogWithContextWrapper {
+	return &WrapLoggerWrapperLogWithContextWrapper{t: t, fn: fn}
+}

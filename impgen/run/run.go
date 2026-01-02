@@ -203,9 +203,13 @@ func generateCode(
 		return generateV2TargetCodeFromFuncType(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
 	}
 
-	// For interfaces: require --dependency flag (V1 interface mocks deprecated)
+	// For interfaces: support both --dependency and --target modes
 	if info.mode == namingModeDependency {
 		return generateV2DependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
+	}
+
+	if info.mode == namingModeTarget {
+		return generateV2InterfaceTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
 	}
 
 	return "", ErrV1InterfaceDeprecated
