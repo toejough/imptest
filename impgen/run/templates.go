@@ -58,6 +58,28 @@ type importInfo struct {
 	Path  string // Full import path (e.g., "io", "os", "github.com/dave/dst")
 }
 
+// methodWrapperData holds template data for a single interface method wrapper.
+type methodWrapperData struct {
+	MethodName        string        // Interface method name (e.g., "Log")
+	WrapName          string        // Internal wrapper constructor (e.g., "wrapWrapLoggerWrapperLog")
+	WrapperType       string        // Wrapper type (e.g., "WrapLoggerWrapperLogWrapper")
+	ReturnsType       string        // Returns type (e.g., "WrapLoggerWrapperLogReturns")
+	Params            string        // Full parameter list (e.g., "msg string")
+	ParamNames        string        // Comma-separated parameter names (e.g., "msg")
+	ParamFields       []paramField  // Parameter fields for call record
+	ParamFieldsStruct string        // Struct field definitions for inline struct (e.g., "Msg string")
+	Results           string        // Full results list (e.g., "(int, error)")
+	HasResults        bool          // Whether method has return values
+	ResultVars        string        // Comma-separated result vars (e.g., "r0, r1")
+	ReturnAssignments string        // Struct assignments (e.g., "Result0: r0, Result1: r1")
+	ResultReturnList  string        // Return type list (e.g., "(int, error)")
+	ResultFields      []resultField // Result fields for Returns struct
+	ResultChecks      []resultCheck // Result comparison checks
+	WaitMethodName    string        // "WaitForResponse" or "WaitForCompletion"
+	ExpectedParams    string        // Expected parameters for assertions
+	MatcherParams     string        // Matcher parameters for assertions
+}
+
 // paramField holds info about a single parameter field for args structs.
 type paramField struct {
 	Name  string // Field name (e.g., "A", "B", "Key")
@@ -135,6 +157,19 @@ type v2DepTemplateData struct {
 	Methods       []v2DepMethodTemplateData // Full method data for generating wrappers
 }
 
+// v2InterfaceTargetTemplateData holds data for v2 interface target wrapper templates.
+type v2InterfaceTargetTemplateData struct {
+	baseTemplateData //nolint:unused // Used by templates
+
+	WrapName      string              // Constructor function name (e.g., "WrapLogger")
+	WrapperType   string              // Main wrapper struct type (e.g., "WrapLoggerWrapper")
+	InterfaceName string              // Local interface name (e.g., "Logger")
+	InterfaceType string              // Qualified interface type (e.g., "log.Logger")
+	ImplName      string              // Real implementation field name (e.g., "impl")
+	MethodNames   []string            // List of interface method names
+	Methods       []methodWrapperData // Full method data for generating wrappers
+}
+
 // v2TargetTemplateData holds data for v2 target wrapper templates.
 type v2TargetTemplateData struct {
 	baseTemplateData //nolint:unused // Used by templates
@@ -153,39 +188,4 @@ type v2TargetTemplateData struct {
 	MatcherParams     string        // Matcher parameters for ExpectReturnsMatch (all any)
 	ResultChecks      []resultCheck // Result comparison checks
 	ResultFields      []resultField // Result struct fields
-}
-
-// v2InterfaceTargetTemplateData holds data for v2 interface target wrapper templates.
-type v2InterfaceTargetTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
-
-	WrapName      string              // Constructor function name (e.g., "WrapLogger")
-	WrapperType   string              // Main wrapper struct type (e.g., "WrapLoggerWrapper")
-	InterfaceName string              // Local interface name (e.g., "Logger")
-	InterfaceType string              // Qualified interface type (e.g., "log.Logger")
-	ImplName      string              // Real implementation field name (e.g., "impl")
-	MethodNames   []string            // List of interface method names
-	Methods       []methodWrapperData // Full method data for generating wrappers
-}
-
-// methodWrapperData holds template data for a single interface method wrapper.
-type methodWrapperData struct {
-	MethodName        string        // Interface method name (e.g., "Log")
-	WrapName          string        // Internal wrapper constructor (e.g., "wrapWrapLoggerWrapperLog")
-	WrapperType       string        // Wrapper type (e.g., "WrapLoggerWrapperLogWrapper")
-	ReturnsType       string        // Returns type (e.g., "WrapLoggerWrapperLogReturns")
-	Params            string        // Full parameter list (e.g., "msg string")
-	ParamNames        string        // Comma-separated parameter names (e.g., "msg")
-	ParamFields       []paramField  // Parameter fields for call record
-	ParamFieldsStruct string        // Struct field definitions for inline struct (e.g., "Msg string")
-	Results           string        // Full results list (e.g., "(int, error)")
-	HasResults        bool          // Whether method has return values
-	ResultVars        string        // Comma-separated result vars (e.g., "r0, r1")
-	ReturnAssignments string        // Struct assignments (e.g., "Result0: r0, Result1: r1")
-	ResultReturnList  string        // Return type list (e.g., "(int, error)")
-	ResultFields      []resultField // Result fields for Returns struct
-	ResultChecks      []resultCheck // Result comparison checks
-	WaitMethodName    string        // "WaitForResponse" or "WaitForCompletion"
-	ExpectedParams    string        // Expected parameters for assertions
-	MatcherParams     string        // Matcher parameters for assertions
 }

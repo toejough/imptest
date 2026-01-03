@@ -8,11 +8,11 @@ import (
 
 // TestIssuesTimeline_CreateWorkTracking tests creating Work Tracking section when it doesn't exist
 
+//nolint:cyclop,nestif,funlen,paralleltest // Integration test with legitimate complexity
 func TestIssuesTimeline_CreateWorkTracking_IssueFollowedByIssue(t *testing.T) {
 	// This test demonstrates the orphaning bug when an issue is followed by another issue.
 	// Bug: Work Tracking section is inserted AFTER the issue boundary (at issueEnd-1),
 	// causing it to appear between issues instead of within the target issue.
-
 	content := `## Backlog
 
 ### 36. Split issue tracker into separate repository
@@ -33,12 +33,12 @@ Test issue
 backlog
 `
 
-	tmpFile, err := os.CreateTemp("", "issues-*.md")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "issues-*.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
 
+	//nolint:noinlineerr // Test code, inline error handling is clear here
 	if err := os.WriteFile(tmpFile.Name(), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -54,6 +54,7 @@ backlog
 	result := string(data)
 	issuePrefix := "### 36. "
 	issueStart := strings.Index(result, issuePrefix)
+
 	if issueStart == -1 {
 		t.Fatal("issue not found")
 	}
@@ -61,6 +62,7 @@ backlog
 	// Find end of issue
 	issueEnd := len(result)
 	nextIssueIdx := strings.Index(result[issueStart+len(issuePrefix):], "\n### ")
+
 	if nextIssueIdx != -1 {
 		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
 	}
@@ -116,9 +118,11 @@ backlog
 	if issue36Start == -1 {
 		t.Fatal("Issue #36 not found in result")
 	}
+
 	if issue37Start == -1 {
 		t.Fatal("Issue #37 not found in result")
 	}
+
 	if workTrackingStart == -1 {
 		t.Fatal("Work Tracking section not found in result")
 	}
@@ -126,7 +130,8 @@ backlog
 	// The bug: Work Tracking is inserted AFTER issue #37 starts
 	// This assertion will FAIL with current code, demonstrating the bug
 	if workTrackingStart > issue37Start {
-		t.Errorf("BUG DEMONSTRATED: Work Tracking section is orphaned AFTER issue #37 (at position %d) instead of being inside issue #36 (which ends at position %d)",
+		t.Errorf("BUG DEMONSTRATED: Work Tracking section is orphaned AFTER issue #37 "+
+			"(at position %d) instead of being inside issue #36 (which ends at position %d)",
 			workTrackingStart, issue37Start)
 	}
 
@@ -143,11 +148,11 @@ backlog
 	t.Logf("Issue end: %d", issueEnd)
 }
 
+//nolint:cyclop,funlen,paralleltest // Integration test with legitimate complexity
 func TestIssuesTimeline_CreateWorkTracking_IssueFollowedBySection(t *testing.T) {
 	// This test demonstrates the orphaning bug when an issue is followed by a section header.
 	// Bug: Work Tracking section is inserted AFTER the issue boundary (at issueEnd-1),
 	// causing it to appear in the next section instead of within the target issue.
-
 	content := `## Backlog
 
 ### 36. Split issue tracker into separate repository
@@ -165,12 +170,12 @@ Test issue
 Issues selected for upcoming work.
 `
 
-	tmpFile, err := os.CreateTemp("", "issues-*.md")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "issues-*.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
 
+	//nolint:noinlineerr // Test code, inline error handling is clear here
 	if err := os.WriteFile(tmpFile.Name(), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -183,6 +188,7 @@ Issues selected for upcoming work.
 	result := string(data)
 	issuePrefix := "### 36. "
 	issueStart := strings.Index(result, issuePrefix)
+
 	if issueStart == -1 {
 		t.Fatal("issue not found")
 	}
@@ -190,6 +196,7 @@ Issues selected for upcoming work.
 	// Find end of issue
 	issueEnd := len(result)
 	nextIssueIdx := strings.Index(result[issueStart+len(issuePrefix):], "\n### ")
+
 	if nextIssueIdx != -1 {
 		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
 	} else {
@@ -233,9 +240,11 @@ Issues selected for upcoming work.
 	if backlogSectionStart == -1 {
 		t.Fatal("Backlog section not found")
 	}
+
 	if selectedSectionStart == -1 {
 		t.Fatal("Selected section not found")
 	}
+
 	if workTrackingStart == -1 {
 		t.Fatal("Work Tracking section not found")
 	}
@@ -243,7 +252,8 @@ Issues selected for upcoming work.
 	// The bug: Work Tracking is inserted in the Selected section
 	// This assertion will FAIL with current code, demonstrating the bug
 	if workTrackingStart > selectedSectionStart {
-		t.Errorf("BUG DEMONSTRATED: Work Tracking section is orphaned in Selected section (at position %d) instead of being inside issue #36 in Backlog section (which ends at position %d)",
+		t.Errorf("BUG DEMONSTRATED: Work Tracking section is orphaned in Selected section "+
+			"(at position %d) instead of being inside issue #36 in Backlog section (which ends at position %d)",
 			workTrackingStart, selectedSectionStart)
 	}
 
@@ -260,11 +270,11 @@ Issues selected for upcoming work.
 	t.Logf("Issue end: %d", issueEnd)
 }
 
+//nolint:cyclop,funlen,paralleltest // Integration test with legitimate complexity
 func TestIssuesTimeline_CreateWorkTracking_LastIssueInFile(t *testing.T) {
 	// This test covers the edge case where the issue is the last in the file.
 	// In this case, issueEnd = len(content) and insertPoint = len(content) - 1,
 	// which should work correctly (insert before EOF).
-
 	content := `## Backlog
 
 ### 36. Split issue tracker into separate repository
@@ -278,12 +288,12 @@ backlog
 Test issue
 `
 
-	tmpFile, err := os.CreateTemp("", "issues-*.md")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "issues-*.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
 
+	//nolint:noinlineerr // Test code, inline error handling is clear here
 	if err := os.WriteFile(tmpFile.Name(), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -296,6 +306,7 @@ Test issue
 	result := string(data)
 	issuePrefix := "### 36. "
 	issueStart := strings.Index(result, issuePrefix)
+
 	if issueStart == -1 {
 		t.Fatal("issue not found")
 	}
@@ -303,6 +314,7 @@ Test issue
 	// Find end of issue
 	issueEnd := len(result)
 	nextIssueIdx := strings.Index(result[issueStart+len(issuePrefix):], "\n### ")
+
 	if nextIssueIdx != -1 {
 		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
 	} else {
@@ -346,6 +358,7 @@ Test issue
 	if issue36Start == -1 {
 		t.Fatal("Issue #36 not found in result")
 	}
+
 	if workTrackingStart == -1 {
 		t.Fatal("Work Tracking section not found in result")
 	}
@@ -367,10 +380,10 @@ Test issue
 	t.Logf("Issue end (file length): %d", issueEnd)
 }
 
+//nolint:cyclop,funlen,paralleltest // Integration test with legitimate complexity
 func TestIssuesTimeline_CreateWorkTracking_WithPlanningSection(t *testing.T) {
 	// This test verifies that when a Planning section exists,
 	// the Work Tracking section is inserted after it correctly.
-
 	content := `## Backlog
 
 ### 36. Split issue tracker into separate repository
@@ -396,12 +409,12 @@ Some acceptance criteria
 backlog
 `
 
-	tmpFile, err := os.CreateTemp("", "issues-*.md")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "issues-*.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
 
+	//nolint:noinlineerr // Test code, inline error handling is clear here
 	if err := os.WriteFile(tmpFile.Name(), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -414,6 +427,7 @@ backlog
 	result := string(data)
 	issuePrefix := "### 36. "
 	issueStart := strings.Index(result, issuePrefix)
+
 	if issueStart == -1 {
 		t.Fatal("issue not found")
 	}
@@ -421,6 +435,7 @@ backlog
 	// Find end of issue
 	issueEnd := len(result)
 	nextIssueIdx := strings.Index(result[issueStart+len(issuePrefix):], "\n### ")
+
 	if nextIssueIdx != -1 {
 		issueEnd = issueStart + len(issuePrefix) + nextIssueIdx
 	}
@@ -459,12 +474,15 @@ backlog
 	if issue36Start == -1 {
 		t.Fatal("Issue #36 not found in result")
 	}
+
 	if issue37Start == -1 {
 		t.Fatal("Issue #37 not found in result")
 	}
+
 	if planningStart == -1 {
 		t.Fatal("Planning section not found in result")
 	}
+
 	if workTrackingStart == -1 {
 		t.Fatal("Work Tracking section not found in result")
 	}

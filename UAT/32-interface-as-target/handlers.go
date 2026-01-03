@@ -1,6 +1,9 @@
 package handlers
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // Logger is a simple interface for logging operations.
 // This demonstrates wrapping an interface with --target flag to intercept calls.
@@ -27,18 +30,19 @@ func NewService(logger Logger) *Service {
 
 // Process performs some work and logs the activity.
 func (s *Service) Process(data string) error {
-	if err := s.logger.Log("Processing: " + data); err != nil {
-		return err
+	err := s.logger.Log("Processing: " + data)
+	if err != nil {
+		return fmt.Errorf("failed to log processing: %w", err)
 	}
 	// ... actual processing would happen here ...
-	return s.logger.Log("Completed: " + data)
+	err = s.logger.Log("Completed: " + data)
+	if err != nil {
+		return fmt.Errorf("failed to log completion: %w", err)
+	}
+
+	return nil
 }
 
 // ProcessWithContext performs work with context and logs the activity.
-func (s *Service) ProcessWithContext(ctx context.Context, data string) error {
-	if err := s.logger.LogWithContext(ctx, "Processing: "+data); err != nil {
-		return err
-	}
-	// ... actual processing would happen here ...
-	return s.logger.LogWithContext(ctx, "Completed: "+data)
-}
+
+// ... actual processing would happen here ...
