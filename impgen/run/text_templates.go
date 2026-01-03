@@ -33,9 +33,6 @@ type TemplateRegistry struct {
 	v2InterfaceTargetHeaderTmpl              *template.Template
 	v2InterfaceTargetWrapperStructTmpl       *template.Template
 	v2InterfaceTargetConstructorTmpl         *template.Template
-	v2InterfaceTargetInterceptorStructTmpl   *template.Template
-	v2InterfaceTargetInterceptorMethodTmpl   *template.Template
-	v2InterfaceTargetInterfaceMethodTmpl     *template.Template
 	v2InterfaceTargetMethodWrapperFuncTmpl   *template.Template
 	v2InterfaceTargetMethodWrapperStructTmpl *template.Template
 	v2InterfaceTargetMethodStartTmpl         *template.Template
@@ -429,8 +426,7 @@ import (
 	//nolint:lll // Template docstring
 	registry.v2InterfaceTargetWrapperStructTmpl, err = parseTemplate("v2InterfaceTargetWrapperStruct", `// {{.WrapperType}} wraps an implementation of {{.InterfaceType}} to intercept method calls.
 type {{.WrapperType}} struct {
-	{{.ImplName}} {{.InterfaceType}}
-	interceptor *interceptor
+	{{.ImplName}} {{if .IsStructType}}*{{end}}{{.InterfaceType}}
 {{range .Methods}}	{{.MethodName}} *{{.WrapperType}}
 {{end}}}
 
@@ -442,11 +438,10 @@ type {{.WrapperType}} struct {
 	// V2 Interface Target Constructor template
 	//nolint:lll // Template docstring
 	registry.v2InterfaceTargetConstructorTmpl, err = parseTemplate("v2InterfaceTargetConstructor", `// {{.WrapName}} creates a new wrapper for the given {{.InterfaceType}} implementation.
-func {{.WrapName}}(t *testing.T, {{.ImplName}} {{.InterfaceType}}) *{{.WrapperType}} {
+func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.InterfaceType}}) *{{.WrapperType}} {
 	w := &{{.WrapperType}}{
 		{{.ImplName}}: {{.ImplName}},
 	}
-	w.interceptor = &interceptor{wrapper: w, t: t, impl: {{.ImplName}}}
 {{range .Methods}}	w.{{.MethodName}} = {{.WrapName}}(t, func({{.Params}}){{if .HasResults}} {{.ReturnsType}}{{end}} {
 {{if .HasResults}}		{{.ResultVars}} := w.{{$.ImplName}}.{{.MethodName}}({{.ParamNames}})
 		return {{.ReturnsType}}{ {{.ReturnAssignments}} }
@@ -454,44 +449,6 @@ func {{.WrapName}}(t *testing.T, {{.ImplName}} {{.InterfaceType}}) *{{.WrapperTy
 		return {{.ReturnsType}}{}
 {{end}}	})
 {{end}}	return w
-}
-
-`)
-	if err != nil {
-		return nil, err
-	}
-
-	// V2 Interface Target Interceptor Struct template
-	//nolint:lll // Template docstring
-	registry.v2InterfaceTargetInterceptorStructTmpl, err = parseTemplate("v2InterfaceTargetInterceptorStruct", `// interceptor implements {{.InterfaceType}} and routes calls through method wrappers.
-type interceptor struct {
-	wrapper *{{.WrapperType}}
-	impl {{.InterfaceType}}
-	t *testing.T
-}
-
-`)
-	if err != nil {
-		return nil, err
-	}
-
-	// V2 Interface Target Interceptor Method template
-	//nolint:lll // Template definition
-	registry.v2InterfaceTargetInterceptorMethodTmpl, err = parseTemplate("v2InterfaceTargetInterceptorMethod", `func (i *interceptor) {{.MethodName}}({{.Params}}){{.Results}} {
-{{if .HasResults}}	return i.wrapper.{{.MethodName}}.Start({{.ParamNames}}).WaitForResponse()
-{{else}}	i.wrapper.{{.MethodName}}.Start({{.ParamNames}}).WaitForCompletion()
-{{end}}}
-
-`)
-	if err != nil {
-		return nil, err
-	}
-
-	// V2 Interface Target Interface Method template
-	//nolint:lll // Template docstring
-	registry.v2InterfaceTargetInterfaceMethodTmpl, err = parseTemplate("v2InterfaceTargetInterfaceMethod", `// Interface returns the wrapped {{.InterfaceType}} implementation.
-func (w *{{.WrapperType}}) Interface() {{.InterfaceType}} {
-	return w.interceptor
 }
 
 `)
@@ -543,7 +500,7 @@ func (w *{{.WrapperType}}) Interface() {{.InterfaceType}} {
 {{range .ResultFields}}	{{.Name}} {{.Type}}
 {{end}}}
 
-{{if .HasResults}}func (r *{{.ReturnsType}}) WaitForResponse() ({{.ResultReturnList}}) {
+{{if .HasResults}}func (r *{{.ReturnsType}}) WaitForResponse() {{.ResultReturnList}} {
 	return {{range $i, $f := .ResultFields}}{{if $i}}, {{end}}r.{{$f.Name}}{{end}}
 }
 {{else}}func (r *{{.ReturnsType}}) WaitForCompletion() {}
@@ -668,30 +625,6 @@ func (r *TemplateRegistry) WriteV2InterfaceTargetHeader(buf *bytes.Buffer, data 
 	err := r.v2InterfaceTargetHeaderTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute v2InterfaceTargetHeader template: %v", err))
-	}
-}
-
-// WriteV2InterfaceTargetInterceptorMethod writes a v2 interface target interceptor method.
-func (r *TemplateRegistry) WriteV2InterfaceTargetInterceptorMethod(buf *bytes.Buffer, data any) {
-	err := r.v2InterfaceTargetInterceptorMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute v2InterfaceTargetInterceptorMethod template: %v", err))
-	}
-}
-
-// WriteV2InterfaceTargetInterceptorStruct writes the v2 interface target interceptor struct.
-func (r *TemplateRegistry) WriteV2InterfaceTargetInterceptorStruct(buf *bytes.Buffer, data any) {
-	err := r.v2InterfaceTargetInterceptorStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute v2InterfaceTargetInterceptorStruct template: %v", err))
-	}
-}
-
-// WriteV2InterfaceTargetInterfaceMethod writes the v2 interface target Interface() method.
-func (r *TemplateRegistry) WriteV2InterfaceTargetInterfaceMethod(buf *bytes.Buffer, data any) {
-	err := r.v2InterfaceTargetInterfaceMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute v2InterfaceTargetInterfaceMethod template: %v", err))
 	}
 }
 

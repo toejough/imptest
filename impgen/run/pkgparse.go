@@ -65,6 +65,13 @@ func ResolveLocalPackagePath(importPath string) string {
 	return importPath
 }
 
+// unexported constants.
+const (
+	// defaultMethodCapacity is the initial capacity for method maps.
+	// This is a reasonable starting size for most struct types.
+	defaultMethodCapacity = 8
+)
+
 // symbolType identifies the kind of symbol found.
 type symbolType int
 
@@ -73,6 +80,7 @@ const (
 	symbolInterface symbolType = iota
 	symbolFunction
 	symbolFunctionType
+	symbolStructType
 )
 
 // unexported variables.
@@ -120,14 +128,22 @@ type ifaceWithDetails struct {
 	sourceImports []*dst.ImportSpec // imports from the file containing the interface
 }
 
+// structWithDetails is a helper struct to return struct type information.
+type structWithDetails struct {
+	typeParams    *dst.FieldList
+	typeName      string            // The name of the struct type (e.g., "Calculator")
+	sourceImports []*dst.ImportSpec // imports from the file containing the struct
+}
+
 // symbolDetails holds information about the detected symbol.
 
 type symbolDetails struct {
 	kind symbolType
 
-	iface    ifaceWithDetails
-	funcDecl *dst.FuncDecl
-	funcType funcTypeWithDetails
+	iface      ifaceWithDetails
+	funcDecl   *dst.FuncDecl
+	funcType   funcTypeWithDetails
+	structType structWithDetails
 	// pkgPath tracks which package the symbol was found in.
 	// For symbols found via dot imports, this differs from the search package.
 	pkgPath string
@@ -160,6 +176,39 @@ func checkImport(imp *dst.ImportSpec, pkgName string, pkgLoader PackageLoader) (
 	}
 
 	return "", errPackageNotFound
+}
+
+// collectStructMethods collects all methods for a given struct type from AST files.
+// It searches for function declarations with a receiver matching the struct type name.
+func collectStructMethods(
+	astFiles []*dst.File,
+	fset *token.FileSet,
+	structName string,
+) map[string]*dst.FuncType {
+	// Preallocating with reasonable capacity
+	methods := make(map[string]*dst.FuncType, defaultMethodCapacity)
+
+	for _, file := range astFiles {
+		for _, decl := range file.Decls {
+			funcDecl, ok := decl.(*dst.FuncDecl)
+			if !ok || funcDecl.Recv == nil || len(funcDecl.Recv.List) == 0 {
+				continue
+			}
+
+			// Get receiver type
+			recvType := exprToString(fset, funcDecl.Recv.List[0].Type)
+
+			// Normalize receiver type (remove pointer)
+			normalizedRecvType := strings.TrimPrefix(recvType, "*")
+
+			// Check if this method belongs to our struct
+			if normalizedRecvType == structName {
+				methods[funcDecl.Name.Name] = funcDecl.Type
+			}
+		}
+	}
+
+	return methods
 }
 
 // detectPackageAmbiguity checks if a package name is ambiguous - i.e., whether
@@ -359,7 +408,69 @@ func findImportPath(
 	return "", fmt.Errorf("%w: %s", errPackageNotFound, pkgName)
 }
 
-// findSymbol looks for either an interface, function type, or function/method in the given AST files.
+// findStructTypeInAST extracts the target struct type declaration and its type parameters from AST files.
+func findStructTypeInAST(
+	astFiles []*dst.File, typeName string, pkgImportPath string,
+) (structWithDetails, error) {
+	var (
+		targetStructType *dst.StructType
+		typeParams       *dst.FieldList
+		sourceImports    []*dst.ImportSpec
+	)
+
+	for _, file := range astFiles {
+		found := false
+
+		dst.Inspect(file, func(node dst.Node) bool {
+			genDecl, ok := node.(*dst.GenDecl)
+
+			if !ok || genDecl.Tok != token.TYPE {
+				return true // Not a type declaration
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
+
+				if !isTypeSpec || typeSpec.Name.Name != typeName {
+					continue // Not the type we're looking for
+				}
+
+				structType, isStructType := typeSpec.Type.(*dst.StructType)
+
+				if !isStructType {
+					continue // Not a struct type
+				}
+
+				// Found it!
+				targetStructType = structType
+				typeParams = typeSpec.TypeParams // Capture type parameters
+				sourceImports = file.Imports     // Capture imports from this file
+				found = true
+
+				return false // Stop inspecting
+			}
+
+			return true
+		})
+
+		if found {
+			break // Found in this file, no need to check others
+		}
+	}
+
+	if targetStructType == nil {
+		//nolint:err113 // Dynamic error message required for user-facing parse errors
+		return structWithDetails{}, fmt.Errorf("struct type not found: %s in package %s", typeName, pkgImportPath)
+	}
+
+	return structWithDetails{
+		typeParams:    typeParams,
+		typeName:      typeName,
+		sourceImports: sourceImports,
+	}, nil
+}
+
+// findSymbol looks for either an interface, struct type, function type, or function/method in the given AST files.
 func findSymbol(
 	astFiles []*dst.File, fset *token.FileSet, symbolName string, pkgImportPath string, pkgLoader PackageLoader,
 ) (symbolDetails, error) {
@@ -373,7 +484,17 @@ func findSymbol(
 		}, nil
 	}
 
-	// 2. Try finding it as a function type
+	// 2. Try finding it as a struct type
+	structType, err := findStructTypeInAST(astFiles, symbolName, pkgImportPath)
+	if err == nil {
+		return symbolDetails{
+			kind:       symbolStructType,
+			structType: structType,
+			pkgPath:    pkgImportPath,
+		}, nil
+	}
+
+	// 3. Try finding it as a function type
 	funcType, err := findFunctionTypeInAST(astFiles, symbolName, pkgImportPath)
 	if err == nil {
 		return symbolDetails{
@@ -383,7 +504,7 @@ func findSymbol(
 		}, nil
 	}
 
-	// 3. Try finding it as a function or method
+	// 4. Try finding it as a function or method
 	funcDecl, err := findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
 	if err == nil {
 		return symbolDetails{
@@ -393,7 +514,7 @@ func findSymbol(
 		}, nil
 	}
 
-	// 4. If not found in current package and this is the current package (".")
+	// 5. If not found in current package and this is the current package (".")
 	// check dot-imported packages
 	if pkgImportPath == "." {
 		dotImports := getDotImportPaths(astFiles)

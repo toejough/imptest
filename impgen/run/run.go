@@ -189,30 +189,7 @@ func generateCode(
 	}
 
 	// Route to appropriate generator based on symbol type and mode
-	if symbol.kind == symbolFunction {
-		// For functions: require --target flag (V1 callable wrappers deprecated)
-		if info.mode == namingModeTarget {
-			return generateV2TargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
-		}
-
-		return "", ErrV1CallableDeprecated
-	}
-
-	// For function types: use v2 target generator (function types are always wrapped as targets)
-	if symbol.kind == symbolFunctionType {
-		return generateV2TargetCodeFromFuncType(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
-	}
-
-	// For interfaces: support both --dependency and --target modes
-	if info.mode == namingModeDependency {
-		return generateV2DependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
-	}
-
-	if info.mode == namingModeTarget {
-		return generateV2InterfaceTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
-	}
-
-	return "", ErrV1InterfaceDeprecated
+	return routeToGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol)
 }
 
 // Functions - Private
@@ -373,6 +350,52 @@ func parseArgs(args []string) (cliArgs, error) {
 	}
 
 	return parsed, nil
+}
+
+// routeToGenerator routes to the appropriate generator based on symbol type and mode.
+func routeToGenerator(
+	astFiles []*dst.File,
+	info generatorInfo,
+	fset *token.FileSet,
+	actualPkgPath string,
+	pkgLoader PackageLoader,
+	symbol symbolDetails,
+) (string, error) {
+	if symbol.kind == symbolFunction {
+		// For functions: require --target flag (V1 callable wrappers deprecated)
+		if info.mode == namingModeTarget {
+			return generateV2TargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
+		}
+
+		return "", ErrV1CallableDeprecated
+	}
+
+	// For function types: use v2 target generator (function types are always wrapped as targets)
+	if symbol.kind == symbolFunctionType {
+		return generateV2TargetCodeFromFuncType(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
+	}
+
+	// For struct types: use v2 interface target generator (struct types only support --target mode)
+	if symbol.kind == symbolStructType {
+		// Only --target mode is supported for struct types
+		if info.mode != namingModeTarget {
+			//nolint:err113 // Dynamic error message for user-facing validation
+			return "", fmt.Errorf("struct types only support --target flag (use 'impgen %s --target')", info.localInterfaceName)
+		}
+
+		return generateV2StructTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.structType)
+	}
+
+	// For interfaces: support both --dependency and --target modes
+	if info.mode == namingModeDependency {
+		return generateV2DependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
+	}
+
+	if info.mode == namingModeTarget {
+		return generateV2InterfaceTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface, false)
+	}
+
+	return "", ErrV1InterfaceDeprecated
 }
 
 // writeGeneratedCodeToFile writes the generated code to generated_<impName>.go.

@@ -11,14 +11,8 @@ import (
 // WrapLoggerWrapper wraps an implementation of handlers.Logger to intercept method calls.
 type WrapLoggerWrapper struct {
 	impl           handlers.Logger
-	interceptor    *interceptor
 	Log            *WrapLoggerWrapperLogWrapper
 	LogWithContext *WrapLoggerWrapperLogWithContextWrapper
-}
-
-// Interface returns the wrapped handlers.Logger implementation.
-func (w *WrapLoggerWrapper) Interface() handlers.Logger {
-	return w.interceptor
 }
 
 type WrapLoggerWrapperLogReturns struct {
@@ -94,7 +88,6 @@ func WrapLogger(t *testing.T, impl handlers.Logger) *WrapLoggerWrapper {
 	w := &WrapLoggerWrapper{
 		impl: impl,
 	}
-	w.interceptor = &interceptor{wrapper: w, t: t, impl: impl}
 	w.Log = wrapWrapLoggerWrapperLog(t, func(msg string) WrapLoggerWrapperLogReturns {
 		r0 := w.impl.Log(msg)
 		return WrapLoggerWrapperLogReturns{Result0: r0}
@@ -104,21 +97,6 @@ func WrapLogger(t *testing.T, impl handlers.Logger) *WrapLoggerWrapper {
 		return WrapLoggerWrapperLogWithContextReturns{Result0: r0}
 	})
 	return w
-}
-
-// interceptor implements handlers.Logger and routes calls through method wrappers.
-type interceptor struct {
-	wrapper *WrapLoggerWrapper
-	impl    handlers.Logger
-	t       *testing.T
-}
-
-func (i *interceptor) Log(msg string) error {
-	return i.wrapper.Log.Start(msg).WaitForResponse()
-}
-
-func (i *interceptor) LogWithContext(ctx context.Context, msg string) error {
-	return i.wrapper.LogWithContext.Start(ctx, msg).WaitForResponse()
 }
 
 func wrapWrapLoggerWrapperLog(t *testing.T, fn func(msg string) WrapLoggerWrapperLogReturns) *WrapLoggerWrapperLogWrapper {

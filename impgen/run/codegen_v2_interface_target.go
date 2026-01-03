@@ -10,7 +10,7 @@ import (
 	"github.com/dave/dst"
 )
 
-// v2InterfaceTargetGenerator generates v2-style target wrappers for interfaces.
+// v2InterfaceTargetGenerator generates v2-style target wrappers for interfaces and struct types.
 // Each interface method gets wrapped like a function with its own wrapper struct.
 type v2InterfaceTargetGenerator struct {
 	baseGenerator
@@ -236,7 +236,7 @@ func (gen *v2InterfaceTargetGenerator) collectAdditionalImports() []importInfo {
 }
 
 // generate produces the v2 interface target wrapper code using templates.
-func (gen *v2InterfaceTargetGenerator) generate() (string, error) {
+func (gen *v2InterfaceTargetGenerator) generate(isStructType bool) (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded()
 
@@ -251,8 +251,8 @@ func (gen *v2InterfaceTargetGenerator) generate() (string, error) {
 		return "", fmt.Errorf("failed to initialize template registry: %w", err)
 	}
 
-	// Generate using templates
-	gen.generateWithTemplates(templates)
+	// Generate using templates - pass isStructType from parameter
+	gen.generateWithTemplates(templates, isStructType)
 
 	formatted, err := format.Source(gen.bytes())
 	if err != nil {
@@ -263,7 +263,7 @@ func (gen *v2InterfaceTargetGenerator) generate() (string, error) {
 }
 
 // generateWithTemplates generates code using templates instead of direct code generation.
-func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *TemplateRegistry) {
+func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *TemplateRegistry, isStructType bool) {
 	// Build base template data
 	base := baseTemplateData{
 		PkgName:           gen.pkgName,
@@ -311,20 +311,13 @@ func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *Template
 		ImplName:         gen.implName,
 		MethodNames:      gen.methodNames,
 		Methods:          methodWrappers,
+		IsStructType:     isStructType,
 	}
 
 	// Generate each section using templates
 	templates.WriteV2InterfaceTargetHeader(&gen.buf, data)
 	templates.WriteV2InterfaceTargetWrapperStruct(&gen.buf, data)
 	templates.WriteV2InterfaceTargetConstructor(&gen.buf, data)
-	templates.WriteV2InterfaceTargetInterceptorStruct(&gen.buf, data)
-
-	// Generate interceptor methods for each interface method
-	for _, methodData := range methodWrappers {
-		templates.WriteV2InterfaceTargetInterceptorMethod(&gen.buf, methodData)
-	}
-
-	templates.WriteV2InterfaceTargetInterfaceMethod(&gen.buf, data)
 
 	// Generate method wrappers for each interface method
 	for _, methodData := range methodWrappers {
@@ -336,7 +329,7 @@ func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *Template
 	}
 }
 
-// generateV2InterfaceTargetCode generates v2-style target wrapper code for an interface.
+// generateV2InterfaceTargetCode generates v2-style target wrapper code for an interface or struct type.
 func generateV2InterfaceTargetCode(
 	astFiles []*dst.File,
 	info generatorInfo,
@@ -344,16 +337,17 @@ func generateV2InterfaceTargetCode(
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	ifaceWithDetails ifaceWithDetails,
+	isStructType bool,
 ) (string, error) {
 	gen, err := newV2InterfaceTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
 	if err != nil {
 		return "", err
 	}
 
-	return gen.generate()
+	return gen.generate(isStructType)
 }
 
-// newV2InterfaceTargetGenerator creates a new v2 interface target wrapper generator.
+// newV2InterfaceTargetGenerator creates a new v2 interface or struct target wrapper generator.
 func newV2InterfaceTargetGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,

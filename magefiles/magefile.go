@@ -901,6 +901,22 @@ func IssuesShow(issueNum int) error {
 func IssuesStatus(issueNum int, newStatus string) error {
 	const issuesFile = "issues.md"
 
+	// Validate status
+	validStatuses := map[string]bool{
+		"backlog":     true,
+		"selected":    true,
+		"in progress": true,
+		"review":      true,
+		"done":        true,
+		"migrated":    true,
+		"cancelled":   true,
+		"blocked":     true,
+	}
+
+	if !validStatuses[newStatus] {
+		return fmt.Errorf("invalid status: %s (valid: backlog, selected, in progress, review, done, migrated, cancelled, blocked)", newStatus)
+	}
+
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", issuesFile, err)
@@ -915,144 +931,34 @@ func IssuesStatus(issueNum int, newStatus string) error {
 		return fmt.Errorf("issue #%d not found", issueNum)
 	}
 
-	// Find status line
+	// Find status line within this issue
+	// We search from issueStart to the next issue or end of file to avoid matching wrong issue's status
+	issueContent := content[issueStart:]
+	nextIssue := strings.Index(issueContent[1:], "\n### ")
+	if nextIssue != -1 {
+		issueContent = issueContent[:nextIssue+1]
+	}
+
 	statusPrefix := "**Status**\n"
-	statusStart := strings.Index(content[issueStart:], statusPrefix)
+	statusStart := strings.Index(issueContent, statusPrefix)
 	if statusStart == -1 {
 		return fmt.Errorf("status field not found in issue #%d", issueNum)
 	}
-	statusStart += issueStart + len(statusPrefix)
 
-	// Find end of status value (next blank line or next field)
-	statusEnd := statusStart
+	// Calculate absolute position in file
+	absoluteStatusStart := issueStart + statusStart + len(statusPrefix)
+
+	// Find end of status value (next newline)
+	statusEnd := absoluteStatusStart
 	for statusEnd < len(content) && content[statusEnd] != '\n' {
 		statusEnd++
 	}
 
-	// Replace status
-	oldStatus := strings.TrimSpace(content[statusStart:statusEnd])
-	newContent := content[:statusStart] + newStatus + content[statusEnd:]
+	// Get old status for reporting
+	oldStatus := strings.TrimSpace(content[absoluteStatusStart:statusEnd])
 
-	// Move issue to new section if needed
-	validStatuses := map[string]string{
-		"backlog":     "## Backlog",
-		"selected":    "## Selected",
-		"in progress": "## In Progress",
-		"review":      "## Review",
-		"done":        "## Done",
-		"migrated":    "## Migrated",
-		"cancelled":   "## Cancelled",
-		"blocked":     "## Blocked",
-	}
-
-	newSectionHeader, ok := validStatuses[newStatus]
-	if !ok {
-		return fmt.Errorf("invalid status: %s", newStatus)
-	}
-
-	oldSectionHeader, ok := validStatuses[oldStatus]
-	if !ok {
-		// If old status was invalid, proceed with move anyway
-		oldSectionHeader = ""
-	}
-
-	// Only move if status changed to different section
-	if oldSectionHeader != newSectionHeader {
-		fmt.Printf("Moving issue #%d from '%s' to '%s' section\n", issueNum, oldStatus, newStatus)
-
-		// Extract full issue
-		// Try to find the end of the issue by looking for boundaries in order:
-		// 1. Horizontal rule (---)
-		// 2. Next issue (\n### )
-		// 3. Next section (\n## )
-		// 4. End of file
-		issueEnd := strings.Index(newContent[issueStart:], "\n---\n")
-		includeSeparator := false
-		if issueEnd == -1 {
-			issueEnd = strings.Index(newContent[issueStart:], "\n### ")
-		}
-		if issueEnd == -1 {
-			issueEnd = strings.Index(newContent[issueStart:], "\n## ")
-			if issueEnd != -1 {
-				// Found section boundary - include the newline in the extraction
-				// to avoid leaving "\n## " orphaned
-				includeSeparator = true
-			}
-		}
-		if issueEnd == -1 {
-			issueEnd = len(newContent) - issueStart
-		}
-
-		// Extract issue content
-		fullIssue := newContent[issueStart : issueStart+issueEnd]
-
-		// Calculate removal range (include separator if needed)
-		removalEnd := issueEnd
-		if includeSeparator {
-			removalEnd++ // Include the "\n" before the next section
-		}
-
-		// Remove from old location
-		newContent = newContent[:issueStart] + newContent[issueStart+removalEnd:]
-
-		// Find new section
-		newSectionStart := strings.Index(newContent, newSectionHeader)
-		if newSectionStart == -1 {
-			return fmt.Errorf("section not found: %s", newSectionHeader)
-		}
-
-		// Find insertion point in new section
-		insertPoint := newSectionStart
-		sectionContent := newContent[newSectionStart:]
-		nextSectionIdx := strings.Index(sectionContent[len(newSectionHeader):], "\n## ")
-		if nextSectionIdx != -1 {
-			sectionContent = sectionContent[:len(newSectionHeader)+nextSectionIdx]
-		}
-
-		// Find first issue in section or end of section
-		firstIssueIdx := strings.Index(sectionContent, "\n### ")
-		if firstIssueIdx != -1 {
-			insertPoint = newSectionStart + firstIssueIdx + 1
-		} else {
-			// No issues in section, insert after section description
-			// Find the end of the section by looking for a blank line after the header
-			// Section format: "## Header\n\nDescription text\n"
-			lines := strings.Split(sectionContent, "\n")
-			linePos := 0
-			foundContent := false
-			for i := 0; i < len(lines); i++ {
-				if i == 0 {
-					// Skip header line
-					linePos += len(lines[i]) + 1
-					continue
-				}
-				if i == 1 && strings.TrimSpace(lines[i]) == "" {
-					// Skip blank line after header
-					linePos += len(lines[i]) + 1
-					continue
-				}
-				if strings.TrimSpace(lines[i]) != "" {
-					// Found description content
-					foundContent = true
-					linePos += len(lines[i]) + 1
-				} else if foundContent {
-					// Found blank line after description
-					insertPoint = newSectionStart + linePos
-					break
-				} else {
-					// Blank line before content
-					linePos += len(lines[i]) + 1
-				}
-			}
-			// If no blank line found, insert at end of section
-			if insertPoint == newSectionStart {
-				insertPoint = newSectionStart + len(sectionContent)
-			}
-		}
-
-		// Insert issue in new section
-		newContent = newContent[:insertPoint] + fullIssue + "\n" + newContent[insertPoint:]
-	}
+	// Update status field in place
+	newContent := content[:absoluteStatusStart] + newStatus + content[statusEnd:]
 
 	// Write back
 	err = os.WriteFile(issuesFile, []byte(newContent), 0o600)
@@ -1061,6 +967,15 @@ func IssuesStatus(issueNum int, newStatus string) error {
 	}
 
 	fmt.Printf("Updated issue #%d status: %s → %s\n", issueNum, oldStatus, newStatus)
+
+	// Use IssuesFix to move issue to correct section
+	// IssuesFix is robust and battle-tested for moving issues between sections
+	fmt.Println("Running IssuesFix to move issue to correct section...")
+	err = IssuesFix()
+	if err != nil {
+		return fmt.Errorf("failed to move issue to correct section: %w", err)
+	}
+
 	return nil
 }
 

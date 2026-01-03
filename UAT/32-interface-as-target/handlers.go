@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 )
 
 // Logger is a simple interface for logging operations.
@@ -20,28 +19,14 @@ type Logger interface {
 // This demonstrates a typical use case where we'd want to wrap the logger
 // to intercept or observe log calls.
 type Service struct {
-	logger Logger
+	// Service fields would go here in a real implementation
 }
 
 // NewService creates a new Service with the provided logger.
-func NewService(logger Logger) *Service {
-	return &Service{logger: logger}
-}
 
 // Process performs some work and logs the activity.
-func (s *Service) Process(data string) error {
-	err := s.logger.Log("Processing: " + data)
-	if err != nil {
-		return fmt.Errorf("failed to log processing: %w", err)
-	}
-	// ... actual processing would happen here ...
-	err = s.logger.Log("Completed: " + data)
-	if err != nil {
-		return fmt.Errorf("failed to log completion: %w", err)
-	}
 
-	return nil
-}
+// ... actual processing would happen here ...
 
 // ProcessWithContext performs work with context and logs the activity.
 

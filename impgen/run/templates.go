@@ -168,6 +168,7 @@ type v2InterfaceTargetTemplateData struct {
 	ImplName      string              // Real implementation field name (e.g., "impl")
 	MethodNames   []string            // List of interface method names
 	Methods       []methodWrapperData // Full method data for generating wrappers
+	IsStructType  bool                // True if wrapping a struct type (needs pointer in field/param types)
 }
 
 // v2TargetTemplateData holds data for v2 target wrapper templates.
