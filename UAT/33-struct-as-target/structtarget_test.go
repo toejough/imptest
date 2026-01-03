@@ -41,26 +41,7 @@ func TestWrapCalculator_BasicWrapping(t *testing.T) {
 
 	// Call Add through the wrapped struct
 	// Expected: wrapper.Add should exist and intercept the call
-	result := wrapper.Add.Start(5, 3).WaitForResponse()
-
-	// Verify the result is correct (5 + 3 + offset=10 = 18)
-	if result != 18 {
-		t.Errorf("expected 18, got %d", result)
-	}
-
-	// Verify the call was intercepted and recorded
-	calls := wrapper.Add.GetCalls()
-	if len(calls) != 1 {
-		t.Fatalf("expected 1 Add call, got %d", len(calls))
-	}
-
-	if calls[0].Params.A != 5 || calls[0].Params.B != 3 {
-		t.Errorf("expected params (5, 3), got (%d, %d)", calls[0].Params.A, calls[0].Params.B)
-	}
-
-	if calls[0].Returns.Result0 != 18 {
-		t.Errorf("expected return value 18, got %d", calls[0].Returns.Result0)
-	}
+	wrapper.Add.Start(5, 3).ExpectReturnsEqual(18)
 }
 
 // TestWrapCalculator_ErrorHandling demonstrates wrapping methods that return errors.
@@ -71,36 +52,23 @@ func TestWrapCalculator_ErrorHandling(t *testing.T) {
 	calc := calculator.NewCalculator(2, 0)
 	wrapper := WrapCalculator(t, calc)
 
-	// Test error path with negative input
-	result, err := wrapper.Process.Start(-5).WaitForResponse()
+	// Test error path with negative input - Process returns error
+	call1 := wrapper.Process.Start(-5)
+	call1.WaitForResponse()
 
-	// Verify error was returned
-	if err == nil {
+	result1 := call1.Returned.Result0
+
+	err1 := call1.Returned.Result1
+	if err1 == nil {
 		t.Fatal("expected error from Process with negative input")
 	}
 
-	if result != "" {
-		t.Errorf("expected empty result string, got %q", result)
+	if result1 != "" {
+		t.Errorf("expected empty result string, got %q", result1)
 	}
 
-	// Test success path
-	result, err = wrapper.Process.Start(10).WaitForResponse()
-	// Verify success
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Process should: Multiply(10) = 20, Add(20, 5) = 25 (no offset), so "Result: 25"
-	expectedResult := "Result: 25"
-	if result != expectedResult {
-		t.Errorf("expected %q, got %q", expectedResult, result)
-	}
-
-	// Verify both calls were recorded
-	calls := wrapper.Process.GetCalls()
-	if len(calls) != 2 {
-		t.Fatalf("expected 2 Process calls, got %d", len(calls))
-	}
+	// Test success path - Process should: Multiply(10) = 20, Add(20, 5) = 25 (no offset)
+	wrapper.Process.Start(10).ExpectReturnsEqual("Result: 25", nil)
 }
 
 // TestWrapCalculator_MethodInteraction demonstrates wrapping a method that calls other methods.
@@ -114,25 +82,7 @@ func TestWrapCalculator_MethodInteraction(t *testing.T) {
 
 	// Call Process, which internally calls Multiply and Add
 	// Process(5): Multiply(5) = 15, Add(15, 5) = 30
-	result, err := wrapper.Process.Start(5).WaitForResponse()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	expectedResult := "Result: 30"
-	if result != expectedResult {
-		t.Errorf("expected %q, got %q", expectedResult, result)
-	}
-
-	// Verify Process call was recorded
-	processCalls := wrapper.Process.GetCalls()
-	if len(processCalls) != 1 {
-		t.Fatalf("expected 1 Process call, got %d", len(processCalls))
-	}
-
-	if processCalls[0].Params.Input != 5 {
-		t.Errorf("Process call: expected input 5, got %d", processCalls[0].Params.Input)
-	}
+	wrapper.Process.Start(5).ExpectReturnsEqual("Result: 30", nil)
 
 	// Note: The internal calls to Multiply and Add from within Process
 	// will NOT be intercepted because they're called on the original struct (c),
@@ -155,38 +105,13 @@ func TestWrapCalculator_MultipleMethodCalls(t *testing.T) {
 	// All should be intercepted independently
 
 	// Test Add: 10 + 20 + offset=5 = 35
-	addResult := wrapper.Add.Start(10, 20).WaitForResponse()
-	if addResult != 35 {
-		t.Errorf("Add: expected 35, got %d", addResult)
-	}
+	wrapper.Add.Start(10, 20).ExpectReturnsEqual(35)
 
 	// Test Multiply: 7 * multiplier=3 = 21
-	mulResult := wrapper.Multiply.Start(7).WaitForResponse()
-	if mulResult != 21 {
-		t.Errorf("Multiply: expected 21, got %d", mulResult)
-	}
+	wrapper.Multiply.Start(7).ExpectReturnsEqual(21)
 
 	// Test Divide: 100 / 4 = 25, true
-	divResult, divOk := wrapper.Divide.Start(100, 4).WaitForResponse()
-	if divResult != 25 || !divOk {
-		t.Errorf("Divide: expected (25, true), got (%d, %v)", divResult, divOk)
-	}
-
-	// Verify each method's calls were intercepted independently
-	addCalls := wrapper.Add.GetCalls()
-	if len(addCalls) != 1 {
-		t.Errorf("expected 1 Add call, got %d", len(addCalls))
-	}
-
-	mulCalls := wrapper.Multiply.GetCalls()
-	if len(mulCalls) != 1 {
-		t.Errorf("expected 1 Multiply call, got %d", len(mulCalls))
-	}
-
-	divCalls := wrapper.Divide.GetCalls()
-	if len(divCalls) != 1 {
-		t.Errorf("expected 1 Divide call, got %d", len(divCalls))
-	}
+	wrapper.Divide.Start(100, 4).ExpectReturnsEqual(25, true)
 }
 
 // TestWrapCalculator_MultipleReturnValues demonstrates wrapping methods with multiple return values.
@@ -198,28 +123,10 @@ func TestWrapCalculator_MultipleReturnValues(t *testing.T) {
 	wrapper := WrapCalculator(t, calc)
 
 	// Test successful division
-	quotient, divideOk := wrapper.Divide.Start(50, 5).WaitForResponse()
-	if quotient != 10 || !divideOk {
-		t.Errorf("expected (10, true), got (%d, %v)", quotient, divideOk)
-	}
+	wrapper.Divide.Start(50, 5).ExpectReturnsEqual(10, true)
 
 	// Test division by zero
-	quotient, divideOk = wrapper.Divide.Start(50, 0).WaitForResponse()
-	if quotient != 0 || divideOk {
-		t.Errorf("expected (0, false), got (%d, %v)", quotient, divideOk)
-	}
-
-	// Verify both calls were recorded
-	calls := wrapper.Divide.GetCalls()
-	if len(calls) != 2 {
-		t.Fatalf("expected 2 Divide calls, got %d", len(calls))
-	}
-
-	// Verify first call parameters and returns
-	verifyDivideCall(t, calls[0], 50, 5, 10, true)
-
-	// Verify second call parameters and returns
-	verifyDivideCall(t, calls[1], 50, 0, 0, false)
+	wrapper.Divide.Start(50, 0).ExpectReturnsEqual(0, false)
 }
 
 // TestWrapCalculator_RepeatedCalls demonstrates that multiple calls to the same method are recorded.
@@ -230,31 +137,10 @@ func TestWrapCalculator_RepeatedCalls(t *testing.T) {
 	calc := calculator.NewCalculator(1, 0)
 	wrapper := WrapCalculator(t, calc)
 
-	// Make multiple calls to the same method
-	wrapper.Add.Start(1, 2).WaitForResponse()
-	wrapper.Add.Start(3, 4).WaitForResponse()
-	wrapper.Add.Start(5, 6).WaitForResponse()
-
-	// Verify all calls were recorded
-	calls := wrapper.Add.GetCalls()
-	if len(calls) != 3 {
-		t.Fatalf("expected 3 Add calls, got %d", len(calls))
-	}
-
-	// Verify call parameters
-	expectedParams := [][2]int{
-		{1, 2},
-		{3, 4},
-		{5, 6},
-	}
-
-	for i, call := range calls {
-		if call.Params.A != expectedParams[i][0] || call.Params.B != expectedParams[i][1] {
-			t.Errorf("call %d: expected params (%d, %d), got (%d, %d)",
-				i, expectedParams[i][0], expectedParams[i][1],
-				call.Params.A, call.Params.B)
-		}
-	}
+	// Make multiple calls to the same method - each returns unique handle
+	wrapper.Add.Start(1, 2).ExpectReturnsEqual(3)  // 1 + 2 + 0 = 3
+	wrapper.Add.Start(3, 4).ExpectReturnsEqual(7)  // 3 + 4 + 0 = 7
+	wrapper.Add.Start(5, 6).ExpectReturnsEqual(11) // 5 + 6 + 0 = 11
 }
 
 // TestWrapCalculator_StatePreservation demonstrates that the wrapped struct maintains state.
@@ -268,35 +154,8 @@ func TestWrapCalculator_StatePreservation(t *testing.T) {
 
 	// Test that methods use the correct state values
 	// Multiply: 10 * multiplier=5 = 50
-	mulResult := wrapper.Multiply.Start(10).WaitForResponse()
-	if mulResult != 50 {
-		t.Errorf("Multiply: expected 50 (10*5), got %d", mulResult)
-	}
+	wrapper.Multiply.Start(10).ExpectReturnsEqual(50)
 
 	// Add: 10 + 20 + offset=100 = 130
-	addResult := wrapper.Add.Start(10, 20).WaitForResponse()
-	if addResult != 130 {
-		t.Errorf("Add: expected 130 (10+20+100), got %d", addResult)
-	}
-}
-
-// verifyDivideCall checks that a recorded Divide call has the expected parameters and return values.
-// Reduces cyclomatic complexity by consolidating repeated verification logic.
-func verifyDivideCall(
-	t *testing.T,
-	call WrapCalculatorWrapperDivideWrapperCallRecord,
-	expNum, expDenom, expResult int,
-	expOk bool,
-) {
-	t.Helper()
-
-	if call.Params.Numerator != expNum || call.Params.Denominator != expDenom {
-		t.Errorf("expected params (%d, %d), got (%d, %d)",
-			expNum, expDenom, call.Params.Numerator, call.Params.Denominator)
-	}
-
-	if call.Returns.Result0 != expResult || call.Returns.Result1 != expOk {
-		t.Errorf("expected returns (%d, %v), got (%d, %v)",
-			expResult, expOk, call.Returns.Result0, call.Returns.Result1)
-	}
+	wrapper.Add.Start(10, 20).ExpectReturnsEqual(130)
 }

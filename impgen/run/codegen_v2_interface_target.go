@@ -105,6 +105,7 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 		MethodName:        methodName,
 		WrapName:          fmt.Sprintf("wrap%s%s", gen.wrapperType, methodName),
 		WrapperType:       fmt.Sprintf("%s%sWrapper", gen.wrapperType, methodName),
+		CallHandleType:    fmt.Sprintf("%s%sCallHandle", gen.wrapperType, methodName),
 		ReturnsType:       fmt.Sprintf("%s%sReturns", gen.wrapperType, methodName),
 		Params:            paramsStr,
 		ParamNames:        paramNamesStr.String(),
@@ -120,6 +121,8 @@ func (gen *v2InterfaceTargetGenerator) buildMethodWrapperData(
 		WaitMethodName:    waitMethodName,
 		ExpectedParams:    expectedParamsStr.String(),
 		MatcherParams:     matcherParamsStr.String(),
+		PkgImptest:        pkgImptest,
+		PkgReflect:        pkgReflect,
 	}
 }
 
@@ -264,6 +267,17 @@ func (gen *v2InterfaceTargetGenerator) generate(isStructType bool) (string, erro
 
 // generateWithTemplates generates code using templates instead of direct code generation.
 func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *TemplateRegistry, isStructType bool) {
+	// Determine if we need reflect (for ExpectReturnsEqual with DeepEqual)
+	needsReflect := false
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(_ string, ftype *dst.FuncType) {
+			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				needsReflect = true
+			}
+		},
+	)
+
 	// Build base template data
 	base := baseTemplateData{
 		PkgName:           gen.pkgName,
@@ -273,6 +287,14 @@ func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *Template
 		NeedsQualifier:    gen.needsQualifier,
 		TypeParamsDecl:    gen.formatTypeParamsDecl(),
 		TypeParamsUse:     gen.formatTypeParamsUse(),
+		PkgTesting:        pkgTesting,
+		PkgFmt:            pkgFmt,
+		PkgImptest:        pkgImptest,
+		PkgTime:           pkgTime,
+		PkgReflect:        pkgReflect,
+		NeedsFmt:          false, // Interface wrappers don't need fmt
+		NeedsReflect:      needsReflect,
+		NeedsImptest:      true, // Always needed for CallableController
 		AdditionalImports: gen.collectAdditionalImports(),
 	}
 
@@ -323,9 +345,12 @@ func (gen *v2InterfaceTargetGenerator) generateWithTemplates(templates *Template
 	for _, methodData := range methodWrappers {
 		templates.WriteV2InterfaceTargetMethodWrapperFunc(&gen.buf, methodData)
 		templates.WriteV2InterfaceTargetMethodWrapperStruct(&gen.buf, methodData)
-		templates.WriteV2InterfaceTargetCallRecordStruct(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetMethodCallHandleStruct(&gen.buf, methodData)
 		templates.WriteV2InterfaceTargetMethodStart(&gen.buf, methodData)
 		templates.WriteV2InterfaceTargetMethodReturns(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetMethodExpectReturns(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetMethodExpectCompletes(&gen.buf, methodData)
+		templates.WriteV2InterfaceTargetMethodExpectPanic(&gen.buf, methodData)
 	}
 }
 

@@ -63,6 +63,7 @@ type methodWrapperData struct {
 	MethodName        string        // Interface method name (e.g., "Log")
 	WrapName          string        // Internal wrapper constructor (e.g., "wrapWrapLoggerWrapperLog")
 	WrapperType       string        // Wrapper type (e.g., "WrapLoggerWrapperLogWrapper")
+	CallHandleType    string        // Call handle type (e.g., "WrapLoggerWrapperLogCallHandle")
 	ReturnsType       string        // Returns type (e.g., "WrapLoggerWrapperLogReturns")
 	Params            string        // Full parameter list (e.g., "msg string")
 	ParamNames        string        // Comma-separated parameter names (e.g., "msg")
@@ -78,6 +79,8 @@ type methodWrapperData struct {
 	WaitMethodName    string        // "WaitForResponse" or "WaitForCompletion"
 	ExpectedParams    string        // Expected parameters for assertions
 	MatcherParams     string        // Matcher parameters for assertions
+	PkgImptest        string        // Package alias for imptest (e.g., "_imptest")
+	PkgReflect        string        // Package alias for reflect (e.g., "_reflect")
 }
 
 // paramField holds info about a single parameter field for args structs.
@@ -177,6 +180,7 @@ type v2TargetTemplateData struct {
 
 	WrapName          string // Constructor function name (e.g., "WrapAdd")
 	WrapperType       string // Wrapper struct type (e.g., "WrapAddWrapper")
+	CallHandleType    string // Call handle struct type (e.g., "WrapAddCallHandle")
 	ReturnsType       string // Returns struct type (e.g., "WrapAddReturns")
 	FuncSig           string // Full function signature
 	Params            string // Function parameters for Start method

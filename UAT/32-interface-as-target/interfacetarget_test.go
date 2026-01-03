@@ -9,7 +9,49 @@
 // determine if this capability is supported or should be marked as unsupported.
 package handlers_test
 
+import (
+	"context"
+	"testing"
+)
+
 // Generate target wrapper for Logger interface
 // This is the key directive: attempting to wrap an interface with --target
 //
 //go:generate impgen handlers.Logger --target
+
+// ConsoleLogger is a simple implementation of Logger for testing.
+type ConsoleLogger struct{}
+
+func (c *ConsoleLogger) Log(msg string) error {
+	// In real implementation, would write to console
+	_ = msg
+	return nil
+}
+
+func (c *ConsoleLogger) LogWithContext(ctx context.Context, msg string) error {
+	// In real implementation, would write to console with context
+	_, _ = ctx, msg
+	return nil
+}
+
+// TestWrapLogger_BasicUsage demonstrates basic interface wrapping with call handles.
+func TestWrapLogger_BasicUsage(t *testing.T) {
+	t.Parallel()
+
+	logger := &ConsoleLogger{}
+	wrapper := WrapLogger(t, logger)
+
+	// Start() returns call handle, ExpectReturnsEqual() verifies and waits
+	wrapper.Log.Start("test message").ExpectReturnsEqual(nil)
+}
+
+// TestWrapLogger_WithContext demonstrates wrapping methods with context.
+func TestWrapLogger_WithContext(t *testing.T) {
+	t.Parallel()
+
+	logger := &ConsoleLogger{}
+	wrapper := WrapLogger(t, logger)
+
+	ctx := context.Background()
+	wrapper.LogWithContext.Start(ctx, "context message").ExpectReturnsEqual(nil)
+}

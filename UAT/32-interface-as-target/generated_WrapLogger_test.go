@@ -5,6 +5,8 @@ package handlers_test
 import (
 	context "context"
 	handlers "github.com/toejough/imptest/UAT/32-interface-as-target"
+	_imptest "github.com/toejough/imptest/imptest"
+	_reflect "reflect"
 	"testing"
 )
 
@@ -15,72 +17,216 @@ type WrapLoggerWrapper struct {
 	LogWithContext *WrapLoggerWrapperLogWithContextWrapper
 }
 
+// WrapLoggerWrapperLogCallHandle represents a single call to the wrapped method.
+type WrapLoggerWrapperLogCallHandle struct {
+	*_imptest.CallableController[WrapLoggerWrapperLogReturns]
+}
+
+// ExpectCompletes verifies the method completes without panicking.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectCompletes() {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		h.T.Fatalf("expected method to complete, but it panicked with: %v", h.Panicked)
+	}
+}
+
+// ExpectPanicEquals verifies the method panics with the expected value.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the method returned the expected values.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectReturnsEqual(v0 error) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectReturnsMatch(v0 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
+}
+
 type WrapLoggerWrapperLogReturns struct {
 	Result0 error
 }
 
-func (r *WrapLoggerWrapperLogReturns) WaitForResponse() error {
-	return r.Result0
+// WrapLoggerWrapperLogWithContextCallHandle represents a single call to the wrapped method.
+type WrapLoggerWrapperLogWithContextCallHandle struct {
+	*_imptest.CallableController[WrapLoggerWrapperLogWithContextReturns]
+}
+
+// ExpectCompletes verifies the method completes without panicking.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectCompletes() {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		h.T.Fatalf("expected method to complete, but it panicked with: %v", h.Panicked)
+	}
+}
+
+// ExpectPanicEquals verifies the method panics with the expected value.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the method returned the expected values.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectReturnsEqual(v0 error) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectReturnsMatch(v0 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
 type WrapLoggerWrapperLogWithContextReturns struct {
 	Result0 error
 }
 
-func (r *WrapLoggerWrapperLogWithContextReturns) WaitForResponse() error {
-	return r.Result0
-}
-
 type WrapLoggerWrapperLogWithContextWrapper struct {
-	t     *testing.T
-	fn    func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns
-	calls []WrapLoggerWrapperLogWithContextWrapperCallRecord
+	t  *testing.T
+	fn func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns
 }
 
-func (w *WrapLoggerWrapperLogWithContextWrapper) GetCalls() []WrapLoggerWrapperLogWithContextWrapperCallRecord {
-	return w.calls
-}
-
-func (w *WrapLoggerWrapperLogWithContextWrapper) Start(ctx context.Context, msg string) *WrapLoggerWrapperLogWithContextReturns {
-	returns := w.fn(ctx, msg)
-	//nolint:lll // Template definition
-	w.calls = append(w.calls, WrapLoggerWrapperLogWithContextWrapperCallRecord{Params: struct {
-		Ctx context.Context
-		Msg string
-	}{ctx, msg}, Returns: returns})
-	return &returns
-}
-
-type WrapLoggerWrapperLogWithContextWrapperCallRecord struct {
-	Params struct {
-		Ctx context.Context
-		Msg string
+// Start executes the wrapped method in a goroutine.
+func (w *WrapLoggerWrapperLogWithContextWrapper) Start(ctx context.Context, msg string) *WrapLoggerWrapperLogWithContextCallHandle {
+	handle := &WrapLoggerWrapperLogWithContextCallHandle{
+		CallableController: _imptest.NewCallableController[WrapLoggerWrapperLogWithContextReturns](w.t),
 	}
-	Returns WrapLoggerWrapperLogWithContextReturns
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				handle.PanicChan <- r
+			}
+		}()
+		returns := w.fn(ctx, msg)
+		handle.ReturnChan <- returns
+	}()
+	return handle
 }
 
 type WrapLoggerWrapperLogWrapper struct {
-	t     *testing.T
-	fn    func(msg string) WrapLoggerWrapperLogReturns
-	calls []WrapLoggerWrapperLogWrapperCallRecord
+	t  *testing.T
+	fn func(msg string) WrapLoggerWrapperLogReturns
 }
 
-func (w *WrapLoggerWrapperLogWrapper) GetCalls() []WrapLoggerWrapperLogWrapperCallRecord {
-	return w.calls
-}
-
-func (w *WrapLoggerWrapperLogWrapper) Start(msg string) *WrapLoggerWrapperLogReturns {
-	returns := w.fn(msg)
-	//nolint:lll // Template definition
-	w.calls = append(w.calls, WrapLoggerWrapperLogWrapperCallRecord{Params: struct{ Msg string }{msg}, Returns: returns})
-	return &returns
-}
-
-type WrapLoggerWrapperLogWrapperCallRecord struct {
-	Params struct {
-		Msg string
+// Start executes the wrapped method in a goroutine.
+func (w *WrapLoggerWrapperLogWrapper) Start(msg string) *WrapLoggerWrapperLogCallHandle {
+	handle := &WrapLoggerWrapperLogCallHandle{
+		CallableController: _imptest.NewCallableController[WrapLoggerWrapperLogReturns](w.t),
 	}
-	Returns WrapLoggerWrapperLogReturns
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				handle.PanicChan <- r
+			}
+		}()
+		returns := w.fn(msg)
+		handle.ReturnChan <- returns
+	}()
+	return handle
 }
 
 // WrapLogger creates a new wrapper for the given handlers.Logger implementation.

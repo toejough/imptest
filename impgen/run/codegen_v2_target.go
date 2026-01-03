@@ -16,6 +16,7 @@ type v2TargetGenerator struct {
 
 	wrapName          string // Wrapper constructor name (e.g., "WrapAdd")
 	wrapperType       string // Wrapper struct type (e.g., "WrapAddWrapper")
+	callHandleType    string // Call handle struct type (e.g., "WrapAddCallHandle")
 	returnsType       string // Returns struct type (e.g., "WrapAddReturns")
 	funcDecl          *dst.FuncDecl
 	astFiles          []*dst.File
@@ -258,6 +259,7 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		baseTemplateData:  base,
 		WrapName:          gen.wrapName,
 		WrapperType:       gen.wrapperType,
+		CallHandleType:    gen.callHandleType,
 		ReturnsType:       gen.returnsType,
 		FuncSig:           funcSig,
 		Params:            paramsStr.String(),
@@ -274,8 +276,10 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 
 	// Generate each section using templates
 	templates.WriteV2TargetHeader(&gen.buf, data)
+	templates.WriteV2TargetReturnsStruct(&gen.buf, data)
 	templates.WriteV2TargetConstructor(&gen.buf, data)
 	templates.WriteV2TargetWrapperStruct(&gen.buf, data)
+	templates.WriteV2TargetCallHandleStruct(&gen.buf, data)
 	templates.WriteV2TargetStartMethod(&gen.buf, data)
 	templates.WriteV2TargetWaitMethod(&gen.buf, data)
 
@@ -286,9 +290,6 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		templates.WriteV2TargetExpectCompletes(&gen.buf, data)
 	}
 	templates.WriteV2TargetExpectPanic(&gen.buf, data)
-
-	// Generate returns struct
-	templates.WriteV2TargetReturnsStruct(&gen.buf, data)
 }
 
 // writeFunctionParamsToBuilder writes function parameters to a string builder.
@@ -455,19 +456,21 @@ func newV2TargetGenerator(
 	}
 	// For function types, pkgPath and qualifier remain empty (initialized above)
 
-	// Wrapper type naming: WrapAdd -> WrapAddWrapper
+	// Wrapper type naming: WrapAdd -> WrapAddWrapper, WrapAddCallHandle
 	wrapperType := info.impName + "Wrapper"
+	callHandleType := info.impName + "CallHandle"
 	returnsType := info.impName + "Returns"
 
 	gen := &v2TargetGenerator{
 		baseGenerator: newBaseGenerator(
 			fset, info.pkgName, info.impName, pkgPath, qualifier, funcDecl.Type.TypeParams,
 		),
-		wrapName:    info.impName,
-		wrapperType: wrapperType,
-		returnsType: returnsType,
-		funcDecl:    funcDecl,
-		astFiles:    astFiles,
+		wrapName:       info.impName,
+		wrapperType:    wrapperType,
+		callHandleType: callHandleType,
+		returnsType:    returnsType,
+		funcDecl:       funcDecl,
+		astFiles:       astFiles,
 	}
 
 	// Extract parameter names and result types

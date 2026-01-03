@@ -20,24 +20,28 @@ type TemplateRegistry struct {
 	v2DepCallWrapperTmpl     *template.Template
 	v2DepMethodWrapperTmpl   *template.Template
 	// V2 Target wrapper templates
-	v2TargetHeaderTmpl          *template.Template
-	v2TargetConstructorTmpl     *template.Template
-	v2TargetWrapperStructTmpl   *template.Template
-	v2TargetStartMethodTmpl     *template.Template
-	v2TargetWaitMethodTmpl      *template.Template
-	v2TargetExpectReturnsTmpl   *template.Template
-	v2TargetExpectCompletesTmpl *template.Template
-	v2TargetExpectPanicTmpl     *template.Template
-	v2TargetReturnsStructTmpl   *template.Template
+	v2TargetHeaderTmpl           *template.Template
+	v2TargetConstructorTmpl      *template.Template
+	v2TargetWrapperStructTmpl    *template.Template
+	v2TargetCallHandleStructTmpl *template.Template
+	v2TargetStartMethodTmpl      *template.Template
+	v2TargetWaitMethodTmpl       *template.Template
+	v2TargetExpectReturnsTmpl    *template.Template
+	v2TargetExpectCompletesTmpl  *template.Template
+	v2TargetExpectPanicTmpl      *template.Template
+	v2TargetReturnsStructTmpl    *template.Template
 	// V2 Interface Target wrapper templates
-	v2InterfaceTargetHeaderTmpl              *template.Template
-	v2InterfaceTargetWrapperStructTmpl       *template.Template
-	v2InterfaceTargetConstructorTmpl         *template.Template
-	v2InterfaceTargetMethodWrapperFuncTmpl   *template.Template
-	v2InterfaceTargetMethodWrapperStructTmpl *template.Template
-	v2InterfaceTargetMethodStartTmpl         *template.Template
-	v2InterfaceTargetMethodReturnsTmpl       *template.Template
-	v2InterfaceTargetCallRecordStructTmpl    *template.Template
+	v2InterfaceTargetHeaderTmpl                 *template.Template
+	v2InterfaceTargetWrapperStructTmpl          *template.Template
+	v2InterfaceTargetConstructorTmpl            *template.Template
+	v2InterfaceTargetMethodWrapperFuncTmpl      *template.Template
+	v2InterfaceTargetMethodWrapperStructTmpl    *template.Template
+	v2InterfaceTargetMethodCallHandleStructTmpl *template.Template
+	v2InterfaceTargetMethodStartTmpl            *template.Template
+	v2InterfaceTargetMethodReturnsTmpl          *template.Template
+	v2InterfaceTargetMethodExpectReturnsTmpl    *template.Template
+	v2InterfaceTargetMethodExpectCompletesTmpl  *template.Template
+	v2InterfaceTargetMethodExpectPanicTmpl      *template.Template
 }
 
 // NewTemplateRegistry creates and initializes a new template registry with all templates parsed.
@@ -246,8 +250,8 @@ import (
 	registry.v2TargetConstructorTmpl, err = parseTemplate("v2TargetConstructor", `// {{.WrapName}} wraps a function for testing.
 func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}}{{.TypeParamsUse}} {
 	return &{{.WrapperType}}{{.TypeParamsUse}}{
-		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }
 
@@ -260,8 +264,20 @@ func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.Func
 	//nolint:lll // Template docstring
 	registry.v2TargetWrapperStructTmpl, err = parseTemplate("v2TargetWrapperStruct", `// {{.WrapperType}} wraps a function for testing.
 type {{.WrapperType}}{{.TypeParamsDecl}} struct {
-	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}]
+	t        {{.PkgImptest}}.TestReporter
 	callable {{.FuncSig}}
+}
+
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// V2 Target CallHandle Struct template
+	//nolint:lll // Template docstring
+	registry.v2TargetCallHandleStructTmpl, err = parseTemplate("v2TargetCallHandleStruct", `// {{.CallHandleType}} represents a single call to the wrapped function.
+type {{.CallHandleType}}{{.TypeParamsDecl}} struct {
+	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}]
 }
 
 `)
@@ -272,18 +288,21 @@ type {{.WrapperType}}{{.TypeParamsDecl}} struct {
 	// V2 Target Start Method template
 	//nolint:lll // Template docstring
 	registry.v2TargetStartMethodTmpl, err = parseTemplate("v2TargetStartMethod", `// Start executes the wrapped function in a goroutine.
-func (w *{{.WrapperType}}{{.TypeParamsUse}}) Start({{.Params}}) *{{.WrapperType}}{{.TypeParamsUse}} {
+func (w *{{.WrapperType}}{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
+	handle := &{{.CallHandleType}}{{.TypeParamsUse}}{
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		{{if .HasResults}}{{.ResultVars}} := w.callable({{.ParamNames}})
-		w.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
-		w.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{}{{end}}
+		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
+		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{}{{end}}
 	}()
-	return w
+	return handle
 }
 
 `)
@@ -300,36 +319,36 @@ func (w *{{.WrapperType}}{{.TypeParamsUse}}) Start({{.Params}}) *{{.WrapperType}
 	// V2 Target Expect Returns template
 	//nolint:lll // Template docstring
 	registry.v2TargetExpectReturnsTmpl, err = parseTemplate("v2TargetExpectReturns", `// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectReturnsEqual({{.ExpectedParams}}) {
-	w.T.Helper()
-	w.WaitForResponse()
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturnsEqual({{.ExpectedParams}}) {
+	h.T.Helper()
+	h.WaitForResponse()
 
-	if w.Returned != nil {
-		{{range .ResultChecks}}if !_reflect.DeepEqual(w.Returned.{{.Field}}, {{.Expected}}) {
-			w.T.Fatalf("expected return value {{.Index}} to be %v, got %v", {{.Expected}}, w.Returned.{{.Field}})
+	if h.Returned != nil {
+		{{range .ResultChecks}}if !_reflect.DeepEqual(h.Returned.{{.Field}}, {{.Expected}}) {
+			h.T.Fatalf("expected return value {{.Index}} to be %v, got %v", {{.Expected}}, h.Returned.{{.Field}})
 		}
 		{{end}}return
 	}
 
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
 // ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectReturnsMatch({{.MatcherParams}}) {
-	w.T.Helper()
-	w.WaitForResponse()
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturnsMatch({{.MatcherParams}}) {
+	h.T.Helper()
+	h.WaitForResponse()
 
-	if w.Returned != nil {
+	if h.Returned != nil {
 		var ok bool
 		var msg string
-		{{range .ResultChecks}}ok, msg = {{$.PkgImptest}}.MatchValue(w.Returned.{{.Field}}, {{.Expected}})
+		{{range .ResultChecks}}ok, msg = {{$.PkgImptest}}.MatchValue(h.Returned.{{.Field}}, {{.Expected}})
 		if !ok {
-			w.T.Fatalf("return value {{.Index}}: %s", msg)
+			h.T.Fatalf("return value {{.Index}}: %s", msg)
 		}
 		{{end}}return
 	}
 
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
 `)
@@ -340,12 +359,12 @@ func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectReturnsMatch({{.MatcherParams
 	// V2 Target Expect Completes template
 	//nolint:lll // Template docstring
 	registry.v2TargetExpectCompletesTmpl, err = parseTemplate("v2TargetExpectCompletes", `// ExpectCompletes verifies the function completes without panicking.
-func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectCompletes() {
-	w.T.Helper()
-	w.WaitForResponse()
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectCompletes() {
+	h.T.Helper()
+	h.WaitForResponse()
 
-	if w.Panicked != nil {
-		w.T.Fatalf("expected function to complete, but it panicked with: %v", w.Panicked)
+	if h.Panicked != nil {
+		h.T.Fatalf("expected function to complete, but it panicked with: %v", h.Panicked)
 	}
 }
 
@@ -357,35 +376,35 @@ func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectCompletes() {
 	// V2 Target Expect Panic template
 	//nolint:lll // Template docstring
 	registry.v2TargetExpectPanicTmpl, err = parseTemplate("v2TargetExpectPanic", `// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
 
-	if w.Panicked != nil {
-		ok, msg := {{.PkgImptest}}.MatchValue(w.Panicked, expected)
+	if h.Panicked != nil {
+		ok, msg := {{.PkgImptest}}.MatchValue(h.Panicked, expected)
 		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
+			h.T.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
 
-	w.T.Fatalf("expected function to panic, but it returned")
+	h.T.Fatalf("expected function to panic, but it returned")
 }
 
 // ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *{{.WrapperType}}{{.TypeParamsUse}}) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
 
-	if w.Panicked != nil {
-		ok, msg := {{.PkgImptest}}.MatchValue(w.Panicked, matcher)
+	if h.Panicked != nil {
+		ok, msg := {{.PkgImptest}}.MatchValue(h.Panicked, matcher)
 		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
+			h.T.Fatalf("panic value: %s", msg)
 		}
 		return
 	}
 
-	w.T.Fatalf("expected function to panic, but it returned")
+	h.T.Fatalf("expected function to panic, but it returned")
 }
 
 `)
@@ -412,7 +431,9 @@ type {{.ReturnsType}}Return{{.TypeParamsDecl}} struct {
 package {{.PkgName}}
 
 import (
-	"testing"{{if .NeedsQualifier}}
+	"testing"
+	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsReflect}}
+	{{.PkgReflect}} "reflect"{{end}}{{if .NeedsQualifier}}
 	{{.Qualifier}} "{{.PkgPath}}"{{end}}{{range .AdditionalImports}}
 	{{.Alias}} "{{.Path}}"{{end}}
 )
@@ -472,7 +493,18 @@ func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.In
 	registry.v2InterfaceTargetMethodWrapperStructTmpl, err = parseTemplate("v2InterfaceTargetMethodWrapperStruct", `type {{.WrapperType}} struct {
 	t *testing.T
 	fn func({{.Params}}){{if .HasResults}} {{.ReturnsType}}{{end}}
-	calls []{{.WrapperType}}CallRecord
+}
+
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// V2 Interface Target Method CallHandle Struct template
+	//nolint:lll // Template definition
+	registry.v2InterfaceTargetMethodCallHandleStructTmpl, err = parseTemplate("v2InterfaceTargetMethodCallHandleStruct", `// {{.CallHandleType}} represents a single call to the wrapped method.
+type {{.CallHandleType}} struct {
+	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}]
 }
 
 `)
@@ -482,11 +514,21 @@ func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.In
 
 	// V2 Interface Target Method Start template
 	//nolint:lll // Template definition
-	registry.v2InterfaceTargetMethodStartTmpl, err = parseTemplate("v2InterfaceTargetMethodStart", `func (w *{{.WrapperType}}) Start({{.Params}}) *{{.ReturnsType}} {
-	returns := w.fn({{.ParamNames}})
-	//nolint:lll // Template definition
-	w.calls = append(w.calls, {{.WrapperType}}CallRecord{ {{if .Params}}Params: struct{ {{.ParamFieldsStruct}} }{ {{.ParamNames}} }, {{end}}Returns: returns})
-	return &returns
+	registry.v2InterfaceTargetMethodStartTmpl, err = parseTemplate("v2InterfaceTargetMethodStart", `// Start executes the wrapped method in a goroutine.
+func (w *{{.WrapperType}}) Start({{.Params}}) *{{.CallHandleType}} {
+	handle := &{{.CallHandleType}}{
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}](w.t),
+	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				handle.PanicChan <- r
+			}
+		}()
+		returns := w.fn({{.ParamNames}})
+		handle.ReturnChan <- returns
+	}()
+	return handle
 }
 
 `)
@@ -500,13 +542,44 @@ func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.In
 {{range .ResultFields}}	{{.Name}} {{.Type}}
 {{end}}}
 
-{{if .HasResults}}func (r *{{.ReturnsType}}) WaitForResponse() {{.ResultReturnList}} {
-	return {{range $i, $f := .ResultFields}}{{if $i}}, {{end}}r.{{$f.Name}}{{end}}
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// V2 Interface Target Method Expect Returns template
+	//nolint:lll // Template docstring
+	registry.v2InterfaceTargetMethodExpectReturnsTmpl, err = parseTemplate("v2InterfaceTargetMethodExpectReturns", `// ExpectReturnsEqual verifies the method returned the expected values.
+func (h *{{.CallHandleType}}) ExpectReturnsEqual({{.ExpectedParams}}) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		{{range .ResultChecks}}if !_reflect.DeepEqual(h.Returned.{{.Field}}, {{.Expected}}) {
+			h.T.Fatalf("expected return value {{.Index}} to be %v, got %v", {{.Expected}}, h.Returned.{{.Field}})
+		}
+		{{end}}return
+	}
+
+	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
-{{else}}func (r *{{.ReturnsType}}) WaitForCompletion() {}
-{{end}}
-func (w *{{.WrapperType}}) GetCalls() []{{.WrapperType}}CallRecord {
-	return w.calls
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *{{.CallHandleType}}) ExpectReturnsMatch({{.MatcherParams}}) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		{{range .ResultChecks}}ok, msg = {{$.PkgImptest}}.MatchValue(h.Returned.{{.Field}}, {{.Expected}})
+		if !ok {
+			h.T.Fatalf("return value {{.Index}}: %s", msg)
+		}
+		{{end}}return
+	}
+
+	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
 `)
@@ -514,20 +587,63 @@ func (w *{{.WrapperType}}) GetCalls() []{{.WrapperType}}CallRecord {
 		return nil, err
 	}
 
-	// V2 Interface Target Call Record Struct template
-	registry.v2InterfaceTargetCallRecordStructTmpl, err = parseTemplate(
-		"v2InterfaceTargetCallRecordStruct",
-		`type {{.WrapperType}}CallRecord struct {
-{{if .Params}}	Params struct {
-{{range .ParamFields}}		{{.Name}} {{.Type}}
-{{end}}	}
-{{end}}{{if .HasResults}}	Returns {{.ReturnsType}}
-{{end}}}
+	// V2 Interface Target Method Expect Completes template
+	//nolint:lll // Template docstring
+	registry.v2InterfaceTargetMethodExpectCompletesTmpl, err = parseTemplate("v2InterfaceTargetMethodExpectCompletes", `// ExpectCompletes verifies the method completes without panicking.
+func (h *{{.CallHandleType}}) ExpectCompletes() {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		h.T.Fatalf("expected method to complete, but it panicked with: %v", h.Panicked)
+	}
+}
 
 `)
 	if err != nil {
 		return nil, err
 	}
+
+	// V2 Interface Target Method Expect Panic template
+	//nolint:lll // Template docstring
+	registry.v2InterfaceTargetMethodExpectPanicTmpl, err = parseTemplate("v2InterfaceTargetMethodExpectPanic", `// ExpectPanicEquals verifies the method panics with the expected value.
+func (h *{{.CallHandleType}}) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := {{.PkgImptest}}.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
+func (h *{{.CallHandleType}}) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := {{.PkgImptest}}.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected method to panic, but it returned")
+}
+
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// V2 Interface Target Call Record Struct template - REMOVED (call tracking eliminated)
 
 	return registry, nil
 }
@@ -604,14 +720,6 @@ func (r *TemplateRegistry) WriteV2DepMockStruct(buf *bytes.Buffer, data any) {
 	}
 }
 
-// WriteV2InterfaceTargetCallRecordStruct writes the v2 interface target call record struct.
-func (r *TemplateRegistry) WriteV2InterfaceTargetCallRecordStruct(buf *bytes.Buffer, data any) {
-	err := r.v2InterfaceTargetCallRecordStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute v2InterfaceTargetCallRecordStruct template: %v", err))
-	}
-}
-
 // WriteV2InterfaceTargetConstructor writes the v2 interface target constructor.
 func (r *TemplateRegistry) WriteV2InterfaceTargetConstructor(buf *bytes.Buffer, data any) {
 	err := r.v2InterfaceTargetConstructorTmpl.Execute(buf, data)
@@ -625,6 +733,38 @@ func (r *TemplateRegistry) WriteV2InterfaceTargetHeader(buf *bytes.Buffer, data 
 	err := r.v2InterfaceTargetHeaderTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute v2InterfaceTargetHeader template: %v", err))
+	}
+}
+
+// WriteV2InterfaceTargetMethodCallHandleStruct writes the v2 interface target method call handle struct.
+func (r *TemplateRegistry) WriteV2InterfaceTargetMethodCallHandleStruct(buf *bytes.Buffer, data any) {
+	err := r.v2InterfaceTargetMethodCallHandleStructTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2InterfaceTargetMethodCallHandleStruct template: %v", err))
+	}
+}
+
+// WriteV2InterfaceTargetMethodExpectCompletes writes the v2 interface target method ExpectCompletes method.
+func (r *TemplateRegistry) WriteV2InterfaceTargetMethodExpectCompletes(buf *bytes.Buffer, data any) {
+	err := r.v2InterfaceTargetMethodExpectCompletesTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2InterfaceTargetMethodExpectCompletes template: %v", err))
+	}
+}
+
+// WriteV2InterfaceTargetMethodExpectPanic writes the v2 interface target method ExpectPanic methods.
+func (r *TemplateRegistry) WriteV2InterfaceTargetMethodExpectPanic(buf *bytes.Buffer, data any) {
+	err := r.v2InterfaceTargetMethodExpectPanicTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2InterfaceTargetMethodExpectPanic template: %v", err))
+	}
+}
+
+// WriteV2InterfaceTargetMethodExpectReturns writes the v2 interface target method ExpectReturns methods.
+func (r *TemplateRegistry) WriteV2InterfaceTargetMethodExpectReturns(buf *bytes.Buffer, data any) {
+	err := r.v2InterfaceTargetMethodExpectReturnsTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2InterfaceTargetMethodExpectReturns template: %v", err))
 	}
 }
 
@@ -665,6 +805,14 @@ func (r *TemplateRegistry) WriteV2InterfaceTargetWrapperStruct(buf *bytes.Buffer
 	err := r.v2InterfaceTargetWrapperStructTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute v2InterfaceTargetWrapperStruct template: %v", err))
+	}
+}
+
+// WriteV2TargetCallHandleStruct writes the v2 target call handle struct.
+func (r *TemplateRegistry) WriteV2TargetCallHandleStruct(buf *bytes.Buffer, data any) {
+	err := r.v2TargetCallHandleStructTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute v2TargetCallHandleStruct template: %v", err))
 	}
 }
 
