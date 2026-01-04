@@ -8,8 +8,6 @@ import (
 )
 
 // Test the Any() matcher directly.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestAny(t *testing.T) {
 	t.Parallel()
 
@@ -34,8 +32,6 @@ func TestAny(t *testing.T) {
 }
 
 // Test the Satisfies() matcher.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestSatisfies_MatchFailure(t *testing.T) {
 	t.Parallel()
 
@@ -62,7 +58,6 @@ func TestSatisfies_MatchFailure(t *testing.T) {
 	}
 }
 
-//nolint:varnamelen // Standard Go test parameter name
 func TestSatisfies_MatchSuccess(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,5 @@
 package imptest_test
 
-//go:generate ../bin/impgen Tester --dependency
 //go:generate ../bin/impgen Timer --dependency
 
 import (
@@ -22,11 +21,11 @@ import (
 // 3. When "CallA" arrives, the first waiter receives it (FIFO)
 // 4. When "CallB" arrives, the second waiter receives it
 //
-//nolint:varnamelen,funlen // Standard Go test parameter name; test requires setup
+//nolint:funlen // test requires setup
 func TestDispatchLoop_FIFOPriority(t *testing.T) {
 	t.Parallel()
 
-	testerMock := MockTester(t)
+	testerMock := MockTestReporter(t)
 	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callA := &testCall{name: "CallA"}
@@ -108,11 +107,11 @@ func TestDispatchLoop_FIFOPriority(t *testing.T) {
 // 3. When calls arrive in wrong order, first waiter gets mismatch signal
 // 4. FIFO ordering is maintained for ordered waiters
 //
-//nolint:varnamelen,funlen // Standard Go test parameter name; test requires setup
+//nolint:funlen // test requires setup
 func TestDispatchLoop_MultipleOrderedSequence(t *testing.T) {
 	t.Parallel()
 
-	testerMock := MockTester(t)
+	testerMock := MockTestReporter(t)
 	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callA := &testCall{name: "CallA"}
@@ -195,19 +194,18 @@ func TestDispatchLoop_MultipleOrderedSequence(t *testing.T) {
 // 1. Ordered waiter for "CallA" is registered
 // 2. When "CallB" arrives at dispatcher, ordered waiter fails with Fatalf
 // 3. Error message includes both expected and actual call names
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestDispatchLoop_OrderedFailsOnDispatcherMismatch(t *testing.T) {
 	t.Parallel()
 
-	testerMock := NewTesterImp(t)
+	testerMock := MockTestReporter(t)
 
 	// Handle Helper() call
 	go func() {
-		testerMock.ExpectCallIs.Helper().Resolve()
+		call := testerMock.Helper.ExpectCalledWithExactly()
+		call.InjectReturnValues()
 	}()
 
-	ctrl := imptest.NewController[*testCall](testerMock.Mock)
+	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callB := &testCall{name: "CallB"}
 
@@ -227,15 +225,25 @@ func TestDispatchLoop_OrderedFailsOnDispatcherMismatch(t *testing.T) {
 
 	// Handle expected Fatalf call
 	go func() {
-		fatalfCall := testerMock.ExpectCallIs.Fatalf().ExpectArgsShould(imptest.Any(), imptest.Any())
+		fatalfCall := testerMock.Fatalf.ExpectCalledWithMatches(imptest.Any(), imptest.Any())
 
 		// Verify error message mentions both expected and actual
-		fullMsg := fmt.Sprintf(fatalfCall.format, fatalfCall.args...)
+		// Use RawArgs() directly since GetArgs() doesn't handle variadic correctly
+		rawArgs := fatalfCall.RawArgs()
+
+		format, ok := rawArgs[0].(string)
+		if !ok {
+			t.Error("expected format argument to be string")
+
+			return
+		}
+
+		fullMsg := fmt.Sprintf(format, rawArgs[1:]...)
 		if !contains(fullMsg, "CallA") || !contains(fullMsg, "CallB") {
 			t.Errorf("expected error message to mention both 'CallA' and 'CallB', got: %s", fullMsg)
 		}
 
-		fatalfCall.Resolve()
+		fatalfCall.InjectReturnValues()
 	}()
 
 	// Send CallB - should trigger fail-fast for ordered waiter
@@ -250,12 +258,10 @@ func TestDispatchLoop_OrderedFailsOnDispatcherMismatch(t *testing.T) {
 // 2. GetCallEventually is called for "callA"
 // 3. GetCallEventually immediately receives callA from the queue
 // 4. Helper() is called but Fatalf() is NOT called (no timeout on GetCallEventually)
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestGetCallEventually_ChecksQueueFirst(t *testing.T) {
 	t.Parallel()
 
-	testerMock := MockTester(t)
+	testerMock := MockTestReporter(t)
 	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callA := &testCall{name: "callA"}
@@ -295,12 +301,10 @@ func TestGetCallEventually_ChecksQueueFirst(t *testing.T) {
 // 3. When the matching call arrives, the waiter receives it
 // 4. Earlier non-matching calls remain queued for later retrieval
 // 5. Helper() is called but Fatalf() is NOT called (no timeout)
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestGetCallEventually_QueuesOnMismatch(t *testing.T) {
 	t.Parallel()
 
-	testerMock := MockTester(t)
+	testerMock := MockTestReporter(t)
 	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callA := &testCall{name: "callA"}
@@ -375,11 +379,11 @@ func TestGetCallEventually_QueuesOnMismatch(t *testing.T) {
 // 4. Previously queued calls remain available for later retrieval
 // 5. Helper() is called but Fatalf() is NOT called (no timeout)
 //
-//nolint:varnamelen,funlen // Standard Go test parameter name; test requires setup
+//nolint:funlen // test requires setup
 func TestGetCallEventually_WaitsForMatch(t *testing.T) {
 	t.Parallel()
 
-	testerMock := MockTester(t)
+	testerMock := MockTestReporter(t)
 	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callA := &testCall{name: "callA"}
@@ -465,19 +469,18 @@ func TestGetCallEventually_WaitsForMatch(t *testing.T) {
 // 2. And the queued call doesn't match the ordered waiter's criteria
 // 3. GetCallOrdered fails immediately with an informative error message
 // 4. The error message includes both expected and actual call names
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestGetCallOrdered_FailsOnMismatch(t *testing.T) {
 	t.Parallel()
 
-	testerMock := NewTesterImp(t)
+	testerMock := MockTestReporter(t)
 
 	// Handle Helper() call
 	go func() {
-		testerMock.ExpectCallIs.Helper().Resolve()
+		call := testerMock.Helper.ExpectCalledWithExactly()
+		call.InjectReturnValues()
 	}()
 
-	ctrl := imptest.NewController[*testCall](testerMock.Mock)
+	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callB := &testCall{name: "callB"}
 
@@ -489,15 +492,25 @@ func TestGetCallOrdered_FailsOnMismatch(t *testing.T) {
 
 	// Handle expected Fatalf call
 	go func() {
-		fatalfCall := testerMock.ExpectCallIs.Fatalf().ExpectArgsShould(imptest.Any(), imptest.Any())
+		fatalfCall := testerMock.Fatalf.ExpectCalledWithMatches(imptest.Any(), imptest.Any())
 
 		// Verify error message mentions both expected and actual
-		fullMsg := fmt.Sprintf(fatalfCall.format, fatalfCall.args...)
+		// Use RawArgs() directly since GetArgs() doesn't handle variadic correctly
+		rawArgs := fatalfCall.RawArgs()
+
+		format, ok := rawArgs[0].(string)
+		if !ok {
+			t.Error("expected format argument to be string")
+
+			return
+		}
+
+		fullMsg := fmt.Sprintf(format, rawArgs[1:]...)
 		if !contains(fullMsg, "callA") || !contains(fullMsg, "callB") {
 			t.Errorf("expected error message to mention both 'callA' and 'callB', got: %s", fullMsg)
 		}
 
-		fatalfCall.Resolve()
+		fatalfCall.InjectReturnValues()
 	}()
 
 	// Now call GetCallOrdered for callA - should fail-fast on queued mismatch
@@ -519,11 +532,11 @@ func TestGetCallOrdered_FailsOnMismatch(t *testing.T) {
 // 3. No calls are lost or delivered to the wrong waiter
 // 4. Helper() is called but Fatalf() is NOT called (no timeout).
 //
-//nolint:varnamelen,funlen // Standard Go test parameter name; concurrent test requires setup
+//nolint:funlen // concurrent test requires setup
 func TestGetCall_ConcurrentWaiters(t *testing.T) {
 	t.Parallel()
 
-	testerMock := MockTester(t)
+	testerMock := MockTestReporter(t)
 	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	callA := &testCall{name: "callA"}
@@ -602,12 +615,10 @@ func TestGetCall_ConcurrentWaiters(t *testing.T) {
 // TestGetCall_QueuedCallsMatchLaterWaiters verifies that calls queued before
 // a waiter arrives are correctly matched when the waiter calls GetCall.
 // Also verifies that Helper() is called but Fatalf() is NOT called (no timeout).
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestGetCall_QueuedCallsMatchLaterWaiters(t *testing.T) {
 	t.Parallel()
 
-	testerMock := MockTester(t)
+	testerMock := MockTestReporter(t)
 	ctrl := imptest.NewController[*testCall](testerMock.Interface())
 
 	call1 := &testCall{name: "call1"}

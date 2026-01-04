@@ -48,8 +48,6 @@ import (
 //
 // SOLUTION: Use atomic operations for the boolean flag and a sync.WaitGroup
 // or mutex for the string message.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestProperSynchronization_AtomicBased(t *testing.T) {
 	t.Parallel()
 
@@ -60,29 +58,21 @@ func TestProperSynchronization_AtomicBased(t *testing.T) {
 
 	var fatalfMsg string
 
-	testerMock := NewTesterImp(t)
+	// Use the simple mockTester that captures format+args properly
+	mockT := &mockTester{
+		helper: func() {},
+		fatalf: func(format string, args ...any) {
+			fatalfCalled.Store(true) // Atomic write
 
-	// Handle Helper() call
-	go func() {
-		testerMock.ExpectCallIs.Helper().Resolve()
-	}()
+			msgMu.Lock()
 
-	// Handle expected Fatalf call
-	go func() {
-		fatalfCall := testerMock.ExpectCallIs.Fatalf().ExpectArgsShould(imptest.Any(), imptest.Any())
+			fatalfMsg = fmt.Sprintf(format, args...)
 
-		fatalfCalled.Store(true) // Atomic write
+			msgMu.Unlock()
+		},
+	}
 
-		msgMu.Lock()
-
-		fatalfMsg = fmt.Sprintf(fatalfCall.format, fatalfCall.args...)
-
-		msgMu.Unlock()
-
-		fatalfCall.Resolve()
-	}()
-
-	ctrl := imptest.NewController[*testCall](testerMock.Mock)
+	ctrl := imptest.NewController[*testCall](mockT)
 	callB := &testCall{name: "CallB"}
 
 	go func() {
@@ -123,32 +113,22 @@ func TestProperSynchronization_AtomicBased(t *testing.T) {
 //
 // SOLUTION: Use a channel to signal when Fatalf is called, and capture the
 // message safely.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestProperSynchronization_ChannelBased(t *testing.T) {
 	t.Parallel()
 
 	// CORRECT: Use a channel for synchronization
 	fatalfChan := make(chan string, 1)
 
-	testerMock := NewTesterImp(t)
+	// Use the simple mockTester that captures format+args properly
+	mockT := &mockTester{
+		helper: func() {},
+		fatalf: func(format string, args ...any) {
+			msg := fmt.Sprintf(format, args...)
+			fatalfChan <- msg // Send to channel - provides synchronization
+		},
+	}
 
-	// Handle Helper() call
-	go func() {
-		testerMock.ExpectCallIs.Helper().Resolve()
-	}()
-
-	// Handle expected Fatalf call
-	go func() {
-		fatalfCall := testerMock.ExpectCallIs.Fatalf().ExpectArgsShould(imptest.Any(), imptest.Any())
-
-		msg := fmt.Sprintf(fatalfCall.format, fatalfCall.args...)
-		fatalfChan <- msg // Send to channel - provides synchronization
-
-		fatalfCall.Resolve()
-	}()
-
-	ctrl := imptest.NewController[*testCall](testerMock.Mock)
+	ctrl := imptest.NewController[*testCall](mockT)
 	callB := &testCall{name: "CallB"}
 
 	go func() {
@@ -188,8 +168,6 @@ func TestProperSynchronization_ChannelBased(t *testing.T) {
 //   - NO SYNCHRONIZATION between the write and read
 //
 // This test MUST be run with -race to detect the issue.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestRaceRegression_DispatcherFatalfClosure(t *testing.T) {
 	t.Parallel()
 
@@ -251,8 +229,6 @@ func TestRaceRegression_DispatcherFatalfClosure(t *testing.T) {
 //   - NO SYNCHRONIZATION
 //
 // This test MUST be run with -race to detect the issue.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestRaceRegression_ImpWrongMethodClosure(t *testing.T) {
 	t.Parallel()
 
@@ -313,8 +289,6 @@ func TestRaceRegression_ImpWrongMethodClosure(t *testing.T) {
 //   - NO SYNCHRONIZATION
 //
 // This test MUST be run with -race to detect the issue.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestRaceRegression_QueuedCallFatalfClosure(t *testing.T) {
 	t.Parallel()
 
@@ -373,8 +347,6 @@ func TestRaceRegression_QueuedCallFatalfClosure(t *testing.T) {
 //   - NO SYNCHRONIZATION - maximum race exposure
 //
 // This test MUST be run with -race to detect the issue.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestRaceRegression_StressTest(t *testing.T) {
 	t.Parallel()
 

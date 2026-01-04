@@ -11,8 +11,6 @@ import (
 )
 
 // TestGenericCallDone tests GenericCall.Done.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestGenericCallDone(t *testing.T) {
 	t.Parallel()
 
@@ -56,8 +54,6 @@ func TestImpFatalf(t *testing.T) {
 
 // TestImpGetCallEventually_QueuesOtherMethods tests that Imp.GetCallEventually
 // queues calls with different method names while waiting for the matching method.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestImpGetCallEventually_QueuesOtherMethods(t *testing.T) {
 	t.Parallel()
 
@@ -132,8 +128,6 @@ func TestImpGetCallEventually_QueuesOtherMethods(t *testing.T) {
 
 // TestImpGetCallOrdered_MatchingCall tests that Imp.GetCallOrdered returns
 // a call when it arrives with the expected method name.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestImpGetCallOrdered_MatchingCall(t *testing.T) {
 	t.Parallel()
 
@@ -201,8 +195,6 @@ func TestImpGetCallOrdered_MatchingCall(t *testing.T) {
 
 // TestImpGetCallOrdered_WrongMethod tests that Imp.GetCallOrdered sends a
 // mismatch signal when a call with a different method name arrives first.
-//
-//nolint:varnamelen // Standard Go test parameter name
 func TestImpGetCallOrdered_WrongMethod(t *testing.T) {
 	t.Parallel()
 

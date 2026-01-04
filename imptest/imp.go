@@ -47,11 +47,8 @@ type Imp struct {
 
 // NewImp creates a new Imp coordinator.
 func NewImp(testReporter TestReporter) *Imp {
-	// Wrap the test reporter to satisfy the Tester interface
-	tester := &testerAdapter{t: testReporter}
-
 	return &Imp{
-		Controller: NewController[*GenericCall](tester),
+		Controller: NewController[*GenericCall](testReporter),
 		t:          testReporter,
 	}
 }
@@ -108,26 +105,6 @@ func (i *Imp) GetCallOrdered(timeout time.Duration, methodName string, validator
 // Implements TestReporter interface.
 func (i *Imp) Helper() {
 	i.t.Helper()
-}
-
-// TestReporter is the minimal interface imptest needs from test frameworks.
-// testing.T, testing.B, and *Imp all implement this interface.
-type TestReporter interface {
-	Helper()
-	Fatalf(format string, args ...any)
-}
-
-// testerAdapter adapts TestReporter to Tester interface.
-type testerAdapter struct {
-	t TestReporter
-}
-
-func (a *testerAdapter) Fatalf(format string, args ...any) {
-	a.t.Fatalf(format, args...)
-}
-
-func (a *testerAdapter) Helper() {
-	a.t.Helper()
 }
 
 // valuesEqual checks if two values are equal using reflect.DeepEqual.

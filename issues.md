@@ -192,37 +192,6 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface
 Capability Matrix - "Interface type" row, "As Target" column
 
 ---
-### 40. Extract shared generator methods to reduce code duplication
-
-- 2026-01-02 16:47 EST - Complete: Creating git commit for template migration
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-The three generator files (`codegen_v2_dependency.go`, `codegen_v2_target.go`, `codegen_v2_interface_target.go`) have significant code duplication. Methods like `buildParamStrings()`, `buildResultStrings()`, `collectAdditionalImports()`, and `checkIfQualifierNeeded()` are nearly identical across generators, creating maintenance burden where bug fixes need to be applied multiple times.
-
-#### Planning
-
-**Rationale**
-Reduces maintenance burden and risk of inconsistent fixes. When bugs are fixed in one generator (like import collection in Issue #29), the same fix must be manually applied to others. Shared utilities would ensure consistent behavior and reduce cognitive load when reading code.
-
-**Acceptance**
-- Common generator utilities extracted to `codegen_common.go` (possibly extending `typeFormatter` or creating `signatureBuilder`)
-- Duplicate `buildParamStrings()`, `buildResultStrings()`, `collectAdditionalImports()`, and `checkIfQualifierNeeded()` methods removed from individual generators
-- All existing tests continue to pass
-- Generators use shared utilities instead of duplicated code
-
-**Effort**
-Medium (4-6 hours) - Requires careful extraction to preserve behavior across all three generators
-
-**Priority**
-Important - Address when making changes to any generator
-
-**Note**
-Identified by project-health-auditor. Complements Issue #18 (nolint cleanup) and would make future generator changes safer and faster.
-
 ### 36. Split issue tracker into separate repository
 
 #### Universal
@@ -240,30 +209,6 @@ backlog
 - 2026-01-01 17:09 EST - Implementer fixed auditor issues + discovered and fixed 3 additional bugs (insertion point, horizontal rule boundary, section header orphan)
 - 2026-01-01 17:09 EST - Auditor FAILED - found ineffectual assignment and test data bug
 - 2026-01-01 17:09 EST - Implementer applied fix - changed boundary detection to 'first boundary wins' logic
-
-### 15. Consolidate duplicate Tester and TestReporter interfaces (TOE-105)
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-`Tester` and `TestReporter` interfaces in imptest/controller.go and imptest/imp.go are identical, causing code confusion
-
-#### Planning
-
-**Acceptance**
-Single interface used consistently throughout codebase
-
-**Effort**
-Low
-
-**Priority**
-Low
-
-**Linear**
-TOE-105
 
 ### 18. Reduce blanket nolint directives in V2 generators (TOE-106)
 
@@ -357,6 +302,53 @@ Now that V2 is the only implementation, remove "v2" suffix from filenames (codeg
 **Combined With**
 #1
 
+### 15. Consolidate duplicate Tester and TestReporter interfaces (TOE-105)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+`Tester` and `TestReporter` interfaces in imptest/controller.go and imptest/imp.go were identical, causing code confusion.
+
+#### Work Tracking
+
+**Completed**
+2026-01-04 15:12 EST
+
+**Solution**
+Consolidated to single `TestReporter` interface in controller.go. Removed duplicate interface definition from imp.go along with unnecessary `testerAdapter`. Deleted old generated mock files (`generated_MockTester_test.go`, `generated_TesterImp_test.go`) and updated tests to use `MockTestReporter`.
+
+**Files Modified**
+- imptest/controller.go: Renamed Tester → TestReporter throughout
+- imptest/imp.go: Removed duplicate TestReporter, removed testerAdapter
+- imptest/controller_test.go: Updated to use MockTestReporter
+- imptest/race_regression_test.go: Updated tests to use simplified mock pattern
+- Deleted: generated_MockTester_test.go, generated_TesterImp_test.go
+
+**Linear**
+TOE-105
+
+---
+
+### 40. Extract shared generator methods to reduce code duplication
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Extract duplicated methods from generators to `codegen_common.go`.
+
+#### Work Tracking
+
+**Completed**
+2026-01-04 14:56 EST
+
+**Solution**
+Main consolidation already complete: `buildParamStrings()`, `buildResultStrings()`, `checkIfQualifierNeeded()`, and `collectAdditionalImportsFromInterface()` are on `baseGenerator` in `codegen_common.go`. Remaining ~46 lines of thin adapter code in dependency/interface-target generators is minor and not worth further consolidation.
 
 ### 42. Redesign --target wrapper pattern for goroutine lifecycle management
 

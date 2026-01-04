@@ -13,7 +13,7 @@ type Call interface {
 
 // CallableController manages the state of a single function execution.
 type CallableController[T any] struct {
-	T          Tester
+	T          TestReporter
 	ReturnChan chan T
 	PanicChan  chan any
 	Returned   *T
@@ -21,7 +21,7 @@ type CallableController[T any] struct {
 }
 
 // NewCallableController creates a new callable controller.
-func NewCallableController[T any](t Tester) *CallableController[T] {
+func NewCallableController[T any](t TestReporter) *CallableController[T] {
 	return &CallableController[T]{
 		T:          t,
 		ReturnChan: make(chan T, 1),
@@ -44,7 +44,7 @@ func (c *CallableController[T]) WaitForResponse() {
 
 // Controller manages the call queue and synchronization for a mock or callable.
 type Controller[T Call] struct {
-	T        Tester
+	T        TestReporter
 	Timer    Timer
 	CallChan chan T
 
@@ -54,12 +54,12 @@ type Controller[T Call] struct {
 }
 
 // NewController creates a new controller with the default real timer.
-func NewController[T Call](t Tester) *Controller[T] {
+func NewController[T Call](t TestReporter) *Controller[T] {
 	return NewControllerWithTimer[T](t, realTimer{})
 }
 
 // NewControllerWithTimer creates a new controller with a custom timer for testing.
-func NewControllerWithTimer[T Call](t Tester, timer Timer) *Controller[T] {
+func NewControllerWithTimer[T Call](t TestReporter, timer Timer) *Controller[T] {
 	ctrl := &Controller[T]{
 		T:        t,
 		Timer:    timer,
@@ -283,10 +283,11 @@ func (c *Controller[T]) dispatchLoop() {
 	}
 }
 
-// Tester is a subset of testing.TB.
-type Tester interface {
-	Fatalf(format string, args ...any)
+// TestReporter is the minimal interface imptest needs from test frameworks.
+// testing.T, testing.B, and *Imp all implement this interface.
+type TestReporter interface {
 	Helper()
+	Fatalf(format string, args ...any)
 }
 
 // Timer abstracts time-based operations for testability.

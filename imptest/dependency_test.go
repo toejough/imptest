@@ -7,8 +7,6 @@ import (
 )
 
 // TestDependencyCall_GetArgs verifies GetArgs returns correct argument values.
-//
-//nolint:varnamelen // Standard test parameter name
 func TestDependencyCall_GetArgs(t *testing.T) {
 	t.Parallel()
 
@@ -47,8 +45,6 @@ func TestDependencyCall_GetArgs(t *testing.T) {
 }
 
 // TestDependencyCall_InjectPanicValue verifies panic injection works correctly.
-//
-//nolint:varnamelen // Standard test parameter name
 func TestDependencyCall_InjectPanicValue(t *testing.T) {
 	t.Parallel()
 
@@ -96,8 +92,6 @@ func TestDependencyCall_InjectPanicValue(t *testing.T) {
 
 // TestDependencyMethodDefaultOrdered verifies default DependencyMethod uses ordered mode.
 // Default behavior should fail fast on mismatched calls (GetCallOrdered).
-//
-//nolint:varnamelen // Standard test parameter name
 func TestDependencyMethodDefaultOrdered(t *testing.T) {
 	t.Parallel()
 
@@ -128,8 +122,6 @@ func TestDependencyMethodDefaultOrdered(t *testing.T) {
 
 // TestDependencyMethodEventuallyMode verifies Eventually() switches to eventually mode.
 // Eventually mode should queue mismatches (GetCallEventually).
-//
-//nolint:varnamelen // Standard test parameter name
 func TestDependencyMethodEventuallyMode(t *testing.T) {
 	t.Parallel()
 
@@ -163,8 +155,6 @@ func TestDependencyMethodEventuallyMode(t *testing.T) {
 
 // TestDependencyMethodEventuallyReturnsNew verifies Eventually() returns a new instance.
 // The original DependencyMethod should remain in ordered mode.
-//
-//nolint:varnamelen // Standard test parameter name
 func TestDependencyMethodEventuallyReturnsNew(t *testing.T) {
 	t.Parallel()
 
@@ -216,8 +206,6 @@ func TestDependencyMethodEventuallyReturnsNew(t *testing.T) {
 }
 
 // TestDependencyMethod_ExpectCalledWithMatches verifies matcher-based expectations work.
-//
-//nolint:varnamelen // Standard test parameter name
 func TestDependencyMethod_ExpectCalledWithMatches(t *testing.T) {
 	t.Parallel()
 
