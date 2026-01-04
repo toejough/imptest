@@ -15,7 +15,7 @@ func TestNonVariadicArgNamesPopulated(t *testing.T) {
 	t.Parallel()
 
 	fset := token.NewFileSet()
-	gen := &v2DependencyGenerator{
+	gen := &dependencyGenerator{
 		baseGenerator: baseGenerator{
 			typeFormatter: typeFormatter{
 				fset: fset,
@@ -92,9 +92,9 @@ func TestNonVariadicArgNamesPopulated(t *testing.T) {
 func TestVariadicArgNamesPopulated(t *testing.T) {
 	t.Parallel()
 
-	// Create a mock v2DependencyGenerator with minimal setup
+	// Create a mock dependencyGenerator with minimal setup
 	fset := token.NewFileSet()
-	gen := &v2DependencyGenerator{
+	gen := &dependencyGenerator{
 		baseGenerator: baseGenerator{
 			typeFormatter: typeFormatter{
 				fset: fset,

@@ -8,10 +8,10 @@ import (
 	"github.com/dave/dst"
 )
 
-// generateV2StructTargetCode generates v2-style target wrapper code for a struct type.
+// generateStructTargetCode generates target wrapper code for a struct type.
 // It converts the struct type into an interface-like representation by collecting all methods
-// on the struct, then delegates to the existing v2InterfaceTargetGenerator.
-func generateV2StructTargetCode(
+// on the struct, then delegates to the existing interfaceTargetGenerator.
+func generateStructTargetCode(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
@@ -30,7 +30,7 @@ func generateV2StructTargetCode(
 	sort.Strings(methodNames)
 
 	// Create an interface type with the struct's methods
-	// This allows us to reuse the existing v2InterfaceTargetGenerator
+	// This allows us to reuse the existing interfaceTargetGenerator
 	interfaceType := &dst.InterfaceType{
 		Methods: &dst.FieldList{
 			List: make([]*dst.Field, 0, len(methods)),
@@ -53,7 +53,7 @@ func generateV2StructTargetCode(
 		sourceImports: structWithDetails.sourceImports,
 	}
 
-	// Delegate to the existing v2InterfaceTargetGenerator with isStructType=true
+	// Delegate to the existing interfaceTargetGenerator with isStructType=true
 	// The generator will create wrappers for all methods on the struct using pointer types
-	return generateV2InterfaceTargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails, true)
+	return generateInterfaceTargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails, true)
 }

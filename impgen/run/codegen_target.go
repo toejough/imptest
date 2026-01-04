@@ -10,8 +10,8 @@ import (
 	"github.com/dave/dst"
 )
 
-// v2TargetGenerator generates v2-style target wrappers.
-type v2TargetGenerator struct {
+// targetGenerator generates target wrappers.
+type targetGenerator struct {
 	baseGenerator
 
 	wrapName          string // Wrapper constructor name (e.g., "WrapAdd")
@@ -28,7 +28,7 @@ type v2TargetGenerator struct {
 }
 
 // buildFunctionSignature builds the function signature string.
-func (gen *v2TargetGenerator) buildFunctionSignature() string {
+func (gen *targetGenerator) buildFunctionSignature() string {
 	var sig strings.Builder
 
 	sig.WriteString("func(")
@@ -94,7 +94,7 @@ func (gen *v2TargetGenerator) buildFunctionSignature() string {
 }
 
 // collectAdditionalImports collects all external type imports needed for function signatures.
-func (gen *v2TargetGenerator) collectAdditionalImports() []importInfo {
+func (gen *targetGenerator) collectAdditionalImports() []importInfo {
 	imports := collectImportsFromFuncDecl(gen.funcDecl, gen.astFiles)
 
 	// For function type wrappers (where pkgPath is empty):
@@ -124,7 +124,7 @@ func (gen *v2TargetGenerator) collectAdditionalImports() []importInfo {
 }
 
 // extractResultTypes extracts result types from a field list.
-func (gen *v2TargetGenerator) extractResultTypes(results *dst.FieldList) []string {
+func (gen *targetGenerator) extractResultTypes(results *dst.FieldList) []string {
 	var types []string
 
 	for _, field := range results.List {
@@ -143,8 +143,8 @@ func (gen *v2TargetGenerator) extractResultTypes(results *dst.FieldList) []strin
 	return types
 }
 
-// generate produces the v2 target wrapper code using templates.
-func (gen *v2TargetGenerator) generate() (string, error) {
+// generate produces the target wrapper code using templates.
+func (gen *targetGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded(gen.funcDecl.Type)
 
@@ -166,7 +166,7 @@ func (gen *v2TargetGenerator) generate() (string, error) {
 }
 
 // generateWithTemplates generates code using templates instead of direct code generation.
-func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry) {
+func (gen *targetGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	// Build base template data
 	additionalImports := gen.collectAdditionalImports()
 
@@ -205,7 +205,7 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		paramNamesStr.WriteString(name)
 	}
 
-	// Build result vars and return assignments (using zero-indexed Result0, Result1 to match v1 pattern)
+	// Build result vars and return assignments (using zero-indexed Result0, Result1)
 	var resultVarsStr, returnAssignmentsStr strings.Builder
 	if gen.hasResults {
 		for i := range gen.resultTypes {
@@ -254,8 +254,8 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 		}
 	}
 
-	// Build v2 target template data
-	data := v2TargetTemplateData{
+	// Build target template data
+	data := targetTemplateData{
 		baseTemplateData:  base,
 		WrapName:          gen.wrapName,
 		WrapperType:       gen.wrapperType,
@@ -275,25 +275,25 @@ func (gen *v2TargetGenerator) generateWithTemplates(templates *TemplateRegistry)
 	}
 
 	// Generate each section using templates
-	templates.WriteV2TargetHeader(&gen.buf, data)
-	templates.WriteV2TargetReturnsStruct(&gen.buf, data)
-	templates.WriteV2TargetConstructor(&gen.buf, data)
-	templates.WriteV2TargetWrapperStruct(&gen.buf, data)
-	templates.WriteV2TargetCallHandleStruct(&gen.buf, data)
-	templates.WriteV2TargetStartMethod(&gen.buf, data)
-	templates.WriteV2TargetWaitMethod(&gen.buf, data)
+	templates.WriteTargetHeader(&gen.buf, data)
+	templates.WriteTargetReturnsStruct(&gen.buf, data)
+	templates.WriteTargetConstructor(&gen.buf, data)
+	templates.WriteTargetWrapperStruct(&gen.buf, data)
+	templates.WriteTargetCallHandleStruct(&gen.buf, data)
+	templates.WriteTargetStartMethod(&gen.buf, data)
+	templates.WriteTargetWaitMethod(&gen.buf, data)
 
 	// Generate expect methods based on whether function has results
 	if gen.hasResults {
-		templates.WriteV2TargetExpectReturns(&gen.buf, data)
+		templates.WriteTargetExpectReturns(&gen.buf, data)
 	} else {
-		templates.WriteV2TargetExpectCompletes(&gen.buf, data)
+		templates.WriteTargetExpectCompletes(&gen.buf, data)
 	}
-	templates.WriteV2TargetExpectPanic(&gen.buf, data)
+	templates.WriteTargetExpectPanic(&gen.buf, data)
 }
 
 // writeFunctionParamsToBuilder writes function parameters to a string builder.
-func (gen *v2TargetGenerator) writeFunctionParamsToBuilder(builder *strings.Builder, params *dst.FieldList) {
+func (gen *targetGenerator) writeFunctionParamsToBuilder(builder *strings.Builder, params *dst.FieldList) {
 	if params == nil {
 		return
 	}
@@ -348,8 +348,8 @@ func extractParamNames(funcType *dst.FuncType) []string {
 	return names
 }
 
-// generateV2TargetCode generates v2-style target wrapper code for a function.
-func generateV2TargetCode(
+// generateTargetCode generates target wrapper code for a function.
+func generateTargetCode(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
@@ -357,7 +357,7 @@ func generateV2TargetCode(
 	pkgLoader PackageLoader,
 	funcDecl *dst.FuncDecl,
 ) (string, error) {
-	gen, err := newV2TargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, false)
+	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, false)
 	if err != nil {
 		return "", err
 	}
@@ -365,9 +365,9 @@ func generateV2TargetCode(
 	return gen.generate()
 }
 
-// generateV2TargetCodeFromFuncType generates v2-style target wrapper code for a function type.
-// It creates a synthetic function declaration from the function type and delegates to generateV2TargetCode.
-func generateV2TargetCodeFromFuncType(
+// generateTargetCodeFromFuncType generates target wrapper code for a function type.
+// It creates a synthetic function declaration from the function type and delegates to generateTargetCode.
+func generateTargetCodeFromFuncType(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
@@ -405,7 +405,7 @@ func generateV2TargetCodeFromFuncType(
 		funcDecl.Type.TypeParams = funcTypeDetails.typeParams
 	}
 
-	gen, err := newV2TargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, true)
+	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, true)
 	if err != nil {
 		return "", err
 	}
@@ -417,9 +417,9 @@ func generateV2TargetCodeFromFuncType(
 	return gen.generate()
 }
 
-// newV2TargetGenerator creates a new v2 target wrapper generator.
+// newTargetGenerator creates a new target wrapper generator.
 // isFunctionType should be true when wrapping a function type (not a function declaration).
-func newV2TargetGenerator(
+func newTargetGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
@@ -427,7 +427,7 @@ func newV2TargetGenerator(
 	pkgLoader PackageLoader,
 	funcDecl *dst.FuncDecl,
 	isFunctionType bool,
-) (*v2TargetGenerator, error) {
+) (*targetGenerator, error) {
 	var (
 		pkgPath, qualifier string
 		err                error
@@ -437,7 +437,7 @@ func newV2TargetGenerator(
 	// Function types use the underlying signature types directly (e.g., func(http.ResponseWriter, *http.Request)),
 	// not the function type name itself (e.g., http.HandlerFunc).
 	//
-	// The AST transformation in generateV2TargetCodeFromFuncType handles qualifying types from
+	// The AST transformation in generateTargetCodeFromFuncType handles qualifying types from
 	// external packages, and collectAdditionalImports picks up those qualified type imports automatically.
 	//
 	// For LOCAL function types (e.g., visitor.WalkFunc), the types are already qualified (e.g., fs.DirEntry),
@@ -461,7 +461,7 @@ func newV2TargetGenerator(
 	callHandleType := info.impName + "CallHandle"
 	returnsType := info.impName + "Returns"
 
-	gen := &v2TargetGenerator{
+	gen := &targetGenerator{
 		baseGenerator: newBaseGenerator(
 			fset, info.pkgName, info.impName, pkgPath, qualifier, funcDecl.Type.TypeParams,
 		),
@@ -478,7 +478,7 @@ func newV2TargetGenerator(
 	gen.hasResults = funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0
 	if gen.hasResults {
 		gen.resultTypes = gen.extractResultTypes(funcDecl.Type.Results)
-		// V2 target wrappers need reflect for DeepEqual in ExpectReturnsEqual (only when there are results)
+		// Target wrappers need reflect for DeepEqual in ExpectReturnsEqual (only when there are results)
 		gen.needsReflect = true
 	}
 

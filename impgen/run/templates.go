@@ -52,10 +52,74 @@ type callbackParamField struct {
 	Index int    // Zero-based index
 }
 
+// Types
+
+// depMethodTemplateData holds data for dependency impl method template.
+type depMethodTemplateData struct {
+	baseTemplateData //nolint:unused // Used by templates
+
+	MethodName      string
+	InterfaceType   string
+	ImplName        string
+	Params          string // Full parameter list string
+	Results         string // Full result list string (including parens if multiple)
+	HasVariadic     bool
+	NonVariadicArgs string // Comma-separated non-variadic args
+	VariadicArg     string // Name of variadic arg
+	Args            string // Comma-separated all args (for non-variadic case)
+	ArgNames        string // Comma-separated argument names
+	HasResults      bool
+	ResultVars      []resultVar
+	ReturnList      string          // Comma-separated return variable names
+	ReturnStatement string          // Return statement (e.g., "return r1, r2")
+	Callbacks       []callbackParam // Callback function parameters
+	HasCallbacks    bool            // Whether method has any callback parameters
+
+	// Type-safe args support
+	ParamFields    []paramField // Parameter fields for args struct
+	HasParams      bool         // Whether method has parameters
+	ArgsTypeName   string       // Args struct type name (e.g., "CalculatorAddArgs")
+	CallTypeName   string       // Call wrapper type name (e.g., "CalculatorAddCall")
+	MethodTypeName string       // Method wrapper type name (e.g., "CalculatorAddMethod")
+	TypedParams    string       // Typed parameter list for ExpectCalledWithExactly (e.g., "a int, b int")
+
+	// Type-safe return value support
+	TypedReturnParams string // Typed return parameter list for InjectReturnValues (e.g., "result0 int, result1 error")
+	ReturnParamNames  string // Comma-separated return parameter names (e.g., "result0, result1")
+}
+
+// depTemplateData holds data for dependency mock templates.
+type depTemplateData struct {
+	baseTemplateData //nolint:unused // Used by templates
+
+	MockName      string                  // Constructor function name (e.g., "MockOps")
+	MockTypeName  string                  // Struct type name (e.g., "OpsMock")
+	BaseName      string                  // Base interface name without "Mock" prefix
+	InterfaceName string                  // Local interface name (e.g., "Ops")
+	InterfaceType string                  // Qualified interface type (e.g., "basic.Ops")
+	ImplName      string                  // Implementation struct name (e.g., "mockOpsImpl")
+	MethodNames   []string                // List of interface method names
+	Methods       []depMethodTemplateData // Full method data for generating wrappers
+}
+
 // importInfo holds information about an additional import needed for external types.
 type importInfo struct {
 	Alias string // Package alias/name (e.g., "io", "os")
 	Path  string // Full import path (e.g., "io", "os", "github.com/dave/dst")
+}
+
+// interfaceTargetTemplateData holds data for interface target wrapper templates.
+type interfaceTargetTemplateData struct {
+	baseTemplateData //nolint:unused // Used by templates
+
+	WrapName      string              // Constructor function name (e.g., "WrapLogger")
+	WrapperType   string              // Main wrapper struct type (e.g., "WrapLoggerWrapper")
+	InterfaceName string              // Local interface name (e.g., "Logger")
+	InterfaceType string              // Qualified interface type (e.g., "log.Logger")
+	ImplName      string              // Real implementation field name (e.g., "impl")
+	MethodNames   []string            // List of interface method names
+	Methods       []methodWrapperData // Full method data for generating wrappers
+	IsStructType  bool                // True if wrapping a struct type (needs pointer in field/param types)
 }
 
 // methodWrapperData holds template data for a single interface method wrapper.
@@ -110,72 +174,8 @@ type resultVar struct {
 	Index int
 }
 
-// Types
-
-// v2DepMethodTemplateData holds data for v2 dependency impl method template.
-type v2DepMethodTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
-
-	MethodName      string
-	InterfaceType   string
-	ImplName        string
-	Params          string // Full parameter list string
-	Results         string // Full result list string (including parens if multiple)
-	HasVariadic     bool
-	NonVariadicArgs string // Comma-separated non-variadic args
-	VariadicArg     string // Name of variadic arg
-	Args            string // Comma-separated all args (for non-variadic case)
-	ArgNames        string // Comma-separated argument names
-	HasResults      bool
-	ResultVars      []resultVar
-	ReturnList      string          // Comma-separated return variable names
-	ReturnStatement string          // Return statement (e.g., "return r1, r2")
-	Callbacks       []callbackParam // Callback function parameters
-	HasCallbacks    bool            // Whether method has any callback parameters
-
-	// Type-safe args support
-	ParamFields    []paramField // Parameter fields for args struct
-	HasParams      bool         // Whether method has parameters
-	ArgsTypeName   string       // Args struct type name (e.g., "CalculatorAddArgs")
-	CallTypeName   string       // Call wrapper type name (e.g., "CalculatorAddCall")
-	MethodTypeName string       // Method wrapper type name (e.g., "CalculatorAddMethod")
-	TypedParams    string       // Typed parameter list for ExpectCalledWithExactly (e.g., "a int, b int")
-
-	// Type-safe return value support
-	TypedReturnParams string // Typed return parameter list for InjectReturnValues (e.g., "result0 int, result1 error")
-	ReturnParamNames  string // Comma-separated return parameter names (e.g., "result0, result1")
-}
-
-// v2DepTemplateData holds data for v2 dependency mock templates.
-type v2DepTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
-
-	MockName      string                    // Constructor function name (e.g., "MockOps")
-	MockTypeName  string                    // Struct type name (e.g., "OpsMock")
-	BaseName      string                    // Base interface name without "Mock" prefix
-	InterfaceName string                    // Local interface name (e.g., "Ops")
-	InterfaceType string                    // Qualified interface type (e.g., "basic.Ops")
-	ImplName      string                    // Implementation struct name (e.g., "mockOpsImpl")
-	MethodNames   []string                  // List of interface method names
-	Methods       []v2DepMethodTemplateData // Full method data for generating wrappers
-}
-
-// v2InterfaceTargetTemplateData holds data for v2 interface target wrapper templates.
-type v2InterfaceTargetTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
-
-	WrapName      string              // Constructor function name (e.g., "WrapLogger")
-	WrapperType   string              // Main wrapper struct type (e.g., "WrapLoggerWrapper")
-	InterfaceName string              // Local interface name (e.g., "Logger")
-	InterfaceType string              // Qualified interface type (e.g., "log.Logger")
-	ImplName      string              // Real implementation field name (e.g., "impl")
-	MethodNames   []string            // List of interface method names
-	Methods       []methodWrapperData // Full method data for generating wrappers
-	IsStructType  bool                // True if wrapping a struct type (needs pointer in field/param types)
-}
-
-// v2TargetTemplateData holds data for v2 target wrapper templates.
-type v2TargetTemplateData struct {
+// targetTemplateData holds data for target wrapper templates.
+type targetTemplateData struct {
 	baseTemplateData //nolint:unused // Used by templates
 
 	WrapName          string // Constructor function name (e.g., "WrapAdd")

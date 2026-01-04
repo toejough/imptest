@@ -123,80 +123,6 @@ Standard issue structure organized by category:
 
 
 
-### 42. Redesign --target wrapper pattern for goroutine lifecycle management
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-Current --target wrappers are built for call observation/mocking (with GetCalls(), call history, parameter tracking) when the actual need is goroutine lifecycle management (run method in goroutine, capture returns/panics, coordinate with imptest controller).
-
-#### Planning
-
-**Rationale**
-Discovered during Issue #33: The wrapper pattern implements the wrong abstraction. All --target wrappers (functions, interfaces, structs) have unnecessary complexity that doesn't match the actual use case.
-
-**Actual Requirements**:
-- One goroutine per method call
-- Start() launches goroutine running the target method
-- Signal to imptest controller when method returns (for ordering verification with mocked dependencies)
-- GetResult() retrieves return values (blocking wait)
-- ExpectPanicEquals() verifies panics
-- NO call history tracking (GetCalls())
-- NO parameter recording
-- NO timeouts/cancellation
-
-**Current Problems**:
-- GetCalls() returns all call history - never needed
-- Parameters tracked and recorded - never needed
-- Built for observation pattern instead of goroutine coordination
-
-**Acceptance**
-- Wrapper API focused on goroutine lifecycle: Start() -> goroutine -> GetResult()/ExpectPanic()
-- Integrates with imptest controller for event ordering
-- No call history or parameter tracking
-- Simpler generated code
-- All existing UATs updated to new API
-
-**Effort**
-Large
-
-**Priority**
-Medium
-
-**Dependencies**
-None - can proceed immediately
-
-**Timeline**
-
-- 2026-01-03 09:55 EST - Created issue after discovering abstraction mismatch in Issue #33
-- 2026-01-03 13:02 EST - RED: Writing test for function wrapper call handles
-- 2026-01-03 13:06 EST - GREEN: Implementing call handle pattern for function wrappers
-- 2026-01-03 13:48 EST - REFACTOR: Auditing call handle implementation
-- 2026-01-03 14:01 EST - GREEN: Updating 5 UATs to new call handle API
-- 2026-01-03 14:06 EST - REFACTOR: Final audit of UAT updates
-- 2026-01-03 14:29 EST - Complete: Function wrapper call handle pattern (Step 1 of 5)
-- 2026-01-03 14:29 EST - COMMIT: Step 1 complete - call handle pattern for functions
-- 2026-01-03 14:51 EST - RED: Writing tests for interface/struct wrapper call handles
-- 2026-01-03 15:12 EST - GREEN: Implementing call handle pattern for interface/struct wrappers (Step 3 of 5)
-- 2026-01-03 15:24 EST - REFACTOR: Auditing interface/struct wrapper implementation
-- 2026-01-03 15:32 EST - GREEN: Fixing UAT-32, UAT-33, and race condition
-- 2026-01-03 15:40 EST - REFACTOR: Final audit after UAT fixes
-- 2026-01-03 15:45 EST - Complete: Interface/struct wrapper call handle pattern (Step 3 of 5)
-- 2026-01-03 15:46 EST - COMMIT: Step 3 complete - interface/struct call handle pattern
-- 2026-01-04 13:46 EST - Marked done
-
-**Completed**
-2026-01-04
-
-**Commits**
-- Step 1: Function wrapper call handles
-- Step 3: Interface/struct wrapper call handles (3895fea)
-
----
-
 ### 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
 
 #### Universal
@@ -315,56 +241,6 @@ backlog
 - 2026-01-01 17:09 EST - Auditor FAILED - found ineffectual assignment and test data bug
 - 2026-01-01 17:09 EST - Implementer applied fix - changed boundary detection to 'first boundary wins' logic
 
-### 1. remove the deprecation messages and any hint of V1/V2
-
-#### Universal
-
-**Status**
-backlog
-#### Work Tracking
-
-**Timeline**
-- 2026-01-01 18:06 EST - test entry
-
-
-
-### 11. Prevent ExpectCalledWithExactly generation for function types
-
-#### Universal
-
-**Status**
-cancelled
-
-**Description**
-impgen generates ExpectCalledWithExactly() methods for function type parameters, but Go cannot compare functions with `==`, causing reflect.DeepEqual to hang. Since we perform code generation based on known types, we should detect function types and skip generating equality methods.
-
-Workaround: Use ExpectCalledWithMatches() with imptest.Any() for function parameters
-
-**Cancellation Reason**
-Not worth the extra complexity right now. Workaround (using imptest.Any()) is sufficient.
-
-#### Planning
-
-**Acceptance**
-impgen detects function types and omits equality method generation
-
-**Effort**
-Medium (2-4 hours)
-
-**Priority**
-Medium - workaround exists, but better UX to prevent the footgun
-
-#### Bug Details
-
-**Discovered**
-During UAT-24 (Issue #4), tests with ExpectCalledWithExactly() on function params timeout
-
-**Current Behavior**
-Generates equality methods for all parameter types including functions
-
-**Expected Behavior**
-Detect function types in parameters and only generate ExpectCalledWithMatches(), not ExpectCalledWithExactly()
-
 ### 15. Consolidate duplicate Tester and TestReporter interfaces (TOE-105)
 
 #### Universal
@@ -388,60 +264,6 @@ Low
 
 **Linear**
 TOE-105
-
-### 16. Remove 'v2' from file and package names (TOE-109)
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-Now that V2 is the only implementation, remove "v2" suffix from filenames (codegen_v2_dependency.go → codegen_dependency.go, etc.)
-
-#### Planning
-
-**Acceptance**
-All V2 references removed from file and package names, functionality unchanged
-
-**Effort**
-Small
-
-**Priority**
-Low
-
-**Linear**
-TOE-109
-
-### 17. Remove stale .out and .test files (TOE-110)
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-Audit repository for stale build artifacts (_.out, _.test) and add to .gitignore
-
-#### Planning
-
-**Acceptance**
-No build artifacts in version control, .gitignore updated
-
-**Effort**
-Trivial
-
-**Priority**
-Low
-
-**Linear**
-TOE-110
-
-**Completed**
-2026-01-04
-
-**Solution**
-Already resolved - .gitignore already had `*.test` (line 9) and `*.out` (line 12) patterns. Verified no such files are tracked in git. Local build artifacts (4 .out, 5 .test files) are correctly ignored.
 
 ### 18. Reduce blanket nolint directives in V2 generators (TOE-106)
 
@@ -494,9 +316,151 @@ TOE-80
 
 Completed issues.
 
+### 1. remove the deprecation messages and any hint of V1/V2
+
+#### Universal
+
+**Status**
+done
+
+#### Work Tracking
+
+**Completed**
+2026-01-04 14:38 EST
+
+**Timeline**
+- 2026-01-01 18:06 EST - test entry
+- 2026-01-04 14:12 EST - GREEN: Starting V1/V2 cleanup (combined with #16)
+- 2026-01-04 14:38 EST - Complete: V1/V2 cleanup done
+
+**Combined With**
+#16
+
+### 16. Remove 'v2' from file and package names (TOE-109)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Now that V2 is the only implementation, remove "v2" suffix from filenames (codegen_v2_dependency.go → codegen_dependency.go, etc.)
+
+#### Work Tracking
+
+**Completed**
+2026-01-04 14:38 EST
+
+**Timeline**
+- 2026-01-04 14:38 EST - Complete: File renames and internal reference updates
+
+**Combined With**
+#1
 
 
+### 42. Redesign --target wrapper pattern for goroutine lifecycle management
 
+#### Universal
+
+**Status**
+done
+
+**Description**
+Current --target wrappers are built for call observation/mocking (with GetCalls(), call history, parameter tracking) when the actual need is goroutine lifecycle management (run method in goroutine, capture returns/panics, coordinate with imptest controller).
+
+#### Planning
+
+**Rationale**
+Discovered during Issue #33: The wrapper pattern implements the wrong abstraction. All --target wrappers (functions, interfaces, structs) have unnecessary complexity that doesn't match the actual use case.
+
+**Actual Requirements**:
+- One goroutine per method call
+- Start() launches goroutine running the target method
+- Signal to imptest controller when method returns (for ordering verification with mocked dependencies)
+- GetResult() retrieves return values (blocking wait)
+- ExpectPanicEquals() verifies panics
+- NO call history tracking (GetCalls())
+- NO parameter recording
+- NO timeouts/cancellation
+
+**Current Problems**:
+- GetCalls() returns all call history - never needed
+- Parameters tracked and recorded - never needed
+- Built for observation pattern instead of goroutine coordination
+
+**Acceptance**
+- Wrapper API focused on goroutine lifecycle: Start() -> goroutine -> GetResult()/ExpectPanic()
+- Integrates with imptest controller for event ordering
+- No call history or parameter tracking
+- Simpler generated code
+- All existing UATs updated to new API
+
+**Effort**
+Large
+
+**Priority**
+Medium
+
+**Dependencies**
+None - can proceed immediately
+
+**Timeline**
+
+- 2026-01-03 09:55 EST - Created issue after discovering abstraction mismatch in Issue #33
+- 2026-01-03 13:02 EST - RED: Writing test for function wrapper call handles
+- 2026-01-03 13:06 EST - GREEN: Implementing call handle pattern for function wrappers
+- 2026-01-03 13:48 EST - REFACTOR: Auditing call handle implementation
+- 2026-01-03 14:01 EST - GREEN: Updating 5 UATs to new call handle API
+- 2026-01-03 14:06 EST - REFACTOR: Final audit of UAT updates
+- 2026-01-03 14:29 EST - Complete: Function wrapper call handle pattern (Step 1 of 5)
+- 2026-01-03 14:29 EST - COMMIT: Step 1 complete - call handle pattern for functions
+- 2026-01-03 14:51 EST - RED: Writing tests for interface/struct wrapper call handles
+- 2026-01-03 15:12 EST - GREEN: Implementing call handle pattern for interface/struct wrappers (Step 3 of 5)
+- 2026-01-03 15:24 EST - REFACTOR: Auditing interface/struct wrapper implementation
+- 2026-01-03 15:32 EST - GREEN: Fixing UAT-32, UAT-33, and race condition
+- 2026-01-03 15:40 EST - REFACTOR: Final audit after UAT fixes
+- 2026-01-03 15:45 EST - Complete: Interface/struct wrapper call handle pattern (Step 3 of 5)
+- 2026-01-03 15:46 EST - COMMIT: Step 3 complete - interface/struct call handle pattern
+- 2026-01-04 13:46 EST - Marked done
+
+**Completed**
+2026-01-04
+
+**Commits**
+- Step 1: Function wrapper call handles
+- Step 3: Interface/struct wrapper call handles (3895fea)
+
+---
+
+### 17. Remove stale .out and .test files (TOE-110)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Audit repository for stale build artifacts (_.out, _.test) and add to .gitignore
+
+#### Planning
+
+**Acceptance**
+No build artifacts in version control, .gitignore updated
+
+**Effort**
+Trivial
+
+**Priority**
+Low
+
+**Linear**
+TOE-110
+
+**Completed**
+2026-01-04
+
+**Solution**
+Already resolved - .gitignore already had `*.test` (line 9) and `*.out` (line 12) patterns. Verified no such files are tracked in git. Local build artifacts (4 .out, 5 .test files) are correctly ignored.
 ### 33. Add UAT for struct type as target (comprehensive)
 
 #### Universal
@@ -1442,6 +1406,43 @@ Migrated to glowsync project as it was mistakenly assigned to imptest
 Issues that will not be completed.
 
 
+
+### 11. Prevent ExpectCalledWithExactly generation for function types
+
+#### Universal
+
+**Status**
+cancelled
+
+**Description**
+impgen generates ExpectCalledWithExactly() methods for function type parameters, but Go cannot compare functions with `==`, causing reflect.DeepEqual to hang. Since we perform code generation based on known types, we should detect function types and skip generating equality methods.
+
+Workaround: Use ExpectCalledWithMatches() with imptest.Any() for function parameters
+
+**Cancellation Reason**
+Not worth the extra complexity right now. Workaround (using imptest.Any()) is sufficient.
+
+#### Planning
+
+**Acceptance**
+impgen detects function types and omits equality method generation
+
+**Effort**
+Medium (2-4 hours)
+
+**Priority**
+Medium - workaround exists, but better UX to prevent the footgun
+
+#### Bug Details
+
+**Discovered**
+During UAT-24 (Issue #4), tests with ExpectCalledWithExactly() on function params timeout
+
+**Current Behavior**
+Generates equality methods for all parameter types including functions
+
+**Expected Behavior**
+Detect function types in parameters and only generate ExpectCalledWithMatches(), not ExpectCalledWithExactly()
 ### 37. Explore mage replacement with subcommands and flags (go-arg syntax)
 
 #### Universal

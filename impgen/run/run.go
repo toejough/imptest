@@ -364,18 +364,18 @@ func routeToGenerator(
 	if symbol.kind == symbolFunction {
 		// For functions: require --target flag (V1 callable wrappers deprecated)
 		if info.mode == namingModeTarget {
-			return generateV2TargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
+			return generateTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
 		}
 
 		return "", ErrV1CallableDeprecated
 	}
 
-	// For function types: use v2 target generator (function types are always wrapped as targets)
+	// For function types: use target generator (function types are always wrapped as targets)
 	if symbol.kind == symbolFunctionType {
-		return generateV2TargetCodeFromFuncType(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
+		return generateTargetCodeFromFuncType(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
 	}
 
-	// For struct types: use v2 interface target generator (struct types only support --target mode)
+	// For struct types: use interface target generator (struct types only support --target mode)
 	if symbol.kind == symbolStructType {
 		// Only --target mode is supported for struct types
 		if info.mode != namingModeTarget {
@@ -383,16 +383,16 @@ func routeToGenerator(
 			return "", fmt.Errorf("struct types only support --target flag (use 'impgen %s --target')", info.localInterfaceName)
 		}
 
-		return generateV2StructTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.structType)
+		return generateStructTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.structType)
 	}
 
 	// For interfaces: support both --dependency and --target modes
 	if info.mode == namingModeDependency {
-		return generateV2DependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
+		return generateDependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
 	}
 
 	if info.mode == namingModeTarget {
-		return generateV2InterfaceTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface, false)
+		return generateInterfaceTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface, false)
 	}
 
 	return "", ErrV1InterfaceDeprecated

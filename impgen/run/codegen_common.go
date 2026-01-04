@@ -184,7 +184,7 @@ func (baseGen *baseGenerator) checkIfQualifierNeeded(expr dst.Expr) {
 }
 
 // collectAdditionalImportsFromInterface collects imports needed for interface method signatures.
-// This is a helper for v2 generators that need to collect imports from all methods of an interface.
+// This is a helper for generators that need to collect imports from all methods of an interface.
 func (baseGen *baseGenerator) collectAdditionalImportsFromInterface(
 	iface *dst.InterfaceType,
 	astFiles []*dst.File,
@@ -565,7 +565,7 @@ func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []im
 }
 
 // collectImportsFromFuncDecl collects additional imports needed for a function declaration's parameters and returns.
-// This is shared logic used by both callableGenerator and v2TargetGenerator.
+// This is shared logic used by both callableGenerator and targetGenerator.
 //
 //nolint:cyclop // Complexity from iterating params and results is unavoidable
 func collectImportsFromFuncDecl(funcDecl *dst.FuncDecl, astFiles []*dst.File) []importInfo {

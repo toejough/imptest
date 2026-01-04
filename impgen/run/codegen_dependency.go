@@ -10,8 +10,8 @@ import (
 	"github.com/dave/dst"
 )
 
-// v2DependencyGenerator generates v2-style dependency mocks.
-type v2DependencyGenerator struct {
+// dependencyGenerator generates dependency mocks.
+type dependencyGenerator struct {
 	baseGenerator
 
 	mockName            string // Constructor function name (e.g., "MockOps")
@@ -25,11 +25,11 @@ type v2DependencyGenerator struct {
 	identifiedInterface ifaceWithDetails // full interface details including source imports
 }
 
-func (gen *v2DependencyGenerator) buildMethodTemplateData(
+func (gen *dependencyGenerator) buildMethodTemplateData(
 	methodName string,
 	ftype *dst.FuncType,
 	interfaceType string,
-) v2DepMethodTemplateData {
+) depMethodTemplateData {
 	// Build parameter string and collect param names
 	paramsStr, paramNames := gen.buildParamStrings(ftype)
 
@@ -49,7 +49,7 @@ func (gen *v2DependencyGenerator) buildMethodTemplateData(
 	typedReturnParams, returnParamNames := buildTypedReturnParams(resultTypes)
 
 	// Build method template data with base fields
-	return v2DepMethodTemplateData{
+	return depMethodTemplateData{
 		baseTemplateData: baseTemplateData{
 			PkgName:        gen.pkgName,
 			PkgImptest:     "_imptest",
@@ -83,7 +83,7 @@ func (gen *v2DependencyGenerator) buildMethodTemplateData(
 }
 
 // buildParamFields extracts parameter fields for type-safe args.
-func (gen *v2DependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramField {
+func (gen *dependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramField {
 	paramInfos := extractParams(gen.fset, ftype)
 	var paramFields []paramField
 
@@ -111,7 +111,7 @@ func (gen *v2DependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramF
 
 // buildMethodTemplateData builds template data for a single method.
 // buildVariadicArgs checks for variadic parameters and builds argument strings.
-func (gen *v2DependencyGenerator) buildVariadicArgs(
+func (gen *dependencyGenerator) buildVariadicArgs(
 	ftype *dst.FuncType,
 	paramNames []string,
 ) variadicArgsResult {
@@ -161,7 +161,7 @@ func (gen *v2DependencyGenerator) buildVariadicArgs(
 }
 
 // checkIfQualifierNeeded determines if we need a package qualifier.
-func (gen *v2DependencyGenerator) checkIfQualifierNeeded() {
+func (gen *dependencyGenerator) checkIfQualifierNeeded() {
 	_ = forEachInterfaceMethod(
 		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(_ string, ftype *dst.FuncType) {
@@ -171,7 +171,7 @@ func (gen *v2DependencyGenerator) checkIfQualifierNeeded() {
 }
 
 // collectAdditionalImports collects imports needed for interface method signatures.
-func (gen *v2DependencyGenerator) collectAdditionalImports() []importInfo {
+func (gen *dependencyGenerator) collectAdditionalImports() []importInfo {
 	// Use the source imports from the interface's file (tracked during parsing)
 	sourceImports := gen.identifiedInterface.sourceImports
 
@@ -193,8 +193,8 @@ func (gen *v2DependencyGenerator) collectAdditionalImports() []importInfo {
 	)
 }
 
-// generate produces the v2 dependency mock code using templates.
-func (gen *v2DependencyGenerator) generate() (string, error) {
+// generate produces the dependency mock code using templates.
+func (gen *dependencyGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded()
 
@@ -221,7 +221,7 @@ func (gen *v2DependencyGenerator) generate() (string, error) {
 }
 
 // generateWithTemplates generates code using templates instead of direct code generation.
-func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegistry) {
+func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	// Build base template data
 	base := baseTemplateData{
 		PkgName:           gen.pkgName,
@@ -258,7 +258,7 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 	}
 
 	// Collect method data for all methods first (needed for typed wrappers)
-	var methods []v2DepMethodTemplateData
+	var methods []depMethodTemplateData
 	_ = forEachInterfaceMethod(
 		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(methodName string, ftype *dst.FuncType) {
@@ -267,9 +267,9 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 		},
 	)
 
-	// Build v2 dependency template data
+	// Build dependency template data
 	baseName := strings.TrimPrefix(gen.mockName, "Mock")
-	data := v2DepTemplateData{
+	data := depTemplateData{
 		baseTemplateData: base,
 		MockName:         gen.mockName,
 		MockTypeName:     gen.mockTypeName,
@@ -282,18 +282,18 @@ func (gen *v2DependencyGenerator) generateWithTemplates(templates *TemplateRegis
 	}
 
 	// Generate each section using templates
-	templates.WriteV2DepHeader(&gen.buf, data)
-	templates.WriteV2DepMockStruct(&gen.buf, data)
-	templates.WriteV2DepInterfaceMethod(&gen.buf, data)
-	templates.WriteV2DepConstructor(&gen.buf, data)
-	templates.WriteV2DepImplStruct(&gen.buf, data)
+	templates.WriteDepHeader(&gen.buf, data)
+	templates.WriteDepMockStruct(&gen.buf, data)
+	templates.WriteDepInterfaceMethod(&gen.buf, data)
+	templates.WriteDepConstructor(&gen.buf, data)
+	templates.WriteDepImplStruct(&gen.buf, data)
 
 	// Generate implementation methods and type-safe wrappers for each interface method
 	for _, methodData := range methods {
-		templates.WriteV2DepImplMethod(&gen.buf, methodData)
-		templates.WriteV2DepArgsStruct(&gen.buf, methodData)
-		templates.WriteV2DepCallWrapper(&gen.buf, methodData)
-		templates.WriteV2DepMethodWrapper(&gen.buf, methodData)
+		templates.WriteDepImplMethod(&gen.buf, methodData)
+		templates.WriteDepArgsStruct(&gen.buf, methodData)
+		templates.WriteDepCallWrapper(&gen.buf, methodData)
+		templates.WriteDepMethodWrapper(&gen.buf, methodData)
 	}
 }
 
@@ -352,8 +352,8 @@ func buildTypedReturnParams(resultTypes []string) (typedParams, paramNames strin
 	return typedBuilder.String(), namesBuilder.String()
 }
 
-// generateV2DependencyCode generates v2-style dependency mock code for an interface.
-func generateV2DependencyCode(
+// generateDependencyCode generates dependency mock code for an interface.
+func generateDependencyCode(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
@@ -361,7 +361,7 @@ func generateV2DependencyCode(
 	pkgLoader PackageLoader,
 	ifaceWithDetails ifaceWithDetails,
 ) (string, error) {
-	gen, err := newV2DependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
+	gen, err := newDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
 	if err != nil {
 		return "", err
 	}
@@ -369,15 +369,15 @@ func generateV2DependencyCode(
 	return gen.generate()
 }
 
-// newV2DependencyGenerator creates a new v2 dependency mock generator.
-func newV2DependencyGenerator(
+// newDependencyGenerator creates a new dependency mock generator.
+func newDependencyGenerator(
 	astFiles []*dst.File,
 	info generatorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
 	pkgLoader PackageLoader,
 	ifaceWithDetails ifaceWithDetails,
-) (*v2DependencyGenerator, error) {
+) (*dependencyGenerator, error) {
 	var (
 		pkgPath, qualifier string
 		err                error
@@ -415,7 +415,7 @@ func newV2DependencyGenerator(
 	//       Recommend using --name without the Mock suffix (e.g., --name CustomOps)
 	mockTypeName := strings.TrimPrefix(info.impName, "Mock") + "Mock"
 
-	gen := &v2DependencyGenerator{
+	gen := &dependencyGenerator{
 		baseGenerator: newBaseGenerator(
 			fset, info.pkgName, info.impName, pkgPath, qualifier, ifaceWithDetails.typeParams,
 		),
