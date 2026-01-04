@@ -7,6 +7,80 @@ import (
 	_reflect "reflect"
 )
 
+// WrapLoadCallHandle represents a single call to the wrapped function.
+type WrapLoadCallHandle struct {
+	*_imptest.CallableController[WrapLoadReturnsReturn]
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapLoadCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapLoadCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the function returned the expected values.
+func (h *WrapLoadCallHandle) ExpectReturnsEqual(v0 struct {
+	Host string
+	Port int
+	TLS  bool
+}) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapLoadCallHandle) ExpectReturnsMatch(v0 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
 // WrapLoadReturnsReturn holds the return values from the wrapped function.
 type WrapLoadReturnsReturn struct {
 	Result0 struct {
@@ -18,7 +92,7 @@ type WrapLoadReturnsReturn struct {
 
 // WrapLoadWrapper wraps a function for testing.
 type WrapLoadWrapper struct {
-	*_imptest.CallableController[WrapLoadReturnsReturn]
+	t        _imptest.TestReporter
 	callable func(string) struct {
 		Host string
 		Port int
@@ -26,87 +100,21 @@ type WrapLoadWrapper struct {
 	}
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapLoadWrapper) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapLoadWrapper) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *WrapLoadWrapper) ExpectReturnsEqual(v0 struct {
-	Host string
-	Port int
-	TLS  bool
-}) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		if !_reflect.DeepEqual(w.Returned.Result0, v0) {
-			w.T.Fatalf("expected return value 0 to be %v, got %v", v0, w.Returned.Result0)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *WrapLoadWrapper) ExpectReturnsMatch(v0 any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		var ok bool
-		var msg string
-		ok, msg = _imptest.MatchValue(w.Returned.Result0, v0)
-		if !ok {
-			w.T.Fatalf("return value 0: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapLoadWrapper) Start(path string) *WrapLoadWrapper {
+func (w *WrapLoadWrapper) Start(path string) *WrapLoadCallHandle {
+	handle := &WrapLoadCallHandle{
+		CallableController: _imptest.NewCallableController[WrapLoadReturnsReturn](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		ret0 := w.callable(path)
-		w.ReturnChan <- WrapLoadReturnsReturn{Result0: ret0}
+		handle.ReturnChan <- WrapLoadReturnsReturn{Result0: ret0}
 	}()
-	return w
+	return handle
 }
 
 // WrapLoad wraps a function for testing.
@@ -116,7 +124,7 @@ func WrapLoad(t _imptest.TestReporter, fn func(string) struct {
 	TLS  bool
 }) *WrapLoadWrapper {
 	return &WrapLoadWrapper{
-		CallableController: _imptest.NewCallableController[WrapLoadReturnsReturn](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }

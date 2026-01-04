@@ -7,76 +7,84 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
+// WrapUnsafeRunnerCallHandle represents a single call to the wrapped function.
+type WrapUnsafeRunnerCallHandle struct {
+	*_imptest.CallableController[WrapUnsafeRunnerReturnsReturn]
+}
+
+// ExpectCompletes verifies the function completes without panicking.
+func (h *WrapUnsafeRunnerCallHandle) ExpectCompletes() {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		h.T.Fatalf("expected function to complete, but it panicked with: %v", h.Panicked)
+	}
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapUnsafeRunnerCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapUnsafeRunnerCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
 // WrapUnsafeRunnerReturnsReturn holds the return values from the wrapped function.
 type WrapUnsafeRunnerReturnsReturn struct {
 }
 
 // WrapUnsafeRunnerWrapper wraps a function for testing.
 type WrapUnsafeRunnerWrapper struct {
-	*_imptest.CallableController[WrapUnsafeRunnerReturnsReturn]
+	t        _imptest.TestReporter
 	callable func(safety.CriticalDependency)
 }
 
-// ExpectCompletes verifies the function completes without panicking.
-func (w *WrapUnsafeRunnerWrapper) ExpectCompletes() {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		w.T.Fatalf("expected function to complete, but it panicked with: %v", w.Panicked)
-	}
-}
-
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapUnsafeRunnerWrapper) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapUnsafeRunnerWrapper) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapUnsafeRunnerWrapper) Start(dep safety.CriticalDependency) *WrapUnsafeRunnerWrapper {
+func (w *WrapUnsafeRunnerWrapper) Start(dep safety.CriticalDependency) *WrapUnsafeRunnerCallHandle {
+	handle := &WrapUnsafeRunnerCallHandle{
+		CallableController: _imptest.NewCallableController[WrapUnsafeRunnerReturnsReturn](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		w.callable(dep)
-		w.ReturnChan <- WrapUnsafeRunnerReturnsReturn{}
+		handle.ReturnChan <- WrapUnsafeRunnerReturnsReturn{}
 	}()
-	return w
+	return handle
 }
 
 // WrapUnsafeRunner wraps a function for testing.
 func WrapUnsafeRunner(t _imptest.TestReporter, fn func(safety.CriticalDependency)) *WrapUnsafeRunnerWrapper {
 	return &WrapUnsafeRunnerWrapper{
-		CallableController: _imptest.NewCallableController[WrapUnsafeRunnerReturnsReturn](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }

@@ -37,7 +37,7 @@ func TestBusinessLogic(t *testing.T) {
 
 	// Start the business logic in a goroutine.
 	// We pass the mock implementation and the input arguments.
-	wrapper.Start(mockSvc.Interface(), 42)
+	call := wrapper.Start(mockSvc.Interface(), 42)
 
 	// 1. Expect call to FetchData and provide response.
 	mockSvc.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("raw data", nil)
@@ -46,7 +46,7 @@ func TestBusinessLogic(t *testing.T) {
 	mockSvc.Process.ExpectCalledWithExactly("raw data").InjectReturnValues("processed data")
 
 	// 3. Verify the final output of the business logic.
-	wrapper.ExpectReturnsEqual("Result: processed data", nil)
+	call.ExpectReturnsEqual("Result: processed data", nil)
 }
 
 // TestBusinessLogicError demonstrates error path validation using matchers.
@@ -60,14 +60,14 @@ func TestBusinessLogicError(t *testing.T) {
 	mockSvc := MockExternalService(t)
 	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
-	wrapper.Start(mockSvc.Interface(), 99)
+	call := wrapper.Start(mockSvc.Interface(), 99)
 
 	// Simulate an error from the service.
 	mockSvc.FetchData.ExpectCalledWithExactly(99).InjectReturnValues("", errNotFound)
 
 	// Requirement: Verify that the business logic returns the error.
 	// We use Satisfies to check if the error is (or wraps) errNotFound.
-	wrapper.ExpectReturnsMatch("", imptest.Satisfies(func(err error) error {
+	call.ExpectReturnsMatch("", imptest.Satisfies(func(err error) error {
 		if !errors.Is(err, errNotFound) {
 			return fmt.Errorf("expected error %w, got %w", errNotFound, err)
 		}

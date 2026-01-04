@@ -128,7 +128,7 @@ Standard issue structure organized by category:
 #### Universal
 
 **Status**
-in progress
+done
 
 **Description**
 Current --target wrappers are built for call observation/mocking (with GetCalls(), call history, parameter tracking) when the actual need is goroutine lifecycle management (run method in goroutine, capture returns/panics, coordinate with imptest controller).
@@ -186,6 +186,14 @@ None - can proceed immediately
 - 2026-01-03 15:40 EST - REFACTOR: Final audit after UAT fixes
 - 2026-01-03 15:45 EST - Complete: Interface/struct wrapper call handle pattern (Step 3 of 5)
 - 2026-01-03 15:46 EST - COMMIT: Step 3 complete - interface/struct call handle pattern
+- 2026-01-04 13:46 EST - Marked done
+
+**Completed**
+2026-01-04
+
+**Commits**
+- Step 1: Function wrapper call handles
+- Step 3: Interface/struct wrapper call handles (3895fea)
 
 ---
 
@@ -325,12 +333,15 @@ backlog
 #### Universal
 
 **Status**
-backlog
+cancelled
 
 **Description**
 impgen generates ExpectCalledWithExactly() methods for function type parameters, but Go cannot compare functions with `==`, causing reflect.DeepEqual to hang. Since we perform code generation based on known types, we should detect function types and skip generating equality methods.
 
 Workaround: Use ExpectCalledWithMatches() with imptest.Any() for function parameters
+
+**Cancellation Reason**
+Not worth the extra complexity right now. Workaround (using imptest.Any()) is sufficient.
 
 #### Planning
 
@@ -407,7 +418,7 @@ TOE-109
 #### Universal
 
 **Status**
-backlog
+done
 
 **Description**
 Audit repository for stale build artifacts (_.out, _.test) and add to .gitignore
@@ -425,6 +436,12 @@ Low
 
 **Linear**
 TOE-110
+
+**Completed**
+2026-01-04
+
+**Solution**
+Already resolved - .gitignore already had `*.test` (line 9) and `*.out` (line 12) patterns. Verified no such files are tracked in git. Local build artifacts (4 .out, 5 .test files) are correctly ignored.
 
 ### 18. Reduce blanket nolint directives in V2 generators (TOE-106)
 

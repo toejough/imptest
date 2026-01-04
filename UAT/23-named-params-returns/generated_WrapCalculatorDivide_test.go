@@ -7,6 +7,90 @@ import (
 	_reflect "reflect"
 )
 
+// WrapCalculatorDivideCallHandle represents a single call to the wrapped function.
+type WrapCalculatorDivideCallHandle struct {
+	*_imptest.CallableController[WrapCalculatorDivideReturnsReturn]
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapCalculatorDivideCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapCalculatorDivideCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the function returned the expected values.
+func (h *WrapCalculatorDivideCallHandle) ExpectReturnsEqual(v0 int, v1 int, v2 error) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		if !_reflect.DeepEqual(h.Returned.Result1, v1) {
+			h.T.Fatalf("expected return value 1 to be %v, got %v", v1, h.Returned.Result1)
+		}
+		if !_reflect.DeepEqual(h.Returned.Result2, v2) {
+			h.T.Fatalf("expected return value 2 to be %v, got %v", v2, h.Returned.Result2)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorDivideCallHandle) ExpectReturnsMatch(v0 any, v1 any, v2 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		ok, msg = _imptest.MatchValue(h.Returned.Result1, v1)
+		if !ok {
+			h.T.Fatalf("return value 1: %s", msg)
+		}
+		ok, msg = _imptest.MatchValue(h.Returned.Result2, v2)
+		if !ok {
+			h.T.Fatalf("return value 2: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
 // WrapCalculatorDivideReturnsReturn holds the return values from the wrapped function.
 type WrapCalculatorDivideReturnsReturn struct {
 	Result0 int
@@ -16,107 +100,31 @@ type WrapCalculatorDivideReturnsReturn struct {
 
 // WrapCalculatorDivideWrapper wraps a function for testing.
 type WrapCalculatorDivideWrapper struct {
-	*_imptest.CallableController[WrapCalculatorDivideReturnsReturn]
+	t        _imptest.TestReporter
 	callable func(int, int) (int, int, error)
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapCalculatorDivideWrapper) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapCalculatorDivideWrapper) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *WrapCalculatorDivideWrapper) ExpectReturnsEqual(v0 int, v1 int, v2 error) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		if !_reflect.DeepEqual(w.Returned.Result0, v0) {
-			w.T.Fatalf("expected return value 0 to be %v, got %v", v0, w.Returned.Result0)
-		}
-		if !_reflect.DeepEqual(w.Returned.Result1, v1) {
-			w.T.Fatalf("expected return value 1 to be %v, got %v", v1, w.Returned.Result1)
-		}
-		if !_reflect.DeepEqual(w.Returned.Result2, v2) {
-			w.T.Fatalf("expected return value 2 to be %v, got %v", v2, w.Returned.Result2)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *WrapCalculatorDivideWrapper) ExpectReturnsMatch(v0 any, v1 any, v2 any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		var ok bool
-		var msg string
-		ok, msg = _imptest.MatchValue(w.Returned.Result0, v0)
-		if !ok {
-			w.T.Fatalf("return value 0: %s", msg)
-		}
-		ok, msg = _imptest.MatchValue(w.Returned.Result1, v1)
-		if !ok {
-			w.T.Fatalf("return value 1: %s", msg)
-		}
-		ok, msg = _imptest.MatchValue(w.Returned.Result2, v2)
-		if !ok {
-			w.T.Fatalf("return value 2: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCalculatorDivideWrapper) Start(dividend int, divisor int) *WrapCalculatorDivideWrapper {
+func (w *WrapCalculatorDivideWrapper) Start(dividend int, divisor int) *WrapCalculatorDivideCallHandle {
+	handle := &WrapCalculatorDivideCallHandle{
+		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		ret0, ret1, ret2 := w.callable(dividend, divisor)
-		w.ReturnChan <- WrapCalculatorDivideReturnsReturn{Result0: ret0, Result1: ret1, Result2: ret2}
+		handle.ReturnChan <- WrapCalculatorDivideReturnsReturn{Result0: ret0, Result1: ret1, Result2: ret2}
 	}()
-	return w
+	return handle
 }
 
 // WrapCalculatorDivide wraps a function for testing.
 func WrapCalculatorDivide(t _imptest.TestReporter, fn func(int, int) (int, int, error)) *WrapCalculatorDivideWrapper {
 	return &WrapCalculatorDivideWrapper{
-		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }

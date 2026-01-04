@@ -7,76 +7,84 @@ import (
 	http "net/http"
 )
 
+// WrapHandlerFuncCallHandle represents a single call to the wrapped function.
+type WrapHandlerFuncCallHandle struct {
+	*_imptest.CallableController[WrapHandlerFuncReturnsReturn]
+}
+
+// ExpectCompletes verifies the function completes without panicking.
+func (h *WrapHandlerFuncCallHandle) ExpectCompletes() {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		h.T.Fatalf("expected function to complete, but it panicked with: %v", h.Panicked)
+	}
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapHandlerFuncCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapHandlerFuncCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
 // WrapHandlerFuncReturnsReturn holds the return values from the wrapped function.
 type WrapHandlerFuncReturnsReturn struct {
 }
 
 // WrapHandlerFuncWrapper wraps a function for testing.
 type WrapHandlerFuncWrapper struct {
-	*_imptest.CallableController[WrapHandlerFuncReturnsReturn]
+	t        _imptest.TestReporter
 	callable func(http.ResponseWriter, *http.Request)
 }
 
-// ExpectCompletes verifies the function completes without panicking.
-func (w *WrapHandlerFuncWrapper) ExpectCompletes() {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		w.T.Fatalf("expected function to complete, but it panicked with: %v", w.Panicked)
-	}
-}
-
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapHandlerFuncWrapper) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapHandlerFuncWrapper) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapHandlerFuncWrapper) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncWrapper {
+func (w *WrapHandlerFuncWrapper) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncCallHandle {
+	handle := &WrapHandlerFuncCallHandle{
+		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		w.callable(arg1, arg2)
-		w.ReturnChan <- WrapHandlerFuncReturnsReturn{}
+		handle.ReturnChan <- WrapHandlerFuncReturnsReturn{}
 	}()
-	return w
+	return handle
 }
 
 // WrapHandlerFunc wraps a function for testing.
 func WrapHandlerFunc(t _imptest.TestReporter, fn func(http.ResponseWriter, *http.Request)) *WrapHandlerFuncWrapper {
 	return &WrapHandlerFuncWrapper{
-		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }

@@ -7,6 +7,76 @@ import (
 	_reflect "reflect"
 )
 
+// WrapMapCallHandle represents a single call to the wrapped function.
+type WrapMapCallHandle struct {
+	*_imptest.CallableController[WrapMapReturnsReturn]
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapMapCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapMapCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the function returned the expected values.
+func (h *WrapMapCallHandle) ExpectReturnsEqual(v0 []int) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapMapCallHandle) ExpectReturnsMatch(v0 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
 // WrapMapReturnsReturn holds the return values from the wrapped function.
 type WrapMapReturnsReturn struct {
 	Result0 []int
@@ -14,93 +84,31 @@ type WrapMapReturnsReturn struct {
 
 // WrapMapWrapper wraps a function for testing.
 type WrapMapWrapper struct {
-	*_imptest.CallableController[WrapMapReturnsReturn]
+	t        _imptest.TestReporter
 	callable func([]int, func(int) int) []int
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapMapWrapper) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapMapWrapper) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *WrapMapWrapper) ExpectReturnsEqual(v0 []int) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		if !_reflect.DeepEqual(w.Returned.Result0, v0) {
-			w.T.Fatalf("expected return value 0 to be %v, got %v", v0, w.Returned.Result0)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *WrapMapWrapper) ExpectReturnsMatch(v0 any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		var ok bool
-		var msg string
-		ok, msg = _imptest.MatchValue(w.Returned.Result0, v0)
-		if !ok {
-			w.T.Fatalf("return value 0: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapMapWrapper) Start(items []int, transform func(int) int) *WrapMapWrapper {
+func (w *WrapMapWrapper) Start(items []int, transform func(int) int) *WrapMapCallHandle {
+	handle := &WrapMapCallHandle{
+		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		ret0 := w.callable(items, transform)
-		w.ReturnChan <- WrapMapReturnsReturn{Result0: ret0}
+		handle.ReturnChan <- WrapMapReturnsReturn{Result0: ret0}
 	}()
-	return w
+	return handle
 }
 
 // WrapMap wraps a function for testing.
 func WrapMap(t _imptest.TestReporter, fn func([]int, func(int) int) []int) *WrapMapWrapper {
 	return &WrapMapWrapper{
-		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }

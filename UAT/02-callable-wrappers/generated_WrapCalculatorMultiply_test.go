@@ -7,6 +7,76 @@ import (
 	_reflect "reflect"
 )
 
+// WrapCalculatorMultiplyCallHandle represents a single call to the wrapped function.
+type WrapCalculatorMultiplyCallHandle struct {
+	*_imptest.CallableController[WrapCalculatorMultiplyReturnsReturn]
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the function returned the expected values.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectReturnsEqual(v0 int) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectReturnsMatch(v0 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
 // WrapCalculatorMultiplyReturnsReturn holds the return values from the wrapped function.
 type WrapCalculatorMultiplyReturnsReturn struct {
 	Result0 int
@@ -14,93 +84,31 @@ type WrapCalculatorMultiplyReturnsReturn struct {
 
 // WrapCalculatorMultiplyWrapper wraps a function for testing.
 type WrapCalculatorMultiplyWrapper struct {
-	*_imptest.CallableController[WrapCalculatorMultiplyReturnsReturn]
+	t        _imptest.TestReporter
 	callable func(int) int
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapCalculatorMultiplyWrapper) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapCalculatorMultiplyWrapper) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *WrapCalculatorMultiplyWrapper) ExpectReturnsEqual(v0 int) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		if !_reflect.DeepEqual(w.Returned.Result0, v0) {
-			w.T.Fatalf("expected return value 0 to be %v, got %v", v0, w.Returned.Result0)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *WrapCalculatorMultiplyWrapper) ExpectReturnsMatch(v0 any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		var ok bool
-		var msg string
-		ok, msg = _imptest.MatchValue(w.Returned.Result0, v0)
-		if !ok {
-			w.T.Fatalf("return value 0: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCalculatorMultiplyWrapper) Start(value int) *WrapCalculatorMultiplyWrapper {
+func (w *WrapCalculatorMultiplyWrapper) Start(value int) *WrapCalculatorMultiplyCallHandle {
+	handle := &WrapCalculatorMultiplyCallHandle{
+		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		ret0 := w.callable(value)
-		w.ReturnChan <- WrapCalculatorMultiplyReturnsReturn{Result0: ret0}
+		handle.ReturnChan <- WrapCalculatorMultiplyReturnsReturn{Result0: ret0}
 	}()
-	return w
+	return handle
 }
 
 // WrapCalculatorMultiply wraps a function for testing.
 func WrapCalculatorMultiply(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorMultiplyWrapper {
 	return &WrapCalculatorMultiplyWrapper{
-		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }

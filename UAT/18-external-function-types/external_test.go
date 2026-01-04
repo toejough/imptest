@@ -32,9 +32,6 @@ func TestHttpHandlerFunc(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 
-	// Start the handler in a goroutine
-	wrapper.Start(recorder, req)
-
-	// Verify no panic and no return value (HandlerFunc returns nothing)
-	wrapper.ExpectCompletes()
+	// Start the handler in a goroutine and verify completion
+	wrapper.Start(recorder, req).ExpectCompletes()
 }

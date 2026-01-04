@@ -50,14 +50,14 @@ func TestFunctionWithNamedParams(t *testing.T) {
 	wrapper := WrapProcessUser(t, named.ProcessUser)
 
 	// Start the wrapped function
-	wrapper.Start(ctx, 456, mockRepo.Interface())
+	call := wrapper.Start(ctx, 456, mockRepo.Interface())
 
 	// Handle the repository call
 	mockRepo.GetUser.ExpectCalledWithExactly(ctx, 456).
 		InjectReturnValues(named.User{ID: 456, Name: "Bob"}, nil)
 
 	// Verify the wrapper received correct return values
-	wrapper.ExpectReturnsEqual(named.User{ID: 456, Name: "Bob"}, nil)
+	call.ExpectReturnsEqual(named.User{ID: 456, Name: "Bob"}, nil)
 }
 
 // TestMultipleMethods demonstrates that mocks handle multiple methods

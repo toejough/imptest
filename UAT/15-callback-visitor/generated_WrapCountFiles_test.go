@@ -8,6 +8,83 @@ import (
 	_reflect "reflect"
 )
 
+// WrapCountFilesCallHandle represents a single call to the wrapped function.
+type WrapCountFilesCallHandle struct {
+	*_imptest.CallableController[WrapCountFilesReturnsReturn]
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapCountFilesCallHandle) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapCountFilesCallHandle) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the function returned the expected values.
+func (h *WrapCountFilesCallHandle) ExpectReturnsEqual(v0 int, v1 error) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		if !_reflect.DeepEqual(h.Returned.Result1, v1) {
+			h.T.Fatalf("expected return value 1 to be %v, got %v", v1, h.Returned.Result1)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapCountFilesCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		ok, msg = _imptest.MatchValue(h.Returned.Result1, v1)
+		if !ok {
+			h.T.Fatalf("return value 1: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
 // WrapCountFilesReturnsReturn holds the return values from the wrapped function.
 type WrapCountFilesReturnsReturn struct {
 	Result0 int
@@ -16,100 +93,31 @@ type WrapCountFilesReturnsReturn struct {
 
 // WrapCountFilesWrapper wraps a function for testing.
 type WrapCountFilesWrapper struct {
-	*_imptest.CallableController[WrapCountFilesReturnsReturn]
+	t        _imptest.TestReporter
 	callable func(visitor.TreeWalker, string) (int, error)
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapCountFilesWrapper) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapCountFilesWrapper) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *WrapCountFilesWrapper) ExpectReturnsEqual(v0 int, v1 error) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		if !_reflect.DeepEqual(w.Returned.Result0, v0) {
-			w.T.Fatalf("expected return value 0 to be %v, got %v", v0, w.Returned.Result0)
-		}
-		if !_reflect.DeepEqual(w.Returned.Result1, v1) {
-			w.T.Fatalf("expected return value 1 to be %v, got %v", v1, w.Returned.Result1)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *WrapCountFilesWrapper) ExpectReturnsMatch(v0 any, v1 any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		var ok bool
-		var msg string
-		ok, msg = _imptest.MatchValue(w.Returned.Result0, v0)
-		if !ok {
-			w.T.Fatalf("return value 0: %s", msg)
-		}
-		ok, msg = _imptest.MatchValue(w.Returned.Result1, v1)
-		if !ok {
-			w.T.Fatalf("return value 1: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCountFilesWrapper) Start(walker visitor.TreeWalker, root string) *WrapCountFilesWrapper {
+func (w *WrapCountFilesWrapper) Start(walker visitor.TreeWalker, root string) *WrapCountFilesCallHandle {
+	handle := &WrapCountFilesCallHandle{
+		CallableController: _imptest.NewCallableController[WrapCountFilesReturnsReturn](w.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
 		ret0, ret1 := w.callable(walker, root)
-		w.ReturnChan <- WrapCountFilesReturnsReturn{Result0: ret0, Result1: ret1}
+		handle.ReturnChan <- WrapCountFilesReturnsReturn{Result0: ret0, Result1: ret1}
 	}()
-	return w
+	return handle
 }
 
 // WrapCountFiles wraps a function for testing.
 func WrapCountFiles(t _imptest.TestReporter, fn func(visitor.TreeWalker, string) (int, error)) *WrapCountFilesWrapper {
 	return &WrapCountFilesWrapper{
-		CallableController: _imptest.NewCallableController[WrapCountFilesReturnsReturn](t),
-		callable:           fn,
+		t:        t,
+		callable: fn,
 	}
 }
