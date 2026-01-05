@@ -120,8 +120,132 @@ Standard issue structure organized by category:
 
 ## Backlog
 
+### 43. Add UAT for function as dependency (mock a function by signature)
 
+#### Universal
 
+**Status**
+backlog
+
+**Description**
+Enable mocking a package-level function by extracting its signature and generating a mock for that function type. For example, `impgen mypackage.ProcessOrder --dependency` should generate `MockProcessOrder` with the same signature.
+
+#### Planning
+
+**Rationale**
+Taxonomy Layer 2 shows "Function as Mock" as a gap. Users may want to mock a function without first defining a named function type. The implementation should extract the function's signature and treat it as an implicit function type.
+
+**Acceptance**
+- UAT demonstrates `impgen pkg.SomeFunction --dependency` generating a mock
+- Generated mock has same signature as original function
+- Mock can be used to verify calls and inject return values
+
+**Effort**
+Medium
+
+**Priority**
+Medium
+
+**Taxonomy Gap**
+Capability Matrix - "Function" row, "As Dependency" column
+
+---
+
+### 44. Add UAT for struct as dependency (mock a struct's methods)
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+Enable mocking a struct type by generating a mock that implements all its methods, similar to how interfaces are mocked. For example, `impgen mypackage.Calculator --dependency` should generate `MockCalculator` with mock versions of all Calculator's methods.
+
+#### Planning
+
+**Rationale**
+Taxonomy Layer 2 shows "Struct (whole) as Mock" as a gap. In Go, you can't inject a struct like an interface, but you can extract its methods and create an interface-like mock. This enables testing code that depends on struct method behavior.
+
+**Acceptance**
+- UAT demonstrates `impgen pkg.SomeStruct --dependency` generating a mock
+- Generated mock has all methods from the original struct
+- Each method can be expected/verified like interface mocks
+
+**Effort**
+Medium
+
+**Priority**
+Medium
+
+**Taxonomy Gap**
+Capability Matrix - "Struct (whole)" row, "As Dependency" column
+
+---
+
+### 45. Add UAT for struct method as dependency (mock single method by signature)
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+Enable mocking a single struct method by extracting its signature and generating a mock for that function type. For example, `impgen mypackage.Calculator.Add --dependency` should generate `MockCalculatorAdd` with the method's signature.
+
+#### Planning
+
+**Rationale**
+Taxonomy Layer 2 shows "Struct method as Mock" as a gap. This is similar to mocking a function - we extract the method's signature and treat it as a function type. Useful when you only need to mock one method from a struct.
+
+**Acceptance**
+- UAT demonstrates `impgen pkg.Struct.Method --dependency` generating a mock
+- Generated mock has same signature as the method (minus receiver)
+- Mock can be used to verify calls and inject return values
+
+**Effort**
+Small
+
+**Priority**
+Medium
+
+**Taxonomy Gap**
+Capability Matrix - "Struct method" row, "As Dependency" column
+
+**Note**
+Implementation is essentially the same as #43 (function as dependency) - extract signature, mock as function type. The difference is just where the signature comes from (method vs package-level function).
+
+---
+
+### 46. Add UAT for embedded structs
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+Verify wrapping/mocking structs that embed other structs. Similar to how UAT-08 tests embedded interfaces, we need to verify that struct embedding is handled correctly - the embedded struct's methods should be accessible on the outer struct.
+
+#### Planning
+
+**Rationale**
+UAT-08 covers embedded interfaces but there's no equivalent for embedded structs. For consistency and completeness, we should test both embedding patterns.
+
+**Acceptance**
+- UAT demonstrates struct with embedded struct
+- Wrapper/mock correctly handles methods from both outer and embedded struct
+- Promoted methods accessible without qualification
+
+**Effort**
+Small
+
+**Priority**
+Low
+
+**Taxonomy Gap**
+behavior-variations - embedded-structs (parallel to embedded-interfaces)
+
+---
 
 ### 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
 
@@ -260,6 +384,44 @@ TOE-80
 ## Done
 
 Completed issues.
+
+### 47. Restructure TAXONOMY.md around three-layer mental model
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Restructure TAXONOMY.md to lead with "what are you trying to do" (testing patterns) rather than "what does imptest support" (types). This aligns documentation with how users think and makes navigation clearer.
+
+#### Work Tracking
+
+**Started**
+2026-01-04 20:49 EST
+
+**Completed**
+2026-01-04 20:53 EST
+
+**Timeline**
+- 2026-01-04 20:49 EST - Started: Beginning docs-first restructure of TAXONOMY.md
+- 2026-01-04 20:53 EST - Complete: Restructured TAXONOMY.md with three-layer model
+
+#### Documentation
+
+**Solution**
+Restructured TAXONOMY.md following the three-layer mental model from REORGANIZATION_PROPOSAL.md:
+- Layer 1: Testing Pattern (wrapper vs mock) as primary organization
+- Layer 2: Symbol Type (function, method, struct, interface, functype)
+- Layer 3: Variations (package, signature, behavior, concurrency)
+
+Key changes:
+- Added Quick Start with decision tree
+- Reorganized around Testing Patterns (not type capabilities)
+- Updated all examples to current call handle API (Issue #42)
+- Reorganized UAT index by pattern, symbol type, and variation
+
+---
 
 ### 1. remove the deprecation messages and any hint of V1/V2
 
