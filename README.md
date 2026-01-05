@@ -1,5 +1,9 @@
 # imptest
 
+<p align="center">
+  <img src="docs/imptest-imp.png" alt="imptest logo - a purple Go gopher imp" width="200">
+</p>
+
 **Zero manual mocking. Full control.**
 
 ## What is imptest?
