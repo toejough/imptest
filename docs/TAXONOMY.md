@@ -1,10 +1,12 @@
 # imptest Documentation
 
-<!-- Last reviewed: 2026-01-04 | Review triggers: new UAT added, major feature change -->
+<!-- Last reviewed: 2026-01-05 | Review triggers: new UAT added, major feature change -->
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+  - [Mental Model](#mental-model)
+  - [Decision Tree](#decision-tree-what-should-i-do)
 - [Testing Patterns](#testing-patterns)
   - [Wrapper Pattern (--target)](#wrapper-pattern---target)
   - [Mock Pattern (--dependency)](#mock-pattern---dependency)
@@ -18,6 +20,19 @@
 ---
 
 ## Quick Start
+
+### Mental Model
+
+imptest has two conceptual layers:
+
+| Layer | Question | Options |
+|-------|----------|---------|
+| **Core** | What do you want to do? | Wrapper (test your code) or Mock (control dependencies) |
+| **Variations** | Any special cases? | Package, signature, behavior, concurrency |
+
+**Core = Pattern + Symbol**: You always pick a testing pattern AND a symbol type together. "I want to wrap this function" or "I want to mock this interface."
+
+**Variations are additive**: Once you know your core case works, variations handle edge cases like generics, stdlib packages, or concurrent calls.
 
 ### Decision Tree: What Should I Do?
 
