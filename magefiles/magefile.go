@@ -40,6 +40,7 @@ type RedundancyConfig struct {
 	BaselineTests     []BaselineTestSpec // Tests that form the baseline coverage
 	CoverageThreshold float64            // Percentage threshold (e.g., 80.0 for 80%)
 	PackageToAnalyze  string             // Package containing tests to analyze (e.g., "./impgen/run")
+	CoveragePackages  string             // Packages to measure coverage for (e.g., "./impgen/...,./imptest/...")
 }
 
 // Build builds the local impgen binary.
@@ -306,10 +307,13 @@ func FindRedundantTests(c context.Context) error {
 	config := RedundancyConfig{
 		BaselineTests: []BaselineTestSpec{
 			{Package: "./impgen/run", TestPattern: "TestUATConsistency"},
-			{Package: "./UAT/...", TestPattern: ""},
+			{Package: "./UAT/core/...", TestPattern: ""},
+			{Package: "./UAT/variations/...", TestPattern: ""},
 		},
 		CoverageThreshold: 80.0,
 		PackageToAnalyze:  "./...",
+		// Only measure coverage of impgen and imptest packages, not test fixtures
+		CoveragePackages: "./impgen/...,./imptest/...",
 	}
 	return FindRedundantTestsWithConfig(c, config)
 }
@@ -320,9 +324,16 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	fmt.Println("Finding redundant tests...")
 	fmt.Println()
 
+	// Default to ./... if not specified
+	coverpkg := config.CoveragePackages
+	if coverpkg == "" {
+		coverpkg = "./..."
+	}
+
 	// Step 1-N: Run baseline tests and merge coverage
 	var coverageFiles []string
-	baselineTestNames := make(map[string]bool) // Track baseline test names to exclude later
+	// Track baseline tests with package-qualified names to avoid collisions across packages
+	baselineTests := make(map[string]bool) // key: "pkg:TestName"
 
 	for i, spec := range config.BaselineTests {
 		stepNum := i + 1
@@ -331,27 +342,34 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 
 		if spec.TestPattern != "" {
 			fmt.Printf("Step %d: Running baseline test %s in %s...\n", stepNum, spec.TestPattern, spec.Package)
-			err := runQuiet(c, "go", "test", "-coverprofile="+coverageFile, "-coverpkg=./...",
+			err := runQuietCoverage(c, "go", "test", "-coverprofile="+coverageFile, "-coverpkg="+coverpkg,
 				"-run", spec.TestPattern, spec.Package)
 			if err != nil {
 				return fmt.Errorf("baseline test %s failed: %w", spec.TestPattern, err)
 			}
-			baselineTestNames[spec.TestPattern] = true
+
+			// Resolve package path to full module path for consistent matching
+			fullPkg, err := output(c, "go", "list", spec.Package)
+			if err != nil {
+				return fmt.Errorf("failed to resolve package %s: %w", spec.Package, err)
+			}
+
+			baselineTests[strings.TrimSpace(fullPkg)+":"+spec.TestPattern] = true
 		} else {
-			fmt.Printf("Step %d: Running all tests in %s...\n", stepNum, spec.Package)
-			err := runQuiet(c, "go", "test", "-coverprofile="+coverageFile, "-coverpkg=./...", spec.Package)
+			fmt.Printf("Step %d: Running all tests in %s ...\n", stepNum, spec.Package)
+			err := runQuietCoverage(c, "go", "test", "-coverprofile="+coverageFile, "-coverpkg="+coverpkg, spec.Package)
 			if err != nil {
 				return fmt.Errorf("baseline tests in %s failed: %w", spec.Package, err)
 			}
 
-			// List and record all test functions in this package
-			pkgTests, err := listTestFunctions(c, spec.Package)
+			// List and record all test functions with their packages
+			pkgTests, err := listTestFunctionsWithPackages(c, spec.Package)
 			if err != nil {
 				// Non-fatal: we'll just skip tracking these test names
 				fmt.Printf("  Warning: couldn't list tests in %s: %v\n", spec.Package, err)
 			} else {
-				for _, testName := range pkgTests {
-					baselineTestNames[testName] = true
+				for _, t := range pkgTests {
+					baselineTests[t.qualifiedName()] = true
 				}
 			}
 		}
@@ -405,141 +423,290 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	// List all test functions, excluding baseline tests
 	listStep := analysisStep + 1
 	fmt.Printf("Step %d: Listing unit tests...\n", listStep)
-	allTestFuncs, err := listTestFunctions(c, config.PackageToAnalyze)
+	allTestsWithPkgs, err := listTestFunctionsWithPackages(c, config.PackageToAnalyze)
 	if err != nil {
 		return fmt.Errorf("failed to list tests: %w", err)
 	}
 
-	// Filter out baseline tests
-	var testFuncs []string
-	for _, testName := range allTestFuncs {
-		if !baselineTestNames[testName] {
-			testFuncs = append(testFuncs, testName)
+	// Filter out baseline tests using package-qualified names
+	var testFuncs []testInfo
+	for _, t := range allTestsWithPkgs {
+		if !baselineTests[t.qualifiedName()] {
+			testFuncs = append(testFuncs, t)
 		}
 	}
 	fmt.Printf("  Found %d unit tests (%d total, %d baseline excluded)\n\n",
-		len(testFuncs), len(allTestFuncs), len(allTestFuncs)-len(testFuncs))
+		len(testFuncs), len(allTestsWithPkgs), len(allTestsWithPkgs)-len(testFuncs))
 
-	// Get coverage with ALL unit tests (baseline + unit tests)
-	allWithUnitStep := listStep + 1
-	fmt.Printf("Step %d: Getting coverage with all unit tests...\n", allWithUnitStep)
-	allTestsOut := "all_with_unit_tests.out"
-	allTestsOutRaw := "all_with_unit_tests_raw.out"
-	err = runQuiet(c, "go", "test", "-coverprofile="+allTestsOutRaw, "-coverpkg=./...", config.PackageToAnalyze)
-	if err != nil {
-		return fmt.Errorf("failed to run all unit tests: %w", err)
-	}
-
-	// Filter .qtpl files from coverage
-	err = filterQtplFromCoverage(allTestsOutRaw, allTestsOut)
-	if err != nil {
-		return fmt.Errorf("failed to filter coverage: %w", err)
-	}
-	os.Remove(allTestsOutRaw)
-
-	allWithUnitFuncs, err := getFunctionsAboveThreshold(allTestsOut, config.CoverageThreshold)
-	if err != nil {
-		return fmt.Errorf("failed to get all-tests coverage: %w", err)
-	}
-	fmt.Printf("  All tests (baseline + unit) cover %d functions at %.0f%%+\n",
-		len(allWithUnitFuncs), config.CoverageThreshold)
-
-	// Check each test for unique coverage by excluding it
-	checkStep := allWithUnitStep + 1
-	fmt.Printf("Step %d: Analyzing each test by exclusion...\n", checkStep)
+	// Sophisticated analysis with iterative greedy removal:
+	// Run each test once, then iteratively remove redundant tests one at a time,
+	// re-computing coverage after each removal. This correctly handles cumulative
+	// contributions (e.g., TestB and TestC each contribute 3% - removing both would
+	// drop coverage, but removing either alone wouldn't).
+	//
+	// Algorithm:
+	// 1. Run each non-baseline test individually, save its coverage file
+	// 2. Iteratively try to remove tests:
+	//    - For each remaining test, check if removing it drops coverage
+	//    - If not, mark as redundant and remove from consideration
+	//    - Repeat until no more tests can be removed
+	// 3. Remaining tests are required; removed tests are redundant
+	checkStep := listStep + 1
+	fmt.Printf("Step %d: Running each test individually to collect coverage...\n", checkStep)
 
 	type testResult struct {
 		name         string
+		pkg          string
 		uniqueCount  int
 		uniqueFuncs  []string
 		coveredFuncs []string
 	}
 
-	var redundantTests []testResult
-	var uniqueTests []testResult
+	// Map from test qualified name to its coverage file
+	testCoverageFiles := make(map[string]string)
+	var testOrder []testInfo // preserve order for consistent output
 
-	for _, testName := range testFuncs {
-		fmt.Printf("  Checking %s... ", testName)
-
-		// Build regex that matches all tests except this one
-		var otherTests []string
-		for _, t := range testFuncs {
-			if t != testName {
-				otherTests = append(otherTests, t)
-			}
+	for _, test := range testFuncs {
+		displayName := test.name
+		if mg.Verbose() {
+			displayName = test.qualifiedName()
 		}
+		fmt.Printf("  Running %s... ", displayName)
 
-		// Run all tests EXCEPT this one
-		testOut := fmt.Sprintf("test_without_%s.out", testName)
-		var testErr error
-		if len(otherTests) == 0 {
-			// If this is the only test, compare against baseline
-			testErr = runQuiet(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
-				"-run", "^$", config.PackageToAnalyze) // Match nothing
-		} else {
-			// Build pattern like "^(TestA|TestB|TestC)$"
-			pattern := "^(" + strings.Join(otherTests, "|") + ")$"
-			testErr = runQuiet(c, "go", "test", "-coverprofile="+testOut, "-coverpkg=./...",
-				"-run", pattern, config.PackageToAnalyze)
-		}
+		// Run just this one test in its package
+		coverFile := fmt.Sprintf("cov_%s_%s.out", sanitize(filepath.Base(test.pkg)), test.name)
+		coverFileRaw := coverFile + ".raw"
+		testErr := runQuietCoverage(c, "go", "test", "-coverprofile="+coverFileRaw, "-coverpkg="+coverpkg,
+			"-run", "^"+test.name+"$", test.pkg)
 
 		if testErr != nil {
-			fmt.Printf("FAILED (test error)\n")
+			fmt.Printf("FAILED\n")
+
 			continue
 		}
 
 		// Filter .qtpl files from coverage
-		testOutFiltered := testOut + ".filtered"
-		err := filterQtplFromCoverage(testOut, testOutFiltered)
+		err := filterQtplFromCoverage(coverFileRaw, coverFile)
 		if err != nil {
-			fmt.Printf("FAILED (filter error)\n")
-			os.Remove(testOut)
-			continue
-		}
-		os.Remove(testOut)
-		os.Rename(testOutFiltered, testOut)
+			fmt.Printf("FAILED (filter)\n")
+			os.Remove(coverFileRaw)
 
-		// Get functions covered without this test
-		withoutTestFuncs, err := getFunctionsAboveThreshold(testOut, config.CoverageThreshold)
-		if err != nil {
-			fmt.Printf("FAILED (coverage error)\n")
 			continue
 		}
 
-		// Find functions that dropped below threshold when we excluded this test
-		var uniqueFuncs []string
-		for fn := range allWithUnitFuncs {
-			if !withoutTestFuncs[fn] {
-				// This function was at 80%+ with all tests, but below 80% without this test
-				uniqueFuncs = append(uniqueFuncs, fn)
+		os.Remove(coverFileRaw)
+
+		testCoverageFiles[test.qualifiedName()] = coverFile
+		testOrder = append(testOrder, test)
+		fmt.Printf("OK\n")
+	}
+
+	// Compute initial total coverage (baseline + all tests)
+	analyzeStep := checkStep + 1
+	fmt.Printf("Step %d: Computing total coverage with all tests...\n", analyzeStep)
+
+	// Build initial set of coverage files
+	currentCoverageFiles := make([]string, 0, 1+len(testCoverageFiles))
+	currentCoverageFiles = append(currentCoverageFiles, baselineFile)
+
+	for _, f := range testCoverageFiles {
+		currentCoverageFiles = append(currentCoverageFiles, f)
+	}
+
+	totalCoverageFile := "total_coverage.out"
+
+	err = mergeMultipleCoverageFiles(currentCoverageFiles, totalCoverageFile)
+	if err != nil {
+		return fmt.Errorf("failed to merge total coverage: %w", err)
+	}
+
+	totalFuncs, err := getFunctionsAboveThreshold(totalCoverageFile, config.CoverageThreshold)
+	if err != nil {
+		return fmt.Errorf("failed to analyze total coverage: %w", err)
+	}
+
+	fmt.Printf("  Total coverage: %d functions at %.0f%%+\n", len(totalFuncs), config.CoverageThreshold)
+	os.Remove(totalCoverageFile)
+
+	// Calculate unique line coverage per test to prioritize removal order.
+	// Tests covering fewer unique lines are more likely to be redundant.
+	sortStep := analyzeStep + 1
+	fmt.Printf("Step %d: Sorting tests by unique line coverage...\n", sortStep)
+
+	// Build map of line -> tests that cover it
+	type fileLine struct {
+		file string
+		line int
+	}
+	lineCoverage := make(map[fileLine][]string) // line -> list of test qualified names
+
+	for _, test := range testOrder {
+		coverFile := testCoverageFiles[test.qualifiedName()]
+
+		lines, err := getCoveredLines(coverFile)
+		if err != nil {
+			continue // Skip tests we can't analyze
+		}
+
+		for _, line := range lines {
+			fl := fileLine{file: line.file, line: line.line}
+			lineCoverage[fl] = append(lineCoverage[fl], test.qualifiedName())
+		}
+	}
+
+	// Count uniquely covered lines per test (lines covered by ONLY that test)
+	uniqueLineCount := make(map[string]int)
+	for _, tests := range lineCoverage {
+		if len(tests) == 1 {
+			uniqueLineCount[tests[0]]++
+		}
+	}
+
+	// Sort tests by unique line count (ascending - fewest unique lines first)
+	sortedTests := make([]testInfo, len(testOrder))
+	copy(sortedTests, testOrder)
+	sort.Slice(sortedTests, func(i, j int) bool {
+		return uniqueLineCount[sortedTests[i].qualifiedName()] < uniqueLineCount[sortedTests[j].qualifiedName()]
+	})
+
+	// Report sorting results
+	zeroUnique := 0
+	for _, test := range sortedTests {
+		if uniqueLineCount[test.qualifiedName()] == 0 {
+			zeroUnique++
+		}
+	}
+	fmt.Printf("  %d tests have 0 unique lines (prime redundancy candidates)\n", zeroUnique)
+
+	if mg.Verbose() {
+		fmt.Printf("  Tests sorted by unique lines:\n")
+		for _, test := range sortedTests {
+			fmt.Printf("    %s: %d unique lines\n", test.name, uniqueLineCount[test.qualifiedName()])
+		}
+	}
+
+	// Iterative greedy removal: try to remove each test, starting from those with
+	// fewest unique lines. Re-evaluate after each removal since dropping one test
+	// may make others non-redundant.
+	iterativeStep := sortStep + 1
+	fmt.Printf("Step %d: Iteratively identifying redundant tests...\n", iterativeStep)
+	fmt.Printf("  %-80s %6s   %s\n", "TEST", "UNIQUE", "DECISION")
+	fmt.Printf("  %-80s %6s   %s\n", strings.Repeat("-", 80), "------", "--------")
+
+	var redundantTests []testResult
+
+	// Start with sorted tests as candidates for removal
+	remainingTests := sortedTests
+
+	printedAsKeep := make(map[string]bool) // Track tests already printed as KEEP
+
+	for {
+		foundRedundant := false
+
+		for i, test := range remainingTests {
+			qName := test.qualifiedName()
+			uniqueLines := uniqueLineCount[qName]
+
+			// Skip evaluation if already marked as KEEP in previous iteration
+			// Once a test is KEEP, removing other tests can only make it MORE necessary
+			if printedAsKeep[qName] {
+				continue
 			}
-		}
-		sort.Strings(uniqueFuncs)
 
-		result := testResult{
-			name:        testName,
-			uniqueCount: len(uniqueFuncs),
-			uniqueFuncs: uniqueFuncs,
-		}
+			fmt.Printf("  %-80s %6d   ", qName, uniqueLines)
 
-		if len(uniqueFuncs) > 0 {
-			fmt.Printf("KEEP (%d unique)\n", len(uniqueFuncs))
-			uniqueTests = append(uniqueTests, result)
-		} else {
-			fmt.Printf("REDUNDANT (0 unique)\n")
-			redundantTests = append(redundantTests, result)
-		}
+			// Build list of coverage files WITHOUT this test
+			filesWithout := make([]string, 0, len(remainingTests))
+			filesWithout = append(filesWithout, baselineFile)
+			testFile := testCoverageFiles[test.qualifiedName()]
 
-		// Show function details in verbose mode
-		if mg.Verbose() && len(uniqueFuncs) > 0 {
-			fmt.Printf("    Functions that would drop below %.0f%% if removed:\n", config.CoverageThreshold)
-			for _, fn := range uniqueFuncs {
-				fmt.Printf("      - %s\n", fn)
+			for _, t := range remainingTests {
+				f := testCoverageFiles[t.qualifiedName()]
+				if f != testFile {
+					filesWithout = append(filesWithout, f)
+				}
 			}
+
+			// Merge coverage without this test
+			withoutFile := "without_test.out"
+
+			err := mergeMultipleCoverageFiles(filesWithout, withoutFile)
+			if err != nil {
+				fmt.Printf("FAILED (merge)\n")
+
+				continue
+			}
+
+			withoutFuncs, err := getFunctionsAboveThreshold(withoutFile, config.CoverageThreshold)
+			if err != nil {
+				fmt.Printf("FAILED (analyze)\n")
+				os.Remove(withoutFile)
+
+				continue
+			}
+
+			os.Remove(withoutFile)
+
+			// Check if any function dropped below threshold
+			var droppedFuncs []string
+
+			for fn := range totalFuncs {
+				if !withoutFuncs[fn] {
+					droppedFuncs = append(droppedFuncs, fn)
+				}
+			}
+
+			if len(droppedFuncs) > 0 {
+				fmt.Printf("KEEP (%d funcs drop)\n", len(droppedFuncs))
+				printedAsKeep[qName] = true // Mark as KEEP to skip in future iterations
+
+				if mg.Verbose() {
+					sort.Strings(droppedFuncs)
+					fmt.Printf("      Functions that would drop below %.0f%%:\n", config.CoverageThreshold)
+
+					for _, fn := range droppedFuncs {
+						fmt.Printf("        - %s\n", fn)
+					}
+				}
+
+				continue // Check next test - this one is needed
+			}
+
+			// Test is redundant - removing it doesn't drop any function below threshold
+			fmt.Printf("REDUNDANT\n")
+			redundantTests = append(redundantTests, testResult{
+				name:        test.name,
+				pkg:         test.pkg,
+				uniqueCount: uniqueLines,
+			})
+
+			// Remove this test from remaining tests
+			remainingTests = append(remainingTests[:i], remainingTests[i+1:]...)
+			foundRedundant = true
+
+			break // restart the loop with updated set
 		}
 
-		// Clean up test coverage file
-		os.Remove(testOut)
+		if !foundRedundant {
+			// No more redundant tests found - we're done
+			break
+		}
+	}
+
+	// Build uniqueTests from remaining tests
+	var uniqueTests []testResult
+
+	for _, test := range remainingTests {
+		uniqueTests = append(uniqueTests, testResult{
+			name:        test.name,
+			pkg:         test.pkg,
+			uniqueCount: uniqueLineCount[test.qualifiedName()],
+		})
+	}
+
+	// Clean up individual coverage files
+	for _, f := range testCoverageFiles {
+		os.Remove(f)
 	}
 
 	// Report results
@@ -547,49 +714,32 @@ func FindRedundantTestsWithConfig(c context.Context, config RedundancyConfig) er
 	fmt.Println("=" + strings.Repeat("=", 79))
 	fmt.Println("RESULTS")
 	fmt.Println("=" + strings.Repeat("=", 79))
-	fmt.Printf("\nTests required for coverage (%d):\n", len(uniqueTests))
+	fmt.Printf("\nTests that must be kept (%d):\n", len(uniqueTests))
+	fmt.Printf("  %-80s %6s\n", "TEST", "UNIQUE")
+	fmt.Printf("  %-80s %6s\n", strings.Repeat("-", 80), "------")
+
 	for _, test := range uniqueTests {
-		fmt.Printf("  ✓ %s (%d function", test.name, test.uniqueCount)
-		if test.uniqueCount != 1 {
-			fmt.Printf("s")
-		}
-		fmt.Printf(" would drop below %.0f%%)\n", config.CoverageThreshold)
-
-		// Show affected functions in verbose mode
-		if mg.Verbose() && len(test.uniqueFuncs) > 0 {
-			for _, fn := range test.uniqueFuncs {
-				fmt.Printf("      - %s\n", fn)
-			}
-		}
+		qName := test.pkg + ":" + test.name
+		fmt.Printf("  %-80s %6d\n", qName, test.uniqueCount)
 	}
+
 	fmt.Printf("\nRedundant tests (%d):\n", len(redundantTests))
+	fmt.Printf("  %-80s %6s\n", "TEST", "UNIQUE")
+	fmt.Printf("  %-80s %6s\n", strings.Repeat("-", 80), "------")
 
-	// Group redundant tests by file
-	testsByFile := make(map[string][]string)
+	// Sort redundant tests by package for grouped display
+	sort.Slice(redundantTests, func(i, j int) bool {
+		if redundantTests[i].pkg != redundantTests[j].pkg {
+			return redundantTests[i].pkg < redundantTests[j].pkg
+		}
+		return redundantTests[i].name < redundantTests[j].name
+	})
+
 	for _, test := range redundantTests {
-		file, err := findTestFile(c, config.PackageToAnalyze, test.name)
-		if err != nil {
-			// If we can't find the file, use "unknown"
-			file = "unknown"
-		}
-		testsByFile[file] = append(testsByFile[file], test.name)
+		qName := test.pkg + ":" + test.name
+		fmt.Printf("  %-80s %6d\n", qName, test.uniqueCount)
 	}
 
-	// Sort files for consistent output
-	var files []string
-	for file := range testsByFile {
-		files = append(files, file)
-	}
-	sort.Strings(files)
-
-	// Display by file
-	for _, file := range files {
-		tests := testsByFile[file]
-		fmt.Printf("\n  %s:\n", file)
-		for _, testName := range tests {
-			fmt.Printf("    ✗ %s\n", testName)
-		}
-	}
 	fmt.Println()
 
 	return nil
@@ -1522,8 +1672,7 @@ func Test(c context.Context) error {
 		"-race",
 		"-skip=TestRaceRegression",
 		"-coverprofile=coverage.out",
-		"-coverpkg=./...",
-		// "-coverpkg=./impgen/...,./imptest/...",
+		"-coverpkg=./impgen/...,./imptest/...",
 		"-cover",
 		"./...",
 	)
@@ -1670,6 +1819,12 @@ type coverageBlock struct {
 	count      int
 }
 
+// coveredLine represents a single line covered by a test.
+type coveredLine struct {
+	file string
+	line int
+}
+
 type deadFunc struct {
 	name string
 	line int
@@ -1727,6 +1882,18 @@ type segment struct {
 	start position
 	end   position
 	count int
+}
+
+// listTestFunctions lists all test functions in the given package.
+// testInfo holds a test function name with its package.
+type testInfo struct {
+	pkg  string
+	name string
+}
+
+// qualifiedName returns the package-qualified test name (pkg:TestName).
+func (t testInfo) qualifiedName() string {
+	return t.pkg + ":" + t.name
 }
 
 // addIssue is the implementation for creating issues.
@@ -2023,6 +2190,56 @@ func findTestFile(c context.Context, pkg, testName string) (string, error) {
 	return filepath.Clean(path), nil
 }
 
+// getCoveredLines parses a coverage file and returns all lines that were executed.
+// A line is considered covered if any block covering it has count > 0.
+func getCoveredLines(coverageFile string) ([]coveredLine, error) {
+	data, err := os.ReadFile(coverageFile)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	coveredSet := make(map[coveredLine]bool)
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "mode:") {
+			continue
+		}
+
+		// Format: file:startLine.startCol,endLine.endCol statements count
+		parts := strings.Fields(line)
+		if len(parts) < 3 {
+			continue
+		}
+
+		blockID := parts[0]
+		count, _ := strconv.Atoi(parts[2])
+
+		if count == 0 {
+			continue // Not covered
+		}
+
+		file, startLine, _, endLine, _, err := parseBlockID(blockID)
+		if err != nil {
+			continue
+		}
+
+		// Mark all lines in the block as covered
+		for lineNum := startLine; lineNum <= endLine; lineNum++ {
+			coveredSet[coveredLine{file: file, line: lineNum}] = true
+		}
+	}
+
+	// Convert set to slice
+	result := make([]coveredLine, 0, len(coveredSet))
+	for cl := range coveredSet {
+		result = append(result, cl)
+	}
+
+	return result, nil
+}
+
 // getFunctionsAboveThreshold returns a set of functions that have coverage >= threshold.
 func getFunctionsAboveThreshold(coverageFile string, threshold float64) (map[string]bool, error) {
 	out, err := exec.Command("go", "tool", "cover", "-func="+coverageFile).Output()
@@ -2232,23 +2449,52 @@ func listIssuesByStatus(filterStatus string) error {
 	return nil
 }
 
-// listTestFunctions lists all test functions in the given package.
 func listTestFunctions(c context.Context, pkg string) ([]string, error) {
-	out, err := output(c, "go", "test", "-list", ".", pkg)
+	tests, err := listTestFunctionsWithPackages(c, pkg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list tests: %w", err)
+		return nil, err
 	}
 
-	var tests []string
-	lines := strings.Split(out, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "Test") {
-			tests = append(tests, line)
+	// Return just the names for backward compatibility
+	names := make([]string, len(tests))
+	for i, t := range tests {
+		names[i] = t.name
+	}
+
+	return names, nil
+}
+
+func listTestFunctionsWithPackages(c context.Context, pkgPattern string) ([]testInfo, error) {
+	// First, expand the package pattern to get actual packages
+	listOut, err := output(c, "go", "list", pkgPattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list packages: %w", err)
+	}
+
+	var allTests []testInfo
+	packages := strings.Split(strings.TrimSpace(listOut), "\n")
+
+	for _, pkg := range packages {
+		if pkg == "" {
+			continue
+		}
+
+		out, err := output(c, "go", "test", "-list", ".", pkg)
+		if err != nil {
+			// Package may have no tests, skip it
+			continue
+		}
+
+		lines := strings.Split(out, "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "Test") {
+				allTests = append(allTests, testInfo{pkg: pkg, name: line})
+			}
 		}
 	}
 
-	return tests, nil
+	return allTests, nil
 }
 
 // mergeCoverageBlocks merges coverage blocks, splitting overlapping blocks into segments.
@@ -2884,6 +3130,55 @@ func runQuiet(c context.Context, command string, arg ...string) error {
 	}
 
 	return cmd.Run()
+}
+
+// runQuietCoverage runs a go test command with coverage, filtering out expected warnings
+// about packages not matching coverage patterns. These warnings are normal when measuring
+// coverage across multiple packages where individual tests only import a subset.
+func runQuietCoverage(c context.Context, command string, arg ...string) error {
+	cmd := exec.CommandContext(c, command, arg...)
+	cmd.Stdin = os.Stdin
+
+	// Capture stderr to filter out coverage warnings
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+
+	// Only show stdout if verbose mode is enabled
+	if mg.Verbose() {
+		cmd.Stdout = os.Stdout
+	}
+
+	err := cmd.Run()
+
+	// Filter and display stderr, removing expected coverage warnings
+	stderrLines := strings.Split(stderrBuf.String(), "\n")
+	for _, line := range stderrLines {
+		// Skip the "no packages being tested depend on matches" warning
+		if strings.Contains(line, "no packages being tested depend on matches") {
+			continue
+		}
+		// Skip empty lines
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		// Show other stderr output
+		fmt.Fprintln(os.Stderr, line)
+	}
+
+	return err
+}
+
+// sanitize makes a string safe for use in filenames.
+func sanitize(s string) string {
+	// Replace characters that are problematic in filenames
+	replacer := strings.NewReplacer(
+		"/", "_",
+		"\\", "_",
+		":", "_",
+		".", "_",
+	)
+
+	return replacer.Replace(s)
 }
 
 // splitBlocksIntoSegments splits overlapping blocks into non-overlapping segments,
