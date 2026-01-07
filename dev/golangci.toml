@@ -89,6 +89,26 @@ linters = ['testpackage']
 path = "imptest/imp_test.go"
 linters = ['testpackage']
 
+[[linters.exclusions.rules]]
+# UAT/variations packages intentionally import other UAT packages to test cross-package scenarios.
+path = "UAT/variations/"
+linters = ['depguard', 'mnd', 'revive', 'testpackage']
+
+[[linters.exclusions.rules]]
+# UAT/core placeholder tests are whitebox tests (same package as code).
+path = "UAT/core/.*/placeholder_test.go"
+linters = ['testpackage']
+
+[[linters.exclusions.rules]]
+# UAT/core/wrapper-function uses 't' for test parameter which is idiomatic.
+path = "UAT/core/wrapper-function/callhandle_test.go"
+linters = ['varnamelen']
+
+[[linters.exclusions.rules]]
+# UAT/core/wrapper-struct uses 't' for test parameter which is idiomatic.
+path = "UAT/core/wrapper-struct/callhandle_test.go"
+linters = ['varnamelen']
+
 [formatters]
 enable = ['gofmt', 'gofumpt', 'goimports']
 
