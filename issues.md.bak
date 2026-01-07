@@ -120,130 +120,71 @@ Standard issue structure organized by category:
 
 ## Backlog
 
-### 43. Add UAT for function as dependency (mock a function by signature)
+
+
+
+### 42. Redesign --target wrapper pattern for goroutine lifecycle management
 
 #### Universal
 
 **Status**
-backlog
+in progress
 
 **Description**
-Enable mocking a package-level function by extracting its signature and generating a mock for that function type. For example, `impgen mypackage.ProcessOrder --dependency` should generate `MockProcessOrder` with the same signature.
+Current --target wrappers are built for call observation/mocking (with GetCalls(), call history, parameter tracking) when the actual need is goroutine lifecycle management (run method in goroutine, capture returns/panics, coordinate with imptest controller).
 
 #### Planning
 
 **Rationale**
-Taxonomy Layer 2 shows "Function as Mock" as a gap. Users may want to mock a function without first defining a named function type. The implementation should extract the function's signature and treat it as an implicit function type.
+Discovered during Issue #33: The wrapper pattern implements the wrong abstraction. All --target wrappers (functions, interfaces, structs) have unnecessary complexity that doesn't match the actual use case.
+
+**Actual Requirements**:
+- One goroutine per method call
+- Start() launches goroutine running the target method
+- Signal to imptest controller when method returns (for ordering verification with mocked dependencies)
+- GetResult() retrieves return values (blocking wait)
+- ExpectPanicEquals() verifies panics
+- NO call history tracking (GetCalls())
+- NO parameter recording
+- NO timeouts/cancellation
+
+**Current Problems**:
+- GetCalls() returns all call history - never needed
+- Parameters tracked and recorded - never needed
+- Built for observation pattern instead of goroutine coordination
 
 **Acceptance**
-- UAT demonstrates `impgen pkg.SomeFunction --dependency` generating a mock
-- Generated mock has same signature as original function
-- Mock can be used to verify calls and inject return values
+- Wrapper API focused on goroutine lifecycle: Start() -> goroutine -> GetResult()/ExpectPanic()
+- Integrates with imptest controller for event ordering
+- No call history or parameter tracking
+- Simpler generated code
+- All existing UATs updated to new API
 
 **Effort**
-Medium
+Large
 
 **Priority**
 Medium
 
-**Taxonomy Gap**
-Capability Matrix - "Function" row, "As Dependency" column
+**Dependencies**
+None - can proceed immediately
 
----
+**Timeline**
 
-### 44. Add UAT for struct as dependency (mock a struct's methods)
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-Enable mocking a struct type by generating a mock that implements all its methods, similar to how interfaces are mocked. For example, `impgen mypackage.Calculator --dependency` should generate `MockCalculator` with mock versions of all Calculator's methods.
-
-#### Planning
-
-**Rationale**
-Taxonomy Layer 2 shows "Struct (whole) as Mock" as a gap. In Go, you can't inject a struct like an interface, but you can extract its methods and create an interface-like mock. This enables testing code that depends on struct method behavior.
-
-**Acceptance**
-- UAT demonstrates `impgen pkg.SomeStruct --dependency` generating a mock
-- Generated mock has all methods from the original struct
-- Each method can be expected/verified like interface mocks
-
-**Effort**
-Medium
-
-**Priority**
-Medium
-
-**Taxonomy Gap**
-Capability Matrix - "Struct (whole)" row, "As Dependency" column
-
----
-
-### 45. Add UAT for struct method as dependency (mock single method by signature)
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-Enable mocking a single struct method by extracting its signature and generating a mock for that function type. For example, `impgen mypackage.Calculator.Add --dependency` should generate `MockCalculatorAdd` with the method's signature.
-
-#### Planning
-
-**Rationale**
-Taxonomy Layer 2 shows "Struct method as Mock" as a gap. This is similar to mocking a function - we extract the method's signature and treat it as a function type. Useful when you only need to mock one method from a struct.
-
-**Acceptance**
-- UAT demonstrates `impgen pkg.Struct.Method --dependency` generating a mock
-- Generated mock has same signature as the method (minus receiver)
-- Mock can be used to verify calls and inject return values
-
-**Effort**
-Small
-
-**Priority**
-Medium
-
-**Taxonomy Gap**
-Capability Matrix - "Struct method" row, "As Dependency" column
-
-**Note**
-Implementation is essentially the same as #43 (function as dependency) - extract signature, mock as function type. The difference is just where the signature comes from (method vs package-level function).
-
----
-
-### 46. Add UAT for embedded structs
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-Verify wrapping/mocking structs that embed other structs. Similar to how UAT-08 tests embedded interfaces, we need to verify that struct embedding is handled correctly - the embedded struct's methods should be accessible on the outer struct.
-
-#### Planning
-
-**Rationale**
-UAT-08 covers embedded interfaces but there's no equivalent for embedded structs. For consistency and completeness, we should test both embedding patterns.
-
-**Acceptance**
-- UAT demonstrates struct with embedded struct
-- Wrapper/mock correctly handles methods from both outer and embedded struct
-- Promoted methods accessible without qualification
-
-**Effort**
-Small
-
-**Priority**
-Low
-
-**Taxonomy Gap**
-behavior-variations - embedded-structs (parallel to embedded-interfaces)
+- 2026-01-03 09:55 EST - Created issue after discovering abstraction mismatch in Issue #33
+- 2026-01-03 13:02 EST - RED: Writing test for function wrapper call handles
+- 2026-01-03 13:06 EST - GREEN: Implementing call handle pattern for function wrappers
+- 2026-01-03 13:48 EST - REFACTOR: Auditing call handle implementation
+- 2026-01-03 14:01 EST - GREEN: Updating 5 UATs to new call handle API
+- 2026-01-03 14:06 EST - REFACTOR: Final audit of UAT updates
+- 2026-01-03 14:29 EST - Complete: Function wrapper call handle pattern (Step 1 of 5)
+- 2026-01-03 14:29 EST - COMMIT: Step 1 complete - call handle pattern for functions
+- 2026-01-03 14:51 EST - RED: Writing tests for interface/struct wrapper call handles
+- 2026-01-03 15:12 EST - GREEN: Implementing call handle pattern for interface/struct wrappers (Step 3 of 5)
+- 2026-01-03 15:24 EST - REFACTOR: Auditing interface/struct wrapper implementation
+- 2026-01-03 15:32 EST - GREEN: Fixing UAT-32, UAT-33, and race condition
+- 2026-01-03 15:40 EST - REFACTOR: Final audit after UAT fixes
+- 2026-01-03 15:45 EST - Complete: Interface/struct wrapper call handle pattern (Step 3 of 5)
 
 ---
 
@@ -316,6 +257,174 @@ After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface
 Capability Matrix - "Interface type" row, "As Target" column
 
 ---
+### 40. Extract shared generator methods to reduce code duplication
+
+- 2026-01-02 16:47 EST - Complete: Creating git commit for template migration
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+The three generator files (`codegen_v2_dependency.go`, `codegen_v2_target.go`, `codegen_v2_interface_target.go`) have significant code duplication. Methods like `buildParamStrings()`, `buildResultStrings()`, `collectAdditionalImports()`, and `checkIfQualifierNeeded()` are nearly identical across generators, creating maintenance burden where bug fixes need to be applied multiple times.
+
+#### Planning
+
+**Rationale**
+Reduces maintenance burden and risk of inconsistent fixes. When bugs are fixed in one generator (like import collection in Issue #29), the same fix must be manually applied to others. Shared utilities would ensure consistent behavior and reduce cognitive load when reading code.
+
+**Acceptance**
+- Common generator utilities extracted to `codegen_common.go` (possibly extending `typeFormatter` or creating `signatureBuilder`)
+- Duplicate `buildParamStrings()`, `buildResultStrings()`, `collectAdditionalImports()`, and `checkIfQualifierNeeded()` methods removed from individual generators
+- All existing tests continue to pass
+- Generators use shared utilities instead of duplicated code
+
+**Effort**
+Medium (4-6 hours) - Requires careful extraction to preserve behavior across all three generators
+
+**Priority**
+Important - Address when making changes to any generator
+
+**Note**
+Identified by project-health-auditor. Complements Issue #18 (nolint cleanup) and would make future generator changes safer and faster.
+
+### 36. Split issue tracker into separate repository
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+
+#### Work Tracking
+
+**Timeline**
+
+- 2026-01-01 18:03 EST - Testing timeline orphaning
+- 2026-01-01 17:09 EST - Implementer fixed auditor issues + discovered and fixed 3 additional bugs (insertion point, horizontal rule boundary, section header orphan)
+- 2026-01-01 17:09 EST - Auditor FAILED - found ineffectual assignment and test data bug
+- 2026-01-01 17:09 EST - Implementer applied fix - changed boundary detection to 'first boundary wins' logic
+
+### 1. remove the deprecation messages and any hint of V1/V2
+
+#### Universal
+
+**Status**
+backlog
+#### Work Tracking
+
+**Timeline**
+- 2026-01-01 18:06 EST - test entry
+
+
+
+### 11. Prevent ExpectCalledWithExactly generation for function types
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+impgen generates ExpectCalledWithExactly() methods for function type parameters, but Go cannot compare functions with `==`, causing reflect.DeepEqual to hang. Since we perform code generation based on known types, we should detect function types and skip generating equality methods.
+
+Workaround: Use ExpectCalledWithMatches() with imptest.Any() for function parameters
+
+#### Planning
+
+**Acceptance**
+impgen detects function types and omits equality method generation
+
+**Effort**
+Medium (2-4 hours)
+
+**Priority**
+Medium - workaround exists, but better UX to prevent the footgun
+
+#### Bug Details
+
+**Discovered**
+During UAT-24 (Issue #4), tests with ExpectCalledWithExactly() on function params timeout
+
+**Current Behavior**
+Generates equality methods for all parameter types including functions
+
+**Expected Behavior**
+Detect function types in parameters and only generate ExpectCalledWithMatches(), not ExpectCalledWithExactly()
+
+### 15. Consolidate duplicate Tester and TestReporter interfaces (TOE-105)
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+`Tester` and `TestReporter` interfaces in imptest/controller.go and imptest/imp.go are identical, causing code confusion
+
+#### Planning
+
+**Acceptance**
+Single interface used consistently throughout codebase
+
+**Effort**
+Low
+
+**Priority**
+Low
+
+**Linear**
+TOE-105
+
+### 16. Remove 'v2' from file and package names (TOE-109)
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+Now that V2 is the only implementation, remove "v2" suffix from filenames (codegen_v2_dependency.go → codegen_dependency.go, etc.)
+
+#### Planning
+
+**Acceptance**
+All V2 references removed from file and package names, functionality unchanged
+
+**Effort**
+Small
+
+**Priority**
+Low
+
+**Linear**
+TOE-109
+
+### 17. Remove stale .out and .test files (TOE-110)
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+Audit repository for stale build artifacts (_.out, _.test) and add to .gitignore
+
+#### Planning
+
+**Acceptance**
+No build artifacts in version control, .gitignore updated
+
+**Effort**
+Trivial
+
+**Priority**
+Low
+
+**Linear**
+TOE-110
+
 ### 18. Reduce blanket nolint directives in V2 generators (TOE-106)
 
 #### Universal
@@ -367,236 +476,9 @@ TOE-80
 
 Completed issues.
 
-### 47. Restructure TAXONOMY.md around three-layer mental model
 
-#### Universal
 
-**Status**
-done
 
-**Description**
-Restructure TAXONOMY.md to lead with "what are you trying to do" (testing patterns) rather than "what does imptest support" (types). This aligns documentation with how users think and makes navigation clearer.
-
-#### Work Tracking
-
-**Started**
-2026-01-04 20:49 EST
-
-**Completed**
-2026-01-04 20:53 EST
-
-**Timeline**
-- 2026-01-04 20:49 EST - Started: Beginning docs-first restructure of TAXONOMY.md
-- 2026-01-04 20:53 EST - Complete: Restructured TAXONOMY.md with three-layer model
-
-#### Documentation
-
-**Solution**
-Restructured TAXONOMY.md following the three-layer mental model from REORGANIZATION_PROPOSAL.md:
-- Layer 1: Testing Pattern (wrapper vs mock) as primary organization
-- Layer 2: Symbol Type (function, method, struct, interface, functype)
-- Layer 3: Variations (package, signature, behavior, concurrency)
-
-Key changes:
-- Added Quick Start with decision tree
-- Reorganized around Testing Patterns (not type capabilities)
-- Updated all examples to current call handle API (Issue #42)
-- Reorganized UAT index by pattern, symbol type, and variation
-
----
-
-### 1. remove the deprecation messages and any hint of V1/V2
-
-#### Universal
-
-**Status**
-done
-
-#### Work Tracking
-
-**Completed**
-2026-01-04 14:38 EST
-
-**Timeline**
-- 2026-01-01 18:06 EST - test entry
-- 2026-01-04 14:12 EST - GREEN: Starting V1/V2 cleanup (combined with #16)
-- 2026-01-04 14:38 EST - Complete: V1/V2 cleanup done
-
-**Combined With**
-#16
-
-### 16. Remove 'v2' from file and package names (TOE-109)
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-Now that V2 is the only implementation, remove "v2" suffix from filenames (codegen_v2_dependency.go → codegen_dependency.go, etc.)
-
-#### Work Tracking
-
-**Completed**
-2026-01-04 14:38 EST
-
-**Timeline**
-- 2026-01-04 14:38 EST - Complete: File renames and internal reference updates
-
-**Combined With**
-#1
-
-### 15. Consolidate duplicate Tester and TestReporter interfaces (TOE-105)
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-`Tester` and `TestReporter` interfaces in imptest/controller.go and imptest/imp.go were identical, causing code confusion.
-
-#### Work Tracking
-
-**Completed**
-2026-01-04 15:12 EST
-
-**Solution**
-Consolidated to single `TestReporter` interface in controller.go. Removed duplicate interface definition from imp.go along with unnecessary `testerAdapter`. Deleted old generated mock files (`generated_MockTester_test.go`, `generated_TesterImp_test.go`) and updated tests to use `MockTestReporter`.
-
-**Files Modified**
-- imptest/controller.go: Renamed Tester → TestReporter throughout
-- imptest/imp.go: Removed duplicate TestReporter, removed testerAdapter
-- imptest/controller_test.go: Updated to use MockTestReporter
-- imptest/race_regression_test.go: Updated tests to use simplified mock pattern
-- Deleted: generated_MockTester_test.go, generated_TesterImp_test.go
-
-**Linear**
-TOE-105
-
----
-
-### 40. Extract shared generator methods to reduce code duplication
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-Extract duplicated methods from generators to `codegen_common.go`.
-
-#### Work Tracking
-
-**Completed**
-2026-01-04 14:56 EST
-
-**Solution**
-Main consolidation already complete: `buildParamStrings()`, `buildResultStrings()`, `checkIfQualifierNeeded()`, and `collectAdditionalImportsFromInterface()` are on `baseGenerator` in `codegen_common.go`. Remaining ~46 lines of thin adapter code in dependency/interface-target generators is minor and not worth further consolidation.
-
-### 42. Redesign --target wrapper pattern for goroutine lifecycle management
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-Current --target wrappers are built for call observation/mocking (with GetCalls(), call history, parameter tracking) when the actual need is goroutine lifecycle management (run method in goroutine, capture returns/panics, coordinate with imptest controller).
-
-#### Planning
-
-**Rationale**
-Discovered during Issue #33: The wrapper pattern implements the wrong abstraction. All --target wrappers (functions, interfaces, structs) have unnecessary complexity that doesn't match the actual use case.
-
-**Actual Requirements**:
-- One goroutine per method call
-- Start() launches goroutine running the target method
-- Signal to imptest controller when method returns (for ordering verification with mocked dependencies)
-- GetResult() retrieves return values (blocking wait)
-- ExpectPanicEquals() verifies panics
-- NO call history tracking (GetCalls())
-- NO parameter recording
-- NO timeouts/cancellation
-
-**Current Problems**:
-- GetCalls() returns all call history - never needed
-- Parameters tracked and recorded - never needed
-- Built for observation pattern instead of goroutine coordination
-
-**Acceptance**
-- Wrapper API focused on goroutine lifecycle: Start() -> goroutine -> GetResult()/ExpectPanic()
-- Integrates with imptest controller for event ordering
-- No call history or parameter tracking
-- Simpler generated code
-- All existing UATs updated to new API
-
-**Effort**
-Large
-
-**Priority**
-Medium
-
-**Dependencies**
-None - can proceed immediately
-
-**Timeline**
-
-- 2026-01-03 09:55 EST - Created issue after discovering abstraction mismatch in Issue #33
-- 2026-01-03 13:02 EST - RED: Writing test for function wrapper call handles
-- 2026-01-03 13:06 EST - GREEN: Implementing call handle pattern for function wrappers
-- 2026-01-03 13:48 EST - REFACTOR: Auditing call handle implementation
-- 2026-01-03 14:01 EST - GREEN: Updating 5 UATs to new call handle API
-- 2026-01-03 14:06 EST - REFACTOR: Final audit of UAT updates
-- 2026-01-03 14:29 EST - Complete: Function wrapper call handle pattern (Step 1 of 5)
-- 2026-01-03 14:29 EST - COMMIT: Step 1 complete - call handle pattern for functions
-- 2026-01-03 14:51 EST - RED: Writing tests for interface/struct wrapper call handles
-- 2026-01-03 15:12 EST - GREEN: Implementing call handle pattern for interface/struct wrappers (Step 3 of 5)
-- 2026-01-03 15:24 EST - REFACTOR: Auditing interface/struct wrapper implementation
-- 2026-01-03 15:32 EST - GREEN: Fixing UAT-32, UAT-33, and race condition
-- 2026-01-03 15:40 EST - REFACTOR: Final audit after UAT fixes
-- 2026-01-03 15:45 EST - Complete: Interface/struct wrapper call handle pattern (Step 3 of 5)
-- 2026-01-03 15:46 EST - COMMIT: Step 3 complete - interface/struct call handle pattern
-- 2026-01-04 13:46 EST - Marked done
-
-**Completed**
-2026-01-04
-
-**Commits**
-- Step 1: Function wrapper call handles
-- Step 3: Interface/struct wrapper call handles (3895fea)
-
----
-
-### 17. Remove stale .out and .test files (TOE-110)
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-Audit repository for stale build artifacts (_.out, _.test) and add to .gitignore
-
-#### Planning
-
-**Acceptance**
-No build artifacts in version control, .gitignore updated
-
-**Effort**
-Trivial
-
-**Priority**
-Low
-
-**Linear**
-TOE-110
-
-**Completed**
-2026-01-04
-
-**Solution**
-Already resolved - .gitignore already had `*.test` (line 9) and `*.out` (line 12) patterns. Verified no such files are tracked in git. Local build artifacts (4 .out, 5 .test files) are correctly ignored.
 ### 33. Add UAT for struct type as target (comprehensive)
 
 #### Universal
@@ -1542,61 +1424,6 @@ Migrated to glowsync project as it was mistakenly assigned to imptest
 Issues that will not be completed.
 
 
-
-
-### 36. Split issue tracker into separate repository
-
-#### Universal
-
-**Status**
-cancelled
-
-**Description**
-
-#### Work Tracking
-
-**Timeline**
-
-- 2026-01-01 18:03 EST - Testing timeline orphaning
-- 2026-01-01 17:09 EST - Implementer fixed auditor issues + discovered and fixed 3 additional bugs (insertion point, horizontal rule boundary, section header orphan)
-- 2026-01-01 17:09 EST - Auditor FAILED - found ineffectual assignment and test data bug
-- 2026-01-01 17:09 EST - Implementer applied fix - changed boundary detection to 'first boundary wins' logic
-### 11. Prevent ExpectCalledWithExactly generation for function types
-
-#### Universal
-
-**Status**
-cancelled
-
-**Description**
-impgen generates ExpectCalledWithExactly() methods for function type parameters, but Go cannot compare functions with `==`, causing reflect.DeepEqual to hang. Since we perform code generation based on known types, we should detect function types and skip generating equality methods.
-
-Workaround: Use ExpectCalledWithMatches() with imptest.Any() for function parameters
-
-**Cancellation Reason**
-Not worth the extra complexity right now. Workaround (using imptest.Any()) is sufficient.
-
-#### Planning
-
-**Acceptance**
-impgen detects function types and omits equality method generation
-
-**Effort**
-Medium (2-4 hours)
-
-**Priority**
-Medium - workaround exists, but better UX to prevent the footgun
-
-#### Bug Details
-
-**Discovered**
-During UAT-24 (Issue #4), tests with ExpectCalledWithExactly() on function params timeout
-
-**Current Behavior**
-Generates equality methods for all parameter types including functions
-
-**Expected Behavior**
-Detect function types in parameters and only generate ExpectCalledWithMatches(), not ExpectCalledWithExactly()
 ### 37. Explore mage replacement with subcommands and flags (go-arg syntax)
 
 #### Universal

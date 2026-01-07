@@ -10,7 +10,6 @@ require (
 	github.com/magefile/mage v1.15.0
 	github.com/onsi/gomega v1.38.3
 	github.com/toejough/go-reorder v0.0.0-20251226074023-02f97ddf9bd8
-	golang.org/x/tools v0.39.0
 )
 
 require (
@@ -26,4 +25,5 @@ require (
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
 )

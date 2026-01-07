@@ -3,9 +3,10 @@
 package imptest_test
 
 import (
+	time "time"
+
 	_imptest "github.com/toejough/imptest/imptest"
 	imptest "github.com/toejough/imptest/imptest"
-	time "time"
 )
 
 // TimerMock is the mock for Timer.

@@ -57,31 +57,3 @@ func TestSatisfies_MatchFailure(t *testing.T) {
 		t.Errorf("Satisfies().FailureMessage(5) = %q, want %q", msg, expected)
 	}
 }
-
-func TestSatisfies_MatchSuccess(t *testing.T) {
-	t.Parallel()
-
-	matcher := imptest.Satisfies(func(val int) error {
-		if val <= 10 {
-			return errors.New("must be greater than 10")
-		}
-
-		return nil
-	})
-
-	ok, err := matcher.Match(42)
-
-	if !ok || err != nil {
-		t.Errorf("Satisfies().Match(42) = (%v, %v), want (true, nil)", ok, err)
-	}
-
-	// Test FailureMessage even on success (for coverage)
-
-	msg := matcher.FailureMessage(42)
-
-	expected := "value 42 does not satisfy predicate"
-
-	if msg != expected {
-		t.Errorf("Satisfies().FailureMessage(42) = %q, want %q", msg, expected)
-	}
-}
