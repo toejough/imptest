@@ -180,15 +180,38 @@ func checkImport(imp *dst.ImportSpec, pkgName string, pkgLoader PackageLoader) (
 }
 
 // collectStructMethods collects all methods for a given struct type from AST files.
-// It searches for function declarations with a receiver matching the struct type name.
+// It searches for function declarations with a receiver matching the struct type name,
+// and also includes promoted methods from embedded structs.
 func collectStructMethods(
 	astFiles []*dst.File,
 	fset *token.FileSet,
 	structName string,
 ) map[string]*dst.FuncType {
+	// Use a visited set to avoid infinite recursion (though Go doesn't allow circular embedding)
+	visited := make(map[string]bool)
+	return collectStructMethodsRecursive(astFiles, fset, structName, visited)
+}
+
+// collectStructMethodsRecursive recursively collects methods including promoted methods from embedded structs.
+//
+//nolint:cyclop // Recursive embedded struct handling requires multiple code paths
+func collectStructMethodsRecursive(
+	astFiles []*dst.File,
+	fset *token.FileSet,
+	structName string,
+	visited map[string]bool,
+) map[string]*dst.FuncType {
+	// Avoid revisiting the same struct (prevents infinite loops)
+	if visited[structName] {
+		return make(map[string]*dst.FuncType)
+	}
+
+	visited[structName] = true
+
 	// Preallocating with reasonable capacity
 	methods := make(map[string]*dst.FuncType, defaultMethodCapacity)
 
+	// Step 1: Collect direct methods on this struct
 	for _, file := range astFiles {
 		for _, decl := range file.Decls {
 			funcDecl, ok := decl.(*dst.FuncDecl)
@@ -205,6 +228,19 @@ func collectStructMethods(
 			// Check if this method belongs to our struct
 			if normalizedRecvType == structName {
 				methods[funcDecl.Name.Name] = funcDecl.Type
+			}
+		}
+	}
+
+	// Step 2: Find embedded structs and collect their methods (promoted methods)
+	embeddedTypes := findEmbeddedStructTypes(astFiles, structName)
+	for _, embeddedName := range embeddedTypes {
+		// Recursively collect methods from embedded struct
+		embeddedMethods := collectStructMethodsRecursive(astFiles, fset, embeddedName, visited)
+		// Add promoted methods (only if not already defined on the outer struct)
+		for name, funcType := range embeddedMethods {
+			if _, exists := methods[name]; !exists {
+				methods[name] = funcType
 			}
 		}
 	}
@@ -234,6 +270,64 @@ func extractPackageName(qualifiedName string) string {
 	}
 
 	return ""
+}
+
+// findEmbeddedStructTypes finds the names of all embedded struct types in a struct definition.
+// Returns only local (same-package) embedded struct names.
+//
+//nolint:gocognit,cyclop // Nested AST traversal requires multiple condition checks
+func findEmbeddedStructTypes(astFiles []*dst.File, structName string) []string {
+	var embeddedTypes []string
+
+	for _, file := range astFiles {
+		dst.Inspect(file, func(node dst.Node) bool {
+			genDecl, ok := node.(*dst.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				return true
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, isTypeSpec := spec.(*dst.TypeSpec)
+				if !isTypeSpec || typeSpec.Name.Name != structName {
+					continue
+				}
+
+				structType, isStructType := typeSpec.Type.(*dst.StructType)
+				if !isStructType || structType.Fields == nil {
+					continue
+				}
+
+				// Look for embedded fields (fields without names)
+				for _, field := range structType.Fields.List {
+					// Embedded fields have no names
+					if len(field.Names) > 0 {
+						continue
+					}
+
+					// Get the embedded type name
+					switch typ := field.Type.(type) {
+					case *dst.Ident:
+						// Local embedded type (e.g., Logger)
+						embeddedTypes = append(embeddedTypes, typ.Name)
+					case *dst.StarExpr:
+						// Pointer to embedded type (e.g., *Logger)
+						if ident, ok := typ.X.(*dst.Ident); ok {
+							embeddedTypes = append(embeddedTypes, ident.Name)
+						}
+						// Note: We skip SelectorExpr (external types like io.Reader)
+						// for now as they require package loading. Those would need
+						// additional handling similar to interfaceExpandEmbedded.
+					}
+				}
+
+				return false // Found the struct, stop searching
+			}
+
+			return true
+		})
+	}
+
+	return embeddedTypes
 }
 
 // findFunctionInAST looks for a function declaration in the given AST files.
