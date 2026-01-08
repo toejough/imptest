@@ -125,7 +125,7 @@ Standard issue structure organized by category:
 #### Universal
 
 **Status**
-backlog
+in progress
 
 **Description**
 Enable mocking a struct type by generating a mock that implements all its methods, similar to how interfaces are mocked. For example, `impgen mypackage.Calculator --dependency` should generate `MockCalculator` with mock versions of all Calculator's methods.
