@@ -372,6 +372,40 @@ Completed issues.
 
 
 
+
+### 45. Add UAT for struct method as dependency (mock single method by signature)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Enable mocking a single struct method by extracting its signature and generating a mock for that function type. For example, `impgen mypackage.Calculator.Add --dependency` should generate `MockCalculatorAdd` with the method's signature.
+
+#### Planning
+
+**Rationale**
+Taxonomy Layer 2 shows "Struct method as Mock" as a gap. This is similar to mocking a function - we extract the method's signature and treat it as a function type. Useful when you only need to mock one method from a struct.
+
+**Acceptance**
+- UAT demonstrates `impgen pkg.Struct.Method --dependency` generating a mock
+- Generated mock has same signature as the method (minus receiver)
+- Mock can be used to verify calls and inject return values
+
+**Effort**
+Small
+
+**Priority**
+Medium
+
+**Taxonomy Gap**
+Capability Matrix - "Struct method" row, "As Dependency" column
+
+**Note**
+Implementation is essentially the same as #43 (function as dependency) - extract signature, mock as function type. The difference is just where the signature comes from (method vs package-level function).
+
+---
 ### 44. Add UAT for struct as dependency (mock a struct's methods)
 
 #### Universal

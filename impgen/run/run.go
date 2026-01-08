@@ -62,6 +62,10 @@ func Run(
 	// (e.g. "MyType.MyMethod" instead of just "MyMethod")
 	if pkgImportPath == "." {
 		info.localInterfaceName = info.interfaceName
+		// Recalculate impName with the corrected localInterfaceName if not user-provided
+		if !info.nameProvided {
+			info.impName = determineGeneratedTypeName(info.mode, info.localInterfaceName)
+		}
 	}
 
 	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader)
@@ -135,6 +139,7 @@ type generatorInfo struct {
 	pkgName, interfaceName, localInterfaceName, impName string
 	mode                                                namingMode
 	importPathFlag                                      string
+	nameProvided                                        bool // true if --name was explicitly provided
 }
 
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
@@ -209,6 +214,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 	interfaceName := parsed.Interface
 	localInterfaceName := getLocalInterfaceName(interfaceName)
 	impName := parsed.Name
+	nameProvided := parsed.Name != ""
 
 	// Validate mutually exclusive flags
 	if parsed.Target && parsed.Dependency {
@@ -235,6 +241,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		impName:            impName,
 		mode:               mode,
 		importPathFlag:     parsed.ImportPath,
+		nameProvided:       nameProvided,
 	}, nil
 }
 

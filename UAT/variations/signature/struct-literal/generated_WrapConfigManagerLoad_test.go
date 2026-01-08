@@ -3,18 +3,17 @@
 package structlit_test
 
 import (
-	_reflect "reflect"
-
 	_imptest "github.com/toejough/imptest/imptest"
+	_reflect "reflect"
 )
 
-// WrapLoadCallHandle represents a single call to the wrapped function.
-type WrapLoadCallHandle struct {
-	*_imptest.CallableController[WrapLoadReturnsReturn]
+// WrapConfigManagerLoadCallHandle represents a single call to the wrapped function.
+type WrapConfigManagerLoadCallHandle struct {
+	*_imptest.CallableController[WrapConfigManagerLoadReturnsReturn]
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapLoadCallHandle) ExpectPanicEquals(expected any) {
+func (h *WrapConfigManagerLoadCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -30,7 +29,7 @@ func (h *WrapLoadCallHandle) ExpectPanicEquals(expected any) {
 }
 
 // ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapLoadCallHandle) ExpectPanicMatches(matcher any) {
+func (h *WrapConfigManagerLoadCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -46,7 +45,7 @@ func (h *WrapLoadCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapLoadCallHandle) ExpectReturnsEqual(v0 struct {
+func (h *WrapConfigManagerLoadCallHandle) ExpectReturnsEqual(v0 struct {
 	Host string
 	Port int
 	TLS  bool
@@ -65,7 +64,7 @@ func (h *WrapLoadCallHandle) ExpectReturnsEqual(v0 struct {
 }
 
 // ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapLoadCallHandle) ExpectReturnsMatch(v0 any) {
+func (h *WrapConfigManagerLoadCallHandle) ExpectReturnsMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -82,8 +81,8 @@ func (h *WrapLoadCallHandle) ExpectReturnsMatch(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// WrapLoadReturnsReturn holds the return values from the wrapped function.
-type WrapLoadReturnsReturn struct {
+// WrapConfigManagerLoadReturnsReturn holds the return values from the wrapped function.
+type WrapConfigManagerLoadReturnsReturn struct {
 	Result0 struct {
 		Host string
 		Port int
@@ -91,8 +90,8 @@ type WrapLoadReturnsReturn struct {
 	}
 }
 
-// WrapLoadWrapper wraps a function for testing.
-type WrapLoadWrapper struct {
+// WrapConfigManagerLoadWrapper wraps a function for testing.
+type WrapConfigManagerLoadWrapper struct {
 	t        _imptest.TestReporter
 	callable func(string) struct {
 		Host string
@@ -102,9 +101,9 @@ type WrapLoadWrapper struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapLoadWrapper) Start(path string) *WrapLoadCallHandle {
-	handle := &WrapLoadCallHandle{
-		CallableController: _imptest.NewCallableController[WrapLoadReturnsReturn](w.t),
+func (w *WrapConfigManagerLoadWrapper) Start(path string) *WrapConfigManagerLoadCallHandle {
+	handle := &WrapConfigManagerLoadCallHandle{
+		CallableController: _imptest.NewCallableController[WrapConfigManagerLoadReturnsReturn](w.t),
 	}
 	go func() {
 		defer func() {
@@ -113,18 +112,18 @@ func (w *WrapLoadWrapper) Start(path string) *WrapLoadCallHandle {
 			}
 		}()
 		ret0 := w.callable(path)
-		handle.ReturnChan <- WrapLoadReturnsReturn{Result0: ret0}
+		handle.ReturnChan <- WrapConfigManagerLoadReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
-// WrapLoad wraps a function for testing.
-func WrapLoad(t _imptest.TestReporter, fn func(string) struct {
+// WrapConfigManagerLoad wraps a function for testing.
+func WrapConfigManagerLoad(t _imptest.TestReporter, fn func(string) struct {
 	Host string
 	Port int
 	TLS  bool
-}) *WrapLoadWrapper {
-	return &WrapLoadWrapper{
+}) *WrapConfigManagerLoadWrapper {
+	return &WrapConfigManagerLoadWrapper{
 		t:        t,
 		callable: fn,
 	}
