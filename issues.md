@@ -247,6 +247,38 @@ behavior-variations - embedded-structs (parallel to embedded-interfaces)
 
 ---
 
+### 48. Make Eventually truly async with mock.Wait()
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+Currently Eventually() expectations block until a matching call arrives. Make Eventually truly async by running expectations in goroutines, and add a `mock.Wait()` method to wait for all outstanding goroutines to complete.
+
+#### Planning
+
+**Rationale**
+The current Eventually() pattern requires setting up expectations before the call happens, which works but isn't truly async. A fully async pattern would:
+1. Allow expectations to be set up at any time
+2. Run expectation matching in background goroutines
+3. Provide `mock.Wait()` to block until all expectations are satisfied
+
+**Acceptance**
+- Eventually() expectations run in goroutines (non-blocking)
+- `mock.Wait()` or similar blocks until all outstanding expectations complete
+- Timeout handling moves to Wait() rather than per-expectation
+- Existing tests continue to work (backward compatible or clear migration path)
+
+**Effort**
+Large
+
+**Priority**
+Medium
+
+---
+
 ### 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
 
 #### Universal
