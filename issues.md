@@ -371,6 +371,37 @@ Completed issues.
 
 
 
+
+### 44. Add UAT for struct as dependency (mock a struct's methods)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Enable mocking a struct type by generating a mock that implements all its methods, similar to how interfaces are mocked. For example, `impgen mypackage.Calculator --dependency` should generate `MockCalculator` with mock versions of all Calculator's methods.
+
+#### Planning
+
+**Rationale**
+Taxonomy Layer 2 shows "Struct (whole) as Mock" as a gap. In Go, you can't inject a struct like an interface, but you can extract its methods and create an interface-like mock. This enables testing code that depends on struct method behavior.
+
+**Acceptance**
+- UAT demonstrates `impgen pkg.SomeStruct --dependency` generating a mock
+- Generated mock has all methods from the original struct
+- Each method can be expected/verified like interface mocks
+
+**Effort**
+Medium
+
+**Priority**
+Medium
+
+**Taxonomy Gap**
+Capability Matrix - "Struct (whole)" row, "As Dependency" column
+
+---
 ### 49. Audit codebase for remaining V1 references
 
 #### Universal
