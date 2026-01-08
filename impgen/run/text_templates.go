@@ -106,19 +106,30 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTy
 
 	// Dependency Interface Method template
 	//nolint:lll // Template docstring
-	registry.depInterfaceMethodTmpl, err = parseTemplate("depInterfaceMethod", `// Interface returns the {{.InterfaceName}} implementation that can be passed to code under test.
+	registry.depInterfaceMethodTmpl, err = parseTemplate("depInterfaceMethod", `{{if .IsStructType}}// {{.MockTypeName}}Interface is a generated interface matching the methods of {{.InterfaceName}}.
+type {{.MockTypeName}}Interface{{.TypeParamsDecl}} interface {
+{{range .Methods}}	{{.MethodName}}({{.Params}}){{.Results}}
+{{end}}}
+
+// Interface returns a {{.MockTypeName}}Interface that can be passed to code under test.
+func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Interface() {{.MockTypeName}}Interface{{.TypeParamsUse}} {
+	return &{{.ImplName}}{{.TypeParamsUse}}{mock: m}
+}
+{{else}}// Interface returns the {{.InterfaceName}} implementation that can be passed to code under test.
 func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Interface() {{.InterfaceType}} {
 	return &{{.ImplName}}{{.TypeParamsUse}}{mock: m}
 }
-
+{{end}}
 `)
 	if err != nil {
 		return nil, err
 	}
 
 	// Dependency Impl Struct template
-	registry.depImplStructTmpl, err = parseTemplate("depImplStruct", `// {{.ImplName}} implements {{.InterfaceType}}.
-type {{.ImplName}}{{.TypeParamsDecl}} struct {
+	registry.depImplStructTmpl, err = parseTemplate("depImplStruct",
+		`{{if .IsStructType}}// {{.ImplName}} implements {{.MockTypeName}}Interface.
+{{else}}// {{.ImplName}} implements {{.InterfaceType}}.
+{{end}}type {{.ImplName}}{{.TypeParamsDecl}} struct {
 	mock *{{.MockTypeName}}{{.TypeParamsUse}}
 }
 

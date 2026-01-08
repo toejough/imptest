@@ -126,6 +126,7 @@ type ifaceWithDetails struct {
 	iface         *dst.InterfaceType
 	typeParams    *dst.FieldList
 	sourceImports []*dst.ImportSpec // imports from the file containing the interface
+	isStructType  bool              // true if this was synthesized from a struct type
 }
 
 // structWithDetails is a helper struct to return struct type information.

@@ -1,6 +1,6 @@
 module github.com/toejough/imptest
 
-go 1.24.0
+go 1.25.5
 
 require (
 	github.com/akedrou/textdiff v0.1.0
@@ -9,10 +9,11 @@ require (
 	github.com/gtramontina/ooze v0.2.0
 	github.com/magefile/mage v1.15.0
 	github.com/onsi/gomega v1.38.3
-	github.com/toejough/go-reorder v0.0.0-20251226074023-02f97ddf9bd8
+	github.com/toejough/go-reorder v0.0.0-20260108012837-59a2fb33deca
 )
 
 require (
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect

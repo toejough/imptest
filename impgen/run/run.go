@@ -403,17 +403,21 @@ func routeInterfaceGenerator(
 	return "", ErrInterfaceModeRequired
 }
 
-// routeStructGenerator routes to struct generator (only supports target mode).
+// routeStructGenerator routes to struct generators based on mode.
 func routeStructGenerator(
 	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
 	pkgPath string, pkgLoader PackageLoader, structType structWithDetails,
 ) (string, error) {
-	if info.mode != namingModeTarget {
-		//nolint:err113 // Dynamic error message for user-facing validation
-		return "", fmt.Errorf("struct types only support --target flag (use 'impgen %s --target')", info.localInterfaceName)
+	switch info.mode {
+	case namingModeTarget:
+		return generateStructTargetCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+	case namingModeDependency:
+		return generateStructDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+	case namingModeDefault:
+		return "", ErrFunctionModeRequired
 	}
 
-	return generateStructTargetCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+	return "", ErrFunctionModeRequired
 }
 
 // routeToGenerator routes to the appropriate generator based on symbol type and mode.

@@ -148,7 +148,8 @@ func (gen *dependencyGenerator) generate() (string, error) {
 	gen.checkIfQualifierNeeded()
 
 	// If we have an interface from an external package, we need the qualifier
-	if gen.interfaceName != "" && gen.qualifier != "" && gen.pkgPath != "" {
+	// Exception: struct types generate a synthetic interface, so they don't need the package import
+	if gen.interfaceName != "" && gen.qualifier != "" && gen.pkgPath != "" && !gen.identifiedInterface.isStructType {
 		gen.needsQualifier = true
 	}
 
@@ -228,6 +229,7 @@ func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistr
 		ImplName:         gen.implName,
 		MethodNames:      gen.methodNames,
 		Methods:          methods,
+		IsStructType:     gen.identifiedInterface.isStructType,
 	}
 
 	// Generate each section using templates

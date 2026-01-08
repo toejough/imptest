@@ -100,6 +100,7 @@ type depTemplateData struct {
 	ImplName      string                  // Implementation struct name (e.g., "mockOpsImpl")
 	MethodNames   []string                // List of interface method names
 	Methods       []depMethodTemplateData // Full method data for generating wrappers
+	IsStructType  bool                    // True if mocking a struct type (needs synthetic interface)
 }
 
 // importInfo holds information about an additional import needed for external types.
