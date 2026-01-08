@@ -42,11 +42,16 @@ type TemplateRegistry struct {
 	interfaceTargetMethodExpectReturnsTmpl    *template.Template
 	interfaceTargetMethodExpectCompletesTmpl  *template.Template
 	interfaceTargetMethodExpectPanicTmpl      *template.Template
+	// Function dependency templates
+	funcDepMockStructTmpl    *template.Template
+	funcDepConstructorTmpl   *template.Template
+	funcDepFuncMethodTmpl    *template.Template
+	funcDepMethodWrapperTmpl *template.Template
 }
 
 // NewTemplateRegistry creates and initializes a new template registry with all templates parsed.
 //
-//nolint:cyclop,funlen,gocyclo,maintidx // Template parsing requires comprehensive initialization
+//nolint:cyclop,funlen,gocyclo,gocognit,maintidx // Template parsing requires comprehensive initialization
 func NewTemplateRegistry() (*TemplateRegistry, error) {
 	registry := &TemplateRegistry{}
 
@@ -645,6 +650,108 @@ func (h *{{.CallHandleType}}) ExpectPanicMatches(matcher any) {
 
 	// Interface Target Call Record Struct template - REMOVED (call tracking eliminated)
 
+	// Function Dependency Mock Struct template
+	//nolint:lll // Template docstring
+	registry.funcDepMockStructTmpl, err = parseTemplate("funcDepMockStruct", `// {{.MockTypeName}} is the mock for {{.FuncName}} function.
+type {{.MockTypeName}}{{.TypeParamsDecl}} struct {
+	imp *{{.PkgImptest}}.Imp
+{{if .Method.HasParams}}	*{{.Method.MethodTypeName}}{{.TypeParamsUse}}
+{{else}}	*{{.PkgImptest}}.DependencyMethod
+{{end}}}
+
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Function Dependency Constructor template
+	//nolint:lll // Template docstring
+	registry.funcDepConstructorTmpl, err = parseTemplate("funcDepConstructor", `// {{.MockName}} creates a new {{.MockTypeName}} for testing.
+func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}{{.TypeParamsUse}} {
+	imp := {{.PkgImptest}}.NewImp(t)
+	return &{{.MockTypeName}}{{.TypeParamsUse}}{
+		imp: imp,
+{{if .Method.HasParams}}		{{.Method.MethodTypeName}}: &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}")},
+{{else}}		DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}"),
+{{end}}	}
+}
+
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Function Dependency Func Method template - returns a function with the same signature
+	//nolint:lll // Template docstring
+	registry.funcDepFuncMethodTmpl, err = parseTemplate("funcDepFuncMethod", `// Func returns a function that forwards calls to the mock.
+func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Func() {{.FuncSig}} {
+	return func({{.Method.Params}}){{.Method.Results}} {
+		{{if .Method.HasVariadic}}callArgs := []any{ {{.Method.NonVariadicArgs}} }
+		for _, v := range {{.Method.VariadicArg}} {
+			callArgs = append(callArgs, v)
+		}
+		{{end}}call := &{{.PkgImptest}}.GenericCall{
+			MethodName: "{{.FuncName}}",
+			Args: {{if .Method.HasVariadic}}callArgs{{else}}[]any{ {{.Method.Args}} }{{end}},
+			ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
+		}
+		m.imp.CallChan <- call
+		resp := <-call.ResponseChan
+		if resp.Type == "panic" {
+			panic(resp.PanicValue)
+		}
+		{{if .Method.HasResults}}{{range .Method.ResultVars}}
+		var {{.Name}} {{.Type}}
+		if len(resp.ReturnValues) > {{.Index}} {
+			if value, ok := resp.ReturnValues[{{.Index}}].({{.Type}}); ok {
+				{{.Name}} = value
+			}
+		}
+		{{end}}
+		return {{.Method.ReturnList}}{{end}}
+	}
+}
+
+`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Function Dependency Method Wrapper template
+	//nolint:lll // Template strings naturally exceed line length
+	registry.funcDepMethodWrapperTmpl, err = parseTemplate("funcDepMethodWrapper", `{{if .Method.HasParams}}// {{.Method.MethodTypeName}} wraps DependencyMethod with typed returns.
+type {{.Method.MethodTypeName}}{{.TypeParamsDecl}} struct {
+	*{{.PkgImptest}}.DependencyMethod
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithExactly({{.Method.TypedParams}}) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
+	{{if .Method.HasVariadic}}callArgs := []any{ {{if .Method.NonVariadicArgs}}{{.Method.NonVariadicArgs}}{{end}} }
+	for _, v := range {{.Method.VariadicArg}} {
+		callArgs = append(callArgs, v)
+	}
+	call := m.DependencyMethod.ExpectCalledWithExactly(callArgs...){{else}}call := m.DependencyMethod.ExpectCalledWithExactly({{.Method.ArgNames}}){{end}}
+	return &{{.Method.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers ...any) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &{{.Method.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) Eventually() *{{.Method.MethodTypeName}}{{.TypeParamsUse}} {
+	return &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+{{end}}
+`)
+	if err != nil {
+		return nil, err
+	}
+
 	return registry, nil
 }
 
@@ -717,6 +824,38 @@ func (r *TemplateRegistry) WriteDepMockStruct(buf *bytes.Buffer, data any) {
 	err := r.depMockStructTmpl.Execute(buf, data)
 	if err != nil {
 		panic(fmt.Sprintf("failed to execute depMockStruct template: %v", err))
+	}
+}
+
+// WriteFuncDepConstructor writes the function dependency mock constructor.
+func (r *TemplateRegistry) WriteFuncDepConstructor(buf *bytes.Buffer, data any) {
+	err := r.funcDepConstructorTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute funcDepConstructor template: %v", err))
+	}
+}
+
+// WriteFuncDepFuncMethod writes the function dependency Func() method.
+func (r *TemplateRegistry) WriteFuncDepFuncMethod(buf *bytes.Buffer, data any) {
+	err := r.funcDepFuncMethodTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute funcDepFuncMethod template: %v", err))
+	}
+}
+
+// WriteFuncDepMethodWrapper writes the function dependency method wrapper.
+func (r *TemplateRegistry) WriteFuncDepMethodWrapper(buf *bytes.Buffer, data any) {
+	err := r.funcDepMethodWrapperTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute funcDepMethodWrapper template: %v", err))
+	}
+}
+
+// WriteFuncDepMockStruct writes the function dependency mock struct.
+func (r *TemplateRegistry) WriteFuncDepMockStruct(buf *bytes.Buffer, data any) {
+	err := r.funcDepMockStructTmpl.Execute(buf, data)
+	if err != nil {
+		panic(fmt.Sprintf("failed to execute funcDepMockStruct template: %v", err))
 	}
 }
 

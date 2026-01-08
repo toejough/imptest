@@ -486,6 +486,58 @@ func (tf *typeFormatter) typeWithQualifierStar(t *dst.StarExpr) string {
 	return buf.String()
 }
 
+// variadicArgsResult holds the result of buildVariadicArgs.
+type variadicArgsResult struct {
+	hasVariadic     bool
+	nonVariadicArgs string
+	variadicArg     string
+	allArgs         string
+}
+
+// buildVariadicArgs checks for variadic parameters and builds argument strings.
+//
+//nolint:wsl_v5,cyclop // Whitespace styling in nested loop logic; complexity from variadic handling
+func buildVariadicArgs(ftype *dst.FuncType, paramNames []string) variadicArgsResult {
+	var hasVariadic bool
+	var nonVariadicArgs, variadicArg, allArgs strings.Builder
+
+	if ftype.Params != nil && len(ftype.Params.List) > 0 {
+		lastField := ftype.Params.List[len(ftype.Params.List)-1]
+		_, hasVariadic = lastField.Type.(*dst.Ellipsis)
+	}
+
+	if hasVariadic && len(paramNames) > 0 {
+		for i := range len(paramNames) - 1 {
+			if i > 0 {
+				nonVariadicArgs.WriteString(", ")
+			}
+			nonVariadicArgs.WriteString(paramNames[i])
+		}
+		variadicArg.WriteString(paramNames[len(paramNames)-1])
+
+		for i, name := range paramNames {
+			if i > 0 {
+				allArgs.WriteString(", ")
+			}
+			allArgs.WriteString(name)
+		}
+	} else {
+		for i, name := range paramNames {
+			if i > 0 {
+				allArgs.WriteString(", ")
+			}
+			allArgs.WriteString(name)
+		}
+	}
+
+	return variadicArgsResult{
+		hasVariadic:     hasVariadic,
+		nonVariadicArgs: nonVariadicArgs.String(),
+		variadicArg:     variadicArg.String(),
+		allArgs:         allArgs.String(),
+	}
+}
+
 // collectExternalImports walks a type expression and collects package references
 // from SelectorExpr nodes (e.g., "io.Reader", "os.FileMode").
 // It resolves each package reference to its full import path using the source imports.

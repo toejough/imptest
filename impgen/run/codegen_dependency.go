@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,intrange,cyclop,funlen
+//nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,funlen
 package run
 
 import (
@@ -37,7 +37,7 @@ func (gen *dependencyGenerator) buildMethodTemplateData(
 	resultsStr, resultTypes := gen.buildResultStrings(ftype)
 
 	// Check for variadic parameters and build argument strings
-	variadicResult := gen.buildVariadicArgs(ftype, paramNames)
+	variadicResult := buildVariadicArgs(ftype, paramNames)
 
 	// Build result variables
 	resultVars, returnList := buildResultVars(resultTypes)
@@ -107,57 +107,6 @@ func (gen *dependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramFie
 	}
 
 	return paramFields
-}
-
-// buildMethodTemplateData builds template data for a single method.
-// buildVariadicArgs checks for variadic parameters and builds argument strings.
-func (gen *dependencyGenerator) buildVariadicArgs(
-	ftype *dst.FuncType,
-	paramNames []string,
-) variadicArgsResult {
-	var hasVariadic bool
-	var nonVariadicArgs, variadicArg, allArgs strings.Builder
-
-	if ftype.Params != nil && len(ftype.Params.List) > 0 {
-		lastField := ftype.Params.List[len(ftype.Params.List)-1]
-		_, hasVariadic = lastField.Type.(*dst.Ellipsis)
-	}
-
-	if hasVariadic && len(paramNames) > 0 {
-		// Build non-variadic args (all params except the last one)
-		for i := 0; i < len(paramNames)-1; i++ {
-			if i > 0 {
-				nonVariadicArgs.WriteString(", ")
-			}
-			nonVariadicArgs.WriteString(paramNames[i])
-		}
-		variadicArg.WriteString(paramNames[len(paramNames)-1])
-
-		// For variadic methods, allArgs is not used in the template
-		// (the template uses NonVariadicArgs and VariadicArg to build args manually)
-		// But we still populate it for consistency and potential future use
-		for i, name := range paramNames {
-			if i > 0 {
-				allArgs.WriteString(", ")
-			}
-			allArgs.WriteString(name)
-		}
-	} else {
-		// Build all args (non-variadic case)
-		for i, name := range paramNames {
-			if i > 0 {
-				allArgs.WriteString(", ")
-			}
-			allArgs.WriteString(name)
-		}
-	}
-
-	return variadicArgsResult{
-		hasVariadic:     hasVariadic,
-		nonVariadicArgs: nonVariadicArgs.String(),
-		variadicArg:     variadicArg.String(),
-		allArgs:         allArgs.String(),
-	}
 }
 
 // checkIfQualifierNeeded determines if we need a package qualifier.
@@ -295,14 +244,6 @@ func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistr
 		templates.WriteDepCallWrapper(&gen.buf, methodData)
 		templates.WriteDepMethodWrapper(&gen.buf, methodData)
 	}
-}
-
-// variadicArgsResult holds the result of buildVariadicArgs.
-type variadicArgsResult struct {
-	hasVariadic     bool
-	nonVariadicArgs string
-	variadicArg     string
-	allArgs         string
 }
 
 // buildResultVars builds result variables and return list from result types.

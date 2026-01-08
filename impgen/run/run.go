@@ -362,9 +362,12 @@ func routeToGenerator(
 	symbol symbolDetails,
 ) (string, error) {
 	if symbol.kind == symbolFunction {
-		// For functions: require --target flag (V1 callable wrappers deprecated)
 		if info.mode == namingModeTarget {
 			return generateTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
+		}
+
+		if info.mode == namingModeDependency {
+			return generateFunctionDependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
 		}
 
 		return "", ErrV1CallableDeprecated
