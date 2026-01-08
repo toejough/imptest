@@ -120,16 +120,6 @@ Standard issue structure organized by category:
 
 ## Backlog
 
-### 50. Add function type as dependency mock support
-
-#### Universal
-
-**Status**
-in progress
-
-**Description**
-
-
 ### 49. Audit codebase for remaining V1 references
 
 #### Universal
@@ -388,6 +378,16 @@ TOE-80
 
 Completed issues.
 
+
+
+### 50. Add function type as dependency mock support
+
+#### Universal
+
+**Status**
+done
+
+**Description**
 
 ### 43. Add UAT for function as dependency (mock a function by signature)
 
