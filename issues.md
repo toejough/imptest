@@ -130,37 +130,6 @@ backlog
 **Description**
 
 
-### 43. Add UAT for function as dependency (mock a function by signature)
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-Enable mocking a package-level function by extracting its signature and generating a mock for that function type. For example, `impgen mypackage.ProcessOrder --dependency` should generate `MockProcessOrder` with the same signature.
-
-#### Planning
-
-**Rationale**
-Taxonomy Layer 2 shows "Function as Mock" as a gap. Users may want to mock a function without first defining a named function type. The implementation should extract the function's signature and treat it as an implicit function type.
-
-**Acceptance**
-- UAT demonstrates `impgen pkg.SomeFunction --dependency` generating a mock
-- Generated mock has same signature as original function
-- Mock can be used to verify calls and inject return values
-
-**Effort**
-Medium
-
-**Priority**
-Medium
-
-**Taxonomy Gap**
-Capability Matrix - "Function" row, "As Dependency" column
-
----
-
 ### 44. Add UAT for struct as dependency (mock a struct's methods)
 
 #### Universal
@@ -409,6 +378,37 @@ TOE-80
 
 Completed issues.
 
+
+### 43. Add UAT for function as dependency (mock a function by signature)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Enable mocking a package-level function by extracting its signature and generating a mock for that function type. For example, `impgen mypackage.ProcessOrder --dependency` should generate `MockProcessOrder` with the same signature.
+
+#### Planning
+
+**Rationale**
+Taxonomy Layer 2 shows "Function as Mock" as a gap. Users may want to mock a function without first defining a named function type. The implementation should extract the function's signature and treat it as an implicit function type.
+
+**Acceptance**
+- UAT demonstrates `impgen pkg.SomeFunction --dependency` generating a mock
+- Generated mock has same signature as original function
+- Mock can be used to verify calls and inject return values
+
+**Effort**
+Medium
+
+**Priority**
+Medium
+
+**Taxonomy Gap**
+Capability Matrix - "Function" row, "As Dependency" column
+
+---
 ### 47. Restructure TAXONOMY.md around three-layer mental model
 
 #### Universal
