@@ -308,6 +308,32 @@ func generateFunctionDependencyCode(
 	return gen.generate()
 }
 
+// generateFunctionTypeDependencyCode generates dependency mock code for a function type.
+// It creates a synthetic function declaration from the function type and delegates to generateFunctionDependencyCode.
+func generateFunctionTypeDependencyCode(
+	astFiles []*dst.File,
+	info generatorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+	pkgLoader PackageLoader,
+	funcTypeDetails funcTypeWithDetails,
+) (string, error) {
+	// Create a synthetic function declaration from the function type
+	// For a type like: type Handler func(w http.ResponseWriter, r *http.Request)
+	// We create: func Handler(w http.ResponseWriter, r *http.Request) { ... }
+	funcDecl := &dst.FuncDecl{
+		Name: &dst.Ident{Name: funcTypeDetails.typeName},
+		Type: funcTypeDetails.funcType,
+	}
+
+	// If the function type has type parameters, attach them to the FuncType
+	if funcTypeDetails.typeParams != nil {
+		funcDecl.Type.TypeParams = funcTypeDetails.typeParams
+	}
+
+	return generateFunctionDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
+}
+
 // newFunctionDependencyGenerator creates a new function dependency mock generator.
 func newFunctionDependencyGenerator(
 	astFiles []*dst.File,

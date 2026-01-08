@@ -120,6 +120,16 @@ Standard issue structure organized by category:
 
 ## Backlog
 
+### 50. Add function type as dependency mock support
+
+#### Universal
+
+**Status**
+in progress
+
+**Description**
+
+
 ### 49. Audit codebase for remaining V1 references
 
 #### Universal

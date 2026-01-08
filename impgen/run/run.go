@@ -352,6 +352,70 @@ func parseArgs(args []string) (cliArgs, error) {
 	return parsed, nil
 }
 
+// routeFunctionGenerator routes to function generators based on mode.
+func routeFunctionGenerator(
+	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader PackageLoader, funcDecl *dst.FuncDecl,
+) (string, error) {
+	switch info.mode {
+	case namingModeTarget:
+		return generateTargetCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
+	case namingModeDependency:
+		return generateFunctionDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
+	case namingModeDefault:
+		return "", ErrV1CallableDeprecated
+	}
+
+	return "", ErrV1CallableDeprecated
+}
+
+// routeFunctionTypeGenerator routes to function type generators based on mode.
+func routeFunctionTypeGenerator(
+	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader PackageLoader, funcType funcTypeWithDetails,
+) (string, error) {
+	switch info.mode {
+	case namingModeTarget:
+		return generateTargetCodeFromFuncType(astFiles, info, fset, pkgPath, pkgLoader, funcType)
+	case namingModeDependency:
+		return generateFunctionTypeDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcType)
+	case namingModeDefault:
+		return "", ErrV1CallableDeprecated
+	}
+
+	return "", ErrV1CallableDeprecated
+}
+
+// routeInterfaceGenerator routes to interface generators based on mode.
+func routeInterfaceGenerator(
+	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader PackageLoader, iface ifaceWithDetails,
+) (string, error) {
+	switch info.mode {
+	case namingModeDependency:
+		return generateDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, iface)
+	case namingModeTarget:
+		return generateInterfaceTargetCode(astFiles, info, fset, pkgPath, pkgLoader, iface, false)
+	case namingModeDefault:
+		return "", ErrV1InterfaceDeprecated
+	}
+
+	return "", ErrV1InterfaceDeprecated
+}
+
+// routeStructGenerator routes to struct generator (only supports target mode).
+func routeStructGenerator(
+	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader PackageLoader, structType structWithDetails,
+) (string, error) {
+	if info.mode != namingModeTarget {
+		//nolint:err113 // Dynamic error message for user-facing validation
+		return "", fmt.Errorf("struct types only support --target flag (use 'impgen %s --target')", info.localInterfaceName)
+	}
+
+	return generateStructTargetCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+}
+
 // routeToGenerator routes to the appropriate generator based on symbol type and mode.
 func routeToGenerator(
 	astFiles []*dst.File,
@@ -361,44 +425,18 @@ func routeToGenerator(
 	pkgLoader PackageLoader,
 	symbol symbolDetails,
 ) (string, error) {
-	if symbol.kind == symbolFunction {
-		if info.mode == namingModeTarget {
-			return generateTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
-		}
-
-		if info.mode == namingModeDependency {
-			return generateFunctionDependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
-		}
-
-		return "", ErrV1CallableDeprecated
+	switch symbol.kind {
+	case symbolFunction:
+		return routeFunctionGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
+	case symbolFunctionType:
+		return routeFunctionTypeGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
+	case symbolStructType:
+		return routeStructGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.structType)
+	case symbolInterface:
+		return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
 	}
 
-	// For function types: use target generator (function types are always wrapped as targets)
-	if symbol.kind == symbolFunctionType {
-		return generateTargetCodeFromFuncType(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
-	}
-
-	// For struct types: use interface target generator (struct types only support --target mode)
-	if symbol.kind == symbolStructType {
-		// Only --target mode is supported for struct types
-		if info.mode != namingModeTarget {
-			//nolint:err113 // Dynamic error message for user-facing validation
-			return "", fmt.Errorf("struct types only support --target flag (use 'impgen %s --target')", info.localInterfaceName)
-		}
-
-		return generateStructTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.structType)
-	}
-
-	// For interfaces: support both --dependency and --target modes
-	if info.mode == namingModeDependency {
-		return generateDependencyCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
-	}
-
-	if info.mode == namingModeTarget {
-		return generateInterfaceTargetCode(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface, false)
-	}
-
-	return "", ErrV1InterfaceDeprecated
+	return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
 }
 
 // writeGeneratedCodeToFile writes the generated code to generated_<impName>.go.
