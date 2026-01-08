@@ -37,8 +37,8 @@ type GenericResponse struct {
 	PanicValue   any
 }
 
-// Imp is the central coordinator for v2 API.
-// It wraps the v1 Controller to provide conversational testing.
+// Imp is the central coordinator for dependency mocking.
+// It wraps the Controller to provide conversational testing.
 type Imp struct {
 	*Controller[*GenericCall]
 

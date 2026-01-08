@@ -16,10 +16,10 @@ import (
 
 // Exported variables.
 var (
-	// ErrV1CallableDeprecated indicates that V1 callable wrappers are no longer supported.
-	ErrV1CallableDeprecated = errors.New("V1 callable wrappers are deprecated. Use --target flag for function wrapping")
-	// ErrV1InterfaceDeprecated indicates that V1 interface mocks are no longer supported.
-	ErrV1InterfaceDeprecated = errors.New("V1 interface mocks are deprecated. Use --dependency flag for interface mocking")
+	// ErrFunctionModeRequired indicates that a mode flag is required for functions.
+	ErrFunctionModeRequired = errors.New("mode flag required: use --target or --dependency")
+	// ErrInterfaceModeRequired indicates that a mode flag is required for interfaces.
+	ErrInterfaceModeRequired = errors.New("mode flag required: use --dependency or --target")
 )
 
 // Interfaces - Public
@@ -363,10 +363,10 @@ func routeFunctionGenerator(
 	case namingModeDependency:
 		return generateFunctionDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
 	case namingModeDefault:
-		return "", ErrV1CallableDeprecated
+		return "", ErrFunctionModeRequired
 	}
 
-	return "", ErrV1CallableDeprecated
+	return "", ErrFunctionModeRequired
 }
 
 // routeFunctionTypeGenerator routes to function type generators based on mode.
@@ -380,10 +380,10 @@ func routeFunctionTypeGenerator(
 	case namingModeDependency:
 		return generateFunctionTypeDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcType)
 	case namingModeDefault:
-		return "", ErrV1CallableDeprecated
+		return "", ErrFunctionModeRequired
 	}
 
-	return "", ErrV1CallableDeprecated
+	return "", ErrFunctionModeRequired
 }
 
 // routeInterfaceGenerator routes to interface generators based on mode.
@@ -397,10 +397,10 @@ func routeInterfaceGenerator(
 	case namingModeTarget:
 		return generateInterfaceTargetCode(astFiles, info, fset, pkgPath, pkgLoader, iface, false)
 	case namingModeDefault:
-		return "", ErrV1InterfaceDeprecated
+		return "", ErrInterfaceModeRequired
 	}
 
-	return "", ErrV1InterfaceDeprecated
+	return "", ErrInterfaceModeRequired
 }
 
 // routeStructGenerator routes to struct generator (only supports target mode).
