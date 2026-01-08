@@ -120,16 +120,6 @@ Standard issue structure organized by category:
 
 ## Backlog
 
-### 49. Audit codebase for remaining V1 references
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-
-
 ### 44. Add UAT for struct as dependency (mock a struct's methods)
 
 #### Universal
@@ -379,6 +369,16 @@ TOE-80
 Completed issues.
 
 
+
+
+### 49. Audit codebase for remaining V1 references
+
+#### Universal
+
+**Status**
+done
+
+**Description**
 
 ### 50. Add function type as dependency mock support
 
