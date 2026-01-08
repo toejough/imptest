@@ -368,10 +368,28 @@ TOE-80
 
 Completed issues.
 
+### 46. Add UAT for embedded structs
 
+#### Universal
 
+**Status**
+done
 
+**Description**
+Verify wrapping/mocking structs that embed other structs. Similar to how UAT-08 tests embedded interfaces, we need to verify that struct embedding is handled correctly - the embedded struct's methods should be accessible on the outer struct.
 
+#### Work Tracking
+
+**Completed**
+2026-01-08
+
+**Commit**
+cbf305d
+
+**Solution**
+Modified `collectStructMethods` in `pkgparse.go` to recursively collect methods from embedded structs using new `findEmbeddedStructTypes` helper. Created UAT at `UAT/variations/behavior/embedded-structs/` with Logger, Counter (base structs), and TimedLogger (embeds both). Generated mock includes all 5 methods: promoted Log, SetPrefix (from Logger), Inc, Value (from Counter), plus direct LogWithCount.
+
+---
 
 ### 45. Add UAT for struct method as dependency (mock single method by signature)
 
