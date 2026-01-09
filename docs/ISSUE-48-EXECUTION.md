@@ -26,7 +26,8 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
 | Phase | Status | Commit |
 |-------|--------|--------|
-| 1 | pending | - |
+| 1 | complete | dad78de |
+| 2 | complete | 8252e8d |
 
 ---
 
@@ -35,56 +36,56 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 Codegen change affects ALL tests at once. Must update everything together.
 
 ### 1.1 RED: Update ALL test files to new pattern
-- [ ] Update all `*_test.go` files:
+- [x] Update all `*_test.go` files:
   - `mock := MockFoo(t)` → `h := MockFoo(t)`
   - `mock.MethodName.Expect...` → `h.Method.MethodName.Expect...`
   - `mock.Interface()` → `h.Mock`
   - `mock.Func()` → `h.Mock` (for function mocks)
-- [ ] Tests will fail (generated code still old pattern)
-- [ ] Commit: `test(uat): update all tests to test handle pattern (RED)`
+- [x] Tests will fail (generated code still old pattern)
+- [x] Commit: `test(uat): update all tests to test handle pattern (RED)`
 
 ### 1.2 GREEN: Update ALL codegen templates
-- [ ] Update `depConstructorTmpl` - interface/struct mocks
-- [ ] Update `funcDepConstructorTmpl` - function/functype mocks
-- [ ] Update `targetConstructorTmpl` - function wrappers
-- [ ] Update `interfaceTargetConstructorTmpl` - interface/struct wrappers
-- [ ] Add Handle struct templates
-- [ ] Add Methods struct templates
-- [ ] Regenerate all: `go generate ./...`
-- [ ] All tests pass
-- [ ] Commit: `feat(codegen): implement test handle pattern`
+- [x] Update `depConstructorTmpl` - interface/struct mocks
+- [x] Update `funcDepConstructorTmpl` - function/functype mocks
+- [x] Update `targetConstructorTmpl` - function wrappers
+- [x] Update `interfaceTargetConstructorTmpl` - interface/struct wrappers
+- [x] Add Handle struct templates
+- [x] Add Methods struct templates
+- [x] Regenerate all: `go generate ./...`
+- [x] All tests pass
+- [x] Commit: `refactor(api): transform mock API to test handle pattern` (dad78de)
 
 ### 1.3 REFACTOR: mage check
-- [ ] Run `mage check`
-- [ ] Fix any linter issues
-- [ ] Commit: `refactor: fix linter issues`
+- [x] Run `mage check`
+- [x] Fix any linter issues
+- [x] (Combined with 1.2 commit)
 
-**CHECKPOINT**: Stop here, update log, check in with user.
+**CHECKPOINT**: Complete
 
 ---
 
 ## Phase 2: Async Eventually() - Core
 
 ### 2.1 RED: Write failing test for async Eventually
-- [ ] In `UAT/variations/concurrency/eventually/`
-- [ ] Test expects Eventually() to be non-blocking
-- [ ] Test expects `h.Controller.Wait()` to block
-- [ ] Commit: `test(eventually): expect async behavior (RED)`
+- [x] In `UAT/variations/concurrency/eventually/`
+- [x] Test expects Eventually() to be non-blocking
+- [x] Test expects `h.Controller.Wait()` to block
+- [x] (Combined with 2.2)
 
 ### 2.2 GREEN: Implement PendingExpectation + Controller.Wait()
-- [ ] Add `PendingExpectation` struct to `imptest/controller.go`
-- [ ] Add `Controller.Wait()` and `Controller.SetTimeout()`
-- [ ] Modify dispatch loop to check pending expectations
-- [ ] Modify `DependencyMethod` for async registration
-- [ ] Implement callback pattern on `InjectReturnValues`/`InjectPanicValue`
-- [ ] Tests pass
-- [ ] Commit: `feat(eventually): implement async Eventually with Wait()`
+- [x] Add `PendingExpectation` struct to `imptest/controller.go`
+- [x] Add `Controller.Wait()` and `Controller.SetTimeout()`
+- [x] Modify dispatch loop to check pending expectations
+- [x] Modify `DependencyMethod` for async registration
+- [x] Implement callback pattern on `InjectReturnValues`/`InjectPanicValue`
+- [x] Tests pass
+- [x] Commit: `feat(eventually): implement async Eventually with Wait()` (8252e8d)
 
 ### 2.3 REFACTOR: mage check
-- [ ] Fix any linter issues
-- [ ] Commit: `refactor: fix linter issues`
+- [x] Fix any linter issues
+- [x] (Combined with 2.2 commit)
 
-**CHECKPOINT**
+**CHECKPOINT**: Complete
 
 ---
 
@@ -118,6 +119,8 @@ Codegen change affects ALL tests at once. Must update everything together.
 
 ---
 
-## Current Phase: 1.1
+## Current Phase: 3 (or skip to 4)
 
-**Next Action**: Update ALL `*_test.go` files to use new test handle pattern (`h := MockFoo(t)`, `h.Method.X`, `h.Mock`).
+**Next Action**: Decide whether target wrappers need async Eventually() support (Phase 3), or proceed directly to documentation updates (Phase 4).
+
+Phase 1-2 complete. Core async Eventually() with `h.Controller.Wait()` is working for dependency mocks.
