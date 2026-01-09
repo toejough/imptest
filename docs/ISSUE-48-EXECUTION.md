@@ -28,6 +28,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 |-------|--------|--------|
 | 1 | complete | dad78de |
 | 2 | complete | 8252e8d |
+| 3 | complete | 4cb58c6 |
 
 ---
 
@@ -89,22 +90,26 @@ Codegen change affects ALL tests at once. Must update everything together.
 
 ---
 
-## Phase 3: Target Wrapper Eventually (if needed)
+## Phase 3: Target Wrapper Eventually
 
 ### 3.1 RED: Test async Eventually on target wrappers
-- [ ] Test `handle.Eventually().ExpectReturnsEqual()`
-- [ ] Commit RED
+- [x] Test `handle.Eventually().ExpectReturnsEqual()`
+- [x] Test `handle.Eventually().ExpectPanicEquals()`
+- [x] (Combined with 3.2)
 
 ### 3.2 GREEN: Implement
-- [ ] Add `PendingCompletion` struct
-- [ ] Add `Eventually()` to `CallableController`
-- [ ] Tests pass
-- [ ] Commit GREEN
+- [x] Add `TargetController` and `PendingCompletion` structs
+- [x] Add `Eventually()` to generated CallHandle types
+- [x] Add `Controller` field to wrapper Handle
+- [x] Update templates for target wrappers
+- [x] Tests pass
+- [x] Commit: `feat(target-wrapper): implement async Eventually() with Controller.Wait()` (4cb58c6)
 
 ### 3.3 REFACTOR: mage check
-- [ ] Commit if needed
+- [x] Fixed linter issues (elseif, varnamelen)
+- [x] (Combined with 3.2 commit)
 
-**CHECKPOINT**
+**CHECKPOINT**: Complete
 
 ---
 
@@ -119,8 +124,8 @@ Codegen change affects ALL tests at once. Must update everything together.
 
 ---
 
-## Current Phase: 3 (or skip to 4)
+## Current Phase: 4 (Documentation)
 
-**Next Action**: Decide whether target wrappers need async Eventually() support (Phase 3), or proceed directly to documentation updates (Phase 4).
+**Next Action**: Update documentation for the new test handle pattern and async Eventually() API.
 
-Phase 1-2 complete. Core async Eventually() with `h.Controller.Wait()` is working for dependency mocks.
+Phases 1-3 complete. Both dependency mocks and target wrappers support async Eventually() with `h.Controller.Wait()`.
