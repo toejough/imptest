@@ -1,4 +1,4 @@
-//nolint:wsl_v5,intrange,funlen
+//nolint:wsl_v5,intrange
 package generate
 
 import (
@@ -45,6 +45,65 @@ type interfaceTargetGenerator struct {
 	pkgLoader           detect.PackageLoader
 	methodNames         []string
 	identifiedInterface detect.IfaceWithDetails // full interface details including source imports
+}
+
+// buildInterfaceTargetTemplateData constructs the template data for interface target wrapper generation.
+func (gen *interfaceTargetGenerator) buildInterfaceTargetTemplateData(isStructType bool) interfaceTargetTemplateData {
+	// Determine if we need reflect (for ExpectReturnsEqual with DeepEqual)
+	needsReflect := false
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(_ string, ftype *dst.FuncType) {
+			if ftype.Results != nil && len(ftype.Results.List) > 0 {
+				needsReflect = true
+			}
+		},
+	)
+
+	// Build base template data
+	base := baseTemplateData{
+		PkgName:           gen.pkgName,
+		ImpName:           gen.impName,
+		PkgPath:           gen.pkgPath,
+		Qualifier:         gen.qualifier,
+		NeedsQualifier:    gen.needsQualifier,
+		TypeParamsDecl:    gen.formatTypeParamsDecl(),
+		TypeParamsUse:     gen.formatTypeParamsUse(),
+		PkgTesting:        pkgTesting,
+		PkgFmt:            pkgFmt,
+		PkgImptest:        pkgImptest,
+		PkgTime:           pkgTime,
+		PkgReflect:        pkgReflect,
+		NeedsFmt:          false, // Interface wrappers don't need fmt
+		NeedsReflect:      needsReflect,
+		NeedsImptest:      true, // Always needed for CallableController
+		AdditionalImports: gen.collectAdditionalImports(),
+	}
+
+	// Construct the interface type with qualifier if needed
+	interfaceType := gen.formatQualifiedInterfaceType()
+
+	// Collect method wrappers for all interface methods
+	var methodWrappers []methodWrapperData
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(methodName string, ftype *dst.FuncType) {
+			methodData := gen.buildMethodWrapperData(methodName, ftype)
+			methodWrappers = append(methodWrappers, methodData)
+		},
+	)
+
+	return interfaceTargetTemplateData{
+		baseTemplateData: base,
+		WrapName:         gen.wrapName,
+		WrapperType:      gen.wrapperType,
+		InterfaceName:    gen.interfaceName,
+		InterfaceType:    interfaceType,
+		ImplName:         gen.implName,
+		MethodNames:      gen.methodNames,
+		Methods:          methodWrappers,
+		IsStructType:     isStructType,
+	}
 }
 
 // buildMethodWrapperData builds wrapper data for a single interface method.
@@ -181,6 +240,28 @@ func (gen *interfaceTargetGenerator) collectAdditionalImports() []importInfo {
 	)
 }
 
+// formatQualifiedInterfaceType constructs the interface type string with qualifier if needed.
+func (gen *interfaceTargetGenerator) formatQualifiedInterfaceType() string {
+	interfaceType := gen.interfaceName
+
+	if gen.qualifier != "" && gen.needsQualifier {
+		qualifierToUse := gen.qualifier
+		// Check if this is a stdlib package that needs aliasing due to a name conflict
+		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
+			qualifierToUse = "_" + gen.qualifier
+		}
+
+		interfaceType = qualifierToUse + "." + gen.interfaceName
+	}
+
+	// Add type parameters to interface type if present
+	if gen.formatTypeParamsUse() != "" {
+		interfaceType += gen.formatTypeParamsUse()
+	}
+
+	return interfaceType
+}
+
 // generate produces the interface target wrapper code using templates.
 func (gen *interfaceTargetGenerator) generate(isStructType bool) (string, error) {
 	// Pre-scan to determine what imports are needed
@@ -210,74 +291,7 @@ func (gen *interfaceTargetGenerator) generate(isStructType bool) (string, error)
 
 // generateWithTemplates generates code using templates instead of direct code generation.
 func (gen *interfaceTargetGenerator) generateWithTemplates(templates *TemplateRegistry, isStructType bool) {
-	// Determine if we need reflect (for ExpectReturnsEqual with DeepEqual)
-	needsReflect := false
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(_ string, ftype *dst.FuncType) {
-			if ftype.Results != nil && len(ftype.Results.List) > 0 {
-				needsReflect = true
-			}
-		},
-	)
-
-	// Build base template data
-	base := baseTemplateData{
-		PkgName:           gen.pkgName,
-		ImpName:           gen.impName,
-		PkgPath:           gen.pkgPath,
-		Qualifier:         gen.qualifier,
-		NeedsQualifier:    gen.needsQualifier,
-		TypeParamsDecl:    gen.formatTypeParamsDecl(),
-		TypeParamsUse:     gen.formatTypeParamsUse(),
-		PkgTesting:        pkgTesting,
-		PkgFmt:            pkgFmt,
-		PkgImptest:        pkgImptest,
-		PkgTime:           pkgTime,
-		PkgReflect:        pkgReflect,
-		NeedsFmt:          false, // Interface wrappers don't need fmt
-		NeedsReflect:      needsReflect,
-		NeedsImptest:      true, // Always needed for CallableController
-		AdditionalImports: gen.collectAdditionalImports(),
-	}
-
-	// Construct the interface type with qualifier if needed
-	interfaceType := gen.interfaceName
-	if gen.qualifier != "" && gen.needsQualifier {
-		qualifierToUse := gen.qualifier
-		// Check if this is a stdlib package that needs aliasing due to a name conflict
-		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
-			qualifierToUse = "_" + gen.qualifier
-		}
-		interfaceType = qualifierToUse + "." + gen.interfaceName
-	}
-	// Add type parameters to interface type if present
-	if gen.formatTypeParamsUse() != "" {
-		interfaceType += gen.formatTypeParamsUse()
-	}
-
-	// Collect method wrappers for all interface methods
-	var methodWrappers []methodWrapperData
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(methodName string, ftype *dst.FuncType) {
-			methodData := gen.buildMethodWrapperData(methodName, ftype)
-			methodWrappers = append(methodWrappers, methodData)
-		},
-	)
-
-	// Build interface target template data
-	data := interfaceTargetTemplateData{
-		baseTemplateData: base,
-		WrapName:         gen.wrapName,
-		WrapperType:      gen.wrapperType,
-		InterfaceName:    gen.interfaceName,
-		InterfaceType:    interfaceType,
-		ImplName:         gen.implName,
-		MethodNames:      gen.methodNames,
-		Methods:          methodWrappers,
-		IsStructType:     isStructType,
-	}
+	data := gen.buildInterfaceTargetTemplateData(isStructType)
 
 	// Generate each section using templates
 	templates.WriteInterfaceTargetHeader(&gen.buf, data)
@@ -285,7 +299,7 @@ func (gen *interfaceTargetGenerator) generateWithTemplates(templates *TemplateRe
 	templates.WriteInterfaceTargetConstructor(&gen.buf, data)
 
 	// Generate method wrappers for each interface method
-	for _, methodData := range methodWrappers {
+	for _, methodData := range data.Methods {
 		templates.WriteInterfaceTargetMethodWrapperFunc(&gen.buf, methodData)
 		templates.WriteInterfaceTargetMethodWrapperStruct(&gen.buf, methodData)
 		templates.WriteInterfaceTargetMethodCallHandleStruct(&gen.buf, methodData)

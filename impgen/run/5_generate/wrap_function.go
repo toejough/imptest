@@ -1,4 +1,4 @@
-//nolint:wsl_v5,staticcheck,cyclop,gocognit,intrange,funlen
+//nolint:wsl_v5,staticcheck,cyclop,gocognit,intrange
 package generate
 
 import (
@@ -167,6 +167,61 @@ func (gen *targetGenerator) buildFunctionSignature() string {
 	return sig.String()
 }
 
+// buildTargetTemplateData constructs the template data for target wrapper generation.
+func (gen *targetGenerator) buildTargetTemplateData() targetTemplateData {
+	// Build base template data
+	base := baseTemplateData{
+		PkgName:           gen.pkgName,
+		ImpName:           gen.impName,
+		PkgPath:           gen.pkgPath,
+		Qualifier:         gen.qualifier,
+		NeedsQualifier:    gen.needsQualifier,
+		TypeParamsDecl:    gen.formatTypeParamsDecl(),
+		TypeParamsUse:     gen.formatTypeParamsUse(),
+		PkgTesting:        pkgTesting,
+		PkgFmt:            pkgFmt,
+		PkgImptest:        pkgImptest,
+		PkgTime:           pkgTime,
+		PkgReflect:        pkgReflect,
+		NeedsFmt:          gen.needsFmt,
+		NeedsReflect:      gen.needsReflect,
+		NeedsImptest:      gen.needsImptest,
+		AdditionalImports: gen.collectAdditionalImports(),
+	}
+
+	// Build function signature string
+	funcSig := gen.buildFunctionSignature()
+
+	// Build params string for Start method
+	var paramsStr strings.Builder
+	gen.writeFunctionParamsToBuilder(&paramsStr, gen.funcDecl.Type.Params)
+
+	// Build result data using shared helper
+	resultData := (&ResultDataBuilder{
+		ResultTypes: gen.resultTypes,
+		VarPrefix:   "ret",
+	}).Build()
+
+	return targetTemplateData{
+		baseTemplateData:  base,
+		WrapName:          gen.wrapName,
+		WrapperType:       gen.wrapperType,
+		CallHandleType:    gen.callHandleType,
+		ReturnsType:       gen.returnsType,
+		FuncSig:           funcSig,
+		Params:            paramsStr.String(),
+		ParamNames:        strings.Join(gen.paramNames, ", "),
+		HasResults:        resultData.HasResults,
+		ResultVars:        resultData.Vars,
+		ReturnAssignments: resultData.Assignments,
+		WaitMethodName:    resultData.WaitMethodName,
+		ExpectedParams:    resultData.ExpectedParams,
+		MatcherParams:     resultData.MatcherParams,
+		ResultChecks:      resultData.Checks,
+		ResultFields:      resultData.Fields,
+	}
+}
+
 // collectAdditionalImports collects all external type imports needed for function signatures.
 func (gen *targetGenerator) collectAdditionalImports() []importInfo {
 	imports := collectImportsFromFuncDecl(gen.funcDecl, gen.astFiles)
@@ -241,63 +296,7 @@ func (gen *targetGenerator) generate() (string, error) {
 
 // generateWithTemplates generates code using templates instead of direct code generation.
 func (gen *targetGenerator) generateWithTemplates(templates *TemplateRegistry) {
-	// Build base template data
-	additionalImports := gen.collectAdditionalImports()
-
-	base := baseTemplateData{
-		PkgName:           gen.pkgName,
-		ImpName:           gen.impName,
-		PkgPath:           gen.pkgPath,
-		Qualifier:         gen.qualifier,
-		NeedsQualifier:    gen.needsQualifier,
-		TypeParamsDecl:    gen.formatTypeParamsDecl(),
-		TypeParamsUse:     gen.formatTypeParamsUse(),
-		PkgTesting:        pkgTesting,
-		PkgFmt:            pkgFmt,
-		PkgImptest:        pkgImptest,
-		PkgTime:           pkgTime,
-		PkgReflect:        pkgReflect,
-		NeedsFmt:          gen.needsFmt,
-		NeedsReflect:      gen.needsReflect,
-		NeedsImptest:      gen.needsImptest,
-		AdditionalImports: additionalImports,
-	}
-
-	// Build function signature string
-	funcSig := gen.buildFunctionSignature()
-
-	// Build params string for Start method
-	var paramsStr strings.Builder
-	gen.writeFunctionParamsToBuilder(&paramsStr, gen.funcDecl.Type.Params)
-
-	// Build comma-separated param names
-	paramNamesStr := strings.Join(gen.paramNames, ", ")
-
-	// Build result data using shared helper
-	resultData := (&ResultDataBuilder{
-		ResultTypes: gen.resultTypes,
-		VarPrefix:   "ret",
-	}).Build()
-
-	// Build target template data
-	data := targetTemplateData{
-		baseTemplateData:  base,
-		WrapName:          gen.wrapName,
-		WrapperType:       gen.wrapperType,
-		CallHandleType:    gen.callHandleType,
-		ReturnsType:       gen.returnsType,
-		FuncSig:           funcSig,
-		Params:            paramsStr.String(),
-		ParamNames:        paramNamesStr,
-		HasResults:        resultData.HasResults,
-		ResultVars:        resultData.Vars,
-		ReturnAssignments: resultData.Assignments,
-		WaitMethodName:    resultData.WaitMethodName,
-		ExpectedParams:    resultData.ExpectedParams,
-		MatcherParams:     resultData.MatcherParams,
-		ResultChecks:      resultData.Checks,
-		ResultFields:      resultData.Fields,
-	}
+	data := gen.buildTargetTemplateData()
 
 	// Generate each section using templates
 	templates.WriteTargetHeader(&gen.buf, data)
@@ -314,6 +313,7 @@ func (gen *targetGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	} else {
 		templates.WriteTargetExpectCompletes(&gen.buf, data)
 	}
+
 	templates.WriteTargetExpectPanic(&gen.buf, data)
 }
 

@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,perfsprint,prealloc,funlen
+//nolint:varnamelen,wsl_v5,perfsprint,prealloc
 package generate
 
 import (
@@ -43,6 +43,55 @@ type dependencyGenerator struct {
 	pkgLoader           detect.PackageLoader
 	methodNames         []string
 	identifiedInterface detect.IfaceWithDetails // full interface details including source imports
+}
+
+// buildDependencyTemplateData constructs the template data for dependency mock generation.
+func (gen *dependencyGenerator) buildDependencyTemplateData() depTemplateData {
+	// Build base template data
+	base := baseTemplateData{
+		PkgName:           gen.pkgName,
+		ImpName:           gen.impName,
+		PkgPath:           gen.pkgPath,
+		Qualifier:         gen.qualifier,
+		NeedsQualifier:    gen.needsQualifier,
+		TypeParamsDecl:    gen.formatTypeParamsDecl(),
+		TypeParamsUse:     gen.formatTypeParamsUse(),
+		PkgTesting:        pkgTesting,
+		PkgFmt:            pkgFmt,
+		PkgImptest:        pkgImptest,
+		PkgTime:           pkgTime,
+		PkgReflect:        pkgReflect,
+		NeedsFmt:          gen.needsFmt,
+		NeedsReflect:      gen.needsReflect,
+		NeedsImptest:      gen.needsImptest,
+		AdditionalImports: gen.collectAdditionalImports(),
+	}
+
+	// Construct the interface type with qualifier if needed
+	interfaceType := gen.formatQualifiedInterfaceType()
+
+	// Collect method data for all methods first (needed for typed wrappers)
+	var methods []depMethodTemplateData
+	_ = forEachInterfaceMethod(
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		func(methodName string, ftype *dst.FuncType) {
+			methodData := gen.buildMethodTemplateData(methodName, ftype, interfaceType)
+			methods = append(methods, methodData)
+		},
+	)
+
+	return depTemplateData{
+		baseTemplateData: base,
+		MockName:         gen.mockName,
+		MockTypeName:     gen.mockTypeName,
+		BaseName:         strings.TrimPrefix(gen.mockName, "Mock"),
+		InterfaceName:    gen.interfaceName,
+		InterfaceType:    interfaceType,
+		ImplName:         gen.implName,
+		MethodNames:      gen.methodNames,
+		Methods:          methods,
+		IsStructType:     gen.identifiedInterface.IsStructType,
+	}
 }
 
 func (gen *dependencyGenerator) buildMethodTemplateData(
@@ -162,6 +211,28 @@ func (gen *dependencyGenerator) collectAdditionalImports() []importInfo {
 	)
 }
 
+// formatQualifiedInterfaceType constructs the interface type string with qualifier if needed.
+func (gen *dependencyGenerator) formatQualifiedInterfaceType() string {
+	interfaceType := gen.interfaceName
+
+	if gen.qualifier != "" && gen.needsQualifier {
+		qualifierToUse := gen.qualifier
+		// Check if this is a stdlib package that needs aliasing due to a name conflict
+		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
+			qualifierToUse = "_" + gen.qualifier
+		}
+
+		interfaceType = qualifierToUse + "." + gen.interfaceName
+	}
+
+	// Add type parameters to interface type if present
+	if gen.formatTypeParamsUse() != "" {
+		interfaceType += gen.formatTypeParamsUse()
+	}
+
+	return interfaceType
+}
+
 // generate produces the dependency mock code using templates.
 func (gen *dependencyGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
@@ -192,65 +263,7 @@ func (gen *dependencyGenerator) generate() (string, error) {
 
 // generateWithTemplates generates code using templates instead of direct code generation.
 func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistry) {
-	// Build base template data
-	base := baseTemplateData{
-		PkgName:           gen.pkgName,
-		ImpName:           gen.impName,
-		PkgPath:           gen.pkgPath,
-		Qualifier:         gen.qualifier,
-		NeedsQualifier:    gen.needsQualifier,
-		TypeParamsDecl:    gen.formatTypeParamsDecl(),
-		TypeParamsUse:     gen.formatTypeParamsUse(),
-		PkgTesting:        pkgTesting,
-		PkgFmt:            pkgFmt,
-		PkgImptest:        pkgImptest,
-		PkgTime:           pkgTime,
-		PkgReflect:        pkgReflect,
-		NeedsFmt:          gen.needsFmt,
-		NeedsReflect:      gen.needsReflect,
-		NeedsImptest:      gen.needsImptest,
-		AdditionalImports: gen.collectAdditionalImports(),
-	}
-
-	// Construct the interface type with qualifier if needed
-	interfaceType := gen.interfaceName
-	if gen.qualifier != "" && gen.needsQualifier {
-		qualifierToUse := gen.qualifier
-		// Check if this is a stdlib package that needs aliasing due to a name conflict
-		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
-			qualifierToUse = "_" + gen.qualifier
-		}
-		interfaceType = qualifierToUse + "." + gen.interfaceName
-	}
-	// Add type parameters to interface type if present
-	if gen.formatTypeParamsUse() != "" {
-		interfaceType += gen.formatTypeParamsUse()
-	}
-
-	// Collect method data for all methods first (needed for typed wrappers)
-	var methods []depMethodTemplateData
-	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
-		func(methodName string, ftype *dst.FuncType) {
-			methodData := gen.buildMethodTemplateData(methodName, ftype, interfaceType)
-			methods = append(methods, methodData)
-		},
-	)
-
-	// Build dependency template data
-	baseName := strings.TrimPrefix(gen.mockName, "Mock")
-	data := depTemplateData{
-		baseTemplateData: base,
-		MockName:         gen.mockName,
-		MockTypeName:     gen.mockTypeName,
-		BaseName:         baseName,
-		InterfaceName:    gen.interfaceName,
-		InterfaceType:    interfaceType,
-		ImplName:         gen.implName,
-		MethodNames:      gen.methodNames,
-		Methods:          methods,
-		IsStructType:     gen.identifiedInterface.IsStructType,
-	}
+	data := gen.buildDependencyTemplateData()
 
 	// Generate each section using templates
 	templates.WriteDepHeader(&gen.buf, data)
@@ -260,7 +273,7 @@ func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistr
 	templates.WriteDepImplStruct(&gen.buf, data)
 
 	// Generate implementation methods and type-safe wrappers for each interface method
-	for _, methodData := range methods {
+	for _, methodData := range data.Methods {
 		templates.WriteDepImplMethod(&gen.buf, methodData)
 		templates.WriteDepArgsStruct(&gen.buf, methodData)
 		templates.WriteDepCallWrapper(&gen.buf, methodData)
