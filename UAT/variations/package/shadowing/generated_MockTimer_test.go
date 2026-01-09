@@ -19,9 +19,9 @@ func (c *TimerMockGetElapsedCall) InjectReturnValues(result0 int) {
 
 // TimerMockHandle is the test handle for Timer.
 type TimerMockHandle struct {
-	Mock   time.Timer
-	Method *TimerMockMethods
-	imp    *_imptest.Imp
+	Mock       time.Timer
+	Method     *TimerMockMethods
+	Controller *_imptest.Imp
 }
 
 // TimerMockMethods holds method wrappers for setting expectations.
@@ -79,14 +79,14 @@ func (m *TimerMockWaitMethod) ExpectCalledWithMatches(matchers ...any) *TimerMoc
 
 // MockTimer creates a new TimerMockHandle for testing.
 func MockTimer(t _imptest.TestReporter) *TimerMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &TimerMockMethods{
-		Wait:       &TimerMockWaitMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Wait")},
-		GetElapsed: _imptest.NewDependencyMethod(imp, "GetElapsed"),
+		Wait:       &TimerMockWaitMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Wait")},
+		GetElapsed: _imptest.NewDependencyMethod(ctrl, "GetElapsed"),
 	}
 	h := &TimerMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockTimerImpl{handle: h}
 	return h
@@ -104,7 +104,7 @@ func (impl *mockTimerImpl) GetElapsed() int {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -127,7 +127,7 @@ func (impl *mockTimerImpl) Wait(seconds int) error {
 		Args:         []any{seconds},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

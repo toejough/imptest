@@ -155,9 +155,9 @@ func (m *UserRepositoryMockGetUserMethod) ExpectCalledWithMatches(matchers ...an
 
 // UserRepositoryMockHandle is the test handle for UserRepository.
 type UserRepositoryMockHandle struct {
-	Mock   named.UserRepository
-	Method *UserRepositoryMockMethods
-	imp    *_imptest.Imp
+	Mock       named.UserRepository
+	Method     *UserRepositoryMockMethods
+	Controller *_imptest.Imp
 }
 
 // UserRepositoryMockMethods holds method wrappers for setting expectations.
@@ -219,16 +219,16 @@ func (m *UserRepositoryMockSaveUserMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockUserRepository creates a new UserRepositoryMockHandle for testing.
 func MockUserRepository(t _imptest.TestReporter) *UserRepositoryMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &UserRepositoryMockMethods{
-		GetUser:    &UserRepositoryMockGetUserMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "GetUser")},
-		SaveUser:   &UserRepositoryMockSaveUserMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "SaveUser")},
-		DeleteUser: &UserRepositoryMockDeleteUserMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "DeleteUser")},
-		CountUsers: &UserRepositoryMockCountUsersMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "CountUsers")},
+		GetUser:    &UserRepositoryMockGetUserMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "GetUser")},
+		SaveUser:   &UserRepositoryMockSaveUserMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "SaveUser")},
+		DeleteUser: &UserRepositoryMockDeleteUserMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "DeleteUser")},
+		CountUsers: &UserRepositoryMockCountUsersMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "CountUsers")},
 	}
 	h := &UserRepositoryMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockUserRepositoryImpl{handle: h}
 	return h
@@ -246,7 +246,7 @@ func (impl *mockUserRepositoryImpl) CountUsers(ctx context.Context) (int, error)
 		Args:         []any{ctx},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -276,7 +276,7 @@ func (impl *mockUserRepositoryImpl) DeleteUser(ctx context.Context, userID int) 
 		Args:         []any{ctx, userID},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -299,7 +299,7 @@ func (impl *mockUserRepositoryImpl) GetUser(ctx context.Context, userID int) (na
 		Args:         []any{ctx, userID},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -329,7 +329,7 @@ func (impl *mockUserRepositoryImpl) SaveUser(ctx context.Context, user named.Use
 		Args:         []any{ctx, user},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

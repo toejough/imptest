@@ -9,9 +9,9 @@ import (
 
 // ManyParamsMockHandle is the test handle for ManyParams.
 type ManyParamsMockHandle struct {
-	Mock   many_params.ManyParams
-	Method *ManyParamsMockMethods
-	imp    *_imptest.Imp
+	Mock       many_params.ManyParams
+	Method     *ManyParamsMockMethods
+	Controller *_imptest.Imp
 }
 
 // ManyParamsMockMethods holds method wrappers for setting expectations.
@@ -86,13 +86,13 @@ func (m *ManyParamsMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *
 
 // MockManyParams creates a new ManyParamsMockHandle for testing.
 func MockManyParams(t _imptest.TestReporter) *ManyParamsMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &ManyParamsMockMethods{
-		Process: &ManyParamsMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
+		Process: &ManyParamsMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Process")},
 	}
 	h := &ManyParamsMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockManyParamsImpl{handle: h}
 	return h
@@ -110,7 +110,7 @@ func (impl *mockManyParamsImpl) Process(a int, b int, c int, d int, e int, f int
 		Args:         []any{a, b, c, d, e, f, g, h, i, j},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

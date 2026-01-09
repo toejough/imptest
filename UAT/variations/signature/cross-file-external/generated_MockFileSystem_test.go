@@ -60,9 +60,9 @@ func (m *FileSystemMockCreateMethod) ExpectCalledWithMatches(matchers ...any) *F
 
 // FileSystemMockHandle is the test handle for FileSystem.
 type FileSystemMockHandle struct {
-	Mock   crossfile.FileSystem
-	Method *FileSystemMockMethods
-	imp    *_imptest.Imp
+	Mock       crossfile.FileSystem
+	Method     *FileSystemMockMethods
+	Controller *_imptest.Imp
 }
 
 // FileSystemMockMethods holds method wrappers for setting expectations.
@@ -120,14 +120,14 @@ func (m *FileSystemMockStatMethod) ExpectCalledWithMatches(matchers ...any) *Fil
 
 // MockFileSystem creates a new FileSystemMockHandle for testing.
 func MockFileSystem(t _imptest.TestReporter) *FileSystemMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &FileSystemMockMethods{
-		Stat:   &FileSystemMockStatMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Stat")},
-		Create: &FileSystemMockCreateMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Create")},
+		Stat:   &FileSystemMockStatMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Stat")},
+		Create: &FileSystemMockCreateMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Create")},
 	}
 	h := &FileSystemMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockFileSystemImpl{handle: h}
 	return h
@@ -145,7 +145,7 @@ func (impl *mockFileSystemImpl) Create(path string, mode os.FileMode) error {
 		Args:         []any{path, mode},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -168,7 +168,7 @@ func (impl *mockFileSystemImpl) Stat(path string) (os.FileMode, time.Time, error
 		Args:         []any{path},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

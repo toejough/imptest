@@ -56,9 +56,9 @@ func (m *ChannelHandlerMockBidirectionalMethod) ExpectCalledWithMatches(matchers
 
 // ChannelHandlerMockHandle is the test handle for ChannelHandler.
 type ChannelHandlerMockHandle struct {
-	Mock   channels.ChannelHandler
-	Method *ChannelHandlerMockMethods
-	imp    *_imptest.Imp
+	Mock       channels.ChannelHandler
+	Method     *ChannelHandlerMockMethods
+	Controller *_imptest.Imp
 }
 
 // ChannelHandlerMockMethods holds method wrappers for setting expectations.
@@ -175,16 +175,16 @@ func (m *ChannelHandlerMockSendOnlyMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockChannelHandler creates a new ChannelHandlerMockHandle for testing.
 func MockChannelHandler(t _imptest.TestReporter) *ChannelHandlerMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &ChannelHandlerMockMethods{
-		SendOnly:      &ChannelHandlerMockSendOnlyMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "SendOnly")},
-		ReceiveOnly:   &ChannelHandlerMockReceiveOnlyMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ReceiveOnly")},
-		Bidirectional: &ChannelHandlerMockBidirectionalMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Bidirectional")},
-		ReturnChannel: _imptest.NewDependencyMethod(imp, "ReturnChannel"),
+		SendOnly:      &ChannelHandlerMockSendOnlyMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "SendOnly")},
+		ReceiveOnly:   &ChannelHandlerMockReceiveOnlyMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ReceiveOnly")},
+		Bidirectional: &ChannelHandlerMockBidirectionalMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Bidirectional")},
+		ReturnChannel: _imptest.NewDependencyMethod(ctrl, "ReturnChannel"),
 	}
 	h := &ChannelHandlerMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockChannelHandlerImpl{handle: h}
 	return h
@@ -202,7 +202,7 @@ func (impl *mockChannelHandlerImpl) Bidirectional(ch chan bool) bool {
 		Args:         []any{ch},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -225,7 +225,7 @@ func (impl *mockChannelHandlerImpl) ReceiveOnly(ch <-chan string) (string, error
 		Args:         []any{ch},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -255,7 +255,7 @@ func (impl *mockChannelHandlerImpl) ReturnChannel() <-chan int {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -278,7 +278,7 @@ func (impl *mockChannelHandlerImpl) SendOnly(ch chan<- int) error {
 		Args:         []any{ch},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

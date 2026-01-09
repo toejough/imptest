@@ -9,9 +9,9 @@ import (
 
 // DataProcessorMockHandle is the test handle for DataProcessor.
 type DataProcessorMockHandle struct {
-	Mock   parameterized.DataProcessor
-	Method *DataProcessorMockMethods
-	imp    *_imptest.Imp
+	Mock       parameterized.DataProcessor
+	Method     *DataProcessorMockMethods
+	Controller *_imptest.Imp
 }
 
 // DataProcessorMockMethods holds method wrappers for setting expectations.
@@ -127,15 +127,15 @@ func (c *DataProcessorMockReturnContainerCall) InjectReturnValues(result0 parame
 
 // MockDataProcessor creates a new DataProcessorMockHandle for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &DataProcessorMockMethods{
-		ProcessContainer: &DataProcessorMockProcessContainerMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessContainer")},
-		ProcessPair:      &DataProcessorMockProcessPairMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessPair")},
-		ReturnContainer:  _imptest.NewDependencyMethod(imp, "ReturnContainer"),
+		ProcessContainer: &DataProcessorMockProcessContainerMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessContainer")},
+		ProcessPair:      &DataProcessorMockProcessPairMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessPair")},
+		ReturnContainer:  _imptest.NewDependencyMethod(ctrl, "ReturnContainer"),
 	}
 	h := &DataProcessorMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockDataProcessorImpl{handle: h}
 	return h
@@ -153,7 +153,7 @@ func (impl *mockDataProcessorImpl) ProcessContainer(data parameterized.Container
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -176,7 +176,7 @@ func (impl *mockDataProcessorImpl) ProcessPair(pair parameterized.Pair[int, bool
 		Args:         []any{pair},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -199,7 +199,7 @@ func (impl *mockDataProcessorImpl) ReturnContainer() parameterized.Container[int
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

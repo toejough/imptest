@@ -10,9 +10,9 @@ import (
 
 // HTTPMiddlewareMockHandle is the test handle for HTTPMiddleware.
 type HTTPMiddlewareMockHandle struct {
-	Mock   middleware.HTTPMiddleware
-	Method *HTTPMiddlewareMockMethods
-	imp    *_imptest.Imp
+	Mock       middleware.HTTPMiddleware
+	Method     *HTTPMiddlewareMockMethods
+	Controller *_imptest.Imp
 }
 
 // HTTPMiddlewareMockMethods holds method wrappers for setting expectations.
@@ -69,13 +69,13 @@ func (m *HTTPMiddlewareMockWrapMethod) ExpectCalledWithMatches(matchers ...any) 
 
 // MockHTTPMiddleware creates a new HTTPMiddlewareMockHandle for testing.
 func MockHTTPMiddleware(t _imptest.TestReporter) *HTTPMiddlewareMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &HTTPMiddlewareMockMethods{
-		Wrap: &HTTPMiddlewareMockWrapMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Wrap")},
+		Wrap: &HTTPMiddlewareMockWrapMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Wrap")},
 	}
 	h := &HTTPMiddlewareMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockHTTPMiddlewareImpl{handle: h}
 	return h
@@ -93,7 +93,7 @@ func (impl *mockHTTPMiddlewareImpl) Wrap(handler http.HandlerFunc) http.HandlerF
 		Args:         []any{handler},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

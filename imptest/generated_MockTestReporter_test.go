@@ -57,9 +57,9 @@ func (m *TestReporterMockFatalfMethod) ExpectCalledWithMatches(matchers ...any) 
 
 // TestReporterMockHandle is the test handle for TestReporter.
 type TestReporterMockHandle struct {
-	Mock   imptest.TestReporter
-	Method *TestReporterMockMethods
-	imp    *_imptest.Imp
+	Mock       imptest.TestReporter
+	Method     *TestReporterMockMethods
+	Controller *_imptest.Imp
 }
 
 // TestReporterMockMethods holds method wrappers for setting expectations.
@@ -70,14 +70,14 @@ type TestReporterMockMethods struct {
 
 // MockTestReporter creates a new TestReporterMockHandle for testing.
 func MockTestReporter(t _imptest.TestReporter) *TestReporterMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &TestReporterMockMethods{
-		Helper: _imptest.NewDependencyMethod(imp, "Helper"),
-		Fatalf: &TestReporterMockFatalfMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Fatalf")},
+		Helper: _imptest.NewDependencyMethod(ctrl, "Helper"),
+		Fatalf: &TestReporterMockFatalfMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Fatalf")},
 	}
 	h := &TestReporterMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockTestReporterImpl{handle: h}
 	return h
@@ -99,7 +99,7 @@ func (impl *mockTestReporterImpl) Fatalf(format string, args ...any) {
 		Args:         callArgs,
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -114,7 +114,7 @@ func (impl *mockTestReporterImpl) Helper() {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

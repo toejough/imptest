@@ -8,9 +8,9 @@ import (
 
 // OpsMockHandle is the test handle for Ops.
 type OpsMockHandle struct {
-	Mock   Ops
-	Method *OpsMockMethods
-	imp    *_imptest.Imp
+	Mock       Ops
+	Method     *OpsMockMethods
+	Controller *_imptest.Imp
 }
 
 // OpsMockMethods holds method wrappers for setting expectations.
@@ -115,14 +115,14 @@ func (m *OpsMockinternalMethodMethod) ExpectCalledWithMatches(matchers ...any) *
 
 // MockOps creates a new OpsMockHandle for testing.
 func MockOps(t _imptest.TestReporter) *OpsMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &OpsMockMethods{
-		internalMethod: &OpsMockinternalMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "internalMethod")},
-		PublicMethod:   &OpsMockPublicMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "PublicMethod")},
+		internalMethod: &OpsMockinternalMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "internalMethod")},
+		PublicMethod:   &OpsMockPublicMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "PublicMethod")},
 	}
 	h := &OpsMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockOpsImpl{handle: h}
 	return h
@@ -140,7 +140,7 @@ func (impl *mockOpsImpl) PublicMethod(x int) int {
 		Args:         []any{x},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -163,7 +163,7 @@ func (impl *mockOpsImpl) internalMethod(x int) int {
 		Args:         []any{x},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

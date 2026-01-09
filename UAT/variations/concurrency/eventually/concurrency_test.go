@@ -2,9 +2,72 @@ package concurrency_test
 
 import (
 	"testing"
+	"time"
 
 	concurrency "github.com/toejough/imptest/UAT/variations/concurrency/eventually"
 )
+
+// TestAsyncEventuallyInjectPanicValue tests InjectPanicValue in async mode.
+func TestAsyncEventuallyInjectPanicValue(t *testing.T) {
+	t.Parallel()
+
+	mock := MockSlowService(t)
+
+	// Register expectation with panic FIRST (async pattern)
+	mock.Method.DoA.Eventually().ExpectCalledWithExactly(999).InjectPanicValue("test panic")
+
+	// Capture panic from goroutine
+	panicChan := make(chan any, 1)
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicChan <- r
+			}
+		}()
+
+		_ = mock.Mock.DoA(999)
+	}()
+
+	// Wait for all expectations to be satisfied
+	mock.Controller.Wait()
+
+	// Wait for panic to be received
+	p := <-panicChan
+	if p != "test panic" {
+		t.Errorf("expected panic 'test panic', got %v", p)
+	}
+}
+
+// TestAsyncEventuallyWithControllerWait demonstrates the new async Eventually() API.
+//
+// This test REQUIRES non-blocking Eventually() to work:
+// - Expectations are registered BEFORE starting the code under test
+// - With blocking Eventually(), this would deadlock (nothing to receive the call)
+// - With async Eventually(), expectations register immediately and Wait() blocks
+//
+// Key Requirements Met:
+//  1. Non-blocking Eventually(): Expectations register immediately without blocking
+//  2. Controller.Wait(): Single call blocks until all expectations are satisfied
+//  3. Callback pattern: InjectReturnValues can be called before call arrives
+func TestAsyncEventuallyWithControllerWait(t *testing.T) {
+	t.Parallel()
+
+	mock := MockSlowService(t)
+
+	// Register expectations FIRST - these must NOT block (new async behavior)
+	// With blocking Eventually(), this would deadlock because no goroutine is making calls yet
+	mock.Method.DoA.Eventually().ExpectCalledWithExactly(789).InjectReturnValues("Async A")
+	mock.Method.DoB.Eventually().ExpectCalledWithExactly(789).InjectReturnValues("Async B")
+
+	// NOW start code under test - the expectations are already registered
+	go func() {
+		_ = concurrency.RunConcurrent(mock.Mock, 789)
+	}()
+
+	// Controller.Wait() blocks until all expectations are satisfied
+	mock.Controller.Wait()
+}
 
 //go:generate impgen concurrency.SlowService --dependency
 
@@ -71,4 +134,21 @@ func TestExplicitReversedExpectation(t *testing.T) {
 	if results[0] != "Result A" || results[1] != "Result B" {
 		t.Errorf("unexpected results: %v", results)
 	}
+}
+
+// TestSetTimeoutAPI verifies SetTimeout can be called on the controller.
+func TestSetTimeoutAPI(t *testing.T) {
+	t.Parallel()
+
+	mock := MockSlowService(t)
+
+	// SetTimeout should be callable (currently a stub)
+	mock.Controller.SetTimeout(5 * time.Second)
+
+	go func() {
+		_ = mock.Mock.DoA(1)
+	}()
+
+	mock.Method.DoA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues("ok")
+	mock.Controller.Wait()
 }

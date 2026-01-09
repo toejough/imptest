@@ -56,9 +56,9 @@ func (m *RepositoryMockGetMethod[T]) ExpectCalledWithMatches(matchers ...any) *R
 
 // RepositoryMockHandle is the test handle for Repository.
 type RepositoryMockHandle[T any] struct {
-	Mock   generics.Repository[T]
-	Method *RepositoryMockMethods[T]
-	imp    *_imptest.Imp
+	Mock       generics.Repository[T]
+	Method     *RepositoryMockMethods[T]
+	Controller *_imptest.Imp
 }
 
 // RepositoryMockMethods holds method wrappers for setting expectations.
@@ -116,14 +116,14 @@ func (m *RepositoryMockSaveMethod[T]) ExpectCalledWithMatches(matchers ...any) *
 
 // MockRepository creates a new RepositoryMockHandle for testing.
 func MockRepository[T any](t _imptest.TestReporter) *RepositoryMockHandle[T] {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &RepositoryMockMethods[T]{
-		Save: &RepositoryMockSaveMethod[T]{DependencyMethod: _imptest.NewDependencyMethod(imp, "Save")},
-		Get:  &RepositoryMockGetMethod[T]{DependencyMethod: _imptest.NewDependencyMethod(imp, "Get")},
+		Save: &RepositoryMockSaveMethod[T]{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Save")},
+		Get:  &RepositoryMockGetMethod[T]{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Get")},
 	}
 	h := &RepositoryMockHandle[T]{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockRepositoryImpl[T]{handle: h}
 	return h
@@ -141,7 +141,7 @@ func (impl *mockRepositoryImpl[T]) Get(id string) (T, error) {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -171,7 +171,7 @@ func (impl *mockRepositoryImpl[T]) Save(item T) error {
 		Args:         []any{item},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

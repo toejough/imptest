@@ -58,9 +58,9 @@ func (m *DataProcessorMockFilterMethod) ExpectCalledWithMatches(matchers ...any)
 
 // DataProcessorMockHandle is the test handle for DataProcessor.
 type DataProcessorMockHandle struct {
-	Mock   funclit.DataProcessor
-	Method *DataProcessorMockMethods
-	imp    *_imptest.Imp
+	Mock       funclit.DataProcessor
+	Method     *DataProcessorMockMethods
+	Controller *_imptest.Imp
 }
 
 // DataProcessorMockMethods holds method wrappers for setting expectations.
@@ -172,15 +172,15 @@ func (m *DataProcessorMockTransformMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockDataProcessor creates a new DataProcessorMockHandle for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &DataProcessorMockMethods{
-		Transform: &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Transform")},
-		Filter:    &DataProcessorMockFilterMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Filter")},
-		Reduce:    &DataProcessorMockReduceMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Reduce")},
+		Transform: &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Transform")},
+		Filter:    &DataProcessorMockFilterMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Filter")},
+		Reduce:    &DataProcessorMockReduceMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Reduce")},
 	}
 	h := &DataProcessorMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockDataProcessorImpl{handle: h}
 	return h
@@ -198,7 +198,7 @@ func (impl *mockDataProcessorImpl) Filter(items []int, predicate func(int) bool)
 		Args:         []any{items, predicate},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -221,7 +221,7 @@ func (impl *mockDataProcessorImpl) Reduce(items []int, initial int, reducer func
 		Args:         []any{items, initial, reducer},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -244,7 +244,7 @@ func (impl *mockDataProcessorImpl) Transform(items []int, fn func(int) (int, err
 		Args:         []any{items, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

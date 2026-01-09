@@ -19,9 +19,9 @@ func (c *ReadCloserMockCloseCall) InjectReturnValues(result0 error) {
 
 // ReadCloserMockHandle is the test handle for ReadCloser.
 type ReadCloserMockHandle struct {
-	Mock   embedded.ReadCloser
-	Method *ReadCloserMockMethods
-	imp    *_imptest.Imp
+	Mock       embedded.ReadCloser
+	Method     *ReadCloserMockMethods
+	Controller *_imptest.Imp
 }
 
 // ReadCloserMockMethods holds method wrappers for setting expectations.
@@ -79,14 +79,14 @@ func (m *ReadCloserMockReadMethod) ExpectCalledWithMatches(matchers ...any) *Rea
 
 // MockReadCloser creates a new ReadCloserMockHandle for testing.
 func MockReadCloser(t _imptest.TestReporter) *ReadCloserMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &ReadCloserMockMethods{
-		Read:  &ReadCloserMockReadMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Read")},
-		Close: _imptest.NewDependencyMethod(imp, "Close"),
+		Read:  &ReadCloserMockReadMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Read")},
+		Close: _imptest.NewDependencyMethod(ctrl, "Close"),
 	}
 	h := &ReadCloserMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockReadCloserImpl{handle: h}
 	return h
@@ -104,7 +104,7 @@ func (impl *mockReadCloserImpl) Close() error {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -127,7 +127,7 @@ func (impl *mockReadCloserImpl) Read(p []byte) (int, error) {
 		Args:         []any{p},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -31,9 +31,9 @@ func (c *ValidatorMockCall) InjectReturnValues(result0 error) {
 
 // ValidatorMockHandle is the test handle for Validator function.
 type ValidatorMockHandle struct {
-	Mock   func(data string) error
-	Method *ValidatorMockMethod
-	imp    *_imptest.Imp
+	Mock       func(data string) error
+	Method     *ValidatorMockMethod
+	Controller *_imptest.Imp
 }
 
 // ValidatorMockMethod wraps DependencyMethod with typed returns.
@@ -62,10 +62,10 @@ func (m *ValidatorMockMethod) ExpectCalledWithMatches(matchers ...any) *Validato
 
 // MockValidator creates a new ValidatorMockHandle for testing.
 func MockValidator(t _imptest.TestReporter) *ValidatorMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	h := &ValidatorMockHandle{
-		imp:    imp,
-		Method: &ValidatorMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Validator")},
+		Controller: ctrl,
+		Method:     &ValidatorMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Validator")},
 	}
 	h.Mock = func(data string) error {
 		call := &_imptest.GenericCall{
@@ -73,7 +73,7 @@ func MockValidator(t _imptest.TestReporter) *ValidatorMockHandle {
 			Args:         []any{data},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.imp.CallChan <- call
+		h.Controller.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)

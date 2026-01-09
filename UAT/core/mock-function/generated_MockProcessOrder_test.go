@@ -35,9 +35,9 @@ func (c *ProcessOrderMockCall) InjectReturnValues(result0 *mockfunction.Order, r
 
 // ProcessOrderMockHandle is the test handle for ProcessOrder function.
 type ProcessOrderMockHandle struct {
-	Mock   func(ctx context.Context, orderID int) (*mockfunction.Order, error)
-	Method *ProcessOrderMockMethod
-	imp    *_imptest.Imp
+	Mock       func(ctx context.Context, orderID int) (*mockfunction.Order, error)
+	Method     *ProcessOrderMockMethod
+	Controller *_imptest.Imp
 }
 
 // ProcessOrderMockMethod wraps DependencyMethod with typed returns.
@@ -66,10 +66,10 @@ func (m *ProcessOrderMockMethod) ExpectCalledWithMatches(matchers ...any) *Proce
 
 // MockProcessOrder creates a new ProcessOrderMockHandle for testing.
 func MockProcessOrder(t _imptest.TestReporter) *ProcessOrderMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	h := &ProcessOrderMockHandle{
-		imp:    imp,
-		Method: &ProcessOrderMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessOrder")},
+		Controller: ctrl,
+		Method:     &ProcessOrderMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessOrder")},
 	}
 	h.Mock = func(ctx context.Context, orderID int) (*mockfunction.Order, error) {
 		call := &_imptest.GenericCall{
@@ -77,7 +77,7 @@ func MockProcessOrder(t _imptest.TestReporter) *ProcessOrderMockHandle {
 			Args:         []any{ctx, orderID},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.imp.CallChan <- call
+		h.Controller.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)

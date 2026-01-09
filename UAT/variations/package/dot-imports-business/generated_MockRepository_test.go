@@ -56,9 +56,9 @@ func (m *RepositoryMockDeleteMethod) ExpectCalledWithMatches(matchers ...any) *R
 
 // RepositoryMockHandle is the test handle for Repository.
 type RepositoryMockHandle struct {
-	Mock   storage.Repository
-	Method *RepositoryMockMethods
-	imp    *_imptest.Imp
+	Mock       storage.Repository
+	Method     *RepositoryMockMethods
+	Controller *_imptest.Imp
 }
 
 // RepositoryMockLoadArgs holds typed arguments for Load.
@@ -166,15 +166,15 @@ func (m *RepositoryMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *Rep
 
 // MockRepository creates a new RepositoryMockHandle for testing.
 func MockRepository(t _imptest.TestReporter) *RepositoryMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &RepositoryMockMethods{
-		Save:   &RepositoryMockSaveMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Save")},
-		Load:   &RepositoryMockLoadMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Load")},
-		Delete: &RepositoryMockDeleteMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Delete")},
+		Save:   &RepositoryMockSaveMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Save")},
+		Load:   &RepositoryMockLoadMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Load")},
+		Delete: &RepositoryMockDeleteMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Delete")},
 	}
 	h := &RepositoryMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockRepositoryImpl{handle: h}
 	return h
@@ -192,7 +192,7 @@ func (impl *mockRepositoryImpl) Delete(key string) error {
 		Args:         []any{key},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -215,7 +215,7 @@ func (impl *mockRepositoryImpl) Load(key string) ([]byte, error) {
 		Args:         []any{key},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -245,7 +245,7 @@ func (impl *mockRepositoryImpl) Save(key string, data []byte) error {
 		Args:         []any{key, data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

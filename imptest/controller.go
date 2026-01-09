@@ -51,6 +51,11 @@ type Controller[T Call] struct {
 	mu        sync.Mutex   // Protects callQueue and waiters
 	callQueue []T          // Unclaimed calls waiting for future waiters
 	waiters   []*waiter[T] // Goroutines waiting for matching calls
+
+	// PendingMatcher is called for each incoming call before checking waiters.
+	// If it returns true, the call was handled by a pending expectation.
+	// This allows Imp to intercept calls for async Eventually() handling.
+	PendingMatcher func(T) bool
 }
 
 // NewController creates a new controller with the default real timer.
@@ -235,42 +240,60 @@ func (c *Controller[T]) GetCallOrdered(
 	}
 }
 
+// checkFailFast checks the first waiter for fail-fast mode.
+// Returns true if fail-fast triggered (caller should return), false otherwise.
+// Must be called with c.mu held.
+func (c *Controller[T]) checkFailFast(call T) bool {
+	if len(c.waiters) == 0 {
+		return false
+	}
+
+	firstWaiter := c.waiters[0]
+	if !firstWaiter.failOnMismatch {
+		return false
+	}
+
+	err := firstWaiter.validator(call)
+	if err == nil {
+		return false
+	}
+
+	// First waiter is ordered and call doesn't match - fail immediately
+	c.waiters = c.waiters[1:] // Remove failed waiter
+	c.mu.Unlock()
+
+	c.T.Fatalf("ordered mode fail-fast: %v", err)
+
+	return true
+}
+
 // dispatchLoop receives calls and either matches them to waiters or queues them.
 func (c *Controller[T]) dispatchLoop() {
 	for call := range c.CallChan {
+		// Check pending expectations FIRST (before taking lock)
+		// This allows async Eventually() to intercept calls
+		if c.PendingMatcher != nil && c.PendingMatcher(call) {
+			continue // Call was handled by pending expectation
+		}
+
 		c.mu.Lock()
 
 		// Check first waiter for fail-fast mode BEFORE trying other waiters
-		matched := false
-
-		if len(c.waiters) > 0 {
-			firstWaiter := c.waiters[0]
-
-			if firstWaiter.failOnMismatch {
-				err := firstWaiter.validator(call)
-				if err != nil {
-					// First waiter is ordered and call doesn't match - fail immediately
-					c.waiters = c.waiters[1:] // Remove failed waiter
-					c.mu.Unlock()
-
-					c.T.Fatalf("ordered mode fail-fast: %v", err)
-
-					return
-				}
-			}
+		if c.checkFailFast(call) {
+			return
 		}
 
 		// Try to match with waiters
-		if !matched {
-			for i, w := range c.waiters {
-				if w.validator(call) == nil {
-					w.result <- call
+		matched := false
 
-					c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
-					matched = true
+		for i, w := range c.waiters {
+			if w.validator(call) == nil {
+				w.result <- call
 
-					break
-				}
+				c.waiters = append(c.waiters[:i], c.waiters[i+1:]...)
+				matched = true
+
+				break
 			}
 		}
 
@@ -280,6 +303,126 @@ func (c *Controller[T]) dispatchLoop() {
 		}
 
 		c.mu.Unlock()
+	}
+}
+
+// PendingExpectation represents an expectation registered with Eventually()
+// that hasn't been matched yet.
+type PendingExpectation struct {
+	mu           sync.Mutex
+	MethodName   string
+	Validator    func([]any) error
+	ReturnValues []any                  // nil until InjectReturnValues called
+	PanicValue   any                    // non-nil if InjectPanicValue called
+	IsPanic      bool                   // true if this should panic instead of return
+	Matched      bool                   // true when a call matched the validator
+	Injected     bool                   // true when Inject* was called
+	responseChan chan<- GenericResponse // set when validator matches
+	done         chan struct{}          // signals when BOTH matched AND injected
+	matchedArgs  []any                  // args from the call that matched
+	matchedChan  chan struct{}          // closed when a call is matched
+}
+
+// GetMatchedArgs returns the args from the matched call.
+// Blocks until a call is matched if not yet matched.
+func (pe *PendingExpectation) GetMatchedArgs() []any {
+	pe.WaitForMatch()
+
+	pe.mu.Lock()
+	args := pe.matchedArgs
+	pe.mu.Unlock()
+
+	return args
+}
+
+// InjectPanicValue specifies the value the mock should panic with.
+// Can be called before or after the call is matched.
+func (pe *PendingExpectation) InjectPanicValue(value any) {
+	pe.mu.Lock()
+	pe.PanicValue = value
+	pe.IsPanic = true
+	pe.Injected = true
+	matched := pe.Matched
+	responseChan := pe.responseChan
+	pe.mu.Unlock()
+
+	// If already matched, send response now
+	if matched && responseChan != nil {
+		responseChan <- GenericResponse{
+			Type:       "panic",
+			PanicValue: value,
+		}
+
+		close(pe.done)
+	}
+}
+
+// InjectReturnValues specifies the values the mock should return.
+// Can be called before or after the call is matched.
+func (pe *PendingExpectation) InjectReturnValues(values ...any) {
+	pe.mu.Lock()
+	pe.ReturnValues = values
+	pe.Injected = true
+	matched := pe.Matched
+	responseChan := pe.responseChan
+	pe.mu.Unlock()
+
+	// If already matched, send response now
+	if matched && responseChan != nil {
+		responseChan <- GenericResponse{
+			Type:         "return",
+			ReturnValues: values,
+		}
+
+		close(pe.done)
+	}
+}
+
+// WaitForMatch blocks until a call matches this expectation.
+func (pe *PendingExpectation) WaitForMatch() {
+	pe.mu.Lock()
+	matchedChan := pe.matchedChan
+	pe.mu.Unlock()
+
+	if matchedChan != nil {
+		<-matchedChan
+	}
+}
+
+// setMatched is called when a call matches this expectation.
+// If already injected, sends response immediately.
+func (pe *PendingExpectation) setMatched(responseChan chan<- GenericResponse, args []any) {
+	pe.mu.Lock()
+	pe.Matched = true
+	pe.responseChan = responseChan
+	pe.matchedArgs = args
+	injected := pe.Injected
+	isPanic := pe.IsPanic
+	returnValues := pe.ReturnValues
+	panicValue := pe.PanicValue
+	matchedChan := pe.matchedChan
+	pe.mu.Unlock()
+
+	// Signal that a call was matched
+	if matchedChan != nil {
+		close(matchedChan)
+	}
+
+	// If already injected, send response now
+	if injected {
+		if isPanic {
+			responseChan <- GenericResponse{
+				Type:       "panic",
+				PanicValue: panicValue,
+			}
+		} else {
+			responseChan <- GenericResponse{
+				Type:         "return",
+				ReturnValues: returnValues,
+			}
+		}
+
+		close(pe.done)
 	}
 }
 

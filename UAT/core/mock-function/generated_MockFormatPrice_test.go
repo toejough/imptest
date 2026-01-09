@@ -33,9 +33,9 @@ func (c *FormatPriceMockCall) InjectReturnValues(result0 string) {
 
 // FormatPriceMockHandle is the test handle for FormatPrice function.
 type FormatPriceMockHandle struct {
-	Mock   func(amount float64, currency string) string
-	Method *FormatPriceMockMethod
-	imp    *_imptest.Imp
+	Mock       func(amount float64, currency string) string
+	Method     *FormatPriceMockMethod
+	Controller *_imptest.Imp
 }
 
 // FormatPriceMockMethod wraps DependencyMethod with typed returns.
@@ -64,10 +64,10 @@ func (m *FormatPriceMockMethod) ExpectCalledWithMatches(matchers ...any) *Format
 
 // MockFormatPrice creates a new FormatPriceMockHandle for testing.
 func MockFormatPrice(t _imptest.TestReporter) *FormatPriceMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	h := &FormatPriceMockHandle{
-		imp:    imp,
-		Method: &FormatPriceMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "FormatPrice")},
+		Controller: ctrl,
+		Method:     &FormatPriceMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "FormatPrice")},
 	}
 	h.Mock = func(amount float64, currency string) string {
 		call := &_imptest.GenericCall{
@@ -75,7 +75,7 @@ func MockFormatPrice(t _imptest.TestReporter) *FormatPriceMockHandle {
 			Args:         []any{amount, currency},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.imp.CallChan <- call
+		h.Controller.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)

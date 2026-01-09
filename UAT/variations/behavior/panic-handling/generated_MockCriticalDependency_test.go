@@ -9,9 +9,9 @@ import (
 
 // CriticalDependencyMockHandle is the test handle for CriticalDependency.
 type CriticalDependencyMockHandle struct {
-	Mock   safety.CriticalDependency
-	Method *CriticalDependencyMockMethods
-	imp    *_imptest.Imp
+	Mock       safety.CriticalDependency
+	Method     *CriticalDependencyMockMethods
+	Controller *_imptest.Imp
 }
 
 // CriticalDependencyMockMethods holds method wrappers for setting expectations.
@@ -21,13 +21,13 @@ type CriticalDependencyMockMethods struct {
 
 // MockCriticalDependency creates a new CriticalDependencyMockHandle for testing.
 func MockCriticalDependency(t _imptest.TestReporter) *CriticalDependencyMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &CriticalDependencyMockMethods{
-		DoWork: _imptest.NewDependencyMethod(imp, "DoWork"),
+		DoWork: _imptest.NewDependencyMethod(ctrl, "DoWork"),
 	}
 	h := &CriticalDependencyMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockCriticalDependencyImpl{handle: h}
 	return h
@@ -45,7 +45,7 @@ func (impl *mockCriticalDependencyImpl) DoWork() {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

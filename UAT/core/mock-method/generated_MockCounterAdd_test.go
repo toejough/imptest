@@ -31,9 +31,9 @@ func (c *CounterAddMockCall) InjectReturnValues(result0 int) {
 
 // CounterAddMockHandle is the test handle for Counter.Add function.
 type CounterAddMockHandle struct {
-	Mock   func(n int) int
-	Method *CounterAddMockMethod
-	imp    *_imptest.Imp
+	Mock       func(n int) int
+	Method     *CounterAddMockMethod
+	Controller *_imptest.Imp
 }
 
 // CounterAddMockMethod wraps DependencyMethod with typed returns.
@@ -62,10 +62,10 @@ func (m *CounterAddMockMethod) ExpectCalledWithMatches(matchers ...any) *Counter
 
 // MockCounterAdd creates a new CounterAddMockHandle for testing.
 func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	h := &CounterAddMockHandle{
-		imp:    imp,
-		Method: &CounterAddMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Counter.Add")},
+		Controller: ctrl,
+		Method:     &CounterAddMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Counter.Add")},
 	}
 	h.Mock = func(n int) int {
 		call := &_imptest.GenericCall{
@@ -73,7 +73,7 @@ func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
 			Args:         []any{n},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.imp.CallChan <- call
+		h.Controller.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)

@@ -9,9 +9,9 @@ import (
 
 // DataProcessorMockHandle is the test handle for DataProcessor.
 type DataProcessorMockHandle struct {
-	Mock   noncomparable.DataProcessor
-	Method *DataProcessorMockMethods
-	imp    *_imptest.Imp
+	Mock       noncomparable.DataProcessor
+	Method     *DataProcessorMockMethods
+	Controller *_imptest.Imp
 }
 
 // DataProcessorMockMethods holds method wrappers for setting expectations.
@@ -116,14 +116,14 @@ func (m *DataProcessorMockProcessSliceMethod) ExpectCalledWithMatches(matchers .
 
 // MockDataProcessor creates a new DataProcessorMockHandle for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &DataProcessorMockMethods{
-		ProcessSlice: &DataProcessorMockProcessSliceMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessSlice")},
-		ProcessMap:   &DataProcessorMockProcessMapMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessMap")},
+		ProcessSlice: &DataProcessorMockProcessSliceMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessSlice")},
+		ProcessMap:   &DataProcessorMockProcessMapMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessMap")},
 	}
 	h := &DataProcessorMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockDataProcessorImpl{handle: h}
 	return h
@@ -141,7 +141,7 @@ func (impl *mockDataProcessorImpl) ProcessMap(config map[string]int) bool {
 		Args:         []any{config},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -164,7 +164,7 @@ func (impl *mockDataProcessorImpl) ProcessSlice(data []string) int {
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

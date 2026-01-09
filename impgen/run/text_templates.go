@@ -76,9 +76,9 @@ import (
 	//nolint:lll // Template docstring
 	registry.depMockStructTmpl, err = parseTemplate("depMockStruct", `// {{.MockTypeName}}Handle is the test handle for {{.InterfaceName}}.
 type {{.MockTypeName}}Handle{{.TypeParamsDecl}} struct {
-	Mock   {{if .IsStructType}}{{.MockTypeName}}Interface{{.TypeParamsUse}}{{else}}{{.InterfaceType}}{{end}}
-	Method *{{.MockTypeName}}Methods{{.TypeParamsUse}}
-	imp    *{{.PkgImptest}}.Imp
+	Mock       {{if .IsStructType}}{{.MockTypeName}}Interface{{.TypeParamsUse}}{{else}}{{.InterfaceType}}{{end}}
+	Method     *{{.MockTypeName}}Methods{{.TypeParamsUse}}
+	Controller *{{.PkgImptest}}.Imp
 }
 
 // {{.MockTypeName}}Methods holds method wrappers for setting expectations.
@@ -96,14 +96,14 @@ type {{.MockTypeName}}Methods{{.TypeParamsDecl}} struct {
 	//nolint:lll // Template docstring
 	registry.depConstructorTmpl, err = parseTemplate("depConstructor", `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
 func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
-	imp := {{.PkgImptest}}.NewImp(t)
+	ctrl := {{.PkgImptest}}.NewImp(t)
 	methods := &{{.MockTypeName}}Methods{{.TypeParamsUse}}{
-{{range .Methods}}{{if .HasParams}}		{{.MethodName}}: &{{.MethodTypeName}}{{$.TypeParamsUse}}{DependencyMethod: {{$.PkgImptest}}.NewDependencyMethod(imp, "{{.MethodName}}")},
-{{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(imp, "{{.MethodName}}"),
+{{range .Methods}}{{if .HasParams}}		{{.MethodName}}: &{{.MethodTypeName}}{{$.TypeParamsUse}}{DependencyMethod: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}")},
+{{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}"),
 {{end}}{{end}}	}
 	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &{{.ImplName}}{{.TypeParamsUse}}{handle: h}
 	return h
@@ -152,7 +152,7 @@ func (impl *{{.ImplName}}{{.TypeParamsUse}}) {{.MethodName}}({{.Params}}){{.Resu
 		Args: {{if .HasVariadic}}callArgs{{else}}[]any{ {{.Args}} }{{end}},
 		ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -679,10 +679,10 @@ func (h *{{.CallHandleType}}) ExpectPanicMatches(matcher any) {
 	//nolint:lll // Template docstring
 	registry.funcDepMockStructTmpl, err = parseTemplate("funcDepMockStruct", `// {{.MockTypeName}}Handle is the test handle for {{.FuncName}} function.
 type {{.MockTypeName}}Handle{{.TypeParamsDecl}} struct {
-	Mock   {{.FuncSig}}
-{{if .Method.HasParams}}	Method *{{.Method.MethodTypeName}}{{.TypeParamsUse}}
-{{else}}	Method *{{.PkgImptest}}.DependencyMethod
-{{end}}	imp    *{{.PkgImptest}}.Imp
+	Mock       {{.FuncSig}}
+{{if .Method.HasParams}}	Method     *{{.Method.MethodTypeName}}{{.TypeParamsUse}}
+{{else}}	Method     *{{.PkgImptest}}.DependencyMethod
+{{end}}	Controller *{{.PkgImptest}}.Imp
 }
 
 `)
@@ -694,11 +694,11 @@ type {{.MockTypeName}}Handle{{.TypeParamsDecl}} struct {
 	//nolint:lll // Template docstring
 	registry.funcDepConstructorTmpl, err = parseTemplate("funcDepConstructor", `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
 func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
-	imp := {{.PkgImptest}}.NewImp(t)
+	ctrl := {{.PkgImptest}}.NewImp(t)
 	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
-		imp: imp,
-{{if .Method.HasParams}}		Method: &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}")},
-{{else}}		Method: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}"),
+		Controller: ctrl,
+{{if .Method.HasParams}}		Method: &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}")},
+{{else}}		Method: {{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}"),
 {{end}}	}
 	h.Mock = func({{.Method.Params}}){{.Method.Results}} {
 		{{if .Method.HasVariadic}}callArgs := []any{ {{.Method.NonVariadicArgs}} }
@@ -710,7 +710,7 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTy
 			Args: {{if .Method.HasVariadic}}callArgs{{else}}[]any{ {{.Method.Args}} }{{end}},
 			ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 		}
-		h.imp.CallChan <- call
+		h.Controller.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)

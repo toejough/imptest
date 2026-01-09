@@ -9,9 +9,9 @@ import (
 
 // DataSinkMockHandle is the test handle for DataSink.
 type DataSinkMockHandle struct {
-	Mock   samepackage.DataSink
-	Method *DataSinkMockMethods
-	imp    *_imptest.Imp
+	Mock       samepackage.DataSink
+	Method     *DataSinkMockMethods
+	Controller *_imptest.Imp
 }
 
 // DataSinkMockMethods holds method wrappers for setting expectations.
@@ -68,13 +68,13 @@ func (m *DataSinkMockPutDataMethod) ExpectCalledWithMatches(matchers ...any) *Da
 
 // MockDataSink creates a new DataSinkMockHandle for testing.
 func MockDataSink(t _imptest.TestReporter) *DataSinkMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &DataSinkMockMethods{
-		PutData: &DataSinkMockPutDataMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "PutData")},
+		PutData: &DataSinkMockPutDataMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "PutData")},
 	}
 	h := &DataSinkMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockDataSinkImpl{handle: h}
 	return h
@@ -92,7 +92,7 @@ func (impl *mockDataSinkImpl) PutData(data []byte) error {
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -8,9 +8,9 @@ import (
 
 // TimedLoggerMockHandle is the test handle for TimedLogger.
 type TimedLoggerMockHandle struct {
-	Mock   TimedLoggerMockInterface
-	Method *TimedLoggerMockMethods
-	imp    *_imptest.Imp
+	Mock       TimedLoggerMockInterface
+	Method     *TimedLoggerMockMethods
+	Controller *_imptest.Imp
 }
 
 // TimedLoggerMockIncCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
@@ -189,17 +189,17 @@ func (c *TimedLoggerMockValueCall) InjectReturnValues(result0 int) {
 
 // MockTimedLogger creates a new TimedLoggerMockHandle for testing.
 func MockTimedLogger(t _imptest.TestReporter) *TimedLoggerMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &TimedLoggerMockMethods{
-		Inc:          _imptest.NewDependencyMethod(imp, "Inc"),
-		Log:          &TimedLoggerMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Log")},
-		LogWithCount: &TimedLoggerMockLogWithCountMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "LogWithCount")},
-		SetPrefix:    &TimedLoggerMockSetPrefixMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "SetPrefix")},
-		Value:        _imptest.NewDependencyMethod(imp, "Value"),
+		Inc:          _imptest.NewDependencyMethod(ctrl, "Inc"),
+		Log:          &TimedLoggerMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Log")},
+		LogWithCount: &TimedLoggerMockLogWithCountMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "LogWithCount")},
+		SetPrefix:    &TimedLoggerMockSetPrefixMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "SetPrefix")},
+		Value:        _imptest.NewDependencyMethod(ctrl, "Value"),
 	}
 	h := &TimedLoggerMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockTimedLoggerImpl{handle: h}
 	return h
@@ -217,7 +217,7 @@ func (impl *mockTimedLoggerImpl) Inc() int {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -240,7 +240,7 @@ func (impl *mockTimedLoggerImpl) Log(msg string) string {
 		Args:         []any{msg},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -263,7 +263,7 @@ func (impl *mockTimedLoggerImpl) LogWithCount(msg string) string {
 		Args:         []any{msg},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -286,7 +286,7 @@ func (impl *mockTimedLoggerImpl) SetPrefix(prefix string) {
 		Args:         []any{prefix},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -301,7 +301,7 @@ func (impl *mockTimedLoggerImpl) Value() int {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

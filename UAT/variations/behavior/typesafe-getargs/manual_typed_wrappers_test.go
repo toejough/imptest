@@ -47,9 +47,9 @@ func (m *CalculatorAddMethod) ExpectCalledWithMatches(matchers ...any) *Calculat
 
 // TypesafeCalculatorMockHandle is the test handle for Calculator.
 type TypesafeCalculatorMockHandle struct {
-	Mock   typesafeargs.Calculator
-	Method *TypesafeCalculatorMockMethods
-	imp    *imptest.Imp
+	Mock       typesafeargs.Calculator
+	Method     *TypesafeCalculatorMockMethods
+	Controller *imptest.Imp
 }
 
 // TypesafeCalculatorMockMethods holds method wrappers for setting expectations.
@@ -60,15 +60,15 @@ type TypesafeCalculatorMockMethods struct {
 }
 
 func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMockHandle {
-	imp := imptest.NewImp(t)
+	ctrl := imptest.NewImp(t)
 	methods := &TypesafeCalculatorMockMethods{
-		Add:      &CalculatorAddMethod{DependencyMethod: imptest.NewDependencyMethod(imp, "Add")},
-		Multiply: imptest.NewDependencyMethod(imp, "Multiply"),
-		Store:    imptest.NewDependencyMethod(imp, "Store"),
+		Add:      &CalculatorAddMethod{DependencyMethod: imptest.NewDependencyMethod(ctrl, "Add")},
+		Multiply: imptest.NewDependencyMethod(ctrl, "Multiply"),
+		Store:    imptest.NewDependencyMethod(ctrl, "Store"),
 	}
 	handle := &TypesafeCalculatorMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	handle.Mock = &mockCalculatorImpl{handle: handle}
 
@@ -85,7 +85,7 @@ func (impl *mockCalculatorImpl) Add(a, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
@@ -109,7 +109,7 @@ func (impl *mockCalculatorImpl) Multiply(x, y int) int {
 		Args:         []any{x, y},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
@@ -133,7 +133,7 @@ func (impl *mockCalculatorImpl) Store(key string, value any) error {
 		Args:         []any{key, value},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {

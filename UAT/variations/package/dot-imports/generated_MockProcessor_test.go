@@ -9,9 +9,9 @@ import (
 
 // ProcessorMockHandle is the test handle for Processor.
 type ProcessorMockHandle struct {
-	Mock   helpers.Processor
-	Method *ProcessorMockMethods
-	imp    *_imptest.Imp
+	Mock       helpers.Processor
+	Method     *ProcessorMockMethods
+	Controller *_imptest.Imp
 }
 
 // ProcessorMockMethods holds method wrappers for setting expectations.
@@ -68,13 +68,13 @@ func (m *ProcessorMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *P
 
 // MockProcessor creates a new ProcessorMockHandle for testing.
 func MockProcessor(t _imptest.TestReporter) *ProcessorMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &ProcessorMockMethods{
-		Process: &ProcessorMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
+		Process: &ProcessorMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Process")},
 	}
 	h := &ProcessorMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockProcessorImpl{handle: h}
 	return h
@@ -92,7 +92,7 @@ func (impl *mockProcessorImpl) Process(input string) string {
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

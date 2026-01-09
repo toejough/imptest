@@ -68,9 +68,9 @@ func (c *OpsMockFinishCall) InjectReturnValues(result0 bool) {
 
 // OpsMockHandle is the test handle for Ops.
 type OpsMockHandle struct {
-	Mock   basic.Ops
-	Method *OpsMockMethods
-	imp    *_imptest.Imp
+	Mock       basic.Ops
+	Method     *OpsMockMethods
+	Controller *_imptest.Imp
 }
 
 // OpsMockLogArgs holds typed arguments for Log.
@@ -228,17 +228,17 @@ func (m *OpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockSt
 
 // MockOps creates a new OpsMockHandle for testing.
 func MockOps(t _imptest.TestReporter) *OpsMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &OpsMockMethods{
-		Add:    &OpsMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Add")},
-		Store:  &OpsMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Store")},
-		Log:    &OpsMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Log")},
-		Notify: &OpsMockNotifyMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Notify")},
-		Finish: _imptest.NewDependencyMethod(imp, "Finish"),
+		Add:    &OpsMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Add")},
+		Store:  &OpsMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Store")},
+		Log:    &OpsMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Log")},
+		Notify: &OpsMockNotifyMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Notify")},
+		Finish: _imptest.NewDependencyMethod(ctrl, "Finish"),
 	}
 	h := &OpsMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockOpsImpl{handle: h}
 	return h
@@ -256,7 +256,7 @@ func (impl *mockOpsImpl) Add(a int, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -279,7 +279,7 @@ func (impl *mockOpsImpl) Finish() bool {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -302,7 +302,7 @@ func (impl *mockOpsImpl) Log(message string) {
 		Args:         []any{message},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -321,7 +321,7 @@ func (impl *mockOpsImpl) Notify(message string, ids ...int) bool {
 		Args:         callArgs,
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -344,7 +344,7 @@ func (impl *mockOpsImpl) Store(key string, value any) (int, error) {
 		Args:         []any{key, value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

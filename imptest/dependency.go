@@ -15,9 +15,11 @@ type DependencyArgs struct {
 
 // DependencyCall represents an expected call to a dependency.
 // This type wraps a GenericCall from the Controller and provides the v2 API.
+// In async mode (Eventually()), it wraps a PendingExpectation instead.
 type DependencyCall struct {
-	imp  *Imp
-	call *GenericCall
+	imp     *Imp
+	call    *GenericCall        // set in synchronous mode
+	pending *PendingExpectation // set in async mode (Eventually)
 }
 
 func (dc *DependencyCall) GetArgs() *DependencyArgs {
@@ -51,7 +53,16 @@ func (dc *DependencyCall) GetArgs() *DependencyArgs {
 
 // InjectPanicValue specifies that the mock should panic with the given value.
 // This sends a panic response to the mock's response channel, unblocking it.
+// In async mode, this can be called before or after the call is matched.
 func (dc *DependencyCall) InjectPanicValue(value any) {
+	if dc.pending != nil {
+		// Async mode - delegate to PendingExpectation
+		dc.pending.InjectPanicValue(value)
+
+		return
+	}
+
+	// Synchronous mode - send directly
 	dc.call.MarkDone()
 
 	dc.call.ResponseChan <- GenericResponse{
@@ -62,7 +73,16 @@ func (dc *DependencyCall) InjectPanicValue(value any) {
 
 // InjectReturnValues specifies the values the mock should return when called.
 // This sends the response to the mock's response channel, unblocking it.
+// In async mode, this can be called before or after the call is matched.
 func (dc *DependencyCall) InjectReturnValues(values ...any) {
+	if dc.pending != nil {
+		// Async mode - delegate to PendingExpectation
+		dc.pending.InjectReturnValues(values...)
+
+		return
+	}
+
+	// Synchronous mode - send directly
 	dc.call.MarkDone()
 
 	dc.call.ResponseChan <- GenericResponse{
@@ -73,7 +93,14 @@ func (dc *DependencyCall) InjectReturnValues(values ...any) {
 
 // RawArgs returns the raw argument slice for use by generated code.
 // This allows generated code to create type-safe args accessors.
+// In async mode, blocks until a call is matched.
 func (dc *DependencyCall) RawArgs() []any {
+	if dc.pending != nil {
+		// Async mode - wait for match and return matched args
+		return dc.pending.GetMatchedArgs()
+	}
+
+	// Synchronous mode - return call args directly
 	return dc.call.Args
 }
 
@@ -110,6 +137,7 @@ func (dm *DependencyMethod) Eventually() *DependencyMethod {
 // ExpectCalledWithExactly waits for a call to this method with exactly the specified arguments.
 // Uses reflection-based DeepEqual for argument matching. Returns detailed error messages
 // when arguments don't match.
+// In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
 func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall {
 	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(args) {
@@ -127,12 +155,18 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 		return nil
 	}
 
-	var call *GenericCall
 	if dm.eventually {
-		call = dm.imp.GetCallEventually(dm.methodName, validator)
-	} else {
-		call = dm.imp.GetCallOrdered(0, dm.methodName, validator)
+		// Async mode - register pending expectation and return immediately
+		pending := dm.imp.RegisterPendingExpectation(dm.methodName, validator)
+
+		return &DependencyCall{
+			imp:     dm.imp,
+			pending: pending,
+		}
 	}
+
+	// Synchronous mode - block until call arrives
+	call := dm.imp.GetCallOrdered(0, dm.methodName, validator)
 
 	return newDependencyCall(dm.imp, call)
 }
@@ -140,6 +174,7 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 // ExpectCalledWithMatches waits for a call to this method with arguments matching the given matchers.
 // Each matcher should implement the Matcher interface (compatible with gomega matchers).
 // Returns detailed error messages when matchers don't match.
+// In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
 func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
 	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(matchers) {
@@ -162,12 +197,18 @@ func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *Dependency
 		return nil
 	}
 
-	var call *GenericCall
 	if dm.eventually {
-		call = dm.imp.GetCallEventually(dm.methodName, validator)
-	} else {
-		call = dm.imp.GetCallOrdered(0, dm.methodName, validator)
+		// Async mode - register pending expectation and return immediately
+		pending := dm.imp.RegisterPendingExpectation(dm.methodName, validator)
+
+		return &DependencyCall{
+			imp:     dm.imp,
+			pending: pending,
+		}
 	}
+
+	// Synchronous mode - block until call arrives
+	call := dm.imp.GetCallOrdered(0, dm.methodName, validator)
 
 	return newDependencyCall(dm.imp, call)
 }

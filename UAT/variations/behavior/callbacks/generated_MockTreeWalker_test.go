@@ -10,9 +10,9 @@ import (
 
 // TreeWalkerMockHandle is the test handle for TreeWalker.
 type TreeWalkerMockHandle struct {
-	Mock   visitor.TreeWalker
-	Method *TreeWalkerMockMethods
-	imp    *_imptest.Imp
+	Mock       visitor.TreeWalker
+	Method     *TreeWalkerMockMethods
+	Controller *_imptest.Imp
 }
 
 // TreeWalkerMockMethods holds method wrappers for setting expectations.
@@ -121,14 +121,14 @@ func (m *TreeWalkerMockWalkWithNamedTypeMethod) ExpectCalledWithMatches(matchers
 
 // MockTreeWalker creates a new TreeWalkerMockHandle for testing.
 func MockTreeWalker(t _imptest.TestReporter) *TreeWalkerMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &TreeWalkerMockMethods{
-		Walk:              &TreeWalkerMockWalkMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Walk")},
-		WalkWithNamedType: &TreeWalkerMockWalkWithNamedTypeMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "WalkWithNamedType")},
+		Walk:              &TreeWalkerMockWalkMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Walk")},
+		WalkWithNamedType: &TreeWalkerMockWalkWithNamedTypeMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "WalkWithNamedType")},
 	}
 	h := &TreeWalkerMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockTreeWalkerImpl{handle: h}
 	return h
@@ -146,7 +146,7 @@ func (impl *mockTreeWalkerImpl) Walk(root string, fn func(string, fs.DirEntry, e
 		Args:         []any{root, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -169,7 +169,7 @@ func (impl *mockTreeWalkerImpl) WalkWithNamedType(root string, fn visitor.WalkFu
 		Args:         []any{root, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

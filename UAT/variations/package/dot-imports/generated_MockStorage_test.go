@@ -9,9 +9,9 @@ import (
 
 // StorageMockHandle is the test handle for Storage.
 type StorageMockHandle struct {
-	Mock   helpers.Storage
-	Method *StorageMockMethods
-	imp    *_imptest.Imp
+	Mock       helpers.Storage
+	Method     *StorageMockMethods
+	Controller *_imptest.Imp
 }
 
 // StorageMockLoadArgs holds typed arguments for Load.
@@ -118,14 +118,14 @@ func (m *StorageMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *Storag
 
 // MockStorage creates a new StorageMockHandle for testing.
 func MockStorage(t _imptest.TestReporter) *StorageMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &StorageMockMethods{
-		Save: &StorageMockSaveMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Save")},
-		Load: &StorageMockLoadMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Load")},
+		Save: &StorageMockSaveMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Save")},
+		Load: &StorageMockLoadMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Load")},
 	}
 	h := &StorageMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockStorageImpl{handle: h}
 	return h
@@ -143,7 +143,7 @@ func (impl *mockStorageImpl) Load(key string) (string, error) {
 		Args:         []any{key},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -173,7 +173,7 @@ func (impl *mockStorageImpl) Save(key string, value string) error {
 		Args:         []any{key, value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

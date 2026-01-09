@@ -67,9 +67,9 @@ func (c *CalculatorMockGetCall) InjectReturnValues(result0 int, result1 error) {
 
 // CalculatorMockHandle is the test handle for Calculator.
 type CalculatorMockHandle struct {
-	Mock   CalculatorMockInterface
-	Method *CalculatorMockMethods
-	imp    *_imptest.Imp
+	Mock       CalculatorMockInterface
+	Method     *CalculatorMockMethods
+	Controller *_imptest.Imp
 }
 
 // CalculatorMockInterface is a generated interface matching the methods of Calculator.
@@ -137,16 +137,16 @@ func (m *CalculatorMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *Ca
 
 // MockCalculator creates a new CalculatorMockHandle for testing.
 func MockCalculator(t _imptest.TestReporter) *CalculatorMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &CalculatorMockMethods{
-		Add:   &CalculatorMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Add")},
-		Get:   _imptest.NewDependencyMethod(imp, "Get"),
-		Reset: _imptest.NewDependencyMethod(imp, "Reset"),
-		Store: &CalculatorMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Store")},
+		Add:   &CalculatorMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Add")},
+		Get:   _imptest.NewDependencyMethod(ctrl, "Get"),
+		Reset: _imptest.NewDependencyMethod(ctrl, "Reset"),
+		Store: &CalculatorMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Store")},
 	}
 	h := &CalculatorMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockCalculatorImpl{handle: h}
 	return h
@@ -164,7 +164,7 @@ func (impl *mockCalculatorImpl) Add(a int, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -187,7 +187,7 @@ func (impl *mockCalculatorImpl) Get() (int, error) {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -217,7 +217,7 @@ func (impl *mockCalculatorImpl) Reset() {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -232,7 +232,7 @@ func (impl *mockCalculatorImpl) Store(value int) int {
 		Args:         []any{value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

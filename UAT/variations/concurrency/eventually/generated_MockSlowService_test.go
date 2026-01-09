@@ -103,9 +103,9 @@ func (m *SlowServiceMockDoBMethod) ExpectCalledWithMatches(matchers ...any) *Slo
 
 // SlowServiceMockHandle is the test handle for SlowService.
 type SlowServiceMockHandle struct {
-	Mock   concurrency.SlowService
-	Method *SlowServiceMockMethods
-	imp    *_imptest.Imp
+	Mock       concurrency.SlowService
+	Method     *SlowServiceMockMethods
+	Controller *_imptest.Imp
 }
 
 // SlowServiceMockMethods holds method wrappers for setting expectations.
@@ -116,14 +116,14 @@ type SlowServiceMockMethods struct {
 
 // MockSlowService creates a new SlowServiceMockHandle for testing.
 func MockSlowService(t _imptest.TestReporter) *SlowServiceMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &SlowServiceMockMethods{
-		DoA: &SlowServiceMockDoAMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "DoA")},
-		DoB: &SlowServiceMockDoBMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "DoB")},
+		DoA: &SlowServiceMockDoAMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "DoA")},
+		DoB: &SlowServiceMockDoBMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "DoB")},
 	}
 	h := &SlowServiceMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockSlowServiceImpl{handle: h}
 	return h
@@ -141,7 +141,7 @@ func (impl *mockSlowServiceImpl) DoA(id int) string {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -164,7 +164,7 @@ func (impl *mockSlowServiceImpl) DoB(id int) string {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

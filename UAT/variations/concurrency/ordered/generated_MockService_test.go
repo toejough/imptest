@@ -9,9 +9,9 @@ import (
 
 // ServiceMockHandle is the test handle for Service.
 type ServiceMockHandle struct {
-	Mock   orderedvsmode.Service
-	Method *ServiceMockMethods
-	imp    *_imptest.Imp
+	Mock       orderedvsmode.Service
+	Method     *ServiceMockMethods
+	Controller *_imptest.Imp
 }
 
 // ServiceMockMethods holds method wrappers for setting expectations.
@@ -164,15 +164,15 @@ func (m *ServiceMockOperationCMethod) ExpectCalledWithMatches(matchers ...any) *
 
 // MockService creates a new ServiceMockHandle for testing.
 func MockService(t _imptest.TestReporter) *ServiceMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &ServiceMockMethods{
-		OperationA: &ServiceMockOperationAMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "OperationA")},
-		OperationB: &ServiceMockOperationBMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "OperationB")},
-		OperationC: &ServiceMockOperationCMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "OperationC")},
+		OperationA: &ServiceMockOperationAMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "OperationA")},
+		OperationB: &ServiceMockOperationBMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "OperationB")},
+		OperationC: &ServiceMockOperationCMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "OperationC")},
 	}
 	h := &ServiceMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockServiceImpl{handle: h}
 	return h
@@ -190,7 +190,7 @@ func (impl *mockServiceImpl) OperationA(id int) error {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -213,7 +213,7 @@ func (impl *mockServiceImpl) OperationB(id int) error {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -236,7 +236,7 @@ func (impl *mockServiceImpl) OperationC(id int) error {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

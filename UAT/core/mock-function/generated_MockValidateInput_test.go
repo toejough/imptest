@@ -31,9 +31,9 @@ func (c *ValidateInputMockCall) InjectReturnValues(result0 error) {
 
 // ValidateInputMockHandle is the test handle for ValidateInput function.
 type ValidateInputMockHandle struct {
-	Mock   func(input string) error
-	Method *ValidateInputMockMethod
-	imp    *_imptest.Imp
+	Mock       func(input string) error
+	Method     *ValidateInputMockMethod
+	Controller *_imptest.Imp
 }
 
 // ValidateInputMockMethod wraps DependencyMethod with typed returns.
@@ -62,10 +62,10 @@ func (m *ValidateInputMockMethod) ExpectCalledWithMatches(matchers ...any) *Vali
 
 // MockValidateInput creates a new ValidateInputMockHandle for testing.
 func MockValidateInput(t _imptest.TestReporter) *ValidateInputMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	h := &ValidateInputMockHandle{
-		imp:    imp,
-		Method: &ValidateInputMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ValidateInput")},
+		Controller: ctrl,
+		Method:     &ValidateInputMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ValidateInput")},
 	}
 	h.Mock = func(input string) error {
 		call := &_imptest.GenericCall{
@@ -73,7 +73,7 @@ func MockValidateInput(t _imptest.TestReporter) *ValidateInputMockHandle {
 			Args:         []any{input},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.imp.CallChan <- call
+		h.Controller.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)

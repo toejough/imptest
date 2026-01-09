@@ -56,9 +56,9 @@ func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithMatches(matchers ..
 
 // ExternalServiceMockHandle is the test handle for ExternalService.
 type ExternalServiceMockHandle struct {
-	Mock   callable.ExternalService
-	Method *ExternalServiceMockMethods
-	imp    *_imptest.Imp
+	Mock       callable.ExternalService
+	Method     *ExternalServiceMockMethods
+	Controller *_imptest.Imp
 }
 
 // ExternalServiceMockMethods holds method wrappers for setting expectations.
@@ -116,14 +116,14 @@ func (m *ExternalServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockExternalService creates a new ExternalServiceMockHandle for testing.
 func MockExternalService(t _imptest.TestReporter) *ExternalServiceMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &ExternalServiceMockMethods{
-		FetchData: &ExternalServiceMockFetchDataMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "FetchData")},
-		Process:   &ExternalServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
+		FetchData: &ExternalServiceMockFetchDataMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "FetchData")},
+		Process:   &ExternalServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Process")},
 	}
 	h := &ExternalServiceMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockExternalServiceImpl{handle: h}
 	return h
@@ -141,7 +141,7 @@ func (impl *mockExternalServiceImpl) FetchData(id int) (string, error) {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -171,7 +171,7 @@ func (impl *mockExternalServiceImpl) Process(data string) string {
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

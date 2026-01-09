@@ -18,17 +18,17 @@ func (c *CounterIncMockCall) InjectReturnValues(result0 int) {
 
 // CounterIncMockHandle is the test handle for Counter.Inc function.
 type CounterIncMockHandle struct {
-	Mock   func() int
-	Method *_imptest.DependencyMethod
-	imp    *_imptest.Imp
+	Mock       func() int
+	Method     *_imptest.DependencyMethod
+	Controller *_imptest.Imp
 }
 
 // MockCounterInc creates a new CounterIncMockHandle for testing.
 func MockCounterInc(t _imptest.TestReporter) *CounterIncMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	h := &CounterIncMockHandle{
-		imp:    imp,
-		Method: _imptest.NewDependencyMethod(imp, "Counter.Inc"),
+		Controller: ctrl,
+		Method:     _imptest.NewDependencyMethod(ctrl, "Counter.Inc"),
 	}
 	h.Mock = func() int {
 		call := &_imptest.GenericCall{
@@ -36,7 +36,7 @@ func MockCounterInc(t _imptest.TestReporter) *CounterIncMockHandle {
 			Args:         []any{},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.imp.CallChan <- call
+		h.Controller.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)

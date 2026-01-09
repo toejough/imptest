@@ -19,9 +19,9 @@ func (c *DataSourceMockGetDataCall) InjectReturnValues(result0 []byte, result1 e
 
 // DataSourceMockHandle is the test handle for DataSource.
 type DataSourceMockHandle struct {
-	Mock   samepackage.DataSource
-	Method *DataSourceMockMethods
-	imp    *_imptest.Imp
+	Mock       samepackage.DataSource
+	Method     *DataSourceMockMethods
+	Controller *_imptest.Imp
 }
 
 // DataSourceMockMethods holds method wrappers for setting expectations.
@@ -31,13 +31,13 @@ type DataSourceMockMethods struct {
 
 // MockDataSource creates a new DataSourceMockHandle for testing.
 func MockDataSource(t _imptest.TestReporter) *DataSourceMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &DataSourceMockMethods{
-		GetData: _imptest.NewDependencyMethod(imp, "GetData"),
+		GetData: _imptest.NewDependencyMethod(ctrl, "GetData"),
 	}
 	h := &DataSourceMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockDataSourceImpl{handle: h}
 	return h
@@ -55,7 +55,7 @@ func (impl *mockDataSourceImpl) GetData() ([]byte, error) {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

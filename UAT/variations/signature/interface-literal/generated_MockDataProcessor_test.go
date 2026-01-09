@@ -9,9 +9,9 @@ import (
 
 // DataProcessorMockHandle is the test handle for DataProcessor.
 type DataProcessorMockHandle struct {
-	Mock   interfaceliteral.DataProcessor
-	Method *DataProcessorMockMethods
-	imp    *_imptest.Imp
+	Mock       interfaceliteral.DataProcessor
+	Method     *DataProcessorMockMethods
+	Controller *_imptest.Imp
 }
 
 // DataProcessorMockMethods holds method wrappers for setting expectations.
@@ -221,16 +221,16 @@ func (m *DataProcessorMockValidateMethod) ExpectCalledWithMatches(matchers ...an
 
 // MockDataProcessor creates a new DataProcessorMockHandle for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &DataProcessorMockMethods{
-		Process:           &DataProcessorMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
-		Transform:         &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Transform")},
-		Validate:          &DataProcessorMockValidateMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Validate")},
-		ProcessWithReturn: &DataProcessorMockProcessWithReturnMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessWithReturn")},
+		Process:           &DataProcessorMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Process")},
+		Transform:         &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Transform")},
+		Validate:          &DataProcessorMockValidateMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Validate")},
+		ProcessWithReturn: &DataProcessorMockProcessWithReturnMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessWithReturn")},
 	}
 	h := &DataProcessorMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockDataProcessorImpl{handle: h}
 	return h
@@ -248,7 +248,7 @@ func (impl *mockDataProcessorImpl) Process(obj interface{ Get() string }) string
 		Args:         []any{obj},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -271,7 +271,7 @@ func (impl *mockDataProcessorImpl) ProcessWithReturn(input string) interface{ Re
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -297,7 +297,7 @@ func (impl *mockDataProcessorImpl) Transform(obj interface {
 		Args:         []any{obj},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -320,7 +320,7 @@ func (impl *mockDataProcessorImpl) Validate(validator interface{ Check(string) e
 		Args:         []any{validator},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

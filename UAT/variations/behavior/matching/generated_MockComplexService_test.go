@@ -9,9 +9,9 @@ import (
 
 // ComplexServiceMockHandle is the test handle for ComplexService.
 type ComplexServiceMockHandle struct {
-	Mock   matching.ComplexService
-	Method *ComplexServiceMockMethods
-	imp    *_imptest.Imp
+	Mock       matching.ComplexService
+	Method     *ComplexServiceMockMethods
+	Controller *_imptest.Imp
 }
 
 // ComplexServiceMockMethods holds method wrappers for setting expectations.
@@ -68,13 +68,13 @@ func (m *ComplexServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...an
 
 // MockComplexService creates a new ComplexServiceMockHandle for testing.
 func MockComplexService(t _imptest.TestReporter) *ComplexServiceMockHandle {
-	imp := _imptest.NewImp(t)
+	ctrl := _imptest.NewImp(t)
 	methods := &ComplexServiceMockMethods{
-		Process: &ComplexServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
+		Process: &ComplexServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Process")},
 	}
 	h := &ComplexServiceMockHandle{
-		Method: methods,
-		imp:    imp,
+		Method:     methods,
+		Controller: ctrl,
 	}
 	h.Mock = &mockComplexServiceImpl{handle: h}
 	return h
@@ -92,7 +92,7 @@ func (impl *mockComplexServiceImpl) Process(d matching.Data) bool {
 		Args:         []any{d},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.imp.CallChan <- call
+	impl.handle.Controller.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
