@@ -122,31 +122,6 @@ Standard issue structure organized by category:
 
 ---
 
-### 25. Consolidate API and usage documentation (TOE-112)
-
-#### Universal
-
-**Status**
-done
-
-**Description**
-Multiple documents (README.md, docs/V1_TO_V2_MIGRATION.md, etc.) describe API/usage with redundancy
-
-#### Work Tracking
-
-**Completed**
-2026-01-09
-
-**Solution**
-Removed 12 outdated/redundant documentation files. Kept: README.md (user-facing), TAXONOMY.md (reference), REORGANIZATION_PROPOSAL.md (design), mutation-task.md. Historical docs available in git history.
-
-**Files Removed**
-- CALLBACKS.md, GEMINI.md, GOPLS-MCP.md, thoughts.md
-- docs/API_REDESIGN.md, docs/audit-notes.md, docs/ISSUE-48-*.md
-- docs/archive/PHASE2_TYPESAFE_ARGS_DESIGN.md
-- imptest/RACE_*.md, imptest/REGRESSION_TEST_SUMMARY.md
-
----
 ### 18. Reduce blanket nolint directives in V2 generators (TOE-106)
 
 #### Universal
@@ -235,7 +210,32 @@ Completed issues.
 
 
 
-### 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
+
+### 25. Consolidate API and usage documentation (TOE-112)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Multiple documents (README.md, docs/V1_TO_V2_MIGRATION.md, etc.) describe API/usage with redundancy
+
+#### Work Tracking
+
+**Completed**
+2026-01-09
+
+**Solution**
+Removed 12 outdated/redundant documentation files. Kept: README.md (user-facing), TAXONOMY.md (reference), REORGANIZATION_PROPOSAL.md (design), mutation-task.md. Historical docs available in git history.
+
+**Files Removed**
+- CALLBACKS.md, GEMINI.md, GOPLS-MCP.md, thoughts.md
+- docs/API_REDESIGN.md, docs/audit-notes.md, docs/ISSUE-48-*.md
+- docs/archive/PHASE2_TYPESAFE_ARGS_DESIGN.md
+- imptest/RACE_*.md, imptest/REGRESSION_TEST_SUMMARY.md
+
+---### 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
 
 #### Universal
 
