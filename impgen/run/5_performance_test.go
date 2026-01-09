@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/toejough/imptest/impgen/run"
+	cache "github.com/toejough/imptest/impgen/run/1_cache"
 )
 
 // BenchmarkCallableGeneration measures the performance of generating a simple callable.
@@ -127,7 +128,7 @@ func mustFindProjectRoot(b *testing.B) string {
 
 	cfs := realCacheFS{}
 
-	projectRoot, err := run.FindProjectRoot(cfs)
+	projectRoot, err := cache.FindProjectRoot(cfs)
 	if err != nil {
 		b.Fatalf("failed to find project root: %v", err)
 	}

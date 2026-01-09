@@ -1,4 +1,4 @@
-package run
+package cache
 
 import (
 	"errors"
@@ -10,28 +10,28 @@ import (
 
 // Exported constants.
 const (
-	// CacheDirName is the name of the local cache directory.
-	CacheDirName = ".impgen"
+	// DirName is the name of the local cache directory.
+	DirName = ".impgen"
 	// DirPerm is the default directory permission.
 	DirPerm = 0o755
 	// FilePerm is the default file permission.
 	FilePerm = 0o600
 )
 
-// CacheData represents the structure of the persistent disk cache.
-type CacheData struct {
-	Entries map[string]CacheEntry `json:"entries"`
+// Data represents the structure of the persistent disk cache.
+type Data struct {
+	Entries map[string]Entry `json:"entries"`
 }
 
-// CacheEntry represents a single cached mock generation result.
-type CacheEntry struct {
+// Entry represents a single cached mock generation result.
+type Entry struct {
 	Signature string `json:"signature"`
 	Content   string `json:"content"`
 	Filename  string `json:"filename"`
 }
 
-// CacheFileSystem abstracts file operations for the cache system.
-type CacheFileSystem interface {
+// FileSystem abstracts file operations for the cache system.
+type FileSystem interface {
 	Open(path string) (io.ReadCloser, error)
 	Create(path string) (io.WriteCloser, error)
 	MkdirAll(path string, perm os.FileMode) error
@@ -49,7 +49,7 @@ type CacheFileSystem interface {
 // Skip generated files to avoid circular dependency in signature
 
 // FindProjectRoot locates the nearest directory containing a go.mod file.
-func FindProjectRoot(cfs CacheFileSystem) (string, error) {
+func FindProjectRoot(cfs FileSystem) (string, error) {
 	curr, err := cfs.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get working directory: %w", err)

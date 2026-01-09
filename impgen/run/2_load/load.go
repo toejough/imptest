@@ -1,4 +1,4 @@
-package run
+package load
 
 import (
 	"errors"
@@ -13,12 +13,12 @@ import (
 	"github.com/dave/dst/decorator"
 )
 
-// LoadPackageDST loads a package by import path and returns its DST files and FileSet.
+// PackageDST loads a package by import path and returns its DST files and FileSet.
 // This is the shared implementation used by all PackageLoader implementations.
 // Uses fast DST parsing with no type checking for better performance.
 //
 //nolint:cyclop,funlen // Package loading and file parsing require multiple steps
-func LoadPackageDST(importPath string) ([]*dst.File, *token.FileSet, error) {
+func PackageDST(importPath string) ([]*dst.File, *token.FileSet, error) {
 	// Resolve import path to directory
 	var dir string
 
@@ -106,6 +106,49 @@ func LoadPackageDST(importPath string) ([]*dst.File, *token.FileSet, error) {
 	}
 
 	return allFiles, fset, nil
+}
+
+// ResolveLocalPackagePath checks if importPath refers to a local subdirectory package.
+// For simple package names (no slashes), it checks if there's a local subdirectory
+// with that name containing .go files. This handles cases where local packages
+// shadow stdlib packages (e.g., a local "time" package shadowing stdlib "time").
+//
+// Returns the absolute path to the local package directory if found, or the
+// original importPath if it should be resolved normally.
+//
+//nolint:cyclop // Early returns for different resolution paths
+func ResolveLocalPackagePath(importPath string) string {
+	// Only check for simple package names (no slashes, not ".", not absolute paths)
+	if importPath == "." || strings.HasPrefix(importPath, "/") || strings.Contains(importPath, "/") {
+		return importPath
+	}
+
+	srcDir, err := os.Getwd()
+	if err != nil {
+		return importPath
+	}
+
+	localDir := filepath.Join(srcDir, importPath)
+
+	info, err := os.Stat(localDir)
+	if err != nil || !info.IsDir() {
+		return importPath
+	}
+
+	// Check if it contains .go files
+	entries, err := os.ReadDir(localDir)
+	if err != nil {
+		return importPath
+	}
+
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".go") && !e.IsDir() {
+			// Found a local package - return the absolute path
+			return localDir
+		}
+	}
+
+	return importPath
 }
 
 // unexported variables.

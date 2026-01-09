@@ -15,6 +15,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/toejough/imptest/impgen/run"
+	load "github.com/toejough/imptest/impgen/run/2_load"
 )
 
 // main is the entry point of the impgen tool.
@@ -68,9 +69,9 @@ func (fs *realFileSystem) WriteFile(name string, data []byte, perm os.FileMode) 
 type realPackageLoader struct{}
 
 // Load loads a package by import path and returns its DST files and FileSet.
-// Uses the shared LoadPackageDST function for direct DST parsing with no type checking.
+// Uses the shared load.PackageDST function for direct DST parsing with no type checking.
 func (pl *realPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
-	files, fset, err := run.LoadPackageDST(importPath)
+	files, fset, err := load.PackageDST(importPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to load package %q: %w", importPath, err)
 	}

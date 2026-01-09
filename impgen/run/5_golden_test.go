@@ -16,6 +16,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/toejough/imptest/impgen/run"
+	cache "github.com/toejough/imptest/impgen/run/1_cache"
 )
 
 // TestUATConsistency ensures that the generated files in the UAT directory
@@ -25,7 +26,7 @@ func TestUATConsistency(t *testing.T) {
 	// Project root relative to this test file.
 	cfs := realCacheFS{}
 
-	projectRoot, err := run.FindProjectRoot(cfs)
+	projectRoot, err := cache.FindProjectRoot(cfs)
 	if err != nil {
 		t.Fatalf("failed to find project root: %v", err)
 	}
@@ -67,7 +68,7 @@ type cachedPackage struct {
 	fset  *token.FileSet
 }
 
-// realCacheFS implements CacheFileSystem for production use in tests.
+// realCacheFS implements cache.FileSystem for production use in tests.
 type realCacheFS struct{}
 
 func (realCacheFS) Create(path string) (io.WriteCloser, error) { return os.Create(path) }
