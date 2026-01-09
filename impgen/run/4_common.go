@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/dave/dst"
+	astutil "github.com/toejough/imptest/impgen/run/0_util"
 )
 
 // GetPackageInfo extracts package info for a given target name (e.g., "pkg.Interface").
@@ -674,32 +675,15 @@ func collectImportsFromFuncDecl(funcDecl *dst.FuncDecl, astFiles []*dst.File) []
 // expandFieldListTypes expands a field list into individual type strings.
 // For fields with multiple names (e.g., "a, b int"), outputs the type multiple times.
 // For fields with no names (e.g., unnamed params), outputs the type once.
+// expandFieldListTypes delegates to astutil.ExpandFieldListTypes.
 func expandFieldListTypes(fields []*dst.Field, typeFormatter func(dst.Expr) string) []string {
-	var parts []string
-
-	for _, f := range fields {
-		typeStr := typeFormatter(f.Type)
-		// If field has names (e.g., "a, b int"), output type once per name
-		// If field has no names (e.g., unnamed "int, int"), output type once
-		count := len(f.Names)
-		if count == 0 {
-			count = 1
-		}
-
-		for range count {
-			parts = append(parts, typeStr)
-		}
-	}
-
-	return parts
+	return astutil.ExpandFieldListTypes(fields, typeFormatter)
 }
 
 // exprToString renders a dst.Expr to Go code.
 // This function converts DST expressions back to their string representation.
-func exprToString(_ *token.FileSet, expr dst.Expr) string {
-	// We use a custom stringify function since decorator.Restorer.Fprint
-	// only works with *dst.File, not individual expressions.
-	return stringifyDSTExpr(expr)
+func exprToString(fset *token.FileSet, expr dst.Expr) string {
+	return astutil.ExprToString(fset, expr)
 }
 
 // extractFields extracts all individual fields from a field list.
@@ -1095,211 +1079,24 @@ func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
 	return ""
 }
 
-// stringifyDSTExpr converts a DST expression to its string representation.
-//
-//nolint:cyclop,funlen // Type-switch dispatcher handling all DST expression types; complexity is inherent
+// stringifyDSTExpr delegates to astutil.StringifyExpr.
 func stringifyDSTExpr(expr dst.Expr) string {
-	if expr == nil {
-		return ""
-	}
-
-	switch typedExpr := expr.(type) {
-	case *dst.Ident:
-		return typedExpr.Name
-	case *dst.BasicLit:
-		return typedExpr.Value
-	case *dst.SelectorExpr:
-		return stringifyDSTExpr(typedExpr.X) + "." + typedExpr.Sel.Name
-	case *dst.StarExpr:
-		return "*" + stringifyDSTExpr(typedExpr.X)
-	case *dst.ArrayType:
-		if typedExpr.Len != nil {
-			return "[" + stringifyDSTExpr(typedExpr.Len) + "]" + stringifyDSTExpr(typedExpr.Elt)
-		}
-
-		return "[]" + stringifyDSTExpr(typedExpr.Elt)
-	case *dst.MapType:
-		return "map[" + stringifyDSTExpr(typedExpr.Key) + "]" + stringifyDSTExpr(typedExpr.Value)
-	case *dst.ChanType:
-		switch typedExpr.Dir {
-		case dst.SEND:
-			return "chan<- " + stringifyDSTExpr(typedExpr.Value)
-		case dst.RECV:
-			return "<-chan " + stringifyDSTExpr(typedExpr.Value)
-		default:
-			return "chan " + stringifyDSTExpr(typedExpr.Value)
-		}
-	case *dst.InterfaceType:
-		return stringifyInterfaceType(typedExpr)
-	case *dst.StructType:
-		return stringifyStructType(typedExpr)
-	case *dst.FuncType:
-		return stringifyFuncType(typedExpr)
-	case *dst.Ellipsis:
-		return "..." + stringifyDSTExpr(typedExpr.Elt)
-	case *dst.IndexExpr:
-		return stringifyDSTExpr(typedExpr.X) + "[" + stringifyDSTExpr(typedExpr.Index) + "]"
-	case *dst.IndexListExpr:
-		indices := make([]string, len(typedExpr.Indices))
-		for i, idx := range typedExpr.Indices {
-			indices[i] = stringifyDSTExpr(idx)
-		}
-
-		return stringifyDSTExpr(typedExpr.X) + "[" + strings.Join(indices, ", ") + "]"
-	case *dst.ParenExpr:
-		return "(" + stringifyDSTExpr(typedExpr.X) + ")"
-	default:
-		return fmt.Sprintf("%T", expr)
-	}
+	return astutil.StringifyExpr(expr)
 }
 
-// resolveToFuncType resolves a type expression to a function type if possible.
-// Supports inline function types, local type aliases, and external types.
-
-// Case 1: Already a function type
-
-// Case 2: Local type alias (e.g., WalkFunc)
-
-// Case 3: External type (e.g., fs.WalkDirFunc)
-
-// stringifyFuncType converts a DST FuncType to its string representation.
+// stringifyFuncType delegates to astutil.StringifyExpr.
 func stringifyFuncType(funcType *dst.FuncType) string {
-	var buf strings.Builder
-	buf.WriteString("func")
-
-	// Parameters
-	if funcType.Params != nil {
-		buf.WriteString("(")
-
-		paramParts := expandFieldListTypes(funcType.Params.List, stringifyDSTExpr)
-		buf.WriteString(strings.Join(paramParts, ", "))
-		buf.WriteString(")")
-	}
-
-	// Results
-	if funcType.Results != nil && len(funcType.Results.List) > 0 {
-		buf.WriteString(" ")
-
-		resultParts := expandFieldListTypes(funcType.Results.List, stringifyDSTExpr)
-		if len(resultParts) > 1 {
-			buf.WriteString("(")
-			buf.WriteString(strings.Join(resultParts, ", "))
-			buf.WriteString(")")
-		} else {
-			buf.WriteString(resultParts[0])
-		}
-	}
-
-	return buf.String()
+	return astutil.StringifyExpr(funcType)
 }
 
-// stringifyInterfaceType converts an interface type to its string representation,
-// preserving method signatures for interface literals.
-//
-//nolint:cyclop,nestif // Complexity inherent to building interface string representation
+// stringifyInterfaceType delegates to astutil.StringifyExpr.
 func stringifyInterfaceType(interfaceType *dst.InterfaceType) string {
-	// Empty interface
-	if interfaceType.Methods == nil || len(interfaceType.Methods.List) == 0 {
-		return "interface{}"
-	}
-
-	var buf strings.Builder
-	buf.WriteString("interface{")
-
-	// For single method, use compact format: interface{ MethodName(...) ... }
-	// For multiple methods, use multi-line format
-	methodCount := len(interfaceType.Methods.List)
-
-	for _, method := range interfaceType.Methods.List {
-		if methodCount > 1 {
-			buf.WriteString("\n\t")
-		} else {
-			buf.WriteString(" ")
-		}
-
-		// Method name (if any - embedded interfaces have no name)
-		if len(method.Names) > 0 {
-			buf.WriteString(method.Names[0].Name)
-		}
-
-		// Method signature (function type)
-		if funcType, ok := method.Type.(*dst.FuncType); ok {
-			// Don't write "func" prefix for interface methods
-			if funcType.Params != nil {
-				buf.WriteString("(")
-
-				paramParts := expandFieldListTypes(funcType.Params.List, stringifyDSTExpr)
-				buf.WriteString(strings.Join(paramParts, ", "))
-				buf.WriteString(")")
-			}
-
-			if funcType.Results != nil && len(funcType.Results.List) > 0 {
-				buf.WriteString(" ")
-
-				resultParts := expandFieldListTypes(funcType.Results.List, stringifyDSTExpr)
-				if len(resultParts) > 1 {
-					buf.WriteString("(")
-					buf.WriteString(strings.Join(resultParts, ", "))
-					buf.WriteString(")")
-				} else {
-					buf.WriteString(resultParts[0])
-				}
-			}
-		} else {
-			// Embedded interface - just the type
-			buf.WriteString(stringifyDSTExpr(method.Type))
-		}
-	}
-
-	if methodCount > 1 {
-		buf.WriteString("\n}")
-	} else {
-		buf.WriteString(" }")
-	}
-
-	return buf.String()
+	return astutil.StringifyExpr(interfaceType)
 }
 
-// stringifyStructType converts a DST StructType to its string representation,
-// preserving all field information including names, types, and tags.
+// stringifyStructType delegates to astutil.StringifyExpr.
 func stringifyStructType(structType *dst.StructType) string {
-	// Handle nil/empty cases
-	if structType.Fields == nil || structType.Fields.List == nil || len(structType.Fields.List) == 0 {
-		return "struct{}"
-	}
-
-	// Build field list
-	fields := make([]string, 0, len(structType.Fields.List))
-
-	for _, field := range structType.Fields.List {
-		var fieldStr strings.Builder
-
-		// Handle field names (can have multiple names OR be embedded with no names)
-		if len(field.Names) > 0 {
-			// Named field(s) - e.g., "Host, Port string"
-			nameStrs := make([]string, len(field.Names))
-			for i, name := range field.Names {
-				nameStrs[i] = name.Name
-			}
-
-			fieldStr.WriteString(strings.Join(nameStrs, ", "))
-			fieldStr.WriteString(" ")
-		}
-
-		// Get type string recursively
-		fieldStr.WriteString(stringifyDSTExpr(field.Type))
-
-		// Add tag if present
-		if field.Tag != nil {
-			fieldStr.WriteString(" ")
-			fieldStr.WriteString(field.Tag.Value)
-		}
-
-		fields = append(fields, fieldStr.String())
-	}
-
-	// Return formatted struct literal
-	return fmt.Sprintf("struct{ %s }", strings.Join(fields, "; "))
+	return astutil.StringifyExpr(structType)
 }
 
 // typeWithQualifierFunc handles function types.

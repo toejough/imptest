@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/dave/dst"
+	astutil "github.com/toejough/imptest/impgen/run/0_util"
 	load "github.com/toejough/imptest/impgen/run/2_load"
 )
 
@@ -177,7 +178,7 @@ func collectStructMethodsRecursive(
 			}
 
 			// Get receiver type
-			recvType := exprToString(fset, funcDecl.Recv.List[0].Type)
+			recvType := astutil.ExprToString(fset, funcDecl.Recv.List[0].Type)
 
 			// Normalize receiver type (remove pointer)
 			normalizedRecvType := strings.TrimPrefix(recvType, "*")
@@ -325,7 +326,7 @@ func findFunctionInAST(
 					continue
 				}
 
-				recvType := exprToString(fset, funcDecl.Recv.List[0].Type)
+				recvType := astutil.ExprToString(fset, funcDecl.Recv.List[0].Type)
 
 				normalizedRecvType := strings.TrimPrefix(recvType, "*")
 
