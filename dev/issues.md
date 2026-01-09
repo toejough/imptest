@@ -145,13 +145,20 @@ Low
 
 **Linear**
 TOE-106
+## Done
+
+Completed issues.
+
+
+
+
 
 ### 22. Re-evaluate and reorganize file structure for clarity (TOE-115)
 
 #### Universal
 
 **Status**
-in progress
+done
 
 **Description**
 Reorganize codebase so file structure communicates architecture and mental model. Goals:
@@ -168,7 +175,7 @@ See docs/REORGANIZATION_PROPOSAL.md for detailed design.
 - [x] Root directory contains only essential files (go.mod, README, LICENSE, .gitignore)
 - [x] Project management (issues.md) moved to dev/
 - [x] imptest/ has clear public API organization
-- [ ] impgen/run/ reorganized by execution flow
+- [x] impgen/run/ reorganized by execution flow
 - [x] Build artifacts cleaned up and .gitignore updated
 
 **Effort**
@@ -182,18 +189,33 @@ TOE-115
 
 #### Work Tracking
 
+**Completed**
+2026-01-09
+
+**Commit**
+e595313, 42e176c, 410623e, fc93d8d, 81ad61f
+
 **Timeline**
 - 2026-01-09 - Phase 1: Cleaned root directory, moved issues.md to dev/, deleted local patterns.md, moved mutation files to dev/
 - 2026-01-09 - Phase 2: Renamed imptest/ to internal/core/, created root imptest.go exposing public API, updated all imports
+- 2026-01-09 - Phase 3: Flow-oriented reorganization of impgen/run/ - extracted 0_util/, 1_cache/, 2_load/, 3_detect/, 5_generate/, 6_output/ subpackages
+- 2026-01-09 - Phase 4: Final cleanup - removed numeric prefixes from orchestrator and test files
+
+#### Documentation
+
+**Solution**
+Reorganized impgen/run/ from 16 flat files to flow-oriented subpackages:
+- run.go: orchestrator at package root
+- 0_util/: shared AST stringify utilities
+- 1_cache/: cache constants
+- 2_load/: package loading
+- 3_detect/: symbol detection
+- 5_generate/: all code generation (9 files)
+- 6_output/: file writing
+
+Stage 7 (4_resolve/) was skipped as resolution logic was too coupled with 5_generate/.
 
 ---
-
-## Done
-
-Completed issues.
-
-
-
 
 ### 25. Consolidate API and usage documentation (TOE-112)
 
