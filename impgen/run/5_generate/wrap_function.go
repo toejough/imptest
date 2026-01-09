@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,staticcheck,cyclop,gocognit,intrange,funlen
+//nolint:wsl_v5,staticcheck,cyclop,gocognit,intrange,funlen
 package generate
 
 import (
@@ -271,62 +271,13 @@ func (gen *targetGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	gen.writeFunctionParamsToBuilder(&paramsStr, gen.funcDecl.Type.Params)
 
 	// Build comma-separated param names
-	var paramNamesStr strings.Builder
-	for i, name := range gen.paramNames {
-		if i > 0 {
-			paramNamesStr.WriteString(", ")
-		}
-		paramNamesStr.WriteString(name)
-	}
+	paramNamesStr := strings.Join(gen.paramNames, ", ")
 
-	// Build result vars and return assignments (using zero-indexed Result0, Result1)
-	var resultVarsStr, returnAssignmentsStr strings.Builder
-	if gen.hasResults {
-		for i := range gen.resultTypes {
-			if i > 0 {
-				resultVarsStr.WriteString(", ")
-				returnAssignmentsStr.WriteString(", ")
-			}
-			fmt.Fprintf(&resultVarsStr, "ret%d", i)
-			fmt.Fprintf(&returnAssignmentsStr, "Result%d: ret%d", i, i)
-		}
-	}
-
-	// Determine wait method name
-	waitMethodName := "WaitForCompletion"
-	if gen.hasResults {
-		waitMethodName = "WaitForResponse"
-	}
-
-	// Build expected params for ExpectReturnsEqual and matcher params for ExpectReturnsMatch
-	var expectedParamsStr, matcherParamsStr strings.Builder
-	var resultChecks []resultCheck
-	if gen.hasResults {
-		for i, resultType := range gen.resultTypes {
-			if i > 0 {
-				expectedParamsStr.WriteString(", ")
-				matcherParamsStr.WriteString(", ")
-			}
-			fmt.Fprintf(&expectedParamsStr, "v%d %s", i, resultType)
-			fmt.Fprintf(&matcherParamsStr, "v%d any", i)
-			resultChecks = append(resultChecks, resultCheck{
-				Field:    fmt.Sprintf("Result%d", i),
-				Expected: fmt.Sprintf("v%d", i),
-				Index:    i,
-			})
-		}
-	}
-
-	// Build result fields for Returns struct
-	var resultFields []resultField
-	if gen.hasResults {
-		for i, resultType := range gen.resultTypes {
-			resultFields = append(resultFields, resultField{
-				Name: fmt.Sprintf("Result%d", i),
-				Type: resultType,
-			})
-		}
-	}
+	// Build result data using shared helper
+	resultData := (&ResultDataBuilder{
+		ResultTypes: gen.resultTypes,
+		VarPrefix:   "ret",
+	}).Build()
 
 	// Build target template data
 	data := targetTemplateData{
@@ -337,15 +288,15 @@ func (gen *targetGenerator) generateWithTemplates(templates *TemplateRegistry) {
 		ReturnsType:       gen.returnsType,
 		FuncSig:           funcSig,
 		Params:            paramsStr.String(),
-		ParamNames:        paramNamesStr.String(),
-		HasResults:        gen.hasResults,
-		ResultVars:        resultVarsStr.String(),
-		ReturnAssignments: returnAssignmentsStr.String(),
-		WaitMethodName:    waitMethodName,
-		ExpectedParams:    expectedParamsStr.String(),
-		MatcherParams:     matcherParamsStr.String(),
-		ResultChecks:      resultChecks,
-		ResultFields:      resultFields,
+		ParamNames:        paramNamesStr,
+		HasResults:        resultData.HasResults,
+		ResultVars:        resultData.Vars,
+		ReturnAssignments: resultData.Assignments,
+		WaitMethodName:    resultData.WaitMethodName,
+		ExpectedParams:    resultData.ExpectedParams,
+		MatcherParams:     resultData.MatcherParams,
+		ResultChecks:      resultData.Checks,
+		ResultFields:      resultData.Fields,
 	}
 
 	// Generate each section using templates

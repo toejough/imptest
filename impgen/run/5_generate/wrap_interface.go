@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,nestif,intrange,cyclop,funlen
+//nolint:wsl_v5,intrange,funlen
 package generate
 
 import (
@@ -56,71 +56,15 @@ func (gen *interfaceTargetGenerator) buildMethodWrapperData(
 	paramsStr, paramNames := gen.buildParamStrings(ftype)
 	resultsStr, resultTypes := gen.buildResultStrings(ftype)
 
-	// Build param names comma-separated
-	var paramNamesStr strings.Builder
-	for i, name := range paramNames {
-		if i > 0 {
-			paramNamesStr.WriteString(", ")
-		}
-		paramNamesStr.WriteString(name)
-	}
-
 	// Build parameter fields for call record
 	paramFields := gen.buildParamFieldsFromNames(paramNames, ftype)
 	paramFieldsStruct := gen.buildParamFieldsStruct(paramFields)
 
-	// Build result vars and return assignments
-	var resultVarsStr, returnAssignmentsStr strings.Builder
-	hasResults := len(resultTypes) > 0
-	if hasResults {
-		for i := range resultTypes {
-			if i > 0 {
-				resultVarsStr.WriteString(", ")
-				returnAssignmentsStr.WriteString(", ")
-			}
-			fmt.Fprintf(&resultVarsStr, "r%d", i)
-			fmt.Fprintf(&returnAssignmentsStr, "Result%d: r%d", i, i)
-		}
-	}
-
-	// Determine wait method name
-	waitMethodName := "WaitForCompletion"
-	if hasResults {
-		waitMethodName = "WaitForResponse"
-	}
-
-	// Build result fields (preallocating with known capacity)
-	resultFields := make([]resultField, 0, len(resultTypes))
-	if hasResults {
-		for i, resultType := range resultTypes {
-			resultFields = append(resultFields, resultField{
-				Name: fmt.Sprintf("Result%d", i),
-				Type: resultType,
-			})
-		}
-	}
-
-	// Build result return list
-	resultReturnList := gen.buildResultReturnList(resultFields)
-
-	// Build expected params and matcher params for result verification
-	var expectedParamsStr, matcherParamsStr strings.Builder
-	resultChecks := make([]resultCheck, 0, len(resultTypes))
-	if hasResults {
-		for i, resultType := range resultTypes {
-			if i > 0 {
-				expectedParamsStr.WriteString(", ")
-				matcherParamsStr.WriteString(", ")
-			}
-			fmt.Fprintf(&expectedParamsStr, "v%d %s", i, resultType)
-			fmt.Fprintf(&matcherParamsStr, "v%d any", i)
-			resultChecks = append(resultChecks, resultCheck{
-				Field:    fmt.Sprintf("Result%d", i),
-				Expected: fmt.Sprintf("v%d", i),
-				Index:    i,
-			})
-		}
-	}
+	// Build result data using shared helper
+	resultData := (&ResultDataBuilder{
+		ResultTypes: resultTypes,
+		VarPrefix:   "r",
+	}).Build()
 
 	return methodWrapperData{
 		MethodName:        methodName,
@@ -129,19 +73,19 @@ func (gen *interfaceTargetGenerator) buildMethodWrapperData(
 		CallHandleType:    fmt.Sprintf("%s%sCallHandle", gen.wrapperType, methodName),
 		ReturnsType:       fmt.Sprintf("%s%sReturns", gen.wrapperType, methodName),
 		Params:            paramsStr,
-		ParamNames:        paramNamesStr.String(),
+		ParamNames:        strings.Join(paramNames, ", "),
 		ParamFields:       paramFields,
 		ParamFieldsStruct: paramFieldsStruct,
 		Results:           resultsStr,
-		HasResults:        hasResults,
-		ResultVars:        resultVarsStr.String(),
-		ReturnAssignments: returnAssignmentsStr.String(),
-		ResultReturnList:  resultReturnList,
-		ResultFields:      resultFields,
-		ResultChecks:      resultChecks,
-		WaitMethodName:    waitMethodName,
-		ExpectedParams:    expectedParamsStr.String(),
-		MatcherParams:     matcherParamsStr.String(),
+		HasResults:        resultData.HasResults,
+		ResultVars:        resultData.Vars,
+		ReturnAssignments: resultData.Assignments,
+		ResultReturnList:  resultData.ReturnList,
+		ResultFields:      resultData.Fields,
+		ResultChecks:      resultData.Checks,
+		WaitMethodName:    resultData.WaitMethodName,
+		ExpectedParams:    resultData.ExpectedParams,
+		MatcherParams:     resultData.MatcherParams,
 		PkgImptest:        pkgImptest,
 		PkgReflect:        pkgReflect,
 	}
@@ -198,28 +142,6 @@ func (gen *interfaceTargetGenerator) buildParamFieldsStruct(fields []paramField)
 		}
 		result.WriteString(fmt.Sprintf("%s %s", field.Name, field.Type))
 	}
-
-	return result.String()
-}
-
-// buildResultReturnList builds the return type list from result fields.
-func (gen *interfaceTargetGenerator) buildResultReturnList(fields []resultField) string {
-	if len(fields) == 0 {
-		return ""
-	}
-	if len(fields) == 1 {
-		return fields[0].Type
-	}
-
-	var result strings.Builder
-	result.WriteString("(")
-	for i, field := range fields {
-		if i > 0 {
-			result.WriteString(", ")
-		}
-		result.WriteString(field.Type)
-	}
-	result.WriteString(")")
 
 	return result.String()
 }
@@ -384,34 +306,9 @@ func newInterfaceTargetGenerator(
 	pkgLoader detect.PackageLoader,
 	ifaceWithDetails detect.IfaceWithDetails,
 ) (*interfaceTargetGenerator, error) {
-	var (
-		pkgPath, qualifier string
-		err                error
-	)
-
-	// Get package info for external interfaces OR when in a _test package
-	if pkgImportPath != "." {
-		// Symbol found in external package (e.g., via dot import or qualified name)
-		// For qualified names (e.g., "basic.Ops"), resolve package info normally
-		// For unqualified names from dot imports (e.g., "Storage"), use pkgImportPath directly
-		if strings.Contains(info.InterfaceName, ".") {
-			// Qualified name - use normal resolution
-			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get interface package info: %w", err)
-			}
-		} else {
-			// Unqualified name - must be from dot import, use pkgImportPath directly
-			pkgPath = pkgImportPath
-			parts := strings.Split(pkgImportPath, "/")
-			qualifier = parts[len(parts)-1]
-		}
-	} else if strings.HasSuffix(info.PkgName, "_test") {
-		// In test package, interface is from non-test version of same package
-		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get interface package info: %w", err)
-		}
+	pkgPath, qualifier, err := resolveInterfaceGeneratorPackage(info, pkgImportPath, pkgLoader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get interface package info: %w", err)
 	}
 
 	// Wrapper type naming: WrapLogger -> WrapLoggerWrapper

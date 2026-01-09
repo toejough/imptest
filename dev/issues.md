@@ -122,12 +122,22 @@ Standard issue structure organized by category:
 
 ---
 
+*No backlog issues*
+## Done
+
+Completed issues.
+
+
+
+
+
+
 ### 18. Reduce blanket nolint directives in V2 generators (TOE-106)
 
 #### Universal
 
 **Status**
-backlog
+done
 
 **Description**
 codegen_v2_dependency.go and codegen_v2_target.go suppress many linters with blanket directives, may hide code quality issues
@@ -145,14 +155,41 @@ Low
 
 **Linear**
 TOE-106
-## Done
 
-Completed issues.
+#### Work Tracking
 
+**Started**
+2026-01-09 16:00 PST
 
+**Completed**
+2026-01-09 16:30 PST
 
+**Timeline**
+- 2026-01-09 16:00 PST - REFACTOR: Analyzed duplication patterns across generator files
+- 2026-01-09 16:10 PST - REFACTOR: Added resolveInterfaceGeneratorPackage() helper to common.go
+- 2026-01-09 16:15 PST - REFACTOR: Added ResultDataBuilder struct to consolidate result data building
+- 2026-01-09 16:20 PST - REFACTOR: Updated wrap_function.go and wrap_interface.go to use helpers
+- 2026-01-09 16:25 PST - GREEN: Verified mage check passes with reduced suppressions
 
+#### Documentation
 
+**Solution**
+Extracted duplicated code into shared helpers:
+1. `resolveInterfaceGeneratorPackage()` - consolidates 4 locations of package resolution logic
+2. `ResultDataBuilder` - consolidates result data building that was duplicated in 3 locations
+
+**Files Modified**
+- impgen/run/5_generate/common.go - added shared helpers
+- impgen/run/5_generate/wrap_function.go - removed varnamelen suppression
+- impgen/run/5_generate/wrap_interface.go - removed varnamelen, nestif, cyclop suppressions
+- impgen/run/5_generate/mock_interface.go - removed nestif suppression
+
+Suppressions removed:
+- `varnamelen` from wrap_function.go and wrap_interface.go
+- `nestif` from mock_interface.go and wrap_interface.go
+- `cyclop` from wrap_interface.go
+
+Remaining suppressions are either acceptable per plan (wsl_v5, intrange, perfsprint, prealloc) or would require more extensive refactoring to remove.
 ### 22. Re-evaluate and reorganize file structure for clarity (TOE-115)
 
 #### Universal

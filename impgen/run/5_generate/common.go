@@ -34,6 +34,86 @@ type GeneratorInfo struct {
 	NameProvided       bool // true if --name was explicitly provided
 }
 
+// ResultData contains all result-related template data.
+type ResultData struct {
+	Vars           string        // "r0, r1" or "ret0, ret1"
+	Assignments    string        // "Result0: r0, Result1: r1"
+	ExpectedParams string        // "v0 int, v1 error"
+	MatcherParams  string        // "v0 any, v1 any"
+	Fields         []resultField // resultField{Name: "Result0", Type: "int"}
+	Checks         []resultCheck // resultCheck{Field: "Result0", Expected: "v0", Index: 0}
+	ReturnList     string        // "int" or "(int, error)"
+	HasResults     bool
+	WaitMethodName string // "WaitForCompletion" or "WaitForResponse"
+}
+
+// ResultDataBuilder builds result-related template data from result types.
+// This consolidates the duplicated result building logic across generators.
+type ResultDataBuilder struct {
+	ResultTypes []string
+	VarPrefix   string // e.g., "r", "ret", "result"
+}
+
+// Build constructs ResultData from the builder configuration.
+func (b *ResultDataBuilder) Build() ResultData {
+	hasResults := len(b.ResultTypes) > 0
+
+	data := ResultData{
+		HasResults:     hasResults,
+		WaitMethodName: "WaitForCompletion",
+	}
+
+	if !hasResults {
+		return data
+	}
+
+	data.WaitMethodName = "WaitForResponse"
+
+	var vars, assignments, expectedParams, matcherParams strings.Builder
+
+	for idx, resultType := range b.ResultTypes {
+		if idx > 0 {
+			vars.WriteString(", ")
+			assignments.WriteString(", ")
+			expectedParams.WriteString(", ")
+			matcherParams.WriteString(", ")
+		}
+
+		// Result variable name (e.g., "r0", "ret0", "result0")
+		fmt.Fprintf(&vars, "%s%d", b.VarPrefix, idx)
+
+		// Assignment for Returns struct (e.g., "Result0: r0")
+		fmt.Fprintf(&assignments, "Result%d: %s%d", idx, b.VarPrefix, idx)
+
+		// Expected params for ExpectReturnsEqual (e.g., "v0 int")
+		fmt.Fprintf(&expectedParams, "v%d %s", idx, resultType)
+
+		// Matcher params for ExpectReturnsMatch (e.g., "v0 any")
+		fmt.Fprintf(&matcherParams, "v%d any", idx)
+
+		// Result field for struct definition
+		data.Fields = append(data.Fields, resultField{
+			Name: fmt.Sprintf("Result%d", idx),
+			Type: resultType,
+		})
+
+		// Result check for verification
+		data.Checks = append(data.Checks, resultCheck{
+			Field:    fmt.Sprintf("Result%d", idx),
+			Expected: fmt.Sprintf("v%d", idx),
+			Index:    idx,
+		})
+	}
+
+	data.Vars = vars.String()
+	data.Assignments = assignments.String()
+	data.ExpectedParams = expectedParams.String()
+	data.MatcherParams = matcherParams.String()
+	data.ReturnList = buildResultReturnList(b.ResultTypes)
+
+	return data
+}
+
 // GetPackageInfo extracts package info for a given target name (e.g., "pkg.Interface").
 func GetPackageInfo(
 	targetName string,
@@ -509,6 +589,23 @@ type variadicArgsResult struct {
 	variadicArg     string
 	allArgs         string
 }
+
+// buildResultReturnList builds the return type list from result types.
+func buildResultReturnList(resultTypes []string) string {
+	if len(resultTypes) == 0 {
+		return ""
+	}
+
+	if len(resultTypes) == 1 {
+		return resultTypes[0]
+	}
+
+	return "(" + strings.Join(resultTypes, ", ") + ")"
+}
+
+// visitParams iterates over function parameters and calls the visitor for each.
+// The visitor receives each parameter with its type string and current indices,
+// and returns the updated indices for the next iteration.
 
 // buildVariadicArgs checks for variadic parameters and builds argument strings.
 //
@@ -1094,6 +1191,33 @@ func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
 	return ""
 }
 
+// resolveInterfaceGeneratorPackage resolves the package path and qualifier for interface-based
+// generators (mock_interface, wrap_interface). It handles three scenarios:
+//   - External qualified name (e.g., "basic.Ops") - resolves via pkgLoader
+//   - External unqualified name from dot import - uses pkgImportPath directly
+//   - Test package referencing non-test package - resolves via pkgLoader
+func resolveInterfaceGeneratorPackage(
+	info GeneratorInfo,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+) (pkgPath, qualifier string, err error) {
+	if pkgImportPath != "." {
+		if strings.Contains(info.InterfaceName, ".") {
+			// Qualified name - use normal resolution
+			return resolvePackageInfo(info, pkgLoader)
+		}
+		// Unqualified name - must be from dot import, use pkgImportPath directly
+		return pkgImportPath, extractPkgNameFromPath(pkgImportPath), nil
+	}
+
+	if strings.HasSuffix(info.PkgName, "_test") {
+		// Test package referencing non-test version
+		return resolvePackageInfo(info, pkgLoader)
+	}
+
+	return "", "", nil
+}
+
 // stringifyDSTExpr delegates to astutil.StringifyExpr.
 
 // stringifyFuncType delegates to astutil.StringifyExpr.
@@ -1132,7 +1256,3 @@ func typeWithQualifierFunc(_ *token.FileSet, funcType *dst.FuncType, typeFormatt
 
 	return buf.String()
 }
-
-// visitParams iterates over function parameters and calls the visitor for each.
-// The visitor receives each parameter with its type string and current indices,
-// and returns the updated indices for the next iteration.

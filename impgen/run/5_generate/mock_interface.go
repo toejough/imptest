@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,funlen
+//nolint:varnamelen,wsl_v5,perfsprint,prealloc,funlen
 package generate
 
 import (
@@ -324,34 +324,9 @@ func newDependencyGenerator(
 	pkgLoader detect.PackageLoader,
 	ifaceWithDetails detect.IfaceWithDetails,
 ) (*dependencyGenerator, error) {
-	var (
-		pkgPath, qualifier string
-		err                error
-	)
-
-	// Get package info for external interfaces OR when in a _test package
-	if pkgImportPath != "." {
-		// Symbol found in external package (e.g., via dot import or qualified name)
-		// For qualified names (e.g., "basic.Ops"), resolve package info normally
-		// For unqualified names from dot imports (e.g., "Storage"), use pkgImportPath directly
-		if strings.Contains(info.InterfaceName, ".") {
-			// Qualified name - use normal resolution
-			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get interface package info: %w", err)
-			}
-		} else {
-			// Unqualified name - must be from dot import, use pkgImportPath directly
-			pkgPath = pkgImportPath
-			parts := strings.Split(pkgImportPath, "/")
-			qualifier = parts[len(parts)-1]
-		}
-	} else if strings.HasSuffix(info.PkgName, "_test") {
-		// In test package, interface is from non-test version of same package
-		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get interface package info: %w", err)
-		}
+	pkgPath, qualifier, err := resolveInterfaceGeneratorPackage(info, pkgImportPath, pkgLoader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get interface package info: %w", err)
 	}
 
 	// Convert MockXxx -> XxxMock for the struct type name
