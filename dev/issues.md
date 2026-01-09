@@ -151,24 +151,37 @@ TOE-106
 #### Universal
 
 **Status**
-backlog
+in progress
 
 **Description**
-Audit current file organization andhannel message rather than return value
+Reorganize codebase so file structure communicates architecture and mental model. Goals:
+1. Clean top-level directory (not mixing different abstractions)
+2. imptest package: single entry point file exposing public API
+3. impgen/run/: flow-oriented structure with numbered directories (1_input/, 2_load/, etc.)
+4. Remove stale build artifacts
+
+See docs/REORGANIZATION_PROPOSAL.md for detailed design.
 
 #### Planning
 
 **Acceptance**
-Can mock/test channel-based interactions
+- Root directory contains only essential files (go.mod, README, LICENSE, .gitignore)
+- Project management (issues.md) moved to dev/
+- imptest/ has clear public API organization
+- impgen/run/ reorganized by execution flow
+- Build artifacts cleaned up and .gitignore updated
 
 **Effort**
 Large
 
 **Priority**
-Low
+Medium
 
 **Linear**
-TOE-80
+TOE-115
+
+---
+
 ## Done
 
 Completed issues.

@@ -803,7 +803,7 @@ func IssuesAddWith(title, status string) error {
 
 // IssuesFix - auto-repair common validation failures (adds missing sections, infers status from location)
 func IssuesFix() error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
@@ -958,7 +958,7 @@ func IssuesListStatus(status string) error {
 
 // IssuesSearch <keyword> - search for issues containing keyword (e.g., mage issuessearch "struct literal")
 func IssuesSearch(keyword string) error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
@@ -1016,7 +1016,7 @@ func IssuesSearch(keyword string) error {
 
 // IssuesShow <number> - display full details of a specific issue (e.g., mage issuesshow 5)
 func IssuesShow(issueNum int) error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
@@ -1049,7 +1049,7 @@ func IssuesShow(issueNum int) error {
 
 // IssuesStatus <number> <new-status> - update issue status and move to correct section (e.g., mage issuesstatus 5 done)
 func IssuesStatus(issueNum int, newStatus string) error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	// Validate status
 	validStatuses := map[string]bool{
@@ -1131,7 +1131,7 @@ func IssuesStatus(issueNum int, newStatus string) error {
 
 // IssuesTimeline <number> <entry> - add timeline entry with auto-timestamp (e.g., mage issuestimeline 5 "Started work")
 func IssuesTimeline(issueNum int, entry string) error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
@@ -1238,7 +1238,7 @@ func IssuesTimeline(issueNum int, entry string) error {
 
 // IssuesUpdate <number> <field> <value> - update issue field (e.g., mage issuesupdate 5 priority "High")
 func IssuesUpdate(issueNum int, field, value string) error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
@@ -1343,7 +1343,7 @@ func IssuesUpdate(issueNum int, field, value string) error {
 
 // IssuesValidate - check that all issues follow the template format
 func IssuesValidate() error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
@@ -1898,7 +1898,7 @@ func (t testInfo) qualifiedName() string {
 
 // addIssue is the implementation for creating issues.
 func addIssue(title, status string) error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	// Read current issues to find next number
 	data, err := os.ReadFile(issuesFile)
@@ -2378,7 +2378,7 @@ func isGeneratedFile(path string) (bool, error) {
 
 // listIssuesByStatus is the implementation for listing issues.
 func listIssuesByStatus(filterStatus string) error {
-	const issuesFile = "issues.md"
+	const issuesFile = "dev/issues.md"
 
 	data, err := os.ReadFile(issuesFile)
 	if err != nil {
