@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"go/token"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/alexflint/go-arg"
 	"github.com/dave/dst"
-	"github.com/toejough/go-reorder"
+	output "github.com/toejough/imptest/impgen/run/6_output"
 )
 
 // Exported variables.
@@ -33,20 +32,15 @@ type FileReader interface {
 // FileSystem interface combines reading and writing for convenience.
 type FileSystem interface {
 	FileReader
-	FileWriter
+	output.Writer
 }
 
-// FileWriter interface for writing generated code.
-type FileWriter interface {
-	WriteFile(name string, data []byte, perm os.FileMode) error
-}
-
-// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, a FileWriter
+// Run executes the impgen tool logic. It takes command-line arguments, an environment variable getter, an output.Writer
 // interface for file operations, a PackageLoader for package operations, and an io.Writer for output messages. It
 // returns an error if any step fails. On success, it generates a Go source file implementing the specified interface,
 // in the calling test package.
 func Run(
-	args []string, getEnv func(string) string, fileWriter FileWriter, pkgLoader PackageLoader, output io.Writer,
+	args []string, getEnv func(string) string, fileWriter output.Writer, pkgLoader PackageLoader, out io.Writer,
 ) error {
 	info, err := getGeneratorCallInfo(args, getEnv)
 	if err != nil {
@@ -78,9 +72,9 @@ func Run(
 		return err
 	}
 
-	err = writeGeneratedCodeToFile(code, info.impName, info.pkgName, getEnv, fileWriter, output)
+	err = output.WriteGeneratedCode(code, info.impName, info.pkgName, getEnv, fileWriter, out)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to write generated code: %w", err)
 	}
 
 	return nil
@@ -448,41 +442,4 @@ func routeToGenerator(
 	}
 
 	return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
-}
-
-// writeGeneratedCodeToFile writes the generated code to generated_<impName>.go.
-func writeGeneratedCodeToFile(
-	code string, impName string, pkgName string, getEnv func(string) string, fileWriter FileWriter, output io.Writer,
-) error {
-	const generatedFilePermissions = 0o600
-
-	filename := "generated_" + impName
-	// If we're in a test package OR the source file is a test file, append _test to the filename
-	// This handles both blackbox testing (package xxx_test) and whitebox testing (package xxx in xxx_test.go)
-	goFile := getEnv("GOFILE")
-
-	isTestFile := strings.HasSuffix(pkgName, "_test") || strings.HasSuffix(goFile, "_test.go")
-	if isTestFile && !strings.HasSuffix(impName, "_test") {
-		filename = "generated_" + strings.TrimSuffix(impName, ".go") + "_test.go"
-	} else if !strings.HasSuffix(filename, ".go") {
-		filename += ".go"
-	}
-
-	// Reorder declarations according to project conventions
-	reordered, err := reorder.Source(code)
-	if err != nil {
-		// If reordering fails, log but continue with original code
-		_, _ = fmt.Fprintf(output, "Warning: failed to reorder %s: %v\n", filename, err)
-
-		reordered = code
-	}
-
-	err = fileWriter.WriteFile(filename, []byte(reordered), generatedFilePermissions)
-	if err != nil {
-		return fmt.Errorf("error writing %s: %w", filename, err)
-	}
-
-	_, _ = fmt.Fprintf(output, "%s written successfully.\n", filename)
-
-	return nil
 }
