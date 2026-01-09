@@ -32,6 +32,56 @@ func TestCallHandle_ConcurrentCalls(t *testing.T) {
 	call3.ExpectReturnsEqual(300)
 }
 
+// TestCallHandle_EventuallyExpectPanic verifies async Eventually() with panic expectations.
+func TestCallHandle_EventuallyExpectPanic(t *testing.T) {
+	t.Parallel()
+
+	panicFunc := func(msg string) {
+		if msg != "" {
+			panic(msg)
+		}
+	}
+	wrapper := WrapPanicWithMessage(t, panicFunc)
+
+	call := wrapper.Method.Start("expected panic")
+
+	// Register panic expectation (NON-BLOCKING)
+	call.Eventually().ExpectPanicEquals("expected panic")
+
+	// Wait for expectation to be satisfied
+	wrapper.Controller.Wait()
+}
+
+// TestCallHandle_EventuallyExpectReturns verifies async Eventually() pattern on target wrappers.
+//
+// REQUIREMENT: Call handles support Eventually() for non-blocking expectation registration.
+// This enables registering multiple expectations before any call completes,
+// then using Controller.Wait() to block until all are satisfied.
+func TestCallHandle_EventuallyExpectReturns(t *testing.T) {
+	t.Parallel()
+
+	// Function with delay to ensure calls don't complete immediately
+	slowAdd := func(a, b int, delay time.Duration) int {
+		time.Sleep(delay)
+		return a + b
+	}
+	wrapper := WrapSlowAdd(t, slowAdd)
+
+	// Start multiple calls
+	call1 := wrapper.Method.Start(1, 2, 30*time.Millisecond)
+	call2 := wrapper.Method.Start(10, 20, 20*time.Millisecond)
+	call3 := wrapper.Method.Start(100, 200, 10*time.Millisecond)
+
+	// Register expectations (NON-BLOCKING) - this is the key difference from current API
+	// With regular ExpectReturnsEqual, we'd block on call1 before moving to call2
+	call1.Eventually().ExpectReturnsEqual(3)
+	call2.Eventually().ExpectReturnsEqual(30)
+	call3.Eventually().ExpectReturnsEqual(300)
+
+	// Wait for all expectations to be satisfied
+	wrapper.Controller.Wait()
+}
+
 // TestCallHandle_ExpectCallsWaitForResponse verifies Expect* methods internally call WaitForResponse.
 //
 // REQUIREMENT: WaitForResponse() is called internally by Expect methods.

@@ -10,6 +10,21 @@ import (
 // WrapCalculatorAddCallHandle represents a single call to the wrapped function.
 type WrapCalculatorAddCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorAddReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapCalculatorAddCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -84,19 +99,22 @@ type WrapCalculatorAddReturnsReturn struct {
 
 // WrapCalculatorAddWrapperHandle is the test handle for a wrapped function.
 type WrapCalculatorAddWrapperHandle struct {
-	Method *WrapCalculatorAddWrapperMethod
+	Method     *WrapCalculatorAddWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapCalculatorAddWrapperMethod wraps a function for testing.
 type WrapCalculatorAddWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(int, int) int
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(int, int) int
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapCalculatorAddWrapperMethod) Start(a int, b int) *WrapCalculatorAddCallHandle {
 	handle := &WrapCalculatorAddCallHandle{
 		CallableController: _imptest.NewCallableController[WrapCalculatorAddReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -112,10 +130,13 @@ func (m *WrapCalculatorAddWrapperMethod) Start(a int, b int) *WrapCalculatorAddC
 
 // WrapCalculatorAdd wraps a function for testing.
 func WrapCalculatorAdd(t _imptest.TestReporter, fn func(int, int) int) *WrapCalculatorAddWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapCalculatorAddWrapperHandle{
 		Method: &WrapCalculatorAddWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

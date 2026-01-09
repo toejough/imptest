@@ -10,6 +10,21 @@ import (
 // WrapCalculatorMultiplyCallHandle represents a single call to the wrapped function.
 type WrapCalculatorMultiplyCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorMultiplyReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapCalculatorMultiplyCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -84,19 +99,22 @@ type WrapCalculatorMultiplyReturnsReturn struct {
 
 // WrapCalculatorMultiplyWrapperHandle is the test handle for a wrapped function.
 type WrapCalculatorMultiplyWrapperHandle struct {
-	Method *WrapCalculatorMultiplyWrapperMethod
+	Method     *WrapCalculatorMultiplyWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapCalculatorMultiplyWrapperMethod wraps a function for testing.
 type WrapCalculatorMultiplyWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(int) int
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(int) int
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapCalculatorMultiplyWrapperMethod) Start(value int) *WrapCalculatorMultiplyCallHandle {
 	handle := &WrapCalculatorMultiplyCallHandle{
 		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -112,10 +130,13 @@ func (m *WrapCalculatorMultiplyWrapperMethod) Start(value int) *WrapCalculatorMu
 
 // WrapCalculatorMultiply wraps a function for testing.
 func WrapCalculatorMultiply(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorMultiplyWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapCalculatorMultiplyWrapperHandle{
 		Method: &WrapCalculatorMultiplyWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

@@ -10,6 +10,21 @@ import (
 // WrapExecutorRunCallHandle represents a single call to the wrapped function.
 type WrapExecutorRunCallHandle struct {
 	*_imptest.CallableController[WrapExecutorRunReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapExecutorRunCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -84,19 +99,22 @@ type WrapExecutorRunReturnsReturn struct {
 
 // WrapExecutorRunWrapperHandle is the test handle for a wrapped function.
 type WrapExecutorRunWrapperHandle struct {
-	Method *WrapExecutorRunWrapperMethod
+	Method     *WrapExecutorRunWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapExecutorRunWrapperMethod wraps a function for testing.
 type WrapExecutorRunWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(func() error) error
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(func() error) error
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapExecutorRunWrapperMethod) Start(callback func() error) *WrapExecutorRunCallHandle {
 	handle := &WrapExecutorRunCallHandle{
 		CallableController: _imptest.NewCallableController[WrapExecutorRunReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -112,10 +130,13 @@ func (m *WrapExecutorRunWrapperMethod) Start(callback func() error) *WrapExecuto
 
 // WrapExecutorRun wraps a function for testing.
 func WrapExecutorRun(t _imptest.TestReporter, fn func(func() error) error) *WrapExecutorRunWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapExecutorRunWrapperHandle{
 		Method: &WrapExecutorRunWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

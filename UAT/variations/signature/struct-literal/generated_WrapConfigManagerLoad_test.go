@@ -10,6 +10,21 @@ import (
 // WrapConfigManagerLoadCallHandle represents a single call to the wrapped function.
 type WrapConfigManagerLoadCallHandle struct {
 	*_imptest.CallableController[WrapConfigManagerLoadReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapConfigManagerLoadCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -92,13 +107,15 @@ type WrapConfigManagerLoadReturnsReturn struct {
 
 // WrapConfigManagerLoadWrapperHandle is the test handle for a wrapped function.
 type WrapConfigManagerLoadWrapperHandle struct {
-	Method *WrapConfigManagerLoadWrapperMethod
+	Method     *WrapConfigManagerLoadWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapConfigManagerLoadWrapperMethod wraps a function for testing.
 type WrapConfigManagerLoadWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(string) struct {
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(string) struct {
 		Host string
 		Port int
 		TLS  bool
@@ -109,6 +126,7 @@ type WrapConfigManagerLoadWrapperMethod struct {
 func (m *WrapConfigManagerLoadWrapperMethod) Start(path string) *WrapConfigManagerLoadCallHandle {
 	handle := &WrapConfigManagerLoadCallHandle{
 		CallableController: _imptest.NewCallableController[WrapConfigManagerLoadReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -128,10 +146,13 @@ func WrapConfigManagerLoad(t _imptest.TestReporter, fn func(string) struct {
 	Port int
 	TLS  bool
 }) *WrapConfigManagerLoadWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapConfigManagerLoadWrapperHandle{
 		Method: &WrapConfigManagerLoadWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

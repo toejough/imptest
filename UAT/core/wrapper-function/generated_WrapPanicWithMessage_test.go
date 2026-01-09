@@ -12,23 +12,42 @@ type WrapPanicWithMessageReturnsReturn struct {
 
 // WrapPanicWithMessageWrapper wraps a function for testing.
 type WrapPanicWithMessageWrapperHandle struct {
-	Method *WrapPanicWithMessageWrapperMethod
+	Method     *WrapPanicWithMessageWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 type WrapPanicWithMessageWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(msg string)
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(msg string)
 }
 
 // WrapPanicWithMessageCallHandle represents a single call to the wrapped function.
 type WrapPanicWithMessageCallHandle struct {
 	*_imptest.CallableController[WrapPanicWithMessageReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapPanicWithMessageCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+
+	return h.pendingCompletion
 }
 
 // Start executes the wrapped function in a goroutine.
 func (w *WrapPanicWithMessageWrapperMethod) Start(msg string) *WrapPanicWithMessageCallHandle {
 	handle := &WrapPanicWithMessageCallHandle{
 		CallableController: _imptest.NewCallableController[WrapPanicWithMessageReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	go func() {
 		defer func() {
@@ -39,6 +58,7 @@ func (w *WrapPanicWithMessageWrapperMethod) Start(msg string) *WrapPanicWithMess
 		w.callable(msg)
 		handle.ReturnChan <- WrapPanicWithMessageReturnsReturn{}
 	}()
+
 	return handle
 }
 
@@ -52,6 +72,7 @@ func (h *WrapPanicWithMessageCallHandle) ExpectPanicEquals(expected any) {
 		if !ok {
 			h.T.Fatalf("panic value: %s", msg)
 		}
+
 		return
 	}
 
@@ -68,6 +89,7 @@ func (h *WrapPanicWithMessageCallHandle) ExpectPanicMatches(matcher any) {
 		if !ok {
 			h.T.Fatalf("panic value: %s", msg)
 		}
+
 		return
 	}
 
@@ -76,10 +98,14 @@ func (h *WrapPanicWithMessageCallHandle) ExpectPanicMatches(matcher any) {
 
 // WrapPanicWithMessage wraps a function for testing.
 func WrapPanicWithMessage(t _imptest.TestReporter, fn func(msg string)) *WrapPanicWithMessageWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
+
 	return &WrapPanicWithMessageWrapperHandle{
 		Method: &WrapPanicWithMessageWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

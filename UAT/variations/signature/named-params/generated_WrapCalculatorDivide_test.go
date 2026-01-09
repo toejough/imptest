@@ -10,6 +10,21 @@ import (
 // WrapCalculatorDivideCallHandle represents a single call to the wrapped function.
 type WrapCalculatorDivideCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorDivideReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapCalculatorDivideCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -100,19 +115,22 @@ type WrapCalculatorDivideReturnsReturn struct {
 
 // WrapCalculatorDivideWrapperHandle is the test handle for a wrapped function.
 type WrapCalculatorDivideWrapperHandle struct {
-	Method *WrapCalculatorDivideWrapperMethod
+	Method     *WrapCalculatorDivideWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapCalculatorDivideWrapperMethod wraps a function for testing.
 type WrapCalculatorDivideWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(int, int) (int, int, error)
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(int, int) (int, int, error)
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapCalculatorDivideWrapperMethod) Start(dividend int, divisor int) *WrapCalculatorDivideCallHandle {
 	handle := &WrapCalculatorDivideCallHandle{
 		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -128,10 +146,13 @@ func (m *WrapCalculatorDivideWrapperMethod) Start(dividend int, divisor int) *Wr
 
 // WrapCalculatorDivide wraps a function for testing.
 func WrapCalculatorDivide(t _imptest.TestReporter, fn func(int, int) (int, int, error)) *WrapCalculatorDivideWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapCalculatorDivideWrapperHandle{
 		Method: &WrapCalculatorDivideWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

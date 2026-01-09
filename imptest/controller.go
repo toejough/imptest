@@ -1,6 +1,8 @@
 package imptest
 
 import (
+	"fmt"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -306,6 +308,164 @@ func (c *Controller[T]) dispatchLoop() {
 	}
 }
 
+// PendingCompletion represents an expectation on a target wrapper call
+// that hasn't been satisfied yet.
+type PendingCompletion struct {
+	t    TestReporter
+	mu   sync.Mutex
+	done chan struct{}
+
+	// Expected values (set by ExpectReturnsEqual/ExpectPanicEquals)
+	expectReturn       bool
+	expectedReturnVals []any
+	expectPanic        bool
+	expectedPanicVal   any
+	useMatchers        bool // true for ExpectReturnsMatch/ExpectPanicMatches
+
+	// Actual values (set when call completes)
+	completed   bool
+	returnedVal any // The Returned struct
+	panickedVal any
+}
+
+// ExpectReturnsMatch registers an expectation that the call returns values matching the matchers.
+
+// If already completed, check now
+
+// ExpectPanicEquals registers an expectation that the call panics with the given value.
+func (pc *PendingCompletion) ExpectPanicEquals(value any) {
+	pc.mu.Lock()
+	pc.expectPanic = true
+	pc.expectedPanicVal = value
+	pc.useMatchers = false
+	completed := pc.completed
+	returnedVal := pc.returnedVal
+	panickedVal := pc.panickedVal
+	pc.mu.Unlock()
+
+	// If already completed, check now
+	if completed {
+		pc.checkExpectation(returnedVal, panickedVal)
+	}
+}
+
+// ExpectReturnsEqual registers an expectation that the call returns the given values.
+func (pc *PendingCompletion) ExpectReturnsEqual(values ...any) {
+	pc.mu.Lock()
+	pc.expectReturn = true
+	pc.expectedReturnVals = values
+	pc.useMatchers = false
+	completed := pc.completed
+	returnedVal := pc.returnedVal
+	panickedVal := pc.panickedVal
+	pc.mu.Unlock()
+
+	// If already completed, check now
+	if completed {
+		pc.checkExpectation(returnedVal, panickedVal)
+	}
+}
+
+// ExpectPanicMatches registers an expectation that the call panics with a value matching the matcher.
+
+// If already completed, check now
+
+// SetCompleted is called when the call completes with a return value or panic.
+// If an expectation is already registered, it checks the expectation.
+func (pc *PendingCompletion) SetCompleted(returnedVal any, panickedVal any) {
+	pc.mu.Lock()
+	pc.completed = true
+	pc.returnedVal = returnedVal
+	pc.panickedVal = panickedVal
+	hasExpectation := pc.expectReturn || pc.expectPanic
+	pc.mu.Unlock()
+
+	// If expectation already registered, check now
+	if hasExpectation {
+		pc.checkExpectation(returnedVal, panickedVal)
+	}
+}
+
+// checkExpectation verifies the actual values against the expected values.
+func (pc *PendingCompletion) checkExpectation(returnedVal any, panickedVal any) {
+	pc.t.Helper()
+
+	pc.mu.Lock()
+	expectReturn := pc.expectReturn
+	expectPanic := pc.expectPanic
+	expectedReturnVals := pc.expectedReturnVals
+	expectedPanicVal := pc.expectedPanicVal
+	useMatchers := pc.useMatchers
+	pc.mu.Unlock()
+
+	if expectReturn {
+		if panickedVal != nil {
+			pc.t.Fatalf("expected function to return, but it panicked with: %v", panickedVal)
+		}
+
+		pc.checkReturnValues(returnedVal, expectedReturnVals, useMatchers)
+	} else if expectPanic {
+		if panickedVal == nil {
+			pc.t.Fatalf("expected function to panic, but it returned")
+		}
+
+		ok, msg := MatchValue(panickedVal, expectedPanicVal)
+		if !ok {
+			pc.t.Fatalf("panic value: %s", msg)
+		}
+	}
+
+	close(pc.done)
+}
+
+// checkReturnValues uses reflection to compare return values.
+// returnedVal is a struct with Result0, Result1, etc. fields.
+func (pc *PendingCompletion) checkReturnValues(returnedVal any, expectedVals []any, useMatchers bool) {
+	pc.t.Helper()
+
+	if returnedVal == nil {
+		if len(expectedVals) > 0 {
+			pc.t.Fatalf("expected return values but got nil")
+		}
+
+		return
+	}
+
+	// Use reflection to get struct fields
+	val := reflect.ValueOf(returnedVal)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	if val.Kind() != reflect.Struct {
+		pc.t.Fatalf("expected return value to be struct, got %T", returnedVal)
+
+		return
+	}
+
+	for index, expected := range expectedVals {
+		fieldName := fmt.Sprintf("Result%d", index)
+		field := val.FieldByName(fieldName)
+
+		if !field.IsValid() {
+			pc.t.Fatalf("return value struct missing field %s", fieldName)
+
+			return
+		}
+
+		actual := field.Interface()
+
+		if useMatchers {
+			ok, msg := MatchValue(actual, expected)
+			if !ok {
+				pc.t.Fatalf("return value %d: %s", index, msg)
+			}
+		} else if !reflect.DeepEqual(actual, expected) {
+			pc.t.Fatalf("expected return value %d to be %v, got %v", index, expected, actual)
+		}
+	}
+}
+
 // PendingExpectation represents an expectation registered with Eventually()
 // that hasn't been matched yet.
 type PendingExpectation struct {
@@ -423,6 +583,46 @@ func (pe *PendingExpectation) setMatched(responseChan chan<- GenericResponse, ar
 		}
 
 		close(pe.done)
+	}
+}
+
+// TargetController manages pending completions for target wrappers.
+// It enables async Eventually() pattern where expectations are registered
+// before calls complete, then Wait() blocks until all are satisfied.
+type TargetController struct {
+	t                  TestReporter
+	mu                 sync.Mutex
+	pendingCompletions []*PendingCompletion
+}
+
+// NewTargetController creates a new target controller.
+func NewTargetController(t TestReporter) *TargetController {
+	return &TargetController{t: t}
+}
+
+// RegisterPendingCompletion registers a new pending completion.
+func (tc *TargetController) RegisterPendingCompletion() *PendingCompletion {
+	completion := &PendingCompletion{
+		t:    tc.t,
+		done: make(chan struct{}),
+	}
+
+	tc.mu.Lock()
+	tc.pendingCompletions = append(tc.pendingCompletions, completion)
+	tc.mu.Unlock()
+
+	return completion
+}
+
+// Wait blocks until all pending completions are satisfied.
+func (tc *TargetController) Wait() {
+	tc.mu.Lock()
+	completions := make([]*PendingCompletion, len(tc.pendingCompletions))
+	copy(completions, tc.pendingCompletions)
+	tc.mu.Unlock()
+
+	for _, completion := range completions {
+		<-completion.done
 	}
 }
 

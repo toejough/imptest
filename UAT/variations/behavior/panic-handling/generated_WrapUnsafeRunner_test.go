@@ -10,6 +10,21 @@ import (
 // WrapUnsafeRunnerCallHandle represents a single call to the wrapped function.
 type WrapUnsafeRunnerCallHandle struct {
 	*_imptest.CallableController[WrapUnsafeRunnerReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapUnsafeRunnerCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectCompletes verifies the function completes without panicking.
@@ -60,19 +75,22 @@ type WrapUnsafeRunnerReturnsReturn struct {
 
 // WrapUnsafeRunnerWrapperHandle is the test handle for a wrapped function.
 type WrapUnsafeRunnerWrapperHandle struct {
-	Method *WrapUnsafeRunnerWrapperMethod
+	Method     *WrapUnsafeRunnerWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapUnsafeRunnerWrapperMethod wraps a function for testing.
 type WrapUnsafeRunnerWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(safety.CriticalDependency)
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(safety.CriticalDependency)
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapUnsafeRunnerWrapperMethod) Start(dep safety.CriticalDependency) *WrapUnsafeRunnerCallHandle {
 	handle := &WrapUnsafeRunnerCallHandle{
 		CallableController: _imptest.NewCallableController[WrapUnsafeRunnerReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -88,10 +106,13 @@ func (m *WrapUnsafeRunnerWrapperMethod) Start(dep safety.CriticalDependency) *Wr
 
 // WrapUnsafeRunner wraps a function for testing.
 func WrapUnsafeRunner(t _imptest.TestReporter, fn func(safety.CriticalDependency)) *WrapUnsafeRunnerWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapUnsafeRunnerWrapperHandle{
 		Method: &WrapUnsafeRunnerWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

@@ -11,6 +11,21 @@ import (
 // WrapCountFilesCallHandle represents a single call to the wrapped function.
 type WrapCountFilesCallHandle struct {
 	*_imptest.CallableController[WrapCountFilesReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapCountFilesCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -93,19 +108,22 @@ type WrapCountFilesReturnsReturn struct {
 
 // WrapCountFilesWrapperHandle is the test handle for a wrapped function.
 type WrapCountFilesWrapperHandle struct {
-	Method *WrapCountFilesWrapperMethod
+	Method     *WrapCountFilesWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapCountFilesWrapperMethod wraps a function for testing.
 type WrapCountFilesWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(visitor.TreeWalker, string) (int, error)
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(visitor.TreeWalker, string) (int, error)
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapCountFilesWrapperMethod) Start(walker visitor.TreeWalker, root string) *WrapCountFilesCallHandle {
 	handle := &WrapCountFilesCallHandle{
 		CallableController: _imptest.NewCallableController[WrapCountFilesReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -121,10 +139,13 @@ func (m *WrapCountFilesWrapperMethod) Start(walker visitor.TreeWalker, root stri
 
 // WrapCountFiles wraps a function for testing.
 func WrapCountFiles(t _imptest.TestReporter, fn func(visitor.TreeWalker, string) (int, error)) *WrapCountFilesWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapCountFilesWrapperHandle{
 		Method: &WrapCountFilesWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

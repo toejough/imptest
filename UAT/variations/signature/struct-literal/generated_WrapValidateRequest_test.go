@@ -10,6 +10,21 @@ import (
 // WrapValidateRequestCallHandle represents a single call to the wrapped function.
 type WrapValidateRequestCallHandle struct {
 	*_imptest.CallableController[WrapValidateRequestReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapValidateRequestCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -84,13 +99,15 @@ type WrapValidateRequestReturnsReturn struct {
 
 // WrapValidateRequestWrapperHandle is the test handle for a wrapped function.
 type WrapValidateRequestWrapperHandle struct {
-	Method *WrapValidateRequestWrapperMethod
+	Method     *WrapValidateRequestWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapValidateRequestWrapperMethod wraps a function for testing.
 type WrapValidateRequestWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(struct {
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(struct {
 		APIKey  string
 		Timeout int
 	}) error
@@ -103,6 +120,7 @@ func (m *WrapValidateRequestWrapperMethod) Start(req struct {
 }) *WrapValidateRequestCallHandle {
 	handle := &WrapValidateRequestCallHandle{
 		CallableController: _imptest.NewCallableController[WrapValidateRequestReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -121,10 +139,13 @@ func WrapValidateRequest(t _imptest.TestReporter, fn func(struct {
 	APIKey  string
 	Timeout int
 }) error) *WrapValidateRequestWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapValidateRequestWrapperHandle{
 		Method: &WrapValidateRequestWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

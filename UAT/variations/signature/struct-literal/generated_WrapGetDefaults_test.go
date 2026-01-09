@@ -10,6 +10,21 @@ import (
 // WrapGetDefaultsCallHandle represents a single call to the wrapped function.
 type WrapGetDefaultsCallHandle struct {
 	*_imptest.CallableController[WrapGetDefaultsReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapGetDefaultsCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -90,13 +105,15 @@ type WrapGetDefaultsReturnsReturn struct {
 
 // WrapGetDefaultsWrapperHandle is the test handle for a wrapped function.
 type WrapGetDefaultsWrapperHandle struct {
-	Method *WrapGetDefaultsWrapperMethod
+	Method     *WrapGetDefaultsWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapGetDefaultsWrapperMethod wraps a function for testing.
 type WrapGetDefaultsWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func() struct {
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func() struct {
 		MaxRetries int
 		Timeout    int
 	}
@@ -106,6 +123,7 @@ type WrapGetDefaultsWrapperMethod struct {
 func (m *WrapGetDefaultsWrapperMethod) Start() *WrapGetDefaultsCallHandle {
 	handle := &WrapGetDefaultsCallHandle{
 		CallableController: _imptest.NewCallableController[WrapGetDefaultsReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -124,10 +142,13 @@ func WrapGetDefaults(t _imptest.TestReporter, fn func() struct {
 	MaxRetries int
 	Timeout    int
 }) *WrapGetDefaultsWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapGetDefaultsWrapperHandle{
 		Method: &WrapGetDefaultsWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

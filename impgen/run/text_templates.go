@@ -266,11 +266,14 @@ import (
 	//nolint:lll // Template docstring
 	registry.targetConstructorTmpl, err = parseTemplate("targetConstructor", `// {{.WrapName}} wraps a function for testing.
 func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}}Handle{{.TypeParamsUse}} {
+	ctrl := {{.PkgImptest}}.NewTargetController(t)
 	return &{{.WrapperType}}Handle{{.TypeParamsUse}}{
 		Method: &{{.WrapperType}}Method{{.TypeParamsUse}}{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }
 
@@ -283,13 +286,15 @@ func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.Func
 	//nolint:lll // Template docstring
 	registry.targetWrapperStructTmpl, err = parseTemplate("targetWrapperStruct", `// {{.WrapperType}}Handle is the test handle for a wrapped function.
 type {{.WrapperType}}Handle{{.TypeParamsDecl}} struct {
-	Method *{{.WrapperType}}Method{{.TypeParamsUse}}
+	Method     *{{.WrapperType}}Method{{.TypeParamsUse}}
+	Controller *{{.PkgImptest}}.TargetController
 }
 
 // {{.WrapperType}}Method wraps a function for testing.
 type {{.WrapperType}}Method{{.TypeParamsDecl}} struct {
-	t        {{.PkgImptest}}.TestReporter
-	callable {{.FuncSig}}
+	t          {{.PkgImptest}}.TestReporter
+	controller *{{.PkgImptest}}.TargetController
+	callable   {{.FuncSig}}
 }
 
 `)
@@ -302,6 +307,21 @@ type {{.WrapperType}}Method{{.TypeParamsDecl}} struct {
 	registry.targetCallHandleStructTmpl, err = parseTemplate("targetCallHandleStruct", `// {{.CallHandleType}} represents a single call to the wrapped function.
 type {{.CallHandleType}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}]
+	controller        *{{.PkgImptest}}.TargetController
+	pendingCompletion *{{.PkgImptest}}.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) Eventually() *{{.PkgImptest}}.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 `)
@@ -315,6 +335,7 @@ type {{.CallHandleType}}{{.TypeParamsDecl}} struct {
 func (m *{{.WrapperType}}Method{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
 	handle := &{{.CallHandleType}}{{.TypeParamsUse}}{
 		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {

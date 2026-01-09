@@ -12,6 +12,21 @@ import (
 // WrapProcessUserCallHandle represents a single call to the wrapped function.
 type WrapProcessUserCallHandle struct {
 	*_imptest.CallableController[WrapProcessUserReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapProcessUserCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -94,19 +109,22 @@ type WrapProcessUserReturnsReturn struct {
 
 // WrapProcessUserWrapperHandle is the test handle for a wrapped function.
 type WrapProcessUserWrapperHandle struct {
-	Method *WrapProcessUserWrapperMethod
+	Method     *WrapProcessUserWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapProcessUserWrapperMethod wraps a function for testing.
 type WrapProcessUserWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(context.Context, int, named.UserRepository) (named.User, error)
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(context.Context, int, named.UserRepository) (named.User, error)
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapProcessUserWrapperMethod) Start(ctx context.Context, userID int, repo named.UserRepository) *WrapProcessUserCallHandle {
 	handle := &WrapProcessUserCallHandle{
 		CallableController: _imptest.NewCallableController[WrapProcessUserReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -122,10 +140,13 @@ func (m *WrapProcessUserWrapperMethod) Start(ctx context.Context, userID int, re
 
 // WrapProcessUser wraps a function for testing.
 func WrapProcessUser(t _imptest.TestReporter, fn func(context.Context, int, named.UserRepository) (named.User, error)) *WrapProcessUserWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapProcessUserWrapperHandle{
 		Method: &WrapProcessUserWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

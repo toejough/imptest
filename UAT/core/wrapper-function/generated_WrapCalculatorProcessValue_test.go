@@ -10,6 +10,21 @@ import (
 // WrapCalculatorProcessValueCallHandle represents a single call to the wrapped function.
 type WrapCalculatorProcessValueCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorProcessValueReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapCalculatorProcessValueCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -84,19 +99,22 @@ type WrapCalculatorProcessValueReturnsReturn struct {
 
 // WrapCalculatorProcessValueWrapperHandle is the test handle for a wrapped function.
 type WrapCalculatorProcessValueWrapperHandle struct {
-	Method *WrapCalculatorProcessValueWrapperMethod
+	Method     *WrapCalculatorProcessValueWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapCalculatorProcessValueWrapperMethod wraps a function for testing.
 type WrapCalculatorProcessValueWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(int) int
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(int) int
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapCalculatorProcessValueWrapperMethod) Start(value int) *WrapCalculatorProcessValueCallHandle {
 	handle := &WrapCalculatorProcessValueCallHandle{
 		CallableController: _imptest.NewCallableController[WrapCalculatorProcessValueReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -112,10 +130,13 @@ func (m *WrapCalculatorProcessValueWrapperMethod) Start(value int) *WrapCalculat
 
 // WrapCalculatorProcessValue wraps a function for testing.
 func WrapCalculatorProcessValue(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorProcessValueWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapCalculatorProcessValueWrapperHandle{
 		Method: &WrapCalculatorProcessValueWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

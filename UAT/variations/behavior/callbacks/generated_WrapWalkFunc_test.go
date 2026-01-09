@@ -11,6 +11,21 @@ import (
 // WrapWalkFuncCallHandle represents a single call to the wrapped function.
 type WrapWalkFuncCallHandle struct {
 	*_imptest.CallableController[WrapWalkFuncReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapWalkFuncCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -85,19 +100,22 @@ type WrapWalkFuncReturnsReturn struct {
 
 // WrapWalkFuncWrapperHandle is the test handle for a wrapped function.
 type WrapWalkFuncWrapperHandle struct {
-	Method *WrapWalkFuncWrapperMethod
+	Method     *WrapWalkFuncWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapWalkFuncWrapperMethod wraps a function for testing.
 type WrapWalkFuncWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(string, fs.DirEntry, error) error
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(string, fs.DirEntry, error) error
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapWalkFuncWrapperMethod) Start(path string, d fs.DirEntry, err error) *WrapWalkFuncCallHandle {
 	handle := &WrapWalkFuncCallHandle{
 		CallableController: _imptest.NewCallableController[WrapWalkFuncReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -113,10 +131,13 @@ func (m *WrapWalkFuncWrapperMethod) Start(path string, d fs.DirEntry, err error)
 
 // WrapWalkFunc wraps a function for testing.
 func WrapWalkFunc(t _imptest.TestReporter, fn func(string, fs.DirEntry, error) error) *WrapWalkFuncWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapWalkFuncWrapperHandle{
 		Method: &WrapWalkFuncWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

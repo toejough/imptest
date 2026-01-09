@@ -10,6 +10,21 @@ import (
 // WrapHandlerFuncCallHandle represents a single call to the wrapped function.
 type WrapHandlerFuncCallHandle struct {
 	*_imptest.CallableController[WrapHandlerFuncReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapHandlerFuncCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectCompletes verifies the function completes without panicking.
@@ -60,19 +75,22 @@ type WrapHandlerFuncReturnsReturn struct {
 
 // WrapHandlerFuncWrapperHandle is the test handle for a wrapped function.
 type WrapHandlerFuncWrapperHandle struct {
-	Method *WrapHandlerFuncWrapperMethod
+	Method     *WrapHandlerFuncWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapHandlerFuncWrapperMethod wraps a function for testing.
 type WrapHandlerFuncWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(http.ResponseWriter, *http.Request)
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(http.ResponseWriter, *http.Request)
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapHandlerFuncWrapperMethod) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncCallHandle {
 	handle := &WrapHandlerFuncCallHandle{
 		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -88,10 +106,13 @@ func (m *WrapHandlerFuncWrapperMethod) Start(arg1 http.ResponseWriter, arg2 *htt
 
 // WrapHandlerFunc wraps a function for testing.
 func WrapHandlerFunc(t _imptest.TestReporter, fn func(http.ResponseWriter, *http.Request)) *WrapHandlerFuncWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapHandlerFuncWrapperHandle{
 		Method: &WrapHandlerFuncWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

@@ -10,6 +10,21 @@ import (
 // WrapFilterCallHandle represents a single call to the wrapped function.
 type WrapFilterCallHandle struct {
 	*_imptest.CallableController[WrapFilterReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapFilterCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -84,19 +99,22 @@ type WrapFilterReturnsReturn struct {
 
 // WrapFilterWrapperHandle is the test handle for a wrapped function.
 type WrapFilterWrapperHandle struct {
-	Method *WrapFilterWrapperMethod
+	Method     *WrapFilterWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapFilterWrapperMethod wraps a function for testing.
 type WrapFilterWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func([]int, func(int) bool) []int
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func([]int, func(int) bool) []int
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapFilterWrapperMethod) Start(items []int, predicate func(int) bool) *WrapFilterCallHandle {
 	handle := &WrapFilterCallHandle{
 		CallableController: _imptest.NewCallableController[WrapFilterReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -112,10 +130,13 @@ func (m *WrapFilterWrapperMethod) Start(items []int, predicate func(int) bool) *
 
 // WrapFilter wraps a function for testing.
 func WrapFilter(t _imptest.TestReporter, fn func([]int, func(int) bool) []int) *WrapFilterWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapFilterWrapperHandle{
 		Method: &WrapFilterWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

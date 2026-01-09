@@ -11,6 +11,21 @@ import (
 // WrapProcessItemCallHandle represents a single call to the wrapped function.
 type WrapProcessItemCallHandle[T any] struct {
 	*_imptest.CallableController[WrapProcessItemReturnsReturn[T]]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapProcessItemCallHandle[T]) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -85,19 +100,22 @@ type WrapProcessItemReturnsReturn[T any] struct {
 
 // WrapProcessItemWrapperHandle is the test handle for a wrapped function.
 type WrapProcessItemWrapperHandle[T any] struct {
-	Method *WrapProcessItemWrapperMethod[T]
+	Method     *WrapProcessItemWrapperMethod[T]
+	Controller *_imptest.TargetController
 }
 
 // WrapProcessItemWrapperMethod wraps a function for testing.
 type WrapProcessItemWrapperMethod[T any] struct {
-	t        _imptest.TestReporter
-	callable func(generics.Repository[T], string, func(T) T) error
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(generics.Repository[T], string, func(T) T) error
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapProcessItemWrapperMethod[T]) Start(repo generics.Repository[T], id string, transformer func(T) T) *WrapProcessItemCallHandle[T] {
 	handle := &WrapProcessItemCallHandle[T]{
 		CallableController: _imptest.NewCallableController[WrapProcessItemReturnsReturn[T]](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -113,10 +131,13 @@ func (m *WrapProcessItemWrapperMethod[T]) Start(repo generics.Repository[T], id 
 
 // WrapProcessItem wraps a function for testing.
 func WrapProcessItem[T any](t _imptest.TestReporter, fn func(generics.Repository[T], string, func(T) T) error) *WrapProcessItemWrapperHandle[T] {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapProcessItemWrapperHandle[T]{
 		Method: &WrapProcessItemWrapperMethod[T]{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

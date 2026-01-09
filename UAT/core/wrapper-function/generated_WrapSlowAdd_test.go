@@ -17,23 +17,42 @@ type WrapSlowAddReturnsReturn struct {
 
 // WrapSlowAddWrapper wraps a function for testing.
 type WrapSlowAddWrapperHandle struct {
-	Method *WrapSlowAddWrapperMethod
+	Method     *WrapSlowAddWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 type WrapSlowAddWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(a, b int, delay time.Duration) int
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(a, b int, delay time.Duration) int
 }
 
 // WrapSlowAddCallHandle represents a single call to the wrapped function.
 type WrapSlowAddCallHandle struct {
 	*_imptest.CallableController[WrapSlowAddReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapSlowAddCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+
+	return h.pendingCompletion
 }
 
 // Start executes the wrapped function in a goroutine.
 func (w *WrapSlowAddWrapperMethod) Start(a, b int, delay time.Duration) *WrapSlowAddCallHandle {
 	handle := &WrapSlowAddCallHandle{
 		CallableController: _imptest.NewCallableController[WrapSlowAddReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	go func() {
 		defer func() {
@@ -44,6 +63,7 @@ func (w *WrapSlowAddWrapperMethod) Start(a, b int, delay time.Duration) *WrapSlo
 		ret0 := w.callable(a, b, delay)
 		handle.ReturnChan <- WrapSlowAddReturnsReturn{Result0: ret0}
 	}()
+
 	return handle
 }
 
@@ -114,10 +134,14 @@ func (h *WrapSlowAddCallHandle) ExpectPanicMatches(matcher any) {
 
 // WrapSlowAdd wraps a function for testing.
 func WrapSlowAdd(t _imptest.TestReporter, fn func(a, b int, delay time.Duration) int) *WrapSlowAddWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
+
 	return &WrapSlowAddWrapperHandle{
 		Method: &WrapSlowAddWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

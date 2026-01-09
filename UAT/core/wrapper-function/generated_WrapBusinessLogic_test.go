@@ -11,6 +11,21 @@ import (
 // WrapBusinessLogicCallHandle represents a single call to the wrapped function.
 type WrapBusinessLogicCallHandle struct {
 	*_imptest.CallableController[WrapBusinessLogicReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapBusinessLogicCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -93,19 +108,22 @@ type WrapBusinessLogicReturnsReturn struct {
 
 // WrapBusinessLogicWrapperHandle is the test handle for a wrapped function.
 type WrapBusinessLogicWrapperHandle struct {
-	Method *WrapBusinessLogicWrapperMethod
+	Method     *WrapBusinessLogicWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapBusinessLogicWrapperMethod wraps a function for testing.
 type WrapBusinessLogicWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func(callable.ExternalService, int) (string, error)
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func(callable.ExternalService, int) (string, error)
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapBusinessLogicWrapperMethod) Start(svc callable.ExternalService, id int) *WrapBusinessLogicCallHandle {
 	handle := &WrapBusinessLogicCallHandle{
 		CallableController: _imptest.NewCallableController[WrapBusinessLogicReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -121,10 +139,13 @@ func (m *WrapBusinessLogicWrapperMethod) Start(svc callable.ExternalService, id 
 
 // WrapBusinessLogic wraps a function for testing.
 func WrapBusinessLogic(t _imptest.TestReporter, fn func(callable.ExternalService, int) (string, error)) *WrapBusinessLogicWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapBusinessLogicWrapperHandle{
 		Method: &WrapBusinessLogicWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }

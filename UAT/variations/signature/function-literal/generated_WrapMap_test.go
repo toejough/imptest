@@ -10,6 +10,21 @@ import (
 // WrapMapCallHandle represents a single call to the wrapped function.
 type WrapMapCallHandle struct {
 	*_imptest.CallableController[WrapMapReturnsReturn]
+	controller        *_imptest.TargetController
+	pendingCompletion *_imptest.PendingCompletion
+}
+
+// Eventually returns a pending completion for async expectation registration.
+func (h *WrapMapCallHandle) Eventually() *_imptest.PendingCompletion {
+	if h.pendingCompletion == nil {
+		h.pendingCompletion = h.controller.RegisterPendingCompletion()
+		// Start a goroutine to wait for completion and notify the pending completion
+		go func() {
+			h.WaitForResponse()
+			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+		}()
+	}
+	return h.pendingCompletion
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -84,19 +99,22 @@ type WrapMapReturnsReturn struct {
 
 // WrapMapWrapperHandle is the test handle for a wrapped function.
 type WrapMapWrapperHandle struct {
-	Method *WrapMapWrapperMethod
+	Method     *WrapMapWrapperMethod
+	Controller *_imptest.TargetController
 }
 
 // WrapMapWrapperMethod wraps a function for testing.
 type WrapMapWrapperMethod struct {
-	t        _imptest.TestReporter
-	callable func([]int, func(int) int) []int
+	t          _imptest.TestReporter
+	controller *_imptest.TargetController
+	callable   func([]int, func(int) int) []int
 }
 
 // Start executes the wrapped function in a goroutine.
 func (m *WrapMapWrapperMethod) Start(items []int, transform func(int) int) *WrapMapCallHandle {
 	handle := &WrapMapCallHandle{
 		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](m.t),
+		controller:         m.controller,
 	}
 	go func() {
 		defer func() {
@@ -112,10 +130,13 @@ func (m *WrapMapWrapperMethod) Start(items []int, transform func(int) int) *Wrap
 
 // WrapMap wraps a function for testing.
 func WrapMap(t _imptest.TestReporter, fn func([]int, func(int) int) []int) *WrapMapWrapperHandle {
+	ctrl := _imptest.NewTargetController(t)
 	return &WrapMapWrapperHandle{
 		Method: &WrapMapWrapperMethod{
-			t:        t,
-			callable: fn,
+			t:          t,
+			controller: ctrl,
+			callable:   fn,
 		},
+		Controller: ctrl,
 	}
 }
