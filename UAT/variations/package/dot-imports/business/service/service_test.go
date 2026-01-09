@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/UAT/variations/package/dot-imports-business/service"
-	"github.com/toejough/imptest/UAT/variations/package/dot-imports-business/storage"
+	"github.com/toejough/imptest/UAT/variations/package/dot-imports/business/service"
+	"github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage"
 )
 
 // TestUserServiceDeleteUser verifies DeleteUser with mocked repository.

@@ -216,33 +216,6 @@ behavior-variations - embedded-structs (parallel to embedded-interfaces)
 
 ---
 
-### 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
-
-#### Universal
-
-**Status**
-backlog
-
-**Description**
-Once taxonomy is clear, audit existing UATs to remove tests that duplicate coverage without adding value
-
-#### Planning
-
-**Acceptance**
-Each UAT demonstrates unique taxonomy aspect, redundant tests removed
-
-**Effort**
-Medium
-
-**Priority**
-Low
-
-**Dependencies**
-Requires clear taxonomy definition
-
-**Linear**
-TOE-114
-
 ### 25. Consolidate API and usage documentation (TOE-112)
 
 #### Universal
@@ -332,11 +305,73 @@ Low
 
 **Linear**
 TOE-80
+
+### 51. Investigate generated file consolidation in UATs
+
+#### Universal
+
+**Status**
+backlog
+
+**Description**
+Each UAT directory contains its own generated mock/wrapper files (35+ files total). While this is correct behavior for impgen (each go:generate produces its own file), the organizational overhead may be worth investigating for consolidation.
+
+#### Planning
+
+**Rationale**
+The coverage matrix analysis identified that generated files constitute organizational redundancy. Options to explore:
+1. Keep as-is (current behavior is correct and simple)
+2. Add impgen flag to consolidate multiple symbols into one file
+3. Create a UAT-specific helper that runs multiple generations and combines output
+
+**Acceptance**
+- Investigation completed with clear recommendation
+- If consolidation chosen: implementation plan documented
+- If kept as-is: rationale documented for why current approach is preferred
+
+**Effort**
+Small (investigation) / Medium-Large (if implementing consolidation)
+
+**Priority**
+Low
+
+**Note**
+This emerged from Issue #24 analysis but was deemed lower priority than actual test redundancy removal. The current per-file approach has benefits (clear ownership, simple regeneration) that may outweigh consolidation benefits.
+
+---
+
 ## Done
 
 Completed issues.
 
 
+
+### 24. Identify and remove redundant non-taxonomy-specific UAT tests (TOE-114)
+
+#### Universal
+
+**Status**
+done
+
+**Description**
+Once taxonomy is clear, audit existing UATs to remove tests that duplicate coverage without adding value
+
+#### Planning
+
+**Acceptance**
+Each UAT demonstrates unique taxonomy aspect, redundant tests removed
+
+**Effort**
+Medium
+
+**Priority**
+Low
+
+**Dependencies**
+Requires clear taxonomy definition
+
+**Linear**
+TOE-114
 ### 48. Make Eventually truly async with mock.Wait()
 
 #### Universal

@@ -3,7 +3,7 @@ package service
 import (
 	"fmt"
 
-	. "github.com/toejough/imptest/UAT/variations/package/dot-imports-business/storage" //nolint:staticcheck // Dot import intentional
+	. "github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage" //nolint:staticcheck // Dot import intentional
 )
 
 // UserService demonstrates business logic that uses dot-imported interfaces.

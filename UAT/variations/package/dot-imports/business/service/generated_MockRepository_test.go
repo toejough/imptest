@@ -3,7 +3,7 @@
 package service_test
 
 import (
-	storage "github.com/toejough/imptest/UAT/variations/package/dot-imports-business/storage"
+	storage "github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage"
 	_imptest "github.com/toejough/imptest/imptest"
 )
 

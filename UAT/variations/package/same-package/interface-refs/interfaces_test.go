@@ -1,8 +1,8 @@
 package samepackage_test
 
-//go:generate impgen samepackage.DataProcessor --dependency
-//go:generate impgen samepackage.DataSource --dependency
-//go:generate impgen samepackage.DataSink --dependency
+//go:generate impgen DataProcessor --dependency
+//go:generate impgen DataSource --dependency
+//go:generate impgen DataSink --dependency
 
 import (
 	"errors"

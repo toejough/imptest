@@ -111,11 +111,11 @@ func TestUserService(t *testing.T) {
 
 | Symbol Type | Directive Example | Generated | UAT |
 |-------------|-------------------|-----------|-----|
-| Function | `impgen pkg.MyFunc --target` | `WrapMyFunc` | [02](../UAT/02-callable-wrappers/) |
-| Struct method | `impgen pkg.Calculator.Add --target` | `WrapCalculatorAdd` | [02](../UAT/02-callable-wrappers/) |
-| Struct (all methods) | `impgen pkg.Calculator --target` | `WrapCalculator` | [33](../UAT/33-struct-as-target/) |
-| Interface | `impgen pkg.Logger --target` | `WrapLogger` | [32](../UAT/32-interface-as-target/) |
-| Function type | `impgen pkg.HandlerFunc --target` | `WrapHandlerFunc` | [16](../UAT/16-function-type-wrapping/) |
+| Function | `impgen pkg.MyFunc --target` | `WrapMyFunc` | [wrapper-function](../UAT/core/wrapper-function/) |
+| Struct method | `impgen pkg.Calculator.Add --target` | `WrapCalculatorAdd` | [wrapper-function](../UAT/core/wrapper-function/) |
+| Struct (all methods) | `impgen pkg.Calculator --target` | `WrapCalculator` | [wrapper-struct](../UAT/core/wrapper-struct/) |
+| Interface | `impgen pkg.Logger --target` | `WrapLogger` | [wrapper-interface](../UAT/core/wrapper-interface/) |
+| Function type | `impgen pkg.HandlerFunc --target` | `WrapHandlerFunc` | [wrapper-functype](../UAT/core/wrapper-functype/) |
 
 #### API Pattern
 
@@ -250,8 +250,8 @@ func TestUnsafeRunnerPanics(t *testing.T) {
 
 | Symbol Type | Directive Example | Generated | UAT |
 |-------------|-------------------|-----------|-----|
-| Interface | `impgen pkg.Service --dependency` | `MockService` | [01](../UAT/01-basic-interface-mocking/) |
-| Function type | `impgen pkg.HandlerFunc --dependency` | `MockHandlerFunc` | [31](../UAT/31-function-type-dependency/) |
+| Interface | `impgen pkg.Service --dependency` | `MockService` | [mock-interface](../UAT/core/mock-interface/) |
+| Function type | `impgen pkg.HandlerFunc --dependency` | `MockHandlerFunc` | [mock-functype](../UAT/core/mock-functype/) |
 
 **Coming soon** (see [REORGANIZATION_PROPOSAL.md](./REORGANIZATION_PROPOSAL.md)):
 - Function as dependency (#43)
@@ -404,12 +404,12 @@ imptest handles symbols from various package contexts:
 
 | Package Location | Supported | UAT | Notes |
 |------------------|-----------|-----|-------|
-| Same package | Yes | [12](../UAT/12-whitebox-testing/), [14](../UAT/14-same-package-interfaces/) | Whitebox testing |
-| Different package | Yes | [01](../UAT/01-basic-interface-mocking/), [02](../UAT/02-callable-wrappers/) | Standard usage |
-| Standard library | Yes | [18](../UAT/18-external-function-types/), [08](../UAT/08-embedded-interfaces/) | `http.HandlerFunc`, `io.Reader` |
+| Same package | Yes | [same-package](../UAT/variations/package/same-package/) | Whitebox testing, interface cross-refs |
+| Different package | Yes | [mock-interface](../UAT/core/mock-interface/), [wrapper-function](../UAT/core/wrapper-function/) | Standard usage |
+| Standard library | Yes | [external-functypes](../UAT/variations/behavior/external-functypes/), [embedded-interfaces](../UAT/variations/behavior/embedded-interfaces/) | `http.HandlerFunc`, `io.Reader` |
 | Aliased import | Yes | — | `import alias "pkg"` |
-| Dot import | Yes | [26](../UAT/26-dot-imports/), [27](../UAT/27-business-logic-dot-imports/) | `import . "pkg"` |
-| Stdlib shadowing | Yes | [11](../UAT/11-package-name-conflicts/) | 4-tier resolution |
+| Dot import | Yes | [dot-imports](../UAT/variations/package/dot-imports/) | `import . "pkg"` |
+| Stdlib shadowing | Yes | [shadowing](../UAT/variations/package/shadowing/) | 4-tier resolution |
 
 #### Standard Library Shadowing Resolution
 
@@ -437,25 +437,25 @@ imptest handles various parameter and return type patterns:
 
 | Feature | Supported | UAT |
 |---------|-----------|-----|
-| Zero parameters | Yes | [01](../UAT/01-basic-interface-mocking/) |
-| Multiple parameters | Yes | [10](../UAT/10-edge-many-params/) |
-| Zero returns | Yes | [09](../UAT/09-edge-zero-returns/) |
-| Multiple returns | Yes | [02](../UAT/02-callable-wrappers/) |
-| Variadic parameters | Yes | [01](../UAT/01-basic-interface-mocking/) |
-| Named parameters/returns | Yes | [23](../UAT/23-named-params-returns/) |
+| Zero parameters | Yes | [mock-interface](../UAT/core/mock-interface/) |
+| Multiple parameters | Yes | [edge-many-params](../UAT/variations/signature/edge-many-params/) |
+| Zero returns | Yes | [edge-zero-returns](../UAT/variations/signature/edge-zero-returns/) |
+| Multiple returns | Yes | [wrapper-function](../UAT/core/wrapper-function/) |
+| Variadic parameters | Yes | [mock-interface](../UAT/core/mock-interface/) |
+| Named parameters/returns | Yes | [named-params](../UAT/variations/signature/named-params/) |
 
 #### Type Complexity
 
 | Type | Supported | UAT | Notes |
 |------|-----------|-----|-------|
 | Concrete types | Yes | All | int, string, structs, etc. |
-| Generic types | Yes | [07](../UAT/07-generics/), [21](../UAT/21-parameterized-types/) | `[T any]`, `[T Numeric]` |
-| Non-comparable types | Yes | [03](../UAT/03-non-comparable-arguments/) | Slices, maps, functions |
-| Struct literals | Yes | [30](../UAT/30-struct-literal-params/) | `struct{ Field int }` |
-| Function literals | Yes | [24](../UAT/24-function-literal-params/) | `func(int) int` |
-| Interface literals | Yes | [25](../UAT/25-interface-literal-params/) | `interface{ Method() }` |
-| Channels | Yes | [20](../UAT/20-channel-types/) | All directions |
-| External types | Yes | [13](../UAT/13-external-type-imports/), [29](../UAT/29-cross-file-external-imports/) | `time.Time`, `os.FileInfo` |
+| Generic types | Yes | [generics](../UAT/variations/signature/generics/), [parameterized](../UAT/variations/signature/parameterized/) | `[T any]`, `[T Numeric]` |
+| Non-comparable types | Yes | [non-comparable](../UAT/variations/signature/non-comparable/) | Slices, maps, functions |
+| Struct literals | Yes | [struct-literal](../UAT/variations/signature/struct-literal/) | `struct{ Field int }` |
+| Function literals | Yes | [function-literal](../UAT/variations/signature/function-literal/) | `func(int) int` |
+| Interface literals | Yes | [interface-literal](../UAT/variations/signature/interface-literal/) | `interface{ Method() }` |
+| Channels | Yes | [channels](../UAT/variations/signature/channels/) | All directions |
+| External types | Yes | [external-types](../UAT/variations/signature/external-types/), [cross-file-external](../UAT/variations/signature/cross-file-external/) | `time.Time`, `os.FileInfo` |
 
 #### Matching Function Parameters
 
@@ -527,7 +527,7 @@ call2.Eventually.ExpectReturnsEqual(expected2)
 wrapper.Controller.Wait()
 ```
 
-**UAT**: [28](../UAT/28-ordered-eventually-modes/)
+**UAT**: [ordered](../UAT/variations/concurrency/ordered/), [eventually](../UAT/variations/concurrency/eventually/)
 
 ---
 
@@ -576,81 +576,67 @@ func (c Calculator) Add(a, b int) int { return a + b }
 
 #### Wrapper Pattern (--target)
 
-| UAT | Name | Symbol Type |
+| UAT | Path | Symbol Type |
 |-----|------|-------------|
-| [02](../UAT/02-callable-wrappers/) | callable-wrappers | Function, Method |
-| [04](../UAT/04-error-and-panic-handling/) | error-and-panic-handling | Function |
-| [07](../UAT/07-generics/) | generics | Generic function |
-| [09](../UAT/09-edge-zero-returns/) | edge-zero-returns | Function |
-| [15](../UAT/15-callback-visitor/) | callback-visitor | Function, Function type |
-| [16](../UAT/16-function-type-wrapping/) | function-type-wrapping | Function type |
-| [18](../UAT/18-external-function-types/) | external-function-types | Function type (stdlib) |
-| [23](../UAT/23-named-params-returns/) | named-params-returns | Function, Method |
-| [24](../UAT/24-function-literal-params/) | function-literal-params | Function, Method |
-| [30](../UAT/30-struct-literal-params/) | struct-literal-params | Function, Method |
-| [32](../UAT/32-interface-as-target/) | interface-as-target | Interface |
-| [33](../UAT/33-struct-as-target/) | struct-as-target | Struct |
+| [wrapper-function](../UAT/core/wrapper-function/) | core/wrapper-function | Function, Method |
+| [wrapper-functype](../UAT/core/wrapper-functype/) | core/wrapper-functype | Function type |
+| [wrapper-interface](../UAT/core/wrapper-interface/) | core/wrapper-interface | Interface |
+| [wrapper-struct](../UAT/core/wrapper-struct/) | core/wrapper-struct | Struct |
 
 #### Mock Pattern (--dependency)
 
-| UAT | Name | Symbol Type |
+| UAT | Path | Symbol Type |
 |-----|------|-------------|
-| [01](../UAT/01-basic-interface-mocking/) | basic-interface-mocking | Interface |
-| [03](../UAT/03-non-comparable-arguments/) | non-comparable-arguments | Interface |
-| [05](../UAT/05-advanced-matching/) | advanced-matching | Interface |
-| [06](../UAT/06-concurrency/) | concurrency | Interface |
-| [07](../UAT/07-generics/) | generics | Generic interface |
-| [08](../UAT/08-embedded-interfaces/) | embedded-interfaces | Interface |
-| [10](../UAT/10-edge-many-params/) | edge-many-params | Interface |
-| [12](../UAT/12-whitebox-testing/) | whitebox-testing | Interface |
-| [14](../UAT/14-same-package-interfaces/) | same-package-interfaces | Interface |
-| [19](../UAT/19-interface-external-func-type/) | interface-external-func-type | Interface |
-| [20](../UAT/20-channel-types/) | channel-types | Interface |
-| [21](../UAT/21-parameterized-types/) | parameterized-types | Generic interface |
-| [22](../UAT/22-test-package-import/) | test-package-import | Interface |
-| [25](../UAT/25-interface-literal-params/) | interface-literal-params | Interface |
-| [31](../UAT/31-function-type-dependency/) | function-type-dependency | Function type |
+| [mock-interface](../UAT/core/mock-interface/) | core/mock-interface | Interface |
+| [mock-functype](../UAT/core/mock-functype/) | core/mock-functype | Function type |
+| [mock-function](../UAT/core/mock-function/) | core/mock-function | Function |
+| [mock-method](../UAT/core/mock-method/) | core/mock-method | Method |
+| [mock-struct](../UAT/core/mock-struct/) | core/mock-struct | Struct |
 
 ### By Variation
 
 #### Package Variations
 
-| UAT | Name | Variation |
+| UAT | Path | Variation |
 |-----|------|-----------|
-| [11](../UAT/11-package-name-conflicts/) | package-name-conflicts | Stdlib shadowing |
-| [12](../UAT/12-whitebox-testing/) | whitebox-testing | Same package |
-| [14](../UAT/14-same-package-interfaces/) | same-package-interfaces | Same package |
-| [18](../UAT/18-external-function-types/) | external-function-types | Stdlib |
-| [22](../UAT/22-test-package-import/) | test-package-import | External module |
-| [26](../UAT/26-dot-imports/) | dot-imports | Dot import |
-| [27](../UAT/27-business-logic-dot-imports/) | business-logic-dot-imports | Dot import |
+| [shadowing](../UAT/variations/package/shadowing/) | variations/package/shadowing | Stdlib shadowing |
+| [same-package](../UAT/variations/package/same-package/) | variations/package/same-package | Same package (whitebox + interface refs) |
+| [test-package](../UAT/variations/package/test-package/) | variations/package/test-package | Test package import |
+| [dot-imports](../UAT/variations/package/dot-imports/) | variations/package/dot-imports | Dot import (basic + business logic) |
 
 #### Signature Variations
 
-| UAT | Name | Variation |
+| UAT | Path | Variation |
 |-----|------|-----------|
-| [07](../UAT/07-generics/) | generics | Generic types |
-| [21](../UAT/21-parameterized-types/) | parameterized-types | Constrained generics |
-| [03](../UAT/03-non-comparable-arguments/) | non-comparable-arguments | Slices, maps |
-| [23](../UAT/23-named-params-returns/) | named-params-returns | Named params/returns |
-| [24](../UAT/24-function-literal-params/) | function-literal-params | Function literal params |
-| [25](../UAT/25-interface-literal-params/) | interface-literal-params | Interface literal params |
-| [30](../UAT/30-struct-literal-params/) | struct-literal-params | Struct literal params |
-| [20](../UAT/20-channel-types/) | channel-types | Channel types |
-| [13](../UAT/13-external-type-imports/) | external-type-imports | External types |
-| [29](../UAT/29-cross-file-external-imports/) | cross-file-external-imports | Cross-file imports |
-| [08](../UAT/08-embedded-interfaces/) | embedded-interfaces | Embedded interfaces |
+| [generics](../UAT/variations/signature/generics/) | variations/signature/generics | Generic types |
+| [parameterized](../UAT/variations/signature/parameterized/) | variations/signature/parameterized | Constrained generics |
+| [non-comparable](../UAT/variations/signature/non-comparable/) | variations/signature/non-comparable | Slices, maps |
+| [named-params](../UAT/variations/signature/named-params/) | variations/signature/named-params | Named params/returns |
+| [function-literal](../UAT/variations/signature/function-literal/) | variations/signature/function-literal | Function literal params |
+| [interface-literal](../UAT/variations/signature/interface-literal/) | variations/signature/interface-literal | Interface literal params |
+| [struct-literal](../UAT/variations/signature/struct-literal/) | variations/signature/struct-literal | Struct literal params |
+| [channels](../UAT/variations/signature/channels/) | variations/signature/channels | Channel types |
+| [external-types](../UAT/variations/signature/external-types/) | variations/signature/external-types | External types |
+| [cross-file-external](../UAT/variations/signature/cross-file-external/) | variations/signature/cross-file-external | Cross-file imports |
+| [external-functype](../UAT/variations/signature/external-functype/) | variations/signature/external-functype | External functype |
+| [edge-many-params](../UAT/variations/signature/edge-many-params/) | variations/signature/edge-many-params | Many parameters |
+| [edge-zero-returns](../UAT/variations/signature/edge-zero-returns/) | variations/signature/edge-zero-returns | Zero returns |
 
 #### Behavior Variations
 
-| UAT | Name | Variation |
+| UAT | Path | Variation |
 |-----|------|-----------|
-| [04](../UAT/04-error-and-panic-handling/) | error-and-panic-handling | Panic handling |
-| [15](../UAT/15-callback-visitor/) | callback-visitor | Callbacks |
+| [panic-handling](../UAT/variations/behavior/panic-handling/) | variations/behavior/panic-handling | Panic handling |
+| [callbacks](../UAT/variations/behavior/callbacks/) | variations/behavior/callbacks | Callback patterns |
+| [matching](../UAT/variations/behavior/matching/) | variations/behavior/matching | Argument matching |
+| [embedded-interfaces](../UAT/variations/behavior/embedded-interfaces/) | variations/behavior/embedded-interfaces | Embedded interfaces |
+| [embedded-structs](../UAT/variations/behavior/embedded-structs/) | variations/behavior/embedded-structs | Embedded structs |
+| [external-functypes](../UAT/variations/behavior/external-functypes/) | variations/behavior/external-functypes | External function types |
+| [typesafe-getargs](../UAT/variations/behavior/typesafe-getargs/) | variations/behavior/typesafe-getargs | Typesafe argument access |
 
 #### Concurrency Variations
 
-| UAT | Name | Variation |
+| UAT | Path | Variation |
 |-----|------|-----------|
-| [06](../UAT/06-concurrency/) | concurrency | Eventually |
-| [28](../UAT/28-ordered-eventually-modes/) | ordered-eventually-modes | Ordered vs Eventually |
+| [eventually](../UAT/variations/concurrency/eventually/) | variations/concurrency/eventually | Eventually mode |
+| [ordered](../UAT/variations/concurrency/ordered/) | variations/concurrency/ordered | Ordered mode |

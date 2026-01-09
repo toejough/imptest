@@ -3,7 +3,7 @@
 package samepackage_test
 
 import (
-	samepackage "github.com/toejough/imptest/UAT/variations/package/same-interfaces"
+	samepackage "github.com/toejough/imptest/UAT/variations/package/same-package/interface-refs"
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
