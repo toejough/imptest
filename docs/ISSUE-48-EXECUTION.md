@@ -29,6 +29,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | 1 | complete | dad78de |
 | 2 | complete | 8252e8d |
 | 3 | complete | 4cb58c6 |
+| 4 | complete | 9782cd6 |
 
 ---
 
@@ -116,16 +117,18 @@ Codegen change affects ALL tests at once. Must update everything together.
 ## Phase 4: Documentation
 
 ### 4.1: Update docs
-- [ ] README.md examples
-- [ ] TAXONOMY.md concurrency section
-- [ ] Commit: `docs: update for async Eventually and test handle pattern`
+- [x] README.md examples
+- [x] TAXONOMY.md concurrency section
+- [x] Commit: `docs: update for async Eventually and test handle pattern` (9782cd6)
 
-**DONE**
+**CHECKPOINT**: Complete
 
 ---
 
-## Current Phase: 4 (Documentation)
+## Status: COMPLETE
 
-**Next Action**: Update documentation for the new test handle pattern and async Eventually() API.
-
-Phases 1-3 complete. Both dependency mocks and target wrappers support async Eventually() with `h.Controller.Wait()`.
+All phases of Issue #48 are complete:
+- Phase 1: Test handle pattern (`h.Mock`, `h.Method`, `h.Controller`)
+- Phase 2: Async Eventually() for dependency mocks with `h.Controller.Wait()`
+- Phase 3: Async Eventually() for target wrappers with `wrapper.Controller.Wait()`
+- Phase 4: Documentation updates
