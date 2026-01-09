@@ -1,4 +1,4 @@
-//nolint:wsl_v5,staticcheck,cyclop,gocognit,intrange
+//nolint:staticcheck,intrange
 package generate
 
 import (
@@ -106,61 +106,21 @@ func (gen *targetGenerator) buildFunctionSignature() string {
 	var sig strings.Builder
 
 	sig.WriteString("func(")
-
-	// Parameters
-	if gen.funcDecl.Type.Params != nil {
-		first := true
-		for _, field := range gen.funcDecl.Type.Params.List {
-			fieldType := gen.typeWithQualifier(field.Type)
-
-			count := len(field.Names)
-			if count == 0 {
-				count = 1
-			}
-
-			for i := 0; i < count; i++ {
-				if !first {
-					sig.WriteString(", ")
-				}
-				first = false
-				sig.WriteString(fieldType)
-			}
-		}
-	}
-
+	sig.WriteString(gen.formatFieldListTypes(gen.funcDecl.Type.Params))
 	sig.WriteString(")")
 
 	// Results
 	if gen.funcDecl.Type.Results != nil && len(gen.funcDecl.Type.Results.List) > 0 {
 		sig.WriteString(" ")
 
-		hasMultipleResults := len(gen.funcDecl.Type.Results.List) > 1 ||
-			(len(gen.funcDecl.Type.Results.List) == 1 && len(gen.funcDecl.Type.Results.List[0].Names) > 1)
+		resultTypes := gen.formatFieldListTypes(gen.funcDecl.Type.Results)
 
-		if hasMultipleResults {
+		if gen.hasMultipleResults() {
 			sig.WriteString("(")
-		}
-
-		first := true
-		for _, field := range gen.funcDecl.Type.Results.List {
-			fieldType := gen.typeWithQualifier(field.Type)
-
-			count := len(field.Names)
-			if count == 0 {
-				count = 1
-			}
-
-			for i := 0; i < count; i++ {
-				if !first {
-					sig.WriteString(", ")
-				}
-				first = false
-				sig.WriteString(fieldType)
-			}
-		}
-
-		if hasMultipleResults {
+			sig.WriteString(resultTypes)
 			sig.WriteString(")")
+		} else {
+			sig.WriteString(resultTypes)
 		}
 	}
 
@@ -272,6 +232,30 @@ func (gen *targetGenerator) extractResultTypes(results *dst.FieldList) []string 
 	return types
 }
 
+// formatFieldListTypes formats a field list into comma-separated type strings.
+func (gen *targetGenerator) formatFieldListTypes(fields *dst.FieldList) string {
+	if fields == nil {
+		return ""
+	}
+
+	var types []string
+
+	for _, field := range fields.List {
+		fieldType := gen.typeWithQualifier(field.Type)
+		count := len(field.Names)
+
+		if count == 0 {
+			count = 1
+		}
+
+		for range count {
+			types = append(types, fieldType)
+		}
+	}
+
+	return strings.Join(types, ", ")
+}
+
 // generate produces the target wrapper code using templates.
 func (gen *targetGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
@@ -317,6 +301,17 @@ func (gen *targetGenerator) generateWithTemplates(templates *TemplateRegistry) {
 	templates.WriteTargetExpectPanic(&gen.buf, data)
 }
 
+// hasMultipleResults checks if the function has multiple return values.
+func (gen *targetGenerator) hasMultipleResults() bool {
+	if gen.funcDecl.Type.Results == nil {
+		return false
+	}
+
+	results := gen.funcDecl.Type.Results.List
+
+	return len(results) > 1 || (len(results) == 1 && len(results[0].Names) > 1)
+}
+
 // writeFunctionParamsToBuilder writes function parameters to a string builder.
 func (gen *targetGenerator) writeFunctionParamsToBuilder(builder *strings.Builder, params *dst.FieldList) {
 	if params == nil {
@@ -325,6 +320,7 @@ func (gen *targetGenerator) writeFunctionParamsToBuilder(builder *strings.Builde
 
 	first := true
 	argCounter := 1
+
 	for _, field := range params.List {
 		fieldType := gen.typeWithQualifier(field.Type)
 
@@ -333,7 +329,9 @@ func (gen *targetGenerator) writeFunctionParamsToBuilder(builder *strings.Builde
 				if !first {
 					builder.WriteString(", ")
 				}
+
 				first = false
+
 				builder.WriteString(name.Name)
 				builder.WriteString(" ")
 				builder.WriteString(fieldType)
@@ -342,9 +340,12 @@ func (gen *targetGenerator) writeFunctionParamsToBuilder(builder *strings.Builde
 			if !first {
 				builder.WriteString(", ")
 			}
+
 			first = false
+
 			builder.WriteString(fmt.Sprintf("arg%d ", argCounter))
 			builder.WriteString(fieldType)
+
 			argCounter++
 		}
 	}
@@ -359,6 +360,7 @@ func extractParamNames(funcType *dst.FuncType) []string {
 	}
 
 	argCounter := 1
+
 	for _, field := range funcType.Params.List {
 		if len(field.Names) > 0 {
 			for _, name := range field.Names {
@@ -431,6 +433,7 @@ func newTargetGenerator(
 
 	// Extract parameter names and result types
 	gen.paramNames = extractParamNames(funcDecl.Type)
+
 	gen.hasResults = funcDecl.Type.Results != nil && len(funcDecl.Type.Results.List) > 0
 	if gen.hasResults {
 		gen.resultTypes = gen.extractResultTypes(funcDecl.Type.Results)

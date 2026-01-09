@@ -1,4 +1,4 @@
-//nolint:varnamelen,wsl_v5,perfsprint,prealloc
+//nolint:varnamelen,perfsprint,prealloc
 package generate
 
 import (
@@ -72,6 +72,7 @@ func (gen *dependencyGenerator) buildDependencyTemplateData() depTemplateData {
 
 	// Collect method data for all methods first (needed for typed wrappers)
 	var methods []depMethodTemplateData
+
 	_ = forEachInterfaceMethod(
 		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(methodName string, ftype *dst.FuncType) {
@@ -154,6 +155,7 @@ func (gen *dependencyGenerator) buildMethodTemplateData(
 // buildParamFields extracts parameter fields for type-safe args.
 func (gen *dependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramField {
 	paramInfos := extractParams(gen.fset, ftype)
+
 	var paramFields []paramField
 
 	for _, pinfo := range paramInfos {
@@ -295,6 +297,7 @@ func buildResultVars(resultTypes []string) (resultVars []resultVar, returnList s
 		if i > 0 {
 			returnListBuilder.WriteString(", ")
 		}
+
 		returnListBuilder.WriteString(fmt.Sprintf("result%d", i+1))
 	}
 
@@ -368,6 +371,7 @@ func newDependencyGenerator(
 	if err != nil {
 		return nil, err
 	}
+
 	gen.methodNames = methodNames
 
 	return gen, nil

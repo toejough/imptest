@@ -1,4 +1,3 @@
-//nolint:wsl_v5
 package generate
 
 import (
@@ -30,6 +29,7 @@ func GenerateStructDependencyCode(
 	for name := range methods {
 		methodNames = append(methodNames, name)
 	}
+
 	sort.Strings(methodNames)
 
 	// Create an interface type with the struct's methods
@@ -82,6 +82,7 @@ func GenerateStructTargetCode(
 	for name := range methods {
 		methodNames = append(methodNames, name)
 	}
+
 	sort.Strings(methodNames)
 
 	// Create an interface type with the struct's methods

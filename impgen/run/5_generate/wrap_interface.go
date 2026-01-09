@@ -1,4 +1,4 @@
-//nolint:wsl_v5,intrange
+//nolint:intrange
 package generate
 
 import (
@@ -85,6 +85,7 @@ func (gen *interfaceTargetGenerator) buildInterfaceTargetTemplateData(isStructTy
 
 	// Collect method wrappers for all interface methods
 	var methodWrappers []methodWrapperData
+
 	_ = forEachInterfaceMethod(
 		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(methodName string, ftype *dst.FuncType) {
@@ -165,6 +166,7 @@ func (gen *interfaceTargetGenerator) buildParamFieldsFromNames(
 
 	for _, field := range ftype.Params.List {
 		fieldType := gen.typeWithQualifier(field.Type)
+
 		count := len(field.Names)
 		if count == 0 {
 			count = 1
@@ -195,10 +197,12 @@ func (gen *interfaceTargetGenerator) buildParamFieldsStruct(fields []paramField)
 	}
 
 	var result strings.Builder
+
 	for i, field := range fields {
 		if i > 0 {
 			result.WriteString("; ")
 		}
+
 		result.WriteString(fmt.Sprintf("%s %s", field.Name, field.Type))
 	}
 
@@ -347,6 +351,7 @@ func newInterfaceTargetGenerator(
 	if err != nil {
 		return nil, err
 	}
+
 	gen.methodNames = methodNames
 
 	return gen, nil

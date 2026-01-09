@@ -1,4 +1,4 @@
-//nolint:wsl_v5,perfsprint,cyclop
+//nolint:perfsprint
 package generate
 
 import (
@@ -179,10 +179,12 @@ func (gen *functionDependencyGenerator) checkIfQualifierNeeded() {
 // collectAdditionalImports collects imports needed for function parameter/return types.
 func (gen *functionDependencyGenerator) collectAdditionalImports() []importInfo {
 	var imports []importInfo
+
 	seenPaths := make(map[string]bool)
 
 	// Get imports from the file containing the function
 	var sourceImports []*dst.ImportSpec
+
 	for _, file := range gen.astFiles {
 		if len(file.Imports) > 0 {
 			sourceImports = append(sourceImports, file.Imports...)
@@ -206,9 +208,42 @@ func (gen *functionDependencyGenerator) collectAdditionalImports() []importInfo 
 	return imports
 }
 
+// collectImportFromSelector extracts import info from a selector expression (e.g., http.Request).
+func (gen *functionDependencyGenerator) collectImportFromSelector(
+	sel *dst.SelectorExpr,
+	sourceImports []*dst.ImportSpec,
+	seenPaths map[string]bool,
+) []importInfo {
+	ident, ok := sel.X.(*dst.Ident)
+	if !ok {
+		return nil
+	}
+
+	pkgName := ident.Name
+
+	for _, imp := range sourceImports {
+		path := strings.Trim(imp.Path.Value, `"`)
+
+		alias := ""
+		if imp.Name != nil {
+			alias = imp.Name.Name
+		}
+
+		// Match by alias or by path suffix
+		if (alias != "" && alias == pkgName) || strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
+			if !seenPaths[path] {
+				seenPaths[path] = true
+				return []importInfo{{Alias: pkgName, Path: path}}
+			}
+
+			break
+		}
+	}
+
+	return nil
+}
+
 // collectImportsFromExpr collects imports from a type expression.
-//
-//nolint:gocognit // Type switch dispatcher handling all AST node types
 func (gen *functionDependencyGenerator) collectImportsFromExpr(
 	expr dst.Expr,
 	sourceImports []*dst.ImportSpec,
@@ -218,35 +253,16 @@ func (gen *functionDependencyGenerator) collectImportsFromExpr(
 
 	switch typedExpr := expr.(type) {
 	case *dst.SelectorExpr:
-		if ident, ok := typedExpr.X.(*dst.Ident); ok {
-			pkgName := ident.Name
-			for _, imp := range sourceImports {
-				path := strings.Trim(imp.Path.Value, `"`)
-				alias := ""
-				if imp.Name != nil {
-					alias = imp.Name.Name
-				}
-
-				// Match by alias or by path suffix
-				if (alias != "" && alias == pkgName) || strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
-					if !seenPaths[path] {
-						seenPaths[path] = true
-						imports = append(imports, importInfo{Alias: pkgName, Path: path})
-					}
-
-					break
-				}
-			}
-		}
+		imports = gen.collectImportFromSelector(typedExpr, sourceImports, seenPaths)
 
 	case *dst.StarExpr:
-		imports = append(imports, gen.collectImportsFromExpr(typedExpr.X, sourceImports, seenPaths)...)
+		imports = gen.collectImportsFromExpr(typedExpr.X, sourceImports, seenPaths)
 
 	case *dst.ArrayType:
-		imports = append(imports, gen.collectImportsFromExpr(typedExpr.Elt, sourceImports, seenPaths)...)
+		imports = gen.collectImportsFromExpr(typedExpr.Elt, sourceImports, seenPaths)
 
 	case *dst.MapType:
-		imports = append(imports, gen.collectImportsFromExpr(typedExpr.Key, sourceImports, seenPaths)...)
+		imports = gen.collectImportsFromExpr(typedExpr.Key, sourceImports, seenPaths)
 		imports = append(imports, gen.collectImportsFromExpr(typedExpr.Value, sourceImports, seenPaths)...)
 
 	case *dst.FuncType:
@@ -255,6 +271,7 @@ func (gen *functionDependencyGenerator) collectImportsFromExpr(
 				imports = append(imports, gen.collectImportsFromExpr(field.Type, sourceImports, seenPaths)...)
 			}
 		}
+
 		if typedExpr.Results != nil {
 			for _, field := range typedExpr.Results.List {
 				imports = append(imports, gen.collectImportsFromExpr(field.Type, sourceImports, seenPaths)...)

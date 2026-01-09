@@ -184,11 +184,12 @@ type baseGenerator struct {
 
 // buildParamStrings builds the parameter string and collects parameter names from a function type.
 //
-//nolint:nestif,wsl_v5 // Complex logic for handling named/unnamed params; whitespace for readability
+//nolint:nestif // Complex logic for handling named/unnamed params
 func (baseGen *baseGenerator) buildParamStrings(
 	ftype *dst.FuncType,
 ) (paramsStr string, paramNames []string) {
 	var builder strings.Builder
+
 	first := true
 
 	if ftype.Params != nil {
@@ -200,21 +201,28 @@ func (baseGen *baseGenerator) buildParamStrings(
 					if !first {
 						builder.WriteString(", ")
 					}
+
 					first = false
+
 					builder.WriteString(name.Name)
 					builder.WriteString(" ")
 					builder.WriteString(fieldType)
+
 					paramNames = append(paramNames, name.Name)
 				}
 			} else {
 				paramName := fmt.Sprintf("arg%d", len(paramNames)+1)
+
 				if !first {
 					builder.WriteString(", ")
 				}
+
 				first = false
+
 				builder.WriteString(paramName)
 				builder.WriteString(" ")
 				builder.WriteString(fieldType)
+
 				paramNames = append(paramNames, paramName)
 			}
 		}
@@ -225,7 +233,7 @@ func (baseGen *baseGenerator) buildParamStrings(
 
 // buildResultStrings builds the result string and collects result types from a function type.
 //
-//nolint:cyclop,nestif,intrange,wsl_v5 // Complex logic for formatting results; whitespace for readability
+//nolint:cyclop,nestif,intrange // Complex logic for formatting results
 func (baseGen *baseGenerator) buildResultStrings(
 	ftype *dst.FuncType,
 ) (resultsStr string, resultTypes []string) {
@@ -242,6 +250,7 @@ func (baseGen *baseGenerator) buildResultStrings(
 		}
 
 		first := true
+
 		for _, field := range ftype.Results.List {
 			fieldType := baseGen.typeWithQualifier(field.Type)
 
@@ -254,7 +263,9 @@ func (baseGen *baseGenerator) buildResultStrings(
 				if !first {
 					builder.WriteString(", ")
 				}
+
 				first = false
+
 				builder.WriteString(fieldType)
 				resultTypes = append(resultTypes, fieldType)
 			}
@@ -609,9 +620,10 @@ func buildResultReturnList(resultTypes []string) string {
 
 // buildVariadicArgs checks for variadic parameters and builds argument strings.
 //
-//nolint:wsl_v5,cyclop // Whitespace styling in nested loop logic; complexity from variadic handling
+//nolint:cyclop // complexity from variadic handling
 func buildVariadicArgs(ftype *dst.FuncType, paramNames []string) variadicArgsResult {
 	var hasVariadic bool
+
 	var nonVariadicArgs, variadicArg, allArgs strings.Builder
 
 	if ftype.Params != nil && len(ftype.Params.List) > 0 {
@@ -624,14 +636,17 @@ func buildVariadicArgs(ftype *dst.FuncType, paramNames []string) variadicArgsRes
 			if i > 0 {
 				nonVariadicArgs.WriteString(", ")
 			}
+
 			nonVariadicArgs.WriteString(paramNames[i])
 		}
+
 		variadicArg.WriteString(paramNames[len(paramNames)-1])
 
 		for i, name := range paramNames {
 			if i > 0 {
 				allArgs.WriteString(", ")
 			}
+
 			allArgs.WriteString(name)
 		}
 	} else {
@@ -639,6 +654,7 @@ func buildVariadicArgs(ftype *dst.FuncType, paramNames []string) variadicArgsRes
 			if i > 0 {
 				allArgs.WriteString(", ")
 			}
+
 			allArgs.WriteString(name)
 		}
 	}
