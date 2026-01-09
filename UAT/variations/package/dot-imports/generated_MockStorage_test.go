@@ -7,16 +7,11 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// StorageMock is the mock for Storage.
-type StorageMock struct {
-	imp  *_imptest.Imp
-	Save *StorageMockSaveMethod
-	Load *StorageMockLoadMethod
-}
-
-// Interface returns the Storage implementation that can be passed to code under test.
-func (m *StorageMock) Interface() helpers.Storage {
-	return &mockStorageImpl{mock: m}
+// StorageMockHandle is the test handle for Storage.
+type StorageMockHandle struct {
+	Mock   helpers.Storage
+	Method *StorageMockMethods
+	imp    *_imptest.Imp
 }
 
 // StorageMockLoadArgs holds typed arguments for Load.
@@ -64,6 +59,12 @@ func (m *StorageMockLoadMethod) ExpectCalledWithExactly(key string) *StorageMock
 func (m *StorageMockLoadMethod) ExpectCalledWithMatches(matchers ...any) *StorageMockLoadCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &StorageMockLoadCall{DependencyCall: call}
+}
+
+// StorageMockMethods holds method wrappers for setting expectations.
+type StorageMockMethods struct {
+	Save *StorageMockSaveMethod
+	Load *StorageMockLoadMethod
 }
 
 // StorageMockSaveArgs holds typed arguments for Save.
@@ -115,19 +116,24 @@ func (m *StorageMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *Storag
 	return &StorageMockSaveCall{DependencyCall: call}
 }
 
-// MockStorage creates a new StorageMock for testing.
-func MockStorage(t _imptest.TestReporter) *StorageMock {
+// MockStorage creates a new StorageMockHandle for testing.
+func MockStorage(t _imptest.TestReporter) *StorageMockHandle {
 	imp := _imptest.NewImp(t)
-	return &StorageMock{
-		imp:  imp,
+	methods := &StorageMockMethods{
 		Save: &StorageMockSaveMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Save")},
 		Load: &StorageMockLoadMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Load")},
 	}
+	h := &StorageMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockStorageImpl{handle: h}
+	return h
 }
 
 // mockStorageImpl implements helpers.Storage.
 type mockStorageImpl struct {
-	mock *StorageMock
+	handle *StorageMockHandle
 }
 
 // Load implements helpers.Storage.Load.
@@ -137,7 +143,7 @@ func (impl *mockStorageImpl) Load(key string) (string, error) {
 		Args:         []any{key},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -167,7 +173,7 @@ func (impl *mockStorageImpl) Save(key string, value string) error {
 		Args:         []any{key, value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

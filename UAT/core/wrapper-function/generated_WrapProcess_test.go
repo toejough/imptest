@@ -15,7 +15,11 @@ type WrapProcessReturnsReturn struct {
 }
 
 // WrapProcessWrapper wraps a function for testing.
-type WrapProcessWrapper struct {
+type WrapProcessWrapperHandle struct {
+	Method *WrapProcessWrapperMethod
+}
+
+type WrapProcessWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(x int) (string, error)
 }
@@ -26,7 +30,7 @@ type WrapProcessCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapProcessWrapper) Start(x int) *WrapProcessCallHandle {
+func (w *WrapProcessWrapperMethod) Start(x int) *WrapProcessCallHandle {
 	handle := &WrapProcessCallHandle{
 		CallableController: _imptest.NewCallableController[WrapProcessReturnsReturn](w.t),
 	}
@@ -115,9 +119,11 @@ func (h *WrapProcessCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapProcess wraps a function for testing.
-func WrapProcess(t _imptest.TestReporter, fn func(x int) (string, error)) *WrapProcessWrapper {
-	return &WrapProcessWrapper{
-		t:        t,
-		callable: fn,
+func WrapProcess(t _imptest.TestReporter, fn func(x int) (string, error)) *WrapProcessWrapperHandle {
+	return &WrapProcessWrapperHandle{
+		Method: &WrapProcessWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

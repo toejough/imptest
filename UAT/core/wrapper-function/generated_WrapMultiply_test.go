@@ -14,7 +14,11 @@ type WrapMultiplyReturnsReturn struct {
 }
 
 // WrapMultiplyWrapper wraps a function for testing.
-type WrapMultiplyWrapper struct {
+type WrapMultiplyWrapperHandle struct {
+	Method *WrapMultiplyWrapperMethod
+}
+
+type WrapMultiplyWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(a, b int) int
 }
@@ -25,7 +29,7 @@ type WrapMultiplyCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapMultiplyWrapper) Start(a, b int) *WrapMultiplyCallHandle {
+func (w *WrapMultiplyWrapperMethod) Start(a, b int) *WrapMultiplyCallHandle {
 	handle := &WrapMultiplyCallHandle{
 		CallableController: _imptest.NewCallableController[WrapMultiplyReturnsReturn](w.t),
 	}
@@ -107,9 +111,11 @@ func (h *WrapMultiplyCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapMultiply wraps a function for testing.
-func WrapMultiply(t _imptest.TestReporter, fn func(a, b int) int) *WrapMultiplyWrapper {
-	return &WrapMultiplyWrapper{
-		t:        t,
-		callable: fn,
+func WrapMultiply(t _imptest.TestReporter, fn func(a, b int) int) *WrapMultiplyWrapperHandle {
+	return &WrapMultiplyWrapperHandle{
+		Method: &WrapMultiplyWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

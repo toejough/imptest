@@ -20,7 +20,7 @@ func TestInterfaceWrapper_CallHandleHasExpectMethods(t *testing.T) {
 	calc := handlers.NewCalculatorImpl(2)
 	wrapper := WrapCalculator(t, calc)
 
-	call := wrapper.Add.Start(5, 7)
+	call := wrapper.Method.Add.Start(5, 7)
 
 	// ExpectReturnsEqual should work
 	call.ExpectReturnsEqual(14) // 2 + 5 + 7
@@ -36,7 +36,7 @@ func TestInterfaceWrapper_CallHandleHasReturnedField(t *testing.T) {
 	calc := handlers.NewCalculatorImpl(1)
 	wrapper := WrapCalculator(t, calc)
 
-	call := wrapper.Divide.Start(10, 2)
+	call := wrapper.Method.Divide.Start(10, 2)
 
 	// WaitForResponse should be available for manual waiting
 	call.WaitForResponse()
@@ -69,9 +69,9 @@ func TestInterfaceWrapper_ConcurrentCalls(t *testing.T) {
 	wrapper := WrapCalculator(t, calc)
 
 	// Start 3 concurrent calls
-	call1 := wrapper.Add.Start(1, 1)
-	call2 := wrapper.Add.Start(10, 10)
-	call3 := wrapper.Add.Start(100, 100)
+	call1 := wrapper.Method.Add.Start(1, 1)
+	call2 := wrapper.Method.Add.Start(10, 10)
+	call3 := wrapper.Method.Add.Start(100, 100)
 
 	// Each handle should independently verify its own results
 	call1.ExpectReturnsEqual(2)
@@ -86,7 +86,7 @@ func TestInterfaceWrapper_ExpectReturnsMatch(t *testing.T) {
 	calc := handlers.NewCalculatorImpl(2)
 	wrapper := WrapCalculator(t, calc)
 
-	call := wrapper.Divide.Start(10, 2)
+	call := wrapper.Method.Divide.Start(10, 2)
 
 	// Should be able to use matchers
 	call.ExpectReturnsMatch(
@@ -102,7 +102,7 @@ func TestInterfaceWrapper_MultipleReturns(t *testing.T) {
 	calc := handlers.NewCalculatorImpl(1)
 	wrapper := WrapCalculator(t, calc)
 
-	call := wrapper.Divide.Start(20, 4)
+	call := wrapper.Method.Divide.Start(20, 4)
 	call.ExpectReturnsEqual(5, true)
 }
 
@@ -116,7 +116,7 @@ func TestInterfaceWrapper_MultiplyMethod(t *testing.T) {
 	wrapper := WrapCalculator(t, calc)
 
 	// Call Multiply directly to ensure coverage
-	wrapper.Multiply.Start(7).ExpectReturnsEqual(21)
+	wrapper.Method.Multiply.Start(7).ExpectReturnsEqual(21)
 }
 
 // TestInterfaceWrapper_NoGetCallsMethod verifies GetCalls() doesn't exist.
@@ -135,8 +135,8 @@ func TestInterfaceWrapper_NoGetCallsMethod(t *testing.T) {
 		GetCalls() any
 	}
 
-	if _, hasGetCalls := any(wrapper.Add).(getCaller); hasGetCalls {
-		t.Fatalf("wrapper.Add has GetCalls() method - this should not exist with call handle pattern")
+	if _, hasGetCalls := any(wrapper.Method.Add).(getCaller); hasGetCalls {
+		t.Fatalf("wrapper.Method.Add has GetCalls() method - this should not exist with call handle pattern")
 	}
 }
 
@@ -149,7 +149,7 @@ func TestInterfaceWrapper_PanicCapture(t *testing.T) {
 	calc := handlers.NewCalculatorImpl(5)
 	wrapper := WrapCalculator(t, calc)
 
-	call := wrapper.ProcessValue.Start(-1)
+	call := wrapper.Method.ProcessValue.Start(-1)
 	call.ExpectPanicEquals("negative values not supported")
 }
 
@@ -162,7 +162,7 @@ func TestInterfaceWrapper_PanicFieldAccess(t *testing.T) {
 	calc := handlers.NewCalculatorImpl(5)
 	wrapper := WrapCalculator(t, calc)
 
-	call := wrapper.ProcessValue.Start(-1)
+	call := wrapper.Method.ProcessValue.Start(-1)
 	call.WaitForResponse()
 
 	// After panic, Panicked field should be set
@@ -194,8 +194,8 @@ func TestInterfaceWrapper_StartReturnsUniqueCallHandles(t *testing.T) {
 	wrapper := WrapCalculator(t, calc)
 
 	// Start two calls to the same method - each should return different handle
-	call1 := wrapper.Add.Start(5, 3)
-	call2 := wrapper.Add.Start(10, 20)
+	call1 := wrapper.Method.Add.Start(5, 3)
+	call2 := wrapper.Method.Add.Start(10, 20)
 
 	// Verify they are different objects (not same pointer)
 	if call1 == call2 {

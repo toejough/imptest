@@ -7,17 +7,18 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ServiceMock is the mock for Service.
-type ServiceMock struct {
-	imp        *_imptest.Imp
+// ServiceMockHandle is the test handle for Service.
+type ServiceMockHandle struct {
+	Mock   orderedvsmode.Service
+	Method *ServiceMockMethods
+	imp    *_imptest.Imp
+}
+
+// ServiceMockMethods holds method wrappers for setting expectations.
+type ServiceMockMethods struct {
 	OperationA *ServiceMockOperationAMethod
 	OperationB *ServiceMockOperationBMethod
 	OperationC *ServiceMockOperationCMethod
-}
-
-// Interface returns the Service implementation that can be passed to code under test.
-func (m *ServiceMock) Interface() orderedvsmode.Service {
-	return &mockServiceImpl{mock: m}
 }
 
 // ServiceMockOperationAArgs holds typed arguments for OperationA.
@@ -161,20 +162,25 @@ func (m *ServiceMockOperationCMethod) ExpectCalledWithMatches(matchers ...any) *
 	return &ServiceMockOperationCCall{DependencyCall: call}
 }
 
-// MockService creates a new ServiceMock for testing.
-func MockService(t _imptest.TestReporter) *ServiceMock {
+// MockService creates a new ServiceMockHandle for testing.
+func MockService(t _imptest.TestReporter) *ServiceMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ServiceMock{
-		imp:        imp,
+	methods := &ServiceMockMethods{
 		OperationA: &ServiceMockOperationAMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "OperationA")},
 		OperationB: &ServiceMockOperationBMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "OperationB")},
 		OperationC: &ServiceMockOperationCMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "OperationC")},
 	}
+	h := &ServiceMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockServiceImpl{handle: h}
+	return h
 }
 
 // mockServiceImpl implements orderedvsmode.Service.
 type mockServiceImpl struct {
-	mock *ServiceMock
+	handle *ServiceMockHandle
 }
 
 // OperationA implements orderedvsmode.Service.OperationA.
@@ -184,7 +190,7 @@ func (impl *mockServiceImpl) OperationA(id int) error {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -207,7 +213,7 @@ func (impl *mockServiceImpl) OperationB(id int) error {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -230,7 +236,7 @@ func (impl *mockServiceImpl) OperationC(id int) error {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

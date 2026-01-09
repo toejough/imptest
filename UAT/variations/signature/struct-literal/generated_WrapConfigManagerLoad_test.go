@@ -90,8 +90,13 @@ type WrapConfigManagerLoadReturnsReturn struct {
 	}
 }
 
-// WrapConfigManagerLoadWrapper wraps a function for testing.
-type WrapConfigManagerLoadWrapper struct {
+// WrapConfigManagerLoadWrapperHandle is the test handle for a wrapped function.
+type WrapConfigManagerLoadWrapperHandle struct {
+	Method *WrapConfigManagerLoadWrapperMethod
+}
+
+// WrapConfigManagerLoadWrapperMethod wraps a function for testing.
+type WrapConfigManagerLoadWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(string) struct {
 		Host string
@@ -101,9 +106,9 @@ type WrapConfigManagerLoadWrapper struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapConfigManagerLoadWrapper) Start(path string) *WrapConfigManagerLoadCallHandle {
+func (m *WrapConfigManagerLoadWrapperMethod) Start(path string) *WrapConfigManagerLoadCallHandle {
 	handle := &WrapConfigManagerLoadCallHandle{
-		CallableController: _imptest.NewCallableController[WrapConfigManagerLoadReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapConfigManagerLoadReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -111,7 +116,7 @@ func (w *WrapConfigManagerLoadWrapper) Start(path string) *WrapConfigManagerLoad
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(path)
+		ret0 := m.callable(path)
 		handle.ReturnChan <- WrapConfigManagerLoadReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -122,9 +127,11 @@ func WrapConfigManagerLoad(t _imptest.TestReporter, fn func(string) struct {
 	Host string
 	Port int
 	TLS  bool
-}) *WrapConfigManagerLoadWrapper {
-	return &WrapConfigManagerLoadWrapper{
-		t:        t,
-		callable: fn,
+}) *WrapConfigManagerLoadWrapperHandle {
+	return &WrapConfigManagerLoadWrapperHandle{
+		Method: &WrapConfigManagerLoadWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

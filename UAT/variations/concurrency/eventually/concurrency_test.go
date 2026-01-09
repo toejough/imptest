@@ -27,17 +27,17 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 
 	// Run the code under test. It will call DoA and DoB concurrently.
 	go func() {
-		resultChan <- concurrency.RunConcurrent(mock.Interface(), 123)
+		resultChan <- concurrency.RunConcurrent(mock.Mock, 123)
 	}()
 
 	// Requirement: We can expect DoA then DoB, even if the code calls them in reverse order.
 	// The .Eventually() modifier tells imptest to wait indefinitely for the call.
 
 	// 1. Expect DoA(123) to be called.
-	mock.DoA.Eventually().ExpectCalledWithExactly(123).InjectReturnValues("Result A")
+	mock.Method.DoA.Eventually().ExpectCalledWithExactly(123).InjectReturnValues("Result A")
 
 	// 2. Expect DoB(123) to be called.
-	mock.DoB.Eventually().ExpectCalledWithExactly(123).InjectReturnValues("Result B")
+	mock.Method.DoB.Eventually().ExpectCalledWithExactly(123).InjectReturnValues("Result B")
 
 	// Wait for the code under test to finish and verify results.
 	results := <-resultChan
@@ -59,13 +59,13 @@ func TestExplicitReversedExpectation(t *testing.T) {
 	resultChan := make(chan []string, 1)
 
 	go func() {
-		resultChan <- concurrency.RunConcurrent(mock.Interface(), 456)
+		resultChan <- concurrency.RunConcurrent(mock.Mock, 456)
 	}()
 
 	// Requirement: Demonstrate that we can wait for DoB first, then DoA,
 	// regardless of which one the system-under-test triggers first.
-	mock.DoB.Eventually().ExpectCalledWithExactly(456).InjectReturnValues("Result B")
-	mock.DoA.Eventually().ExpectCalledWithExactly(456).InjectReturnValues("Result A")
+	mock.Method.DoB.Eventually().ExpectCalledWithExactly(456).InjectReturnValues("Result B")
+	mock.Method.DoA.Eventually().ExpectCalledWithExactly(456).InjectReturnValues("Result A")
 
 	results := <-resultChan
 	if results[0] != "Result A" || results[1] != "Result B" {

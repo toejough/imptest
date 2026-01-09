@@ -22,9 +22,9 @@ func TestCallHandle_ConcurrentCalls(t *testing.T) {
 
 	// Start 3 concurrent calls with different delays
 	// call3 finishes first (10ms), call2 second (20ms), call1 last (30ms)
-	call1 := wrapper.Start(1, 2, 30*time.Millisecond)
-	call2 := wrapper.Start(10, 20, 20*time.Millisecond)
-	call3 := wrapper.Start(100, 200, 10*time.Millisecond)
+	call1 := wrapper.Method.Start(1, 2, 30*time.Millisecond)
+	call2 := wrapper.Method.Start(10, 20, 20*time.Millisecond)
+	call3 := wrapper.Method.Start(100, 200, 10*time.Millisecond)
 
 	// Despite finish order (3, 2, 1), each handle should track its own result
 	call1.ExpectReturnsEqual(3)
@@ -46,7 +46,7 @@ func TestCallHandle_ExpectCallsWaitForResponse(t *testing.T) {
 	}
 	wrapper := WrapSlowFunc(t, slowFunc)
 
-	call := wrapper.Start()
+	call := wrapper.Method.Start()
 
 	// ExpectReturnsEqual should wait internally - no need to call WaitForResponse first
 	// If this fails (times out or gets wrong value), the Expect method didn't wait properly
@@ -66,7 +66,7 @@ func TestCallHandle_ExpectReturnsMatch(t *testing.T) {
 	}
 	wrapper := WrapProcess(t, process)
 
-	call := wrapper.Start(10)
+	call := wrapper.Method.Start(10)
 
 	// Should be able to use matchers (using Any() matcher)
 	call.ExpectReturnsMatch(
@@ -88,7 +88,7 @@ func TestCallHandle_HasExpectMethods(t *testing.T) {
 	multiply := func(a, b int) int { return a * b }
 	wrapper := WrapMultiply(t, multiply)
 
-	call := wrapper.Start(5, 7)
+	call := wrapper.Method.Start(5, 7)
 
 	// ExpectReturnsEqual should work
 	call.ExpectReturnsEqual(35)
@@ -106,8 +106,8 @@ func TestCallHandle_InterleavedStarts(t *testing.T) {
 	wrapper := WrapSlowMultiply(t, slowMultiply)
 
 	// Start call1, then call2, but call2 finishes first
-	call1 := wrapper.Start(10, 100*time.Millisecond)
-	call2 := wrapper.Start(20, 10*time.Millisecond)
+	call1 := wrapper.Method.Start(10, 100*time.Millisecond)
+	call2 := wrapper.Method.Start(20, 10*time.Millisecond)
 
 	// Verify in order started (not finish order)
 	call1.ExpectReturnsEqual(20)
@@ -132,7 +132,7 @@ func TestCallHandle_ManualFieldAccess(t *testing.T) {
 	}
 	wrapper := WrapDivide(t, divide)
 
-	call := wrapper.Start(10, 2)
+	call := wrapper.Method.Start(10, 2)
 
 	// WaitForResponse should be available for manual waiting
 	call.WaitForResponse()
@@ -161,7 +161,7 @@ func TestCallHandle_ManualPanicFieldAccess(t *testing.T) {
 	panicFunc := func() int { panic("error") }
 	wrapper := WrapPanicInt(t, panicFunc)
 
-	call := wrapper.Start()
+	call := wrapper.Method.Start()
 	call.WaitForResponse()
 
 	// After panic, Panicked field should be set
@@ -188,7 +188,7 @@ func TestCallHandle_MultipleReturns(t *testing.T) {
 	}
 	wrapper := WrapCompute(t, compute)
 
-	call := wrapper.Start(21)
+	call := wrapper.Method.Start(21)
 	call.ExpectReturnsEqual(42, "computed", true)
 }
 
@@ -202,7 +202,7 @@ func TestCallHandle_NoReturns(t *testing.T) {
 	}
 	wrapper := WrapSideEffect(t, sideEffect)
 
-	call := wrapper.Start(100)
+	call := wrapper.Method.Start(100)
 
 	// Should have WaitForResponse even if no return values
 	call.WaitForResponse()
@@ -225,8 +225,8 @@ func TestCallHandle_PanicAndReturnDifferentCalls(t *testing.T) {
 	}
 	wrapper := WrapConditional(t, conditional)
 
-	callPanic := wrapper.Start(-5)
-	callReturn := wrapper.Start(5)
+	callPanic := wrapper.Method.Start(-5)
+	callReturn := wrapper.Method.Start(5)
 
 	// One should panic, one should return - independent verification
 	callPanic.ExpectPanicEquals("negative value")
@@ -242,7 +242,7 @@ func TestCallHandle_PanicCapture(t *testing.T) {
 	panicFunc := func() { panic("boom") }
 	wrapper := WrapPanic(t, panicFunc)
 
-	call := wrapper.Start()
+	call := wrapper.Method.Start()
 	call.ExpectPanicEquals("boom")
 }
 
@@ -257,7 +257,7 @@ func TestCallHandle_PanicMatches(t *testing.T) {
 	}
 	wrapper := WrapPanicWithMessage(t, panicFunc)
 
-	call := wrapper.Start("critical error")
+	call := wrapper.Method.Start("critical error")
 	// Use Any() matcher to accept any panic value
 	call.ExpectPanicMatches(imptest.Any())
 }
@@ -274,8 +274,8 @@ func TestCallHandle_UniqueHandles(t *testing.T) {
 	wrapper := WrapAdd(t, add)
 
 	// Start two calls - each should return a different handle
-	call1 := wrapper.Start(10, 20)
-	call2 := wrapper.Start(30, 40)
+	call1 := wrapper.Method.Start(10, 20)
+	call2 := wrapper.Method.Start(30, 40)
 
 	// Verify they are different objects (not same pointer)
 	if call1 == call2 {

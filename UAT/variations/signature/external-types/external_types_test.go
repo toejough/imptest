@@ -10,5 +10,5 @@ func TestExternalTypesCompile(t *testing.T) {
 	t.Parallel()
 	// If this compiles, the imports are correct - v2 API test
 	mock := MockFileHandler(t)
-	_ = mock.Interface()
+	_ = mock.Mock
 }

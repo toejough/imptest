@@ -3,106 +3,120 @@
 package generics_test
 
 import (
-	_reflect "reflect"
-
 	generics "github.com/toejough/imptest/UAT/variations/signature/generics"
 	_imptest "github.com/toejough/imptest/imptest"
+	_reflect "reflect"
 )
+
+// WrapProcessItemCallHandle represents a single call to the wrapped function.
+type WrapProcessItemCallHandle[T any] struct {
+	*_imptest.CallableController[WrapProcessItemReturnsReturn[T]]
+}
+
+// ExpectPanicEquals verifies the function panics with the expected value.
+func (h *WrapProcessItemCallHandle[T]) ExpectPanicEquals(expected any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, expected)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
+func (h *WrapProcessItemCallHandle[T]) ExpectPanicMatches(matcher any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Panicked != nil {
+		ok, msg := _imptest.MatchValue(h.Panicked, matcher)
+		if !ok {
+			h.T.Fatalf("panic value: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to panic, but it returned")
+}
+
+// ExpectReturnsEqual verifies the function returned the expected values.
+func (h *WrapProcessItemCallHandle[T]) ExpectReturnsEqual(v0 error) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		if !_reflect.DeepEqual(h.Returned.Result0, v0) {
+			h.T.Fatalf("expected return value 0 to be %v, got %v", v0, h.Returned.Result0)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
+
+// ExpectReturnsMatch verifies the return values match the given matchers.
+func (h *WrapProcessItemCallHandle[T]) ExpectReturnsMatch(v0 any) {
+	h.T.Helper()
+	h.WaitForResponse()
+
+	if h.Returned != nil {
+		var ok bool
+		var msg string
+		ok, msg = _imptest.MatchValue(h.Returned.Result0, v0)
+		if !ok {
+			h.T.Fatalf("return value 0: %s", msg)
+		}
+		return
+	}
+
+	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
+}
 
 // WrapProcessItemReturnsReturn holds the return values from the wrapped function.
 type WrapProcessItemReturnsReturn[T any] struct {
 	Result0 error
 }
 
-// WrapProcessItemWrapper wraps a function for testing.
-type WrapProcessItemWrapper[T any] struct {
-	*_imptest.CallableController[WrapProcessItemReturnsReturn[T]]
+// WrapProcessItemWrapperHandle is the test handle for a wrapped function.
+type WrapProcessItemWrapperHandle[T any] struct {
+	Method *WrapProcessItemWrapperMethod[T]
+}
+
+// WrapProcessItemWrapperMethod wraps a function for testing.
+type WrapProcessItemWrapperMethod[T any] struct {
+	t        _imptest.TestReporter
 	callable func(generics.Repository[T], string, func(T) T) error
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapProcessItemWrapper[T]) ExpectPanicEquals(expected any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, expected)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapProcessItemWrapper[T]) ExpectPanicMatches(matcher any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Panicked != nil {
-		ok, msg := _imptest.MatchValue(w.Panicked, matcher)
-		if !ok {
-			w.T.Fatalf("panic value: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to panic, but it returned")
-}
-
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (w *WrapProcessItemWrapper[T]) ExpectReturnsEqual(v0 error) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		if !_reflect.DeepEqual(w.Returned.Result0, v0) {
-			w.T.Fatalf("expected return value 0 to be %v, got %v", v0, w.Returned.Result0)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (w *WrapProcessItemWrapper[T]) ExpectReturnsMatch(v0 any) {
-	w.T.Helper()
-	w.WaitForResponse()
-
-	if w.Returned != nil {
-		var ok bool
-		var msg string
-		ok, msg = _imptest.MatchValue(w.Returned.Result0, v0)
-		if !ok {
-			w.T.Fatalf("return value 0: %s", msg)
-		}
-		return
-	}
-
-	w.T.Fatalf("expected function to return, but it panicked with: %v", w.Panicked)
-}
-
 // Start executes the wrapped function in a goroutine.
-func (w *WrapProcessItemWrapper[T]) Start(repo generics.Repository[T], id string, transformer func(T) T) *WrapProcessItemWrapper[T] {
+func (m *WrapProcessItemWrapperMethod[T]) Start(repo generics.Repository[T], id string, transformer func(T) T) *WrapProcessItemCallHandle[T] {
+	handle := &WrapProcessItemCallHandle[T]{
+		CallableController: _imptest.NewCallableController[WrapProcessItemReturnsReturn[T]](m.t),
+	}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				w.PanicChan <- r
+				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(repo, id, transformer)
-		w.ReturnChan <- WrapProcessItemReturnsReturn[T]{Result0: ret0}
+		ret0 := m.callable(repo, id, transformer)
+		handle.ReturnChan <- WrapProcessItemReturnsReturn[T]{Result0: ret0}
 	}()
-	return w
+	return handle
 }
 
 // WrapProcessItem wraps a function for testing.
-func WrapProcessItem[T any](t _imptest.TestReporter, fn func(generics.Repository[T], string, func(T) T) error) *WrapProcessItemWrapper[T] {
-	return &WrapProcessItemWrapper[T]{
-		CallableController: _imptest.NewCallableController[WrapProcessItemReturnsReturn[T]](t),
-		callable:           fn,
+func WrapProcessItem[T any](t _imptest.TestReporter, fn func(generics.Repository[T], string, func(T) T) error) *WrapProcessItemWrapperHandle[T] {
+	return &WrapProcessItemWrapperHandle[T]{
+		Method: &WrapProcessItemWrapperMethod[T]{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

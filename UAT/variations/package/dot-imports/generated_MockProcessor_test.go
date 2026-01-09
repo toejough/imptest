@@ -7,15 +7,16 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ProcessorMock is the mock for Processor.
-type ProcessorMock struct {
-	imp     *_imptest.Imp
-	Process *ProcessorMockProcessMethod
+// ProcessorMockHandle is the test handle for Processor.
+type ProcessorMockHandle struct {
+	Mock   helpers.Processor
+	Method *ProcessorMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the Processor implementation that can be passed to code under test.
-func (m *ProcessorMock) Interface() helpers.Processor {
-	return &mockProcessorImpl{mock: m}
+// ProcessorMockMethods holds method wrappers for setting expectations.
+type ProcessorMockMethods struct {
+	Process *ProcessorMockProcessMethod
 }
 
 // ProcessorMockProcessArgs holds typed arguments for Process.
@@ -65,18 +66,23 @@ func (m *ProcessorMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *P
 	return &ProcessorMockProcessCall{DependencyCall: call}
 }
 
-// MockProcessor creates a new ProcessorMock for testing.
-func MockProcessor(t _imptest.TestReporter) *ProcessorMock {
+// MockProcessor creates a new ProcessorMockHandle for testing.
+func MockProcessor(t _imptest.TestReporter) *ProcessorMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ProcessorMock{
-		imp:     imp,
+	methods := &ProcessorMockMethods{
 		Process: &ProcessorMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
 	}
+	h := &ProcessorMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockProcessorImpl{handle: h}
+	return h
 }
 
 // mockProcessorImpl implements helpers.Processor.
 type mockProcessorImpl struct {
-	mock *ProcessorMock
+	handle *ProcessorMockHandle
 }
 
 // Process implements helpers.Processor.Process.
@@ -86,7 +92,7 @@ func (impl *mockProcessorImpl) Process(input string) string {
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

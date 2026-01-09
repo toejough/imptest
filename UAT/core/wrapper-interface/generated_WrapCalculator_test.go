@@ -9,15 +9,6 @@ import (
 	"testing"
 )
 
-// WrapCalculatorWrapper wraps an implementation of handlers.Calculator to intercept method calls.
-type WrapCalculatorWrapper struct {
-	impl         handlers.Calculator
-	Add          *WrapCalculatorWrapperAddWrapper
-	Divide       *WrapCalculatorWrapperDivideWrapper
-	Multiply     *WrapCalculatorWrapperMultiplyWrapper
-	ProcessValue *WrapCalculatorWrapperProcessValueWrapper
-}
-
 // WrapCalculatorWrapperAddCallHandle represents a single call to the wrapped method.
 type WrapCalculatorWrapperAddCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorWrapperAddReturns]
@@ -238,6 +229,20 @@ func (w *WrapCalculatorWrapperDivideWrapper) Start(numerator int, denominator in
 	return handle
 }
 
+// WrapCalculatorWrapperHandle wraps an implementation of handlers.Calculator to intercept method calls.
+type WrapCalculatorWrapperHandle struct {
+	Method *WrapCalculatorWrapperMethods
+	impl   handlers.Calculator
+}
+
+// WrapCalculatorWrapperMethods holds method wrappers for all intercepted methods.
+type WrapCalculatorWrapperMethods struct {
+	Add          *WrapCalculatorWrapperAddWrapper
+	Divide       *WrapCalculatorWrapperDivideWrapper
+	Multiply     *WrapCalculatorWrapperMultiplyWrapper
+	ProcessValue *WrapCalculatorWrapperProcessValueWrapper
+}
+
 // WrapCalculatorWrapperMultiplyCallHandle represents a single call to the wrapped method.
 type WrapCalculatorWrapperMultiplyCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorWrapperMultiplyReturns]
@@ -451,27 +456,28 @@ func (w *WrapCalculatorWrapperProcessValueWrapper) Start(value int) *WrapCalcula
 }
 
 // WrapCalculator creates a new wrapper for the given handlers.Calculator implementation.
-func WrapCalculator(t *testing.T, impl handlers.Calculator) *WrapCalculatorWrapper {
-	w := &WrapCalculatorWrapper{
-		impl: impl,
+func WrapCalculator(t *testing.T, impl handlers.Calculator) *WrapCalculatorWrapperHandle {
+	h := &WrapCalculatorWrapperHandle{
+		impl:   impl,
+		Method: &WrapCalculatorWrapperMethods{},
 	}
-	w.Add = wrapWrapCalculatorWrapperAdd(t, func(a int, b int) WrapCalculatorWrapperAddReturns {
-		r0 := w.impl.Add(a, b)
+	h.Method.Add = wrapWrapCalculatorWrapperAdd(t, func(a int, b int) WrapCalculatorWrapperAddReturns {
+		r0 := h.impl.Add(a, b)
 		return WrapCalculatorWrapperAddReturns{Result0: r0}
 	})
-	w.Divide = wrapWrapCalculatorWrapperDivide(t, func(numerator int, denominator int) WrapCalculatorWrapperDivideReturns {
-		r0, r1 := w.impl.Divide(numerator, denominator)
+	h.Method.Divide = wrapWrapCalculatorWrapperDivide(t, func(numerator int, denominator int) WrapCalculatorWrapperDivideReturns {
+		r0, r1 := h.impl.Divide(numerator, denominator)
 		return WrapCalculatorWrapperDivideReturns{Result0: r0, Result1: r1}
 	})
-	w.Multiply = wrapWrapCalculatorWrapperMultiply(t, func(value int) WrapCalculatorWrapperMultiplyReturns {
-		r0 := w.impl.Multiply(value)
+	h.Method.Multiply = wrapWrapCalculatorWrapperMultiply(t, func(value int) WrapCalculatorWrapperMultiplyReturns {
+		r0 := h.impl.Multiply(value)
 		return WrapCalculatorWrapperMultiplyReturns{Result0: r0}
 	})
-	w.ProcessValue = wrapWrapCalculatorWrapperProcessValue(t, func(value int) WrapCalculatorWrapperProcessValueReturns {
-		r0 := w.impl.ProcessValue(value)
+	h.Method.ProcessValue = wrapWrapCalculatorWrapperProcessValue(t, func(value int) WrapCalculatorWrapperProcessValueReturns {
+		r0 := h.impl.ProcessValue(value)
 		return WrapCalculatorWrapperProcessValueReturns{Result0: r0}
 	})
-	return w
+	return h
 }
 
 func wrapWrapCalculatorWrapperAdd(t *testing.T, fn func(a int, b int) WrapCalculatorWrapperAddReturns) *WrapCalculatorWrapperAddWrapper {

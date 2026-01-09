@@ -37,13 +37,13 @@ func TestBusinessLogic(t *testing.T) {
 
 	// Start the business logic in a goroutine.
 	// We pass the mock implementation and the input arguments.
-	call := wrapper.Start(mockSvc.Interface(), 42)
+	call := wrapper.Method.Start(mockSvc.Mock, 42)
 
 	// 1. Expect call to FetchData and provide response.
-	mockSvc.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("raw data", nil)
+	mockSvc.Method.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("raw data", nil)
 
 	// 2. Expect call to Process and provide response.
-	mockSvc.Process.ExpectCalledWithExactly("raw data").InjectReturnValues("processed data")
+	mockSvc.Method.Process.ExpectCalledWithExactly("raw data").InjectReturnValues("processed data")
 
 	// 3. Verify the final output of the business logic.
 	call.ExpectReturnsEqual("Result: processed data", nil)
@@ -60,10 +60,10 @@ func TestBusinessLogicError(t *testing.T) {
 	mockSvc := MockExternalService(t)
 	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
-	call := wrapper.Start(mockSvc.Interface(), 99)
+	call := wrapper.Method.Start(mockSvc.Mock, 99)
 
 	// Simulate an error from the service.
-	mockSvc.FetchData.ExpectCalledWithExactly(99).InjectReturnValues("", errNotFound)
+	mockSvc.Method.FetchData.ExpectCalledWithExactly(99).InjectReturnValues("", errNotFound)
 
 	// Requirement: Verify that the business logic returns the error.
 	// We use Satisfies to check if the error is (or wraps) errNotFound.
@@ -86,7 +86,7 @@ func TestCalculatorAdd(t *testing.T) { //nolint:varnamelen // Standard Go test c
 	wrapper := WrapCalculatorAdd(t, calc.Add)
 
 	// Start the method with test arguments
-	wrapper.Start(5, 3).ExpectReturnsEqual(8)
+	wrapper.Method.Start(5, 3).ExpectReturnsEqual(8)
 }
 
 // TestCalculatorDivide demonstrates wrapping a method with multiple return values.
@@ -99,7 +99,7 @@ func TestCalculatorDivide(t *testing.T) { //nolint:varnamelen // Standard Go tes
 	wrapper := WrapCalculatorDivide(t, calc.Divide)
 
 	// Test successful division
-	wrapper.Start(10, 2).ExpectReturnsEqual(5, true)
+	wrapper.Method.Start(10, 2).ExpectReturnsEqual(5, true)
 }
 
 // TestCalculatorDivideByZero demonstrates testing error conditions.
@@ -112,7 +112,7 @@ func TestCalculatorDivideByZero(t *testing.T) { //nolint:varnamelen // Standard 
 	wrapper := WrapCalculatorDivide(t, calc.Divide)
 
 	// Test division by zero returns false
-	wrapper.Start(10, 0).ExpectReturnsEqual(0, false)
+	wrapper.Method.Start(10, 0).ExpectReturnsEqual(0, false)
 }
 
 // TestCalculatorMultiply demonstrates wrapping a method that uses receiver state.
@@ -126,7 +126,7 @@ func TestCalculatorMultiply(t *testing.T) { //nolint:varnamelen // Standard Go t
 	wrapper := WrapCalculatorMultiply(t, calc.Multiply)
 
 	// Test that it correctly applies the multiplier
-	wrapper.Start(7).ExpectReturnsEqual(21)
+	wrapper.Method.Start(7).ExpectReturnsEqual(21)
 }
 
 // TestCalculatorProcessValuePanic demonstrates testing panic behavior.
@@ -139,7 +139,7 @@ func TestCalculatorProcessValuePanic(t *testing.T) { //nolint:varnamelen // Stan
 	wrapper := WrapCalculatorProcessValue(t, calc.ProcessValue)
 
 	// Test that negative values cause a panic
-	wrapper.Start(-1).ExpectPanicEquals("negative values not supported")
+	wrapper.Method.Start(-1).ExpectPanicEquals("negative values not supported")
 }
 
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.
@@ -152,7 +152,7 @@ func TestCalculatorProcessValueSuccess(t *testing.T) { //nolint:varnamelen // St
 	wrapper := WrapCalculatorProcessValue(t, calc.ProcessValue)
 
 	// Test normal case: (3 * 5) + 10 = 25
-	wrapper.Start(3).ExpectReturnsEqual(25)
+	wrapper.Method.Start(3).ExpectReturnsEqual(25)
 }
 
 // unexported variables.

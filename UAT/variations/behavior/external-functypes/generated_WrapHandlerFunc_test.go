@@ -58,16 +58,21 @@ func (h *WrapHandlerFuncCallHandle) ExpectPanicMatches(matcher any) {
 type WrapHandlerFuncReturnsReturn struct {
 }
 
-// WrapHandlerFuncWrapper wraps a function for testing.
-type WrapHandlerFuncWrapper struct {
+// WrapHandlerFuncWrapperHandle is the test handle for a wrapped function.
+type WrapHandlerFuncWrapperHandle struct {
+	Method *WrapHandlerFuncWrapperMethod
+}
+
+// WrapHandlerFuncWrapperMethod wraps a function for testing.
+type WrapHandlerFuncWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(http.ResponseWriter, *http.Request)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapHandlerFuncWrapper) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncCallHandle {
+func (m *WrapHandlerFuncWrapperMethod) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncCallHandle {
 	handle := &WrapHandlerFuncCallHandle{
-		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -75,16 +80,18 @@ func (w *WrapHandlerFuncWrapper) Start(arg1 http.ResponseWriter, arg2 *http.Requ
 				handle.PanicChan <- r
 			}
 		}()
-		w.callable(arg1, arg2)
+		m.callable(arg1, arg2)
 		handle.ReturnChan <- WrapHandlerFuncReturnsReturn{}
 	}()
 	return handle
 }
 
 // WrapHandlerFunc wraps a function for testing.
-func WrapHandlerFunc(t _imptest.TestReporter, fn func(http.ResponseWriter, *http.Request)) *WrapHandlerFuncWrapper {
-	return &WrapHandlerFuncWrapper{
-		t:        t,
-		callable: fn,
+func WrapHandlerFunc(t _imptest.TestReporter, fn func(http.ResponseWriter, *http.Request)) *WrapHandlerFuncWrapperHandle {
+	return &WrapHandlerFuncWrapperHandle{
+		Method: &WrapHandlerFuncWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

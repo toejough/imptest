@@ -6,16 +6,17 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// OpsMock is the mock for Ops.
-type OpsMock struct {
-	imp            *_imptest.Imp
-	internalMethod *OpsMockinternalMethodMethod
-	PublicMethod   *OpsMockPublicMethodMethod
+// OpsMockHandle is the test handle for Ops.
+type OpsMockHandle struct {
+	Mock   Ops
+	Method *OpsMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the Ops implementation that can be passed to code under test.
-func (m *OpsMock) Interface() Ops {
-	return &mockOpsImpl{mock: m}
+// OpsMockMethods holds method wrappers for setting expectations.
+type OpsMockMethods struct {
+	internalMethod *OpsMockinternalMethodMethod
+	PublicMethod   *OpsMockPublicMethodMethod
 }
 
 // OpsMockPublicMethodArgs holds typed arguments for PublicMethod.
@@ -112,19 +113,24 @@ func (m *OpsMockinternalMethodMethod) ExpectCalledWithMatches(matchers ...any) *
 	return &OpsMockinternalMethodCall{DependencyCall: call}
 }
 
-// MockOps creates a new OpsMock for testing.
-func MockOps(t _imptest.TestReporter) *OpsMock {
+// MockOps creates a new OpsMockHandle for testing.
+func MockOps(t _imptest.TestReporter) *OpsMockHandle {
 	imp := _imptest.NewImp(t)
-	return &OpsMock{
-		imp:            imp,
+	methods := &OpsMockMethods{
 		internalMethod: &OpsMockinternalMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "internalMethod")},
 		PublicMethod:   &OpsMockPublicMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "PublicMethod")},
 	}
+	h := &OpsMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockOpsImpl{handle: h}
+	return h
 }
 
 // mockOpsImpl implements Ops.
 type mockOpsImpl struct {
-	mock *OpsMock
+	handle *OpsMockHandle
 }
 
 // PublicMethod implements Ops.PublicMethod.
@@ -134,7 +140,7 @@ func (impl *mockOpsImpl) PublicMethod(x int) int {
 		Args:         []any{x},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -157,7 +163,7 @@ func (impl *mockOpsImpl) internalMethod(x int) int {
 		Args:         []any{x},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

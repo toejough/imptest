@@ -29,7 +29,7 @@ func TestWrapFunctionType(t *testing.T) {
 	wrapped := WrapWalkFunc(t, testFn)
 
 	// Start the function with test arguments
-	returns := wrapped.Start("/test", "info")
+	returns := wrapped.Method.Start("/test", "info")
 
 	// Expect the function to return nil (no error)
 	returns.ExpectReturnsEqual(nil)
@@ -45,7 +45,7 @@ func TestWrapFunctionTypeWithError(t *testing.T) {
 	}
 
 	wrapped := WrapWalkFunc(t, testFn)
-	returns := wrapped.Start("/error", "info")
+	returns := wrapped.Method.Start("/error", "info")
 
 	// Should match the expected error
 	returns.ExpectReturnsEqual(expectedErr)

@@ -44,11 +44,11 @@ func TestImpFatalf(t *testing.T) {
 
 	// Handle the Fatalf call
 	go func() {
-		call := mockReporter.Fatalf.ExpectCalledWithMatches(imptest.Any())
+		call := mockReporter.Method.Fatalf.ExpectCalledWithMatches(imptest.Any())
 		call.InjectReturnValues()
 	}()
 
-	imp := imptest.NewImp(mockReporter.Interface())
+	imp := imptest.NewImp(mockReporter.Mock)
 	imp.Fatalf("test message")
 }
 
@@ -61,13 +61,13 @@ func TestImpGetCallEventually_QueuesOtherMethods(t *testing.T) {
 
 	// Handle Helper calls (one per GetCallEventually call)
 	go func() {
-		call := mockReporter.Helper.ExpectCalledWithExactly()
+		call := mockReporter.Method.Helper.ExpectCalledWithExactly()
 		call.InjectReturnValues()
-		call = mockReporter.Helper.ExpectCalledWithExactly()
+		call = mockReporter.Method.Helper.ExpectCalledWithExactly()
 		call.InjectReturnValues()
 	}()
 
-	imp := imptest.NewImp(mockReporter.Interface())
+	imp := imptest.NewImp(mockReporter.Mock)
 
 	// Validator that accepts any arguments
 	validator := func(_ []any) error {

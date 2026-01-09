@@ -6,37 +6,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ValidateInputMock is the mock for ValidateInput function.
-type ValidateInputMock struct {
-	imp *_imptest.Imp
-	*ValidateInputMockMethod
-}
-
-// Func returns a function that forwards calls to the mock.
-func (m *ValidateInputMock) Func() func(input string) error {
-	return func(input string) error {
-		call := &_imptest.GenericCall{
-			MethodName:   "ValidateInput",
-			Args:         []any{input},
-			ResponseChan: make(chan _imptest.GenericResponse, 1),
-		}
-		m.imp.CallChan <- call
-		resp := <-call.ResponseChan
-		if resp.Type == "panic" {
-			panic(resp.PanicValue)
-		}
-
-		var result1 error
-		if len(resp.ReturnValues) > 0 {
-			if value, ok := resp.ReturnValues[0].(error); ok {
-				result1 = value
-			}
-		}
-
-		return result1
-	}
-}
-
 // ValidateInputMockArgs holds typed arguments for ValidateInput.
 type ValidateInputMockArgs struct {
 	Input string
@@ -58,6 +27,13 @@ func (c *ValidateInputMockCall) GetArgs() ValidateInputMockArgs {
 // InjectReturnValues specifies the typed values the mock should return.
 func (c *ValidateInputMockCall) InjectReturnValues(result0 error) {
 	c.DependencyCall.InjectReturnValues(result0)
+}
+
+// ValidateInputMockHandle is the test handle for ValidateInput function.
+type ValidateInputMockHandle struct {
+	Mock   func(input string) error
+	Method *ValidateInputMockMethod
+	imp    *_imptest.Imp
 }
 
 // ValidateInputMockMethod wraps DependencyMethod with typed returns.
@@ -84,11 +60,33 @@ func (m *ValidateInputMockMethod) ExpectCalledWithMatches(matchers ...any) *Vali
 	return &ValidateInputMockCall{DependencyCall: call}
 }
 
-// MockValidateInput creates a new ValidateInputMock for testing.
-func MockValidateInput(t _imptest.TestReporter) *ValidateInputMock {
+// MockValidateInput creates a new ValidateInputMockHandle for testing.
+func MockValidateInput(t _imptest.TestReporter) *ValidateInputMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ValidateInputMock{
-		imp:                     imp,
-		ValidateInputMockMethod: &ValidateInputMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ValidateInput")},
+	h := &ValidateInputMockHandle{
+		imp:    imp,
+		Method: &ValidateInputMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ValidateInput")},
 	}
+	h.Mock = func(input string) error {
+		call := &_imptest.GenericCall{
+			MethodName:   "ValidateInput",
+			Args:         []any{input},
+			ResponseChan: make(chan _imptest.GenericResponse, 1),
+		}
+		h.imp.CallChan <- call
+		resp := <-call.ResponseChan
+		if resp.Type == "panic" {
+			panic(resp.PanicValue)
+		}
+
+		var result1 error
+		if len(resp.ReturnValues) > 0 {
+			if value, ok := resp.ReturnValues[0].(error); ok {
+				result1 = value
+			}
+		}
+
+		return result1
+	}
+	return h
 }

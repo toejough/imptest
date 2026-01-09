@@ -18,11 +18,11 @@ func TestProcessWithOps(t *testing.T) {
 	mock := MockOps(t)
 
 	go func() {
-		result := ProcessWithOps(mock.Interface(), 5)
+		result := ProcessWithOps(mock.Mock, 5)
 		_ = result // Use the result to avoid unused variable warning
 	}()
 
 	// Can test unexported method because we're in the same package
-	mock.internalMethod.ExpectCalledWithExactly(5).InjectReturnValues(10)
-	mock.PublicMethod.ExpectCalledWithExactly(10).InjectReturnValues(20)
+	mock.Method.internalMethod.ExpectCalledWithExactly(5).InjectReturnValues(10)
+	mock.Method.PublicMethod.ExpectCalledWithExactly(10).InjectReturnValues(20)
 }

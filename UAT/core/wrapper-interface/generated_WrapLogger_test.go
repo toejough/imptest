@@ -10,11 +10,10 @@ import (
 	"testing"
 )
 
-// WrapLoggerWrapper wraps an implementation of handlers.Logger to intercept method calls.
-type WrapLoggerWrapper struct {
-	impl           handlers.Logger
-	Log            *WrapLoggerWrapperLogWrapper
-	LogWithContext *WrapLoggerWrapperLogWithContextWrapper
+// WrapLoggerWrapperHandle wraps an implementation of handlers.Logger to intercept method calls.
+type WrapLoggerWrapperHandle struct {
+	Method *WrapLoggerWrapperMethods
+	impl   handlers.Logger
 }
 
 // WrapLoggerWrapperLogCallHandle represents a single call to the wrapped method.
@@ -229,20 +228,27 @@ func (w *WrapLoggerWrapperLogWrapper) Start(msg string) *WrapLoggerWrapperLogCal
 	return handle
 }
 
+// WrapLoggerWrapperMethods holds method wrappers for all intercepted methods.
+type WrapLoggerWrapperMethods struct {
+	Log            *WrapLoggerWrapperLogWrapper
+	LogWithContext *WrapLoggerWrapperLogWithContextWrapper
+}
+
 // WrapLogger creates a new wrapper for the given handlers.Logger implementation.
-func WrapLogger(t *testing.T, impl handlers.Logger) *WrapLoggerWrapper {
-	w := &WrapLoggerWrapper{
-		impl: impl,
+func WrapLogger(t *testing.T, impl handlers.Logger) *WrapLoggerWrapperHandle {
+	h := &WrapLoggerWrapperHandle{
+		impl:   impl,
+		Method: &WrapLoggerWrapperMethods{},
 	}
-	w.Log = wrapWrapLoggerWrapperLog(t, func(msg string) WrapLoggerWrapperLogReturns {
-		r0 := w.impl.Log(msg)
+	h.Method.Log = wrapWrapLoggerWrapperLog(t, func(msg string) WrapLoggerWrapperLogReturns {
+		r0 := h.impl.Log(msg)
 		return WrapLoggerWrapperLogReturns{Result0: r0}
 	})
-	w.LogWithContext = wrapWrapLoggerWrapperLogWithContext(t, func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns {
-		r0 := w.impl.LogWithContext(ctx, msg)
+	h.Method.LogWithContext = wrapWrapLoggerWrapperLogWithContext(t, func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns {
+		r0 := h.impl.LogWithContext(ctx, msg)
 		return WrapLoggerWrapperLogWithContextReturns{Result0: r0}
 	})
-	return w
+	return h
 }
 
 func wrapWrapLoggerWrapperLog(t *testing.T, fn func(msg string) WrapLoggerWrapperLogReturns) *WrapLoggerWrapperLogWrapper {

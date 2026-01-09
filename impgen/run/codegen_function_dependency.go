@@ -276,19 +276,16 @@ func (gen *functionDependencyGenerator) generateWithTemplates(templates *Templat
 	// Write header
 	templates.WriteDepHeader(&gen.buf, data)
 
-	// Write function mock struct (simpler than interface mock)
-	templates.WriteFuncDepMockStruct(&gen.buf, data)
-
-	// Write constructor
-	templates.WriteFuncDepConstructor(&gen.buf, data)
-
-	// Write Func() method that returns the mock function
-	templates.WriteFuncDepFuncMethod(&gen.buf, data)
-
-	// Write type-safe wrappers (Args, Call, Method types)
+	// Write type-safe wrappers first (Args, Call, Method types) - needed before Handle struct
 	templates.WriteDepArgsStruct(&gen.buf, methodData)
 	templates.WriteDepCallWrapper(&gen.buf, methodData)
 	templates.WriteFuncDepMethodWrapper(&gen.buf, data)
+
+	// Write function mock handle struct
+	templates.WriteFuncDepMockStruct(&gen.buf, data)
+
+	// Write constructor (creates Handle with inlined Mock function)
+	templates.WriteFuncDepConstructor(&gen.buf, data)
 }
 
 // generateFunctionDependencyCode generates dependency mock code for a package-level function.

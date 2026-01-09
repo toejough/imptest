@@ -6,37 +6,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// CounterAddMock is the mock for Counter.Add function.
-type CounterAddMock struct {
-	imp *_imptest.Imp
-	*CounterAddMockMethod
-}
-
-// Func returns a function that forwards calls to the mock.
-func (m *CounterAddMock) Func() func(n int) int {
-	return func(n int) int {
-		call := &_imptest.GenericCall{
-			MethodName:   "Counter.Add",
-			Args:         []any{n},
-			ResponseChan: make(chan _imptest.GenericResponse, 1),
-		}
-		m.imp.CallChan <- call
-		resp := <-call.ResponseChan
-		if resp.Type == "panic" {
-			panic(resp.PanicValue)
-		}
-
-		var result1 int
-		if len(resp.ReturnValues) > 0 {
-			if value, ok := resp.ReturnValues[0].(int); ok {
-				result1 = value
-			}
-		}
-
-		return result1
-	}
-}
-
 // CounterAddMockArgs holds typed arguments for Counter.Add.
 type CounterAddMockArgs struct {
 	N int
@@ -58,6 +27,13 @@ func (c *CounterAddMockCall) GetArgs() CounterAddMockArgs {
 // InjectReturnValues specifies the typed values the mock should return.
 func (c *CounterAddMockCall) InjectReturnValues(result0 int) {
 	c.DependencyCall.InjectReturnValues(result0)
+}
+
+// CounterAddMockHandle is the test handle for Counter.Add function.
+type CounterAddMockHandle struct {
+	Mock   func(n int) int
+	Method *CounterAddMockMethod
+	imp    *_imptest.Imp
 }
 
 // CounterAddMockMethod wraps DependencyMethod with typed returns.
@@ -84,11 +60,33 @@ func (m *CounterAddMockMethod) ExpectCalledWithMatches(matchers ...any) *Counter
 	return &CounterAddMockCall{DependencyCall: call}
 }
 
-// MockCounterAdd creates a new CounterAddMock for testing.
-func MockCounterAdd(t _imptest.TestReporter) *CounterAddMock {
+// MockCounterAdd creates a new CounterAddMockHandle for testing.
+func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
 	imp := _imptest.NewImp(t)
-	return &CounterAddMock{
-		imp:                  imp,
-		CounterAddMockMethod: &CounterAddMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Counter.Add")},
+	h := &CounterAddMockHandle{
+		imp:    imp,
+		Method: &CounterAddMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Counter.Add")},
 	}
+	h.Mock = func(n int) int {
+		call := &_imptest.GenericCall{
+			MethodName:   "Counter.Add",
+			Args:         []any{n},
+			ResponseChan: make(chan _imptest.GenericResponse, 1),
+		}
+		h.imp.CallChan <- call
+		resp := <-call.ResponseChan
+		if resp.Type == "panic" {
+			panic(resp.PanicValue)
+		}
+
+		var result1 int
+		if len(resp.ReturnValues) > 0 {
+			if value, ok := resp.ReturnValues[0].(int); ok {
+				result1 = value
+			}
+		}
+
+		return result1
+	}
+	return h
 }

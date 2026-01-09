@@ -7,17 +7,18 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// DataProcessorMock is the mock for DataProcessor.
-type DataProcessorMock struct {
-	imp       *_imptest.Imp
+// DataProcessorMockHandle is the test handle for DataProcessor.
+type DataProcessorMockHandle struct {
+	Mock   samepackage.DataProcessor
+	Method *DataProcessorMockMethods
+	imp    *_imptest.Imp
+}
+
+// DataProcessorMockMethods holds method wrappers for setting expectations.
+type DataProcessorMockMethods struct {
 	Process   *DataProcessorMockProcessMethod
 	Transform *DataProcessorMockTransformMethod
 	Validate  *DataProcessorMockValidateMethod
-}
-
-// Interface returns the DataProcessor implementation that can be passed to code under test.
-func (m *DataProcessorMock) Interface() samepackage.DataProcessor {
-	return &mockDataProcessorImpl{mock: m}
 }
 
 // DataProcessorMockProcessArgs holds typed arguments for Process.
@@ -163,20 +164,25 @@ func (m *DataProcessorMockValidateMethod) ExpectCalledWithMatches(matchers ...an
 	return &DataProcessorMockValidateCall{DependencyCall: call}
 }
 
-// MockDataProcessor creates a new DataProcessorMock for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMock {
+// MockDataProcessor creates a new DataProcessorMockHandle for testing.
+func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
 	imp := _imptest.NewImp(t)
-	return &DataProcessorMock{
-		imp:       imp,
+	methods := &DataProcessorMockMethods{
 		Process:   &DataProcessorMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
 		Transform: &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Transform")},
 		Validate:  &DataProcessorMockValidateMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Validate")},
 	}
+	h := &DataProcessorMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockDataProcessorImpl{handle: h}
+	return h
 }
 
 // mockDataProcessorImpl implements samepackage.DataProcessor.
 type mockDataProcessorImpl struct {
-	mock *DataProcessorMock
+	handle *DataProcessorMockHandle
 }
 
 // Process implements samepackage.DataProcessor.Process.
@@ -186,7 +192,7 @@ func (impl *mockDataProcessorImpl) Process(source samepackage.DataSource, sink s
 		Args:         []any{source, sink},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -209,7 +215,7 @@ func (impl *mockDataProcessorImpl) Transform(input samepackage.DataSource) (same
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -239,7 +245,7 @@ func (impl *mockDataProcessorImpl) Validate(sink samepackage.DataSink) bool {
 		Args:         []any{sink},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -16,12 +16,12 @@ func TestService_Execute(t *testing.T) {
 
 	// Expect call with specific input
 	go func() {
-		call := mock.Execute.ExpectCalledWithExactly(input)
+		call := mock.Method.Execute.ExpectCalledWithExactly(input)
 		call.InjectReturnValues(expectedOutput, nil)
 	}()
 
 	// Call the mock
-	output, err := mock.Interface().Execute(input)
+	output, err := mock.Mock.Execute(input)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -40,12 +40,12 @@ func TestService_Validate(t *testing.T) {
 
 	// Expect call and return true
 	go func() {
-		call := mock.Validate.ExpectCalledWithExactly(input)
+		call := mock.Method.Validate.ExpectCalledWithExactly(input)
 		call.InjectReturnValues(true)
 	}()
 
 	// Call the mock
-	result := mock.Interface().Validate(input)
+	result := mock.Mock.Validate(input)
 
 	if !result {
 		t.Fatalf("expected true, got false")

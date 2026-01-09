@@ -13,7 +13,7 @@ func TestUserServiceDeleteUser(t *testing.T) {
 	t.Parallel()
 
 	mock := MockRepository(t)
-	svc := service.NewUserService(mock.Interface())
+	svc := service.NewUserService(mock.Mock)
 
 	// Launch goroutine to call DeleteUser
 	go func() {
@@ -21,7 +21,7 @@ func TestUserServiceDeleteUser(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := mock.Delete.ExpectCalledWithExactly("user999")
+	call := mock.Method.Delete.ExpectCalledWithExactly("user999")
 	call.InjectReturnValues(nil)
 
 	// Verify args
@@ -36,7 +36,7 @@ func TestUserServiceGetUser(t *testing.T) {
 	t.Parallel()
 
 	mock := MockRepository(t)
-	svc := service.NewUserService(mock.Interface())
+	svc := service.NewUserService(mock.Mock)
 
 	expectedData := []byte("loaded user data")
 
@@ -46,7 +46,7 @@ func TestUserServiceGetUser(t *testing.T) {
 	}()
 
 	// Verify and inject return values
-	call := mock.Load.ExpectCalledWithExactly("user789")
+	call := mock.Method.Load.ExpectCalledWithExactly("user789")
 	call.InjectReturnValues(expectedData, nil)
 
 	// Verify args
@@ -63,7 +63,7 @@ func TestUserServiceSaveUser(t *testing.T) {
 	t.Parallel()
 
 	mock := MockRepository(t)
-	svc := service.NewUserService(mock.Interface())
+	svc := service.NewUserService(mock.Mock)
 
 	userData := []byte("user data")
 
@@ -73,7 +73,7 @@ func TestUserServiceSaveUser(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := mock.Save.ExpectCalledWithExactly("user123", userData)
+	call := mock.Method.Save.ExpectCalledWithExactly("user123", userData)
 	call.InjectReturnValues(nil)
 
 	// Verify args
@@ -88,7 +88,7 @@ func TestUserServiceSaveUserError(t *testing.T) {
 	t.Parallel()
 
 	mock := MockRepository(t)
-	svc := service.NewUserService(mock.Interface())
+	svc := service.NewUserService(mock.Mock)
 
 	userData := []byte("user data")
 	expectedErr := errors.New("storage failure")
@@ -99,7 +99,7 @@ func TestUserServiceSaveUserError(t *testing.T) {
 	}()
 
 	// Inject error return
-	call := mock.Save.ExpectCalledWithExactly("user456", userData)
+	call := mock.Method.Save.ExpectCalledWithExactly("user456", userData)
 	call.InjectReturnValues(expectedErr)
 }
 

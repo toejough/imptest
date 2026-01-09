@@ -82,16 +82,21 @@ type WrapCalculatorProcessValueReturnsReturn struct {
 	Result0 int
 }
 
-// WrapCalculatorProcessValueWrapper wraps a function for testing.
-type WrapCalculatorProcessValueWrapper struct {
+// WrapCalculatorProcessValueWrapperHandle is the test handle for a wrapped function.
+type WrapCalculatorProcessValueWrapperHandle struct {
+	Method *WrapCalculatorProcessValueWrapperMethod
+}
+
+// WrapCalculatorProcessValueWrapperMethod wraps a function for testing.
+type WrapCalculatorProcessValueWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(int) int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCalculatorProcessValueWrapper) Start(value int) *WrapCalculatorProcessValueCallHandle {
+func (m *WrapCalculatorProcessValueWrapperMethod) Start(value int) *WrapCalculatorProcessValueCallHandle {
 	handle := &WrapCalculatorProcessValueCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCalculatorProcessValueReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapCalculatorProcessValueReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -99,16 +104,18 @@ func (w *WrapCalculatorProcessValueWrapper) Start(value int) *WrapCalculatorProc
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(value)
+		ret0 := m.callable(value)
 		handle.ReturnChan <- WrapCalculatorProcessValueReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapCalculatorProcessValue wraps a function for testing.
-func WrapCalculatorProcessValue(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorProcessValueWrapper {
-	return &WrapCalculatorProcessValueWrapper{
-		t:        t,
-		callable: fn,
+func WrapCalculatorProcessValue(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorProcessValueWrapperHandle {
+	return &WrapCalculatorProcessValueWrapperHandle{
+		Method: &WrapCalculatorProcessValueWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

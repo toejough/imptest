@@ -11,7 +11,11 @@ type WrapSideEffectReturnsReturn struct {
 }
 
 // WrapSideEffectWrapper wraps a function for testing.
-type WrapSideEffectWrapper struct {
+type WrapSideEffectWrapperHandle struct {
+	Method *WrapSideEffectWrapperMethod
+}
+
+type WrapSideEffectWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(x int)
 }
@@ -22,7 +26,7 @@ type WrapSideEffectCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapSideEffectWrapper) Start(x int) *WrapSideEffectCallHandle {
+func (w *WrapSideEffectWrapperMethod) Start(x int) *WrapSideEffectCallHandle {
 	handle := &WrapSideEffectCallHandle{
 		CallableController: _imptest.NewCallableController[WrapSideEffectReturnsReturn](w.t),
 	}
@@ -71,9 +75,11 @@ func (h *WrapSideEffectCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapSideEffect wraps a function for testing.
-func WrapSideEffect(t _imptest.TestReporter, fn func(x int)) *WrapSideEffectWrapper {
-	return &WrapSideEffectWrapper{
-		t:        t,
-		callable: fn,
+func WrapSideEffect(t _imptest.TestReporter, fn func(x int)) *WrapSideEffectWrapperHandle {
+	return &WrapSideEffectWrapperHandle{
+		Method: &WrapSideEffectWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

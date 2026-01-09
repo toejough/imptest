@@ -83,16 +83,21 @@ type WrapSafeRunnerReturnsReturn struct {
 	Result0 bool
 }
 
-// WrapSafeRunnerWrapper wraps a function for testing.
-type WrapSafeRunnerWrapper struct {
+// WrapSafeRunnerWrapperHandle is the test handle for a wrapped function.
+type WrapSafeRunnerWrapperHandle struct {
+	Method *WrapSafeRunnerWrapperMethod
+}
+
+// WrapSafeRunnerWrapperMethod wraps a function for testing.
+type WrapSafeRunnerWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(safety.CriticalDependency) bool
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapSafeRunnerWrapper) Start(dep safety.CriticalDependency) *WrapSafeRunnerCallHandle {
+func (m *WrapSafeRunnerWrapperMethod) Start(dep safety.CriticalDependency) *WrapSafeRunnerCallHandle {
 	handle := &WrapSafeRunnerCallHandle{
-		CallableController: _imptest.NewCallableController[WrapSafeRunnerReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapSafeRunnerReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -100,16 +105,18 @@ func (w *WrapSafeRunnerWrapper) Start(dep safety.CriticalDependency) *WrapSafeRu
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(dep)
+		ret0 := m.callable(dep)
 		handle.ReturnChan <- WrapSafeRunnerReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapSafeRunner wraps a function for testing.
-func WrapSafeRunner(t _imptest.TestReporter, fn func(safety.CriticalDependency) bool) *WrapSafeRunnerWrapper {
-	return &WrapSafeRunnerWrapper{
-		t:        t,
-		callable: fn,
+func WrapSafeRunner(t _imptest.TestReporter, fn func(safety.CriticalDependency) bool) *WrapSafeRunnerWrapperHandle {
+	return &WrapSafeRunnerWrapperHandle{
+		Method: &WrapSafeRunnerWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

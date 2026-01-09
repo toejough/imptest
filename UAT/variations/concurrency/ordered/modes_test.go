@@ -20,28 +20,28 @@ func TestEventually_CallsOutOfOrder(t *testing.T) {
 	done := make(chan bool, 3)
 
 	go func() {
-		_ = mock.Interface().OperationB(2)
+		_ = mock.Mock.OperationB(2)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Interface().OperationA(1)
+		_ = mock.Mock.OperationA(1)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Interface().OperationC(3)
+		_ = mock.Mock.OperationC(3)
 
 		done <- true
 	}()
 
 	// Use Eventually() to handle out-of-order calls
 	// Eventually mode queues mismatches and waits for matches
-	mock.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.OperationC.Eventually().ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	mock.Method.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	mock.Method.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationC.Eventually().ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -59,27 +59,27 @@ func TestEventually_ConcurrentCalls(t *testing.T) {
 	done := make(chan bool, 3)
 
 	go func() {
-		_ = mock.Interface().OperationC(3)
+		_ = mock.Mock.OperationC(3)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Interface().OperationA(1)
+		_ = mock.Mock.OperationA(1)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Interface().OperationB(2)
+		_ = mock.Mock.OperationB(2)
 
 		done <- true
 	}()
 
 	// Eventually mode handles any arrival order
-	mock.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.OperationC.Eventually().ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	mock.Method.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	mock.Method.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationC.Eventually().ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -94,11 +94,11 @@ func TestEventually_PreservesTypeSafety(t *testing.T) {
 	mock := MockService(t)
 
 	go func() {
-		_ = mock.Interface().OperationA(42)
+		_ = mock.Mock.OperationA(42)
 	}()
 
 	// Eventually() returns *ServiceMockOperationAMethod, not *DependencyMethod
-	call := mock.OperationA.Eventually().ExpectCalledWithExactly(42)
+	call := mock.Method.OperationA.Eventually().ExpectCalledWithExactly(42)
 
 	// Type-safe GetArgs() access
 	args := call.GetArgs()
@@ -120,19 +120,19 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 	done := make(chan bool, 3)
 
 	go func() {
-		_ = mock.Interface().OperationB(2)
+		_ = mock.Mock.OperationB(2)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Interface().OperationC(3)
+		_ = mock.Mock.OperationC(3)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Interface().OperationA(1)
+		_ = mock.Mock.OperationA(1)
 
 		done <- true
 	}()
@@ -141,12 +141,12 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 	// - A with eventually (can arrive in any order)
 	// - B with eventually (can arrive in any order)
 	// - C ordered (but since we already got all calls, it will work)
-	mock.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	mock.Method.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
 
 	// By the time we get here, C has already arrived and been queued
 	// Ordered mode will find it in the queue
-	mock.OperationC.ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	mock.Method.OperationC.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	<-done
 	<-done
@@ -165,7 +165,7 @@ func TestOrdered_CallsInOrder(t *testing.T) {
 	done := make(chan bool)
 
 	go func() {
-		svc := mock.Interface()
+		svc := mock.Mock
 		_ = svc.OperationA(1)
 		_ = svc.OperationB(2)
 		_ = svc.OperationC(3)
@@ -174,9 +174,9 @@ func TestOrdered_CallsInOrder(t *testing.T) {
 	}()
 
 	// Expect calls in order (ordered mode = default)
-	mock.OperationA.ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.OperationB.ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.OperationC.ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	mock.Method.OperationA.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	mock.Method.OperationB.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationC.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	<-done
 }

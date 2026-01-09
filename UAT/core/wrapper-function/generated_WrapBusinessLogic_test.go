@@ -91,16 +91,21 @@ type WrapBusinessLogicReturnsReturn struct {
 	Result1 error
 }
 
-// WrapBusinessLogicWrapper wraps a function for testing.
-type WrapBusinessLogicWrapper struct {
+// WrapBusinessLogicWrapperHandle is the test handle for a wrapped function.
+type WrapBusinessLogicWrapperHandle struct {
+	Method *WrapBusinessLogicWrapperMethod
+}
+
+// WrapBusinessLogicWrapperMethod wraps a function for testing.
+type WrapBusinessLogicWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(callable.ExternalService, int) (string, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapBusinessLogicWrapper) Start(svc callable.ExternalService, id int) *WrapBusinessLogicCallHandle {
+func (m *WrapBusinessLogicWrapperMethod) Start(svc callable.ExternalService, id int) *WrapBusinessLogicCallHandle {
 	handle := &WrapBusinessLogicCallHandle{
-		CallableController: _imptest.NewCallableController[WrapBusinessLogicReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapBusinessLogicReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -108,16 +113,18 @@ func (w *WrapBusinessLogicWrapper) Start(svc callable.ExternalService, id int) *
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1 := w.callable(svc, id)
+		ret0, ret1 := m.callable(svc, id)
 		handle.ReturnChan <- WrapBusinessLogicReturnsReturn{Result0: ret0, Result1: ret1}
 	}()
 	return handle
 }
 
 // WrapBusinessLogic wraps a function for testing.
-func WrapBusinessLogic(t _imptest.TestReporter, fn func(callable.ExternalService, int) (string, error)) *WrapBusinessLogicWrapper {
-	return &WrapBusinessLogicWrapper{
-		t:        t,
-		callable: fn,
+func WrapBusinessLogic(t _imptest.TestReporter, fn func(callable.ExternalService, int) (string, error)) *WrapBusinessLogicWrapperHandle {
+	return &WrapBusinessLogicWrapperHandle{
+		Method: &WrapBusinessLogicWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

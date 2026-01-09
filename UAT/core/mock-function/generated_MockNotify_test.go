@@ -6,29 +6,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// NotifyMock is the mock for Notify function.
-type NotifyMock struct {
-	imp *_imptest.Imp
-	*NotifyMockMethod
-}
-
-// Func returns a function that forwards calls to the mock.
-func (m *NotifyMock) Func() func(userID int, message string) {
-	return func(userID int, message string) {
-		call := &_imptest.GenericCall{
-			MethodName:   "Notify",
-			Args:         []any{userID, message},
-			ResponseChan: make(chan _imptest.GenericResponse, 1),
-		}
-		m.imp.CallChan <- call
-		resp := <-call.ResponseChan
-		if resp.Type == "panic" {
-			panic(resp.PanicValue)
-		}
-
-	}
-}
-
 // NotifyMockArgs holds typed arguments for Notify.
 type NotifyMockArgs struct {
 	UserID  int
@@ -47,6 +24,13 @@ func (c *NotifyMockCall) GetArgs() NotifyMockArgs {
 		UserID:  raw[0].(int),
 		Message: raw[1].(string),
 	}
+}
+
+// NotifyMockHandle is the test handle for Notify function.
+type NotifyMockHandle struct {
+	Mock   func(userID int, message string)
+	Method *NotifyMockMethod
+	imp    *_imptest.Imp
 }
 
 // NotifyMockMethod wraps DependencyMethod with typed returns.
@@ -73,11 +57,25 @@ func (m *NotifyMockMethod) ExpectCalledWithMatches(matchers ...any) *NotifyMockC
 	return &NotifyMockCall{DependencyCall: call}
 }
 
-// MockNotify creates a new NotifyMock for testing.
-func MockNotify(t _imptest.TestReporter) *NotifyMock {
+// MockNotify creates a new NotifyMockHandle for testing.
+func MockNotify(t _imptest.TestReporter) *NotifyMockHandle {
 	imp := _imptest.NewImp(t)
-	return &NotifyMock{
-		imp:              imp,
-		NotifyMockMethod: &NotifyMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Notify")},
+	h := &NotifyMockHandle{
+		imp:    imp,
+		Method: &NotifyMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Notify")},
 	}
+	h.Mock = func(userID int, message string) {
+		call := &_imptest.GenericCall{
+			MethodName:   "Notify",
+			Args:         []any{userID, message},
+			ResponseChan: make(chan _imptest.GenericResponse, 1),
+		}
+		h.imp.CallChan <- call
+		resp := <-call.ResponseChan
+		if resp.Type == "panic" {
+			panic(resp.PanicValue)
+		}
+
+	}
+	return h
 }

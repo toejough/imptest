@@ -23,13 +23,13 @@ func TestImportInference(t *testing.T) {
 
 	// Verify we got the local time.Timer mock (which has Wait and GetElapsed methods)
 	// Also verify the import is used
-	var _ localtime.Timer = mock.Interface() //nolint:staticcheck // Intentional compile-time interface check
+	var _ localtime.Timer = mock.Mock //nolint:staticcheck // Intentional compile-time interface check
 
 	go func() {
-		_ = mock.Interface().Wait(100)
-		_ = mock.Interface().GetElapsed()
+		_ = mock.Mock.Wait(100)
+		_ = mock.Mock.GetElapsed()
 	}()
 
-	mock.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
-	mock.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
+	mock.Method.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
+	mock.Method.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
 }

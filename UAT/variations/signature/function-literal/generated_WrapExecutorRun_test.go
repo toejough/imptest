@@ -82,16 +82,21 @@ type WrapExecutorRunReturnsReturn struct {
 	Result0 error
 }
 
-// WrapExecutorRunWrapper wraps a function for testing.
-type WrapExecutorRunWrapper struct {
+// WrapExecutorRunWrapperHandle is the test handle for a wrapped function.
+type WrapExecutorRunWrapperHandle struct {
+	Method *WrapExecutorRunWrapperMethod
+}
+
+// WrapExecutorRunWrapperMethod wraps a function for testing.
+type WrapExecutorRunWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(func() error) error
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapExecutorRunWrapper) Start(callback func() error) *WrapExecutorRunCallHandle {
+func (m *WrapExecutorRunWrapperMethod) Start(callback func() error) *WrapExecutorRunCallHandle {
 	handle := &WrapExecutorRunCallHandle{
-		CallableController: _imptest.NewCallableController[WrapExecutorRunReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapExecutorRunReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -99,16 +104,18 @@ func (w *WrapExecutorRunWrapper) Start(callback func() error) *WrapExecutorRunCa
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(callback)
+		ret0 := m.callable(callback)
 		handle.ReturnChan <- WrapExecutorRunReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapExecutorRun wraps a function for testing.
-func WrapExecutorRun(t _imptest.TestReporter, fn func(func() error) error) *WrapExecutorRunWrapper {
-	return &WrapExecutorRunWrapper{
-		t:        t,
-		callable: fn,
+func WrapExecutorRun(t _imptest.TestReporter, fn func(func() error) error) *WrapExecutorRunWrapperHandle {
+	return &WrapExecutorRunWrapperHandle{
+		Method: &WrapExecutorRunWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

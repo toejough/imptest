@@ -6,37 +6,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ValidatorMock is the mock for Validator function.
-type ValidatorMock struct {
-	imp *_imptest.Imp
-	*ValidatorMockMethod
-}
-
-// Func returns a function that forwards calls to the mock.
-func (m *ValidatorMock) Func() func(data string) error {
-	return func(data string) error {
-		call := &_imptest.GenericCall{
-			MethodName:   "Validator",
-			Args:         []any{data},
-			ResponseChan: make(chan _imptest.GenericResponse, 1),
-		}
-		m.imp.CallChan <- call
-		resp := <-call.ResponseChan
-		if resp.Type == "panic" {
-			panic(resp.PanicValue)
-		}
-
-		var result1 error
-		if len(resp.ReturnValues) > 0 {
-			if value, ok := resp.ReturnValues[0].(error); ok {
-				result1 = value
-			}
-		}
-
-		return result1
-	}
-}
-
 // ValidatorMockArgs holds typed arguments for Validator.
 type ValidatorMockArgs struct {
 	Data string
@@ -58,6 +27,13 @@ func (c *ValidatorMockCall) GetArgs() ValidatorMockArgs {
 // InjectReturnValues specifies the typed values the mock should return.
 func (c *ValidatorMockCall) InjectReturnValues(result0 error) {
 	c.DependencyCall.InjectReturnValues(result0)
+}
+
+// ValidatorMockHandle is the test handle for Validator function.
+type ValidatorMockHandle struct {
+	Mock   func(data string) error
+	Method *ValidatorMockMethod
+	imp    *_imptest.Imp
 }
 
 // ValidatorMockMethod wraps DependencyMethod with typed returns.
@@ -84,11 +60,33 @@ func (m *ValidatorMockMethod) ExpectCalledWithMatches(matchers ...any) *Validato
 	return &ValidatorMockCall{DependencyCall: call}
 }
 
-// MockValidator creates a new ValidatorMock for testing.
-func MockValidator(t _imptest.TestReporter) *ValidatorMock {
+// MockValidator creates a new ValidatorMockHandle for testing.
+func MockValidator(t _imptest.TestReporter) *ValidatorMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ValidatorMock{
-		imp:                 imp,
-		ValidatorMockMethod: &ValidatorMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Validator")},
+	h := &ValidatorMockHandle{
+		imp:    imp,
+		Method: &ValidatorMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Validator")},
 	}
+	h.Mock = func(data string) error {
+		call := &_imptest.GenericCall{
+			MethodName:   "Validator",
+			Args:         []any{data},
+			ResponseChan: make(chan _imptest.GenericResponse, 1),
+		}
+		h.imp.CallChan <- call
+		resp := <-call.ResponseChan
+		if resp.Type == "panic" {
+			panic(resp.PanicValue)
+		}
+
+		var result1 error
+		if len(resp.ReturnValues) > 0 {
+			if value, ok := resp.ReturnValues[0].(error); ok {
+				result1 = value
+			}
+		}
+
+		return result1
+	}
+	return h
 }

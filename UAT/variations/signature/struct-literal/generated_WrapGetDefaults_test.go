@@ -88,8 +88,13 @@ type WrapGetDefaultsReturnsReturn struct {
 	}
 }
 
-// WrapGetDefaultsWrapper wraps a function for testing.
-type WrapGetDefaultsWrapper struct {
+// WrapGetDefaultsWrapperHandle is the test handle for a wrapped function.
+type WrapGetDefaultsWrapperHandle struct {
+	Method *WrapGetDefaultsWrapperMethod
+}
+
+// WrapGetDefaultsWrapperMethod wraps a function for testing.
+type WrapGetDefaultsWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func() struct {
 		MaxRetries int
@@ -98,9 +103,9 @@ type WrapGetDefaultsWrapper struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapGetDefaultsWrapper) Start() *WrapGetDefaultsCallHandle {
+func (m *WrapGetDefaultsWrapperMethod) Start() *WrapGetDefaultsCallHandle {
 	handle := &WrapGetDefaultsCallHandle{
-		CallableController: _imptest.NewCallableController[WrapGetDefaultsReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapGetDefaultsReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -108,7 +113,7 @@ func (w *WrapGetDefaultsWrapper) Start() *WrapGetDefaultsCallHandle {
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable()
+		ret0 := m.callable()
 		handle.ReturnChan <- WrapGetDefaultsReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -118,9 +123,11 @@ func (w *WrapGetDefaultsWrapper) Start() *WrapGetDefaultsCallHandle {
 func WrapGetDefaults(t _imptest.TestReporter, fn func() struct {
 	MaxRetries int
 	Timeout    int
-}) *WrapGetDefaultsWrapper {
-	return &WrapGetDefaultsWrapper{
-		t:        t,
-		callable: fn,
+}) *WrapGetDefaultsWrapperHandle {
+	return &WrapGetDefaultsWrapperHandle{
+		Method: &WrapGetDefaultsWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

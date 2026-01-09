@@ -8,16 +8,17 @@ import (
 	fs "io/fs"
 )
 
-// TreeWalkerMock is the mock for TreeWalker.
-type TreeWalkerMock struct {
-	imp               *_imptest.Imp
-	Walk              *TreeWalkerMockWalkMethod
-	WalkWithNamedType *TreeWalkerMockWalkWithNamedTypeMethod
+// TreeWalkerMockHandle is the test handle for TreeWalker.
+type TreeWalkerMockHandle struct {
+	Mock   visitor.TreeWalker
+	Method *TreeWalkerMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the TreeWalker implementation that can be passed to code under test.
-func (m *TreeWalkerMock) Interface() visitor.TreeWalker {
-	return &mockTreeWalkerImpl{mock: m}
+// TreeWalkerMockMethods holds method wrappers for setting expectations.
+type TreeWalkerMockMethods struct {
+	Walk              *TreeWalkerMockWalkMethod
+	WalkWithNamedType *TreeWalkerMockWalkWithNamedTypeMethod
 }
 
 // TreeWalkerMockWalkArgs holds typed arguments for Walk.
@@ -118,19 +119,24 @@ func (m *TreeWalkerMockWalkWithNamedTypeMethod) ExpectCalledWithMatches(matchers
 	return &TreeWalkerMockWalkWithNamedTypeCall{DependencyCall: call}
 }
 
-// MockTreeWalker creates a new TreeWalkerMock for testing.
-func MockTreeWalker(t _imptest.TestReporter) *TreeWalkerMock {
+// MockTreeWalker creates a new TreeWalkerMockHandle for testing.
+func MockTreeWalker(t _imptest.TestReporter) *TreeWalkerMockHandle {
 	imp := _imptest.NewImp(t)
-	return &TreeWalkerMock{
-		imp:               imp,
+	methods := &TreeWalkerMockMethods{
 		Walk:              &TreeWalkerMockWalkMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Walk")},
 		WalkWithNamedType: &TreeWalkerMockWalkWithNamedTypeMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "WalkWithNamedType")},
 	}
+	h := &TreeWalkerMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockTreeWalkerImpl{handle: h}
+	return h
 }
 
 // mockTreeWalkerImpl implements visitor.TreeWalker.
 type mockTreeWalkerImpl struct {
-	mock *TreeWalkerMock
+	handle *TreeWalkerMockHandle
 }
 
 // Walk implements visitor.TreeWalker.Walk.
@@ -140,7 +146,7 @@ func (impl *mockTreeWalkerImpl) Walk(root string, fn func(string, fs.DirEntry, e
 		Args:         []any{root, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -163,7 +169,7 @@ func (impl *mockTreeWalkerImpl) WalkWithNamedType(root string, fn visitor.WalkFu
 		Args:         []any{root, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

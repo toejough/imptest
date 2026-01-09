@@ -21,13 +21,13 @@ func TestNonComparableArguments(t *testing.T) {
 
 	mock := MockDataProcessor(t)
 
-	go noncomparable.RunProcessor(mock.Interface())
+	go noncomparable.RunProcessor(mock.Mock)
 
 	// Intercept ProcessSlice with a slice argument.
 	// Requirement: reflect.DeepEqual is used automatically for slices.
-	mock.ProcessSlice.ExpectCalledWithExactly([]string{"a", "b", "c"}).InjectReturnValues(3)
+	mock.Method.ProcessSlice.ExpectCalledWithExactly([]string{"a", "b", "c"}).InjectReturnValues(3)
 
 	// Intercept ProcessMap with a map argument.
 	// Requirement: reflect.DeepEqual is used automatically for maps.
-	mock.ProcessMap.ExpectCalledWithExactly(map[string]int{"threshold": 10}).InjectReturnValues(true)
+	mock.Method.ProcessMap.ExpectCalledWithExactly(map[string]int{"threshold": 10}).InjectReturnValues(true)
 }

@@ -15,7 +15,11 @@ type WrapDivideReturnsReturn struct {
 }
 
 // WrapDivideWrapper wraps a function for testing.
-type WrapDivideWrapper struct {
+type WrapDivideWrapperHandle struct {
+	Method *WrapDivideWrapperMethod
+}
+
+type WrapDivideWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(a, b int) (int, bool)
 }
@@ -26,7 +30,7 @@ type WrapDivideCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapDivideWrapper) Start(a, b int) *WrapDivideCallHandle {
+func (w *WrapDivideWrapperMethod) Start(a, b int) *WrapDivideCallHandle {
 	handle := &WrapDivideCallHandle{
 		CallableController: _imptest.NewCallableController[WrapDivideReturnsReturn](w.t),
 	}
@@ -115,9 +119,11 @@ func (h *WrapDivideCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapDivide wraps a function for testing.
-func WrapDivide(t _imptest.TestReporter, fn func(a, b int) (int, bool)) *WrapDivideWrapper {
-	return &WrapDivideWrapper{
-		t:        t,
-		callable: fn,
+func WrapDivide(t _imptest.TestReporter, fn func(a, b int) (int, bool)) *WrapDivideWrapperHandle {
+	return &WrapDivideWrapperHandle{
+		Method: &WrapDivideWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

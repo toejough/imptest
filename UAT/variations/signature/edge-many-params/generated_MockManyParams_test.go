@@ -7,29 +7,100 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ManyParamsMock is the mock for ManyParams.
-type ManyParamsMock struct {
-	imp     *_imptest.Imp
-	Process *_imptest.DependencyMethod
+// ManyParamsMockHandle is the test handle for ManyParams.
+type ManyParamsMockHandle struct {
+	Mock   many_params.ManyParams
+	Method *ManyParamsMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the ManyParams implementation that can be passed to code under test.
-func (m *ManyParamsMock) Interface() many_params.ManyParams {
-	return &mockManyParamsImpl{mock: m}
+// ManyParamsMockMethods holds method wrappers for setting expectations.
+type ManyParamsMockMethods struct {
+	Process *ManyParamsMockProcessMethod
 }
 
-// MockManyParams creates a new ManyParamsMock for testing.
-func MockManyParams(t _imptest.TestReporter) *ManyParamsMock {
-	imp := _imptest.NewImp(t)
-	return &ManyParamsMock{
-		imp:     imp,
-		Process: _imptest.NewDependencyMethod(imp, "Process"),
+// ManyParamsMockProcessArgs holds typed arguments for Process.
+type ManyParamsMockProcessArgs struct {
+	A int
+	B int
+	C int
+	D int
+	E int
+	F int
+	G int
+	H int
+	I int
+	J int
+}
+
+// ManyParamsMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type ManyParamsMockProcessCall struct {
+	*_imptest.DependencyCall
+}
+
+// GetArgs returns the typed arguments for this call.
+func (c *ManyParamsMockProcessCall) GetArgs() ManyParamsMockProcessArgs {
+	raw := c.RawArgs()
+	return ManyParamsMockProcessArgs{
+		A: raw[0].(int),
+		B: raw[1].(int),
+		C: raw[2].(int),
+		D: raw[3].(int),
+		E: raw[4].(int),
+		F: raw[5].(int),
+		G: raw[6].(int),
+		H: raw[7].(int),
+		I: raw[8].(int),
+		J: raw[9].(int),
 	}
+}
+
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *ManyParamsMockProcessCall) InjectReturnValues(result0 string) {
+	c.DependencyCall.InjectReturnValues(result0)
+}
+
+// ManyParamsMockProcessMethod wraps DependencyMethod with typed returns.
+type ManyParamsMockProcessMethod struct {
+	*_imptest.DependencyMethod
+}
+
+// Eventually switches to unordered mode for concurrent code.
+// Waits indefinitely for a matching call; mismatches are queued.
+// Returns typed wrapper preserving type-safe GetArgs() access.
+func (m *ManyParamsMockProcessMethod) Eventually() *ManyParamsMockProcessMethod {
+	return &ManyParamsMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+}
+
+// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
+func (m *ManyParamsMockProcessMethod) ExpectCalledWithExactly(a int, b int, c int, d int, e int, f int, g int, h int, i int, j int) *ManyParamsMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithExactly(a, b, c, d, e, f, g, h, i, j)
+	return &ManyParamsMockProcessCall{DependencyCall: call}
+}
+
+// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
+func (m *ManyParamsMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *ManyParamsMockProcessCall {
+	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+	return &ManyParamsMockProcessCall{DependencyCall: call}
+}
+
+// MockManyParams creates a new ManyParamsMockHandle for testing.
+func MockManyParams(t _imptest.TestReporter) *ManyParamsMockHandle {
+	imp := _imptest.NewImp(t)
+	methods := &ManyParamsMockMethods{
+		Process: &ManyParamsMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
+	}
+	h := &ManyParamsMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockManyParamsImpl{handle: h}
+	return h
 }
 
 // mockManyParamsImpl implements many_params.ManyParams.
 type mockManyParamsImpl struct {
-	mock *ManyParamsMock
+	handle *ManyParamsMockHandle
 }
 
 // Process implements many_params.ManyParams.Process.
@@ -39,7 +110,7 @@ func (impl *mockManyParamsImpl) Process(a int, b int, c int, d int, e int, f int
 		Args:         []any{a, b, c, d, e, f, g, h, i, j},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

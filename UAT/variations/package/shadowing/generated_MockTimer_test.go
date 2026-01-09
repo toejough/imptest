@@ -7,18 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// TimerMock is the mock for Timer.
-type TimerMock struct {
-	imp        *_imptest.Imp
-	Wait       *TimerMockWaitMethod
-	GetElapsed *_imptest.DependencyMethod
-}
-
-// Interface returns the Timer implementation that can be passed to code under test.
-func (m *TimerMock) Interface() time.Timer {
-	return &mockTimerImpl{mock: m}
-}
-
 // TimerMockGetElapsedCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type TimerMockGetElapsedCall struct {
 	*_imptest.DependencyCall
@@ -27,6 +15,19 @@ type TimerMockGetElapsedCall struct {
 // InjectReturnValues specifies the typed values the mock should return.
 func (c *TimerMockGetElapsedCall) InjectReturnValues(result0 int) {
 	c.DependencyCall.InjectReturnValues(result0)
+}
+
+// TimerMockHandle is the test handle for Timer.
+type TimerMockHandle struct {
+	Mock   time.Timer
+	Method *TimerMockMethods
+	imp    *_imptest.Imp
+}
+
+// TimerMockMethods holds method wrappers for setting expectations.
+type TimerMockMethods struct {
+	Wait       *TimerMockWaitMethod
+	GetElapsed *_imptest.DependencyMethod
 }
 
 // TimerMockWaitArgs holds typed arguments for Wait.
@@ -76,19 +77,24 @@ func (m *TimerMockWaitMethod) ExpectCalledWithMatches(matchers ...any) *TimerMoc
 	return &TimerMockWaitCall{DependencyCall: call}
 }
 
-// MockTimer creates a new TimerMock for testing.
-func MockTimer(t _imptest.TestReporter) *TimerMock {
+// MockTimer creates a new TimerMockHandle for testing.
+func MockTimer(t _imptest.TestReporter) *TimerMockHandle {
 	imp := _imptest.NewImp(t)
-	return &TimerMock{
-		imp:        imp,
+	methods := &TimerMockMethods{
 		Wait:       &TimerMockWaitMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Wait")},
 		GetElapsed: _imptest.NewDependencyMethod(imp, "GetElapsed"),
 	}
+	h := &TimerMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockTimerImpl{handle: h}
+	return h
 }
 
 // mockTimerImpl implements time.Timer.
 type mockTimerImpl struct {
-	mock *TimerMock
+	handle *TimerMockHandle
 }
 
 // GetElapsed implements time.Timer.GetElapsed.
@@ -98,7 +104,7 @@ func (impl *mockTimerImpl) GetElapsed() int {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -121,7 +127,7 @@ func (impl *mockTimerImpl) Wait(seconds int) error {
 		Args:         []any{seconds},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

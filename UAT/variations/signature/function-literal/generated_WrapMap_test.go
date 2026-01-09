@@ -82,16 +82,21 @@ type WrapMapReturnsReturn struct {
 	Result0 []int
 }
 
-// WrapMapWrapper wraps a function for testing.
-type WrapMapWrapper struct {
+// WrapMapWrapperHandle is the test handle for a wrapped function.
+type WrapMapWrapperHandle struct {
+	Method *WrapMapWrapperMethod
+}
+
+// WrapMapWrapperMethod wraps a function for testing.
+type WrapMapWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func([]int, func(int) int) []int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapMapWrapper) Start(items []int, transform func(int) int) *WrapMapCallHandle {
+func (m *WrapMapWrapperMethod) Start(items []int, transform func(int) int) *WrapMapCallHandle {
 	handle := &WrapMapCallHandle{
-		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -99,16 +104,18 @@ func (w *WrapMapWrapper) Start(items []int, transform func(int) int) *WrapMapCal
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(items, transform)
+		ret0 := m.callable(items, transform)
 		handle.ReturnChan <- WrapMapReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapMap wraps a function for testing.
-func WrapMap(t _imptest.TestReporter, fn func([]int, func(int) int) []int) *WrapMapWrapper {
-	return &WrapMapWrapper{
-		t:        t,
-		callable: fn,
+func WrapMap(t _imptest.TestReporter, fn func([]int, func(int) int) []int) *WrapMapWrapperHandle {
+	return &WrapMapWrapperHandle{
+		Method: &WrapMapWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

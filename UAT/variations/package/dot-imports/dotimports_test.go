@@ -18,11 +18,11 @@ func TestDotImportedProcessor(t *testing.T) {
 
 	// Launch goroutine
 	go func() {
-		_ = mock.Interface().Process("input data")
+		_ = mock.Mock.Process("input data")
 	}()
 
 	// Verify and inject return
-	call := mock.Process.ExpectCalledWithExactly("input data")
+	call := mock.Method.Process.ExpectCalledWithExactly("input data")
 	call.InjectReturnValues("processed data")
 
 	// Verify args
@@ -45,11 +45,11 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Launch goroutine that calls Save
 		go func() {
-			_ = mock.Interface().Save("key1", "value1")
+			_ = mock.Mock.Save("key1", "value1")
 		}()
 
 		// Verify the mock received the call
-		call := mock.Save.ExpectCalledWithExactly("key1", "value1")
+		call := mock.Method.Save.ExpectCalledWithExactly("key1", "value1")
 		call.InjectReturnValues(nil)
 
 		// Verify args can be retrieved
@@ -69,12 +69,12 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Launch goroutine
 		go func() {
-			_ = mock.Interface().Save("bad_key", "bad_value")
+			_ = mock.Mock.Save("bad_key", "bad_value")
 		}()
 
 		// Inject error return
 		testErr := errors.New("save failed")
-		call := mock.Save.ExpectCalledWithExactly("bad_key", "bad_value")
+		call := mock.Method.Save.ExpectCalledWithExactly("bad_key", "bad_value")
 		call.InjectReturnValues(testErr)
 	})
 
@@ -84,11 +84,11 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Launch goroutine
 		go func() {
-			_, _ = mock.Interface().Load("key2")
+			_, _ = mock.Mock.Load("key2")
 		}()
 
 		// Verify and inject return values
-		call := mock.Load.ExpectCalledWithExactly("key2")
+		call := mock.Method.Load.ExpectCalledWithExactly("key2")
 		call.InjectReturnValues("loaded_value", nil)
 
 		// Verify args
@@ -104,12 +104,12 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Launch goroutine
 		go func() {
-			_, _ = mock.Interface().Load("missing_key")
+			_, _ = mock.Mock.Load("missing_key")
 		}()
 
 		// Inject error return
 		testErr := errors.New("not found")
-		call := mock.Load.ExpectCalledWithExactly("missing_key")
+		call := mock.Method.Load.ExpectCalledWithExactly("missing_key")
 		call.InjectReturnValues("", testErr)
 	})
 }

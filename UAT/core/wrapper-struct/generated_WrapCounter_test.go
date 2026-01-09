@@ -9,14 +9,6 @@ import (
 	"testing"
 )
 
-// WrapCounterWrapper wraps an implementation of calculator.Counter to intercept method calls.
-type WrapCounterWrapper struct {
-	impl      *calculator.Counter
-	AddAmount *WrapCounterWrapperAddAmountWrapper
-	GetValue  *WrapCounterWrapperGetValueWrapper
-	Increment *WrapCounterWrapperIncrementWrapper
-}
-
 // WrapCounterWrapperAddAmountCallHandle represents a single call to the wrapped method.
 type WrapCounterWrapperAddAmountCallHandle struct {
 	*_imptest.CallableController[WrapCounterWrapperAddAmountReturns]
@@ -229,6 +221,12 @@ func (w *WrapCounterWrapperGetValueWrapper) Start() *WrapCounterWrapperGetValueC
 	return handle
 }
 
+// WrapCounterWrapperHandle wraps an implementation of calculator.Counter to intercept method calls.
+type WrapCounterWrapperHandle struct {
+	Method *WrapCounterWrapperMethods
+	impl   *calculator.Counter
+}
+
 // WrapCounterWrapperIncrementCallHandle represents a single call to the wrapped method.
 type WrapCounterWrapperIncrementCallHandle struct {
 	*_imptest.CallableController[WrapCounterWrapperIncrementReturns]
@@ -335,24 +333,32 @@ func (w *WrapCounterWrapperIncrementWrapper) Start() *WrapCounterWrapperIncremen
 	return handle
 }
 
+// WrapCounterWrapperMethods holds method wrappers for all intercepted methods.
+type WrapCounterWrapperMethods struct {
+	AddAmount *WrapCounterWrapperAddAmountWrapper
+	GetValue  *WrapCounterWrapperGetValueWrapper
+	Increment *WrapCounterWrapperIncrementWrapper
+}
+
 // WrapCounter creates a new wrapper for the given calculator.Counter implementation.
-func WrapCounter(t *testing.T, impl *calculator.Counter) *WrapCounterWrapper {
-	w := &WrapCounterWrapper{
-		impl: impl,
+func WrapCounter(t *testing.T, impl *calculator.Counter) *WrapCounterWrapperHandle {
+	h := &WrapCounterWrapperHandle{
+		impl:   impl,
+		Method: &WrapCounterWrapperMethods{},
 	}
-	w.AddAmount = wrapWrapCounterWrapperAddAmount(t, func(amount int) WrapCounterWrapperAddAmountReturns {
-		r0 := w.impl.AddAmount(amount)
+	h.Method.AddAmount = wrapWrapCounterWrapperAddAmount(t, func(amount int) WrapCounterWrapperAddAmountReturns {
+		r0 := h.impl.AddAmount(amount)
 		return WrapCounterWrapperAddAmountReturns{Result0: r0}
 	})
-	w.GetValue = wrapWrapCounterWrapperGetValue(t, func() WrapCounterWrapperGetValueReturns {
-		r0 := w.impl.GetValue()
+	h.Method.GetValue = wrapWrapCounterWrapperGetValue(t, func() WrapCounterWrapperGetValueReturns {
+		r0 := h.impl.GetValue()
 		return WrapCounterWrapperGetValueReturns{Result0: r0}
 	})
-	w.Increment = wrapWrapCounterWrapperIncrement(t, func() WrapCounterWrapperIncrementReturns {
-		r0 := w.impl.Increment()
+	h.Method.Increment = wrapWrapCounterWrapperIncrement(t, func() WrapCounterWrapperIncrementReturns {
+		r0 := h.impl.Increment()
 		return WrapCounterWrapperIncrementReturns{Result0: r0}
 	})
-	return w
+	return h
 }
 
 func wrapWrapCounterWrapperAddAmount(t *testing.T, fn func(amount int) WrapCounterWrapperAddAmountReturns) *WrapCounterWrapperAddAmountWrapper {

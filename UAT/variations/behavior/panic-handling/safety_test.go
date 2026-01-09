@@ -19,10 +19,10 @@ func TestPropagatePanic(t *testing.T) {
 	wrapper := WrapUnsafeRunner(t, safety.UnsafeRunner)
 
 	// Start UnsafeRunner.
-	call := wrapper.Start(depMock.Interface())
+	call := wrapper.Method.Start(depMock.Mock)
 
 	// Inject a panic into the dependency call.
-	depMock.DoWork.ExpectCalledWithExactly().InjectPanicValue("fatal error")
+	depMock.Method.DoWork.ExpectCalledWithExactly().InjectPanicValue("fatal error")
 
 	// Requirement: Verify that the panic was propagated through the runner.
 	call.ExpectPanicEquals("fatal error")
@@ -47,10 +47,10 @@ func TestRecoverFromPanic(t *testing.T) {
 	wrapper := WrapSafeRunner(t, safety.SafeRunner)
 
 	// Start SafeRunner.
-	call := wrapper.Start(depMock.Interface())
+	call := wrapper.Method.Start(depMock.Mock)
 
 	// Requirement: Inject a panic into the dependency call.
-	depMock.DoWork.ExpectCalledWithExactly().InjectPanicValue("boom")
+	depMock.Method.DoWork.ExpectCalledWithExactly().InjectPanicValue("boom")
 
 	// Requirement: Verify that SafeRunner recovered and returned false.
 	call.ExpectReturnsEqual(false)

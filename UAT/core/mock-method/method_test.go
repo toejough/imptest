@@ -24,14 +24,14 @@ func TestMethodMock(t *testing.T) {
 
 	// Start goroutine that uses the mock function
 	go func() {
-		result := mockmethod.UseCounterAdd(mock.Func(), inputValue)
+		result := mockmethod.UseCounterAdd(mock.Mock, inputValue)
 		if result != returnValue {
 			t.Errorf("expected %d, got %d", returnValue, result)
 		}
 	}()
 
 	// Verify the mock was called with expected argument
-	call := mock.ExpectCalledWithExactly(inputValue)
+	call := mock.Method.ExpectCalledWithExactly(inputValue)
 	args := call.GetArgs()
 
 	if args.N != inputValue {
@@ -51,11 +51,11 @@ func TestMethodMockMatchers(t *testing.T) {
 	const expectedReturn = 42
 
 	go func() {
-		_ = mockmethod.UseCounterAdd(mock.Func(), 999)
+		_ = mockmethod.UseCounterAdd(mock.Mock, 999)
 	}()
 
 	// Use matchers for flexible argument matching
-	call := mock.ExpectCalledWithMatches(999)
+	call := mock.Method.ExpectCalledWithMatches(999)
 	call.InjectReturnValues(expectedReturn)
 }
 
@@ -75,14 +75,14 @@ func TestMultipleMethodMocks(t *testing.T) {
 
 	// Use both mocks
 	go func() {
-		_ = mockmethod.UseCounterAdd(addMock.Func(), addInput)
+		_ = mockmethod.UseCounterAdd(addMock.Mock, addInput)
 	}()
 
 	go func() {
-		_ = mockmethod.UseCounterInc(incMock.Func())
+		_ = mockmethod.UseCounterInc(incMock.Mock)
 	}()
 
 	// Verify both mocks independently
-	addMock.Eventually().ExpectCalledWithExactly(addInput).InjectReturnValues(addReturn)
-	incMock.Eventually().ExpectCalledWithMatches().InjectReturnValues(incReturn)
+	addMock.Method.Eventually().ExpectCalledWithExactly(addInput).InjectReturnValues(addReturn)
+	incMock.Method.Eventually().ExpectCalledWithMatches().InjectReturnValues(incReturn)
 }

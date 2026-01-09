@@ -45,7 +45,6 @@ type TemplateRegistry struct {
 	// Function dependency templates
 	funcDepMockStructTmpl    *template.Template
 	funcDepConstructorTmpl   *template.Template
-	funcDepFuncMethodTmpl    *template.Template
 	funcDepMethodWrapperTmpl *template.Template
 }
 
@@ -75,9 +74,15 @@ import (
 
 	// Dependency Mock Struct template
 	//nolint:lll // Template docstring
-	registry.depMockStructTmpl, err = parseTemplate("depMockStruct", `// {{.MockTypeName}} is the mock for {{.InterfaceName}}.
-type {{.MockTypeName}}{{.TypeParamsDecl}} struct {
-	imp *{{.PkgImptest}}.Imp
+	registry.depMockStructTmpl, err = parseTemplate("depMockStruct", `// {{.MockTypeName}}Handle is the test handle for {{.InterfaceName}}.
+type {{.MockTypeName}}Handle{{.TypeParamsDecl}} struct {
+	Mock   {{if .IsStructType}}{{.MockTypeName}}Interface{{.TypeParamsUse}}{{else}}{{.InterfaceType}}{{end}}
+	Method *{{.MockTypeName}}Methods{{.TypeParamsUse}}
+	imp    *{{.PkgImptest}}.Imp
+}
+
+// {{.MockTypeName}}Methods holds method wrappers for setting expectations.
+type {{.MockTypeName}}Methods{{.TypeParamsDecl}} struct {
 {{range .Methods}}{{if .HasParams}}	{{.MethodName}} *{{.MethodTypeName}}{{$.TypeParamsUse}}
 {{else}}	{{.MethodName}} *{{$.PkgImptest}}.DependencyMethod
 {{end}}{{end}}}
@@ -89,14 +94,19 @@ type {{.MockTypeName}}{{.TypeParamsDecl}} struct {
 
 	// Dependency Constructor template
 	//nolint:lll // Template docstring
-	registry.depConstructorTmpl, err = parseTemplate("depConstructor", `// {{.MockName}} creates a new {{.MockTypeName}} for testing.
-func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}{{.TypeParamsUse}} {
+	registry.depConstructorTmpl, err = parseTemplate("depConstructor", `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
+func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
 	imp := {{.PkgImptest}}.NewImp(t)
-	return &{{.MockTypeName}}{{.TypeParamsUse}}{
-		imp: imp,
+	methods := &{{.MockTypeName}}Methods{{.TypeParamsUse}}{
 {{range .Methods}}{{if .HasParams}}		{{.MethodName}}: &{{.MethodTypeName}}{{$.TypeParamsUse}}{DependencyMethod: {{$.PkgImptest}}.NewDependencyMethod(imp, "{{.MethodName}}")},
 {{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(imp, "{{.MethodName}}"),
 {{end}}{{end}}	}
+	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &{{.ImplName}}{{.TypeParamsUse}}{handle: h}
+	return h
 }
 
 `)
@@ -104,23 +114,14 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTy
 		return nil, err
 	}
 
-	// Dependency Interface Method template
+	// Dependency Interface Method template - generates interface for struct types
 	//nolint:lll // Template docstring
 	registry.depInterfaceMethodTmpl, err = parseTemplate("depInterfaceMethod", `{{if .IsStructType}}// {{.MockTypeName}}Interface is a generated interface matching the methods of {{.InterfaceName}}.
 type {{.MockTypeName}}Interface{{.TypeParamsDecl}} interface {
 {{range .Methods}}	{{.MethodName}}({{.Params}}){{.Results}}
 {{end}}}
 
-// Interface returns a {{.MockTypeName}}Interface that can be passed to code under test.
-func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Interface() {{.MockTypeName}}Interface{{.TypeParamsUse}} {
-	return &{{.ImplName}}{{.TypeParamsUse}}{mock: m}
-}
-{{else}}// Interface returns the {{.InterfaceName}} implementation that can be passed to code under test.
-func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Interface() {{.InterfaceType}} {
-	return &{{.ImplName}}{{.TypeParamsUse}}{mock: m}
-}
-{{end}}
-`)
+{{end}}`)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +131,7 @@ func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Interface() {{.InterfaceType}} {
 		`{{if .IsStructType}}// {{.ImplName}} implements {{.MockTypeName}}Interface.
 {{else}}// {{.ImplName}} implements {{.InterfaceType}}.
 {{end}}type {{.ImplName}}{{.TypeParamsDecl}} struct {
-	mock *{{.MockTypeName}}{{.TypeParamsUse}}
+	handle *{{.MockTypeName}}Handle{{.TypeParamsUse}}
 }
 
 `)
@@ -151,7 +152,7 @@ func (impl *{{.ImplName}}{{.TypeParamsUse}}) {{.MethodName}}({{.Params}}){{.Resu
 		Args: {{if .HasVariadic}}callArgs{{else}}[]any{ {{.Args}} }{{end}},
 		ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -264,10 +265,12 @@ import (
 	// Target Constructor template
 	//nolint:lll // Template docstring
 	registry.targetConstructorTmpl, err = parseTemplate("targetConstructor", `// {{.WrapName}} wraps a function for testing.
-func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}}{{.TypeParamsUse}} {
-	return &{{.WrapperType}}{{.TypeParamsUse}}{
-		t:        t,
-		callable: fn,
+func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}}Handle{{.TypeParamsUse}} {
+	return &{{.WrapperType}}Handle{{.TypeParamsUse}}{
+		Method: &{{.WrapperType}}Method{{.TypeParamsUse}}{
+			t:        t,
+			callable: fn,
+		},
 	}
 }
 
@@ -278,8 +281,13 @@ func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.Func
 
 	// Target Wrapper Struct template
 	//nolint:lll // Template docstring
-	registry.targetWrapperStructTmpl, err = parseTemplate("targetWrapperStruct", `// {{.WrapperType}} wraps a function for testing.
-type {{.WrapperType}}{{.TypeParamsDecl}} struct {
+	registry.targetWrapperStructTmpl, err = parseTemplate("targetWrapperStruct", `// {{.WrapperType}}Handle is the test handle for a wrapped function.
+type {{.WrapperType}}Handle{{.TypeParamsDecl}} struct {
+	Method *{{.WrapperType}}Method{{.TypeParamsUse}}
+}
+
+// {{.WrapperType}}Method wraps a function for testing.
+type {{.WrapperType}}Method{{.TypeParamsDecl}} struct {
 	t        {{.PkgImptest}}.TestReporter
 	callable {{.FuncSig}}
 }
@@ -304,9 +312,9 @@ type {{.CallHandleType}}{{.TypeParamsDecl}} struct {
 	// Target Start Method template
 	//nolint:lll // Template docstring
 	registry.targetStartMethodTmpl, err = parseTemplate("targetStartMethod", `// Start executes the wrapped function in a goroutine.
-func (w *{{.WrapperType}}{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
+func (m *{{.WrapperType}}Method{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
 	handle := &{{.CallHandleType}}{{.TypeParamsUse}}{
-		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](w.t),
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](m.t),
 	}
 	go func() {
 		defer func() {
@@ -314,8 +322,8 @@ func (w *{{.WrapperType}}{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleTy
 				handle.PanicChan <- r
 			}
 		}()
-		{{if .HasResults}}{{.ResultVars}} := w.callable({{.ParamNames}})
-		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
+		{{if .HasResults}}{{.ResultVars}} := m.callable({{.ParamNames}})
+		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}m.callable({{.ParamNames}})
 		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{}{{end}}
 	}()
 	return handle
@@ -461,9 +469,14 @@ import (
 
 	// Interface Target Wrapper Struct template
 	//nolint:lll // Template docstring
-	registry.interfaceTargetWrapperStructTmpl, err = parseTemplate("interfaceTargetWrapperStruct", `// {{.WrapperType}} wraps an implementation of {{.InterfaceType}} to intercept method calls.
-type {{.WrapperType}} struct {
-	{{.ImplName}} {{if .IsStructType}}*{{end}}{{.InterfaceType}}
+	registry.interfaceTargetWrapperStructTmpl, err = parseTemplate("interfaceTargetWrapperStruct", `// {{.WrapperType}}Handle wraps an implementation of {{.InterfaceType}} to intercept method calls.
+type {{.WrapperType}}Handle struct {
+	Method *{{.WrapperType}}Methods
+	impl   {{if .IsStructType}}*{{end}}{{.InterfaceType}}
+}
+
+// {{.WrapperType}}Methods holds method wrappers for all intercepted methods.
+type {{.WrapperType}}Methods struct {
 {{range .Methods}}	{{.MethodName}} *{{.WrapperType}}
 {{end}}}
 
@@ -475,17 +488,18 @@ type {{.WrapperType}} struct {
 	// Interface Target Constructor template
 	//nolint:lll // Template docstring
 	registry.interfaceTargetConstructorTmpl, err = parseTemplate("interfaceTargetConstructor", `// {{.WrapName}} creates a new wrapper for the given {{.InterfaceType}} implementation.
-func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.InterfaceType}}) *{{.WrapperType}} {
-	w := &{{.WrapperType}}{
-		{{.ImplName}}: {{.ImplName}},
+func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.InterfaceType}}) *{{.WrapperType}}Handle {
+	h := &{{.WrapperType}}Handle{
+		impl:   {{.ImplName}},
+		Method: &{{.WrapperType}}Methods{},
 	}
-{{range .Methods}}	w.{{.MethodName}} = {{.WrapName}}(t, func({{.Params}}){{if .HasResults}} {{.ReturnsType}}{{end}} {
-{{if .HasResults}}		{{.ResultVars}} := w.{{$.ImplName}}.{{.MethodName}}({{.ParamNames}})
+{{range .Methods}}	h.Method.{{.MethodName}} = {{.WrapName}}(t, func({{.Params}}){{if .HasResults}} {{.ReturnsType}}{{end}} {
+{{if .HasResults}}		{{.ResultVars}} := h.impl.{{.MethodName}}({{.ParamNames}})
 		return {{.ReturnsType}}{ {{.ReturnAssignments}} }
-{{else}}		w.{{$.ImplName}}.{{.MethodName}}({{.ParamNames}})
+{{else}}		h.impl.{{.MethodName}}({{.ParamNames}})
 		return {{.ReturnsType}}{}
 {{end}}	})
-{{end}}	return w
+{{end}}	return h
 }
 
 `)
@@ -663,12 +677,13 @@ func (h *{{.CallHandleType}}) ExpectPanicMatches(matcher any) {
 
 	// Function Dependency Mock Struct template
 	//nolint:lll // Template docstring
-	registry.funcDepMockStructTmpl, err = parseTemplate("funcDepMockStruct", `// {{.MockTypeName}} is the mock for {{.FuncName}} function.
-type {{.MockTypeName}}{{.TypeParamsDecl}} struct {
-	imp *{{.PkgImptest}}.Imp
-{{if .Method.HasParams}}	*{{.Method.MethodTypeName}}{{.TypeParamsUse}}
-{{else}}	*{{.PkgImptest}}.DependencyMethod
-{{end}}}
+	registry.funcDepMockStructTmpl, err = parseTemplate("funcDepMockStruct", `// {{.MockTypeName}}Handle is the test handle for {{.FuncName}} function.
+type {{.MockTypeName}}Handle{{.TypeParamsDecl}} struct {
+	Mock   {{.FuncSig}}
+{{if .Method.HasParams}}	Method *{{.Method.MethodTypeName}}{{.TypeParamsUse}}
+{{else}}	Method *{{.PkgImptest}}.DependencyMethod
+{{end}}	imp    *{{.PkgImptest}}.Imp
+}
 
 `)
 	if err != nil {
@@ -677,26 +692,15 @@ type {{.MockTypeName}}{{.TypeParamsDecl}} struct {
 
 	// Function Dependency Constructor template
 	//nolint:lll // Template docstring
-	registry.funcDepConstructorTmpl, err = parseTemplate("funcDepConstructor", `// {{.MockName}} creates a new {{.MockTypeName}} for testing.
-func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}{{.TypeParamsUse}} {
+	registry.funcDepConstructorTmpl, err = parseTemplate("funcDepConstructor", `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
+func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
 	imp := {{.PkgImptest}}.NewImp(t)
-	return &{{.MockTypeName}}{{.TypeParamsUse}}{
+	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
 		imp: imp,
-{{if .Method.HasParams}}		{{.Method.MethodTypeName}}: &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}")},
-{{else}}		DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}"),
+{{if .Method.HasParams}}		Method: &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}")},
+{{else}}		Method: {{.PkgImptest}}.NewDependencyMethod(imp, "{{.FuncName}}"),
 {{end}}	}
-}
-
-`)
-	if err != nil {
-		return nil, err
-	}
-
-	// Function Dependency Func Method template - returns a function with the same signature
-	//nolint:lll // Template docstring
-	registry.funcDepFuncMethodTmpl, err = parseTemplate("funcDepFuncMethod", `// Func returns a function that forwards calls to the mock.
-func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Func() {{.FuncSig}} {
-	return func({{.Method.Params}}){{.Method.Results}} {
+	h.Mock = func({{.Method.Params}}){{.Method.Results}} {
 		{{if .Method.HasVariadic}}callArgs := []any{ {{.Method.NonVariadicArgs}} }
 		for _, v := range {{.Method.VariadicArg}} {
 			callArgs = append(callArgs, v)
@@ -706,7 +710,7 @@ func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Func() {{.FuncSig}} {
 			Args: {{if .Method.HasVariadic}}callArgs{{else}}[]any{ {{.Method.Args}} }{{end}},
 			ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 		}
-		m.imp.CallChan <- call
+		h.imp.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)
@@ -721,6 +725,7 @@ func (m *{{.MockTypeName}}{{.TypeParamsUse}}) Func() {{.FuncSig}} {
 		{{end}}
 		return {{.Method.ReturnList}}{{end}}
 	}
+	return h
 }
 
 `)
@@ -847,12 +852,6 @@ func (r *TemplateRegistry) WriteFuncDepConstructor(buf *bytes.Buffer, data any) 
 }
 
 // WriteFuncDepFuncMethod writes the function dependency Func() method.
-func (r *TemplateRegistry) WriteFuncDepFuncMethod(buf *bytes.Buffer, data any) {
-	err := r.funcDepFuncMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute funcDepFuncMethod template: %v", err))
-	}
-}
 
 // WriteFuncDepMethodWrapper writes the function dependency method wrapper.
 func (r *TemplateRegistry) WriteFuncDepMethodWrapper(buf *bytes.Buffer, data any) {

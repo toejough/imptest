@@ -6,20 +6,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// CalculatorMock is the mock for Calculator.
-type CalculatorMock struct {
-	imp   *_imptest.Imp
-	Add   *CalculatorMockAddMethod
-	Get   *_imptest.DependencyMethod
-	Reset *_imptest.DependencyMethod
-	Store *CalculatorMockStoreMethod
-}
-
-// Interface returns a CalculatorMockInterface that can be passed to code under test.
-func (m *CalculatorMock) Interface() CalculatorMockInterface {
-	return &mockCalculatorImpl{mock: m}
-}
-
 // CalculatorMockAddArgs holds typed arguments for Add.
 type CalculatorMockAddArgs struct {
 	A int
@@ -79,12 +65,27 @@ func (c *CalculatorMockGetCall) InjectReturnValues(result0 int, result1 error) {
 	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
+// CalculatorMockHandle is the test handle for Calculator.
+type CalculatorMockHandle struct {
+	Mock   CalculatorMockInterface
+	Method *CalculatorMockMethods
+	imp    *_imptest.Imp
+}
+
 // CalculatorMockInterface is a generated interface matching the methods of Calculator.
 type CalculatorMockInterface interface {
 	Add(a int, b int) int
 	Get() (int, error)
 	Reset()
 	Store(value int) int
+}
+
+// CalculatorMockMethods holds method wrappers for setting expectations.
+type CalculatorMockMethods struct {
+	Add   *CalculatorMockAddMethod
+	Get   *_imptest.DependencyMethod
+	Reset *_imptest.DependencyMethod
+	Store *CalculatorMockStoreMethod
 }
 
 // CalculatorMockStoreArgs holds typed arguments for Store.
@@ -134,21 +135,26 @@ func (m *CalculatorMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *Ca
 	return &CalculatorMockStoreCall{DependencyCall: call}
 }
 
-// MockCalculator creates a new CalculatorMock for testing.
-func MockCalculator(t _imptest.TestReporter) *CalculatorMock {
+// MockCalculator creates a new CalculatorMockHandle for testing.
+func MockCalculator(t _imptest.TestReporter) *CalculatorMockHandle {
 	imp := _imptest.NewImp(t)
-	return &CalculatorMock{
-		imp:   imp,
+	methods := &CalculatorMockMethods{
 		Add:   &CalculatorMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Add")},
 		Get:   _imptest.NewDependencyMethod(imp, "Get"),
 		Reset: _imptest.NewDependencyMethod(imp, "Reset"),
 		Store: &CalculatorMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Store")},
 	}
+	h := &CalculatorMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockCalculatorImpl{handle: h}
+	return h
 }
 
 // mockCalculatorImpl implements CalculatorMockInterface.
 type mockCalculatorImpl struct {
-	mock *CalculatorMock
+	handle *CalculatorMockHandle
 }
 
 // Add implements Calculator.Add.
@@ -158,7 +164,7 @@ func (impl *mockCalculatorImpl) Add(a int, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -181,7 +187,7 @@ func (impl *mockCalculatorImpl) Get() (int, error) {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -211,7 +217,7 @@ func (impl *mockCalculatorImpl) Reset() {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -226,7 +232,7 @@ func (impl *mockCalculatorImpl) Store(value int) int {
 		Args:         []any{value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -14,7 +14,11 @@ type WrapConditionalReturnsReturn struct {
 }
 
 // WrapConditionalWrapper wraps a function for testing.
-type WrapConditionalWrapper struct {
+type WrapConditionalWrapperHandle struct {
+	Method *WrapConditionalWrapperMethod
+}
+
+type WrapConditionalWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(x int) int
 }
@@ -25,7 +29,7 @@ type WrapConditionalCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapConditionalWrapper) Start(x int) *WrapConditionalCallHandle {
+func (w *WrapConditionalWrapperMethod) Start(x int) *WrapConditionalCallHandle {
 	handle := &WrapConditionalCallHandle{
 		CallableController: _imptest.NewCallableController[WrapConditionalReturnsReturn](w.t),
 	}
@@ -107,9 +111,11 @@ func (h *WrapConditionalCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapConditional wraps a function for testing.
-func WrapConditional(t _imptest.TestReporter, fn func(x int) int) *WrapConditionalWrapper {
-	return &WrapConditionalWrapper{
-		t:        t,
-		callable: fn,
+func WrapConditional(t _imptest.TestReporter, fn func(x int) int) *WrapConditionalWrapperHandle {
+	return &WrapConditionalWrapperHandle{
+		Method: &WrapConditionalWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

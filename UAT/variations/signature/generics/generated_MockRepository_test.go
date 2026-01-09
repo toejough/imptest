@@ -7,18 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// RepositoryMock is the mock for Repository.
-type RepositoryMock[T any] struct {
-	imp  *_imptest.Imp
-	Save *RepositoryMockSaveMethod[T]
-	Get  *RepositoryMockGetMethod[T]
-}
-
-// Interface returns the Repository implementation that can be passed to code under test.
-func (m *RepositoryMock[T]) Interface() generics.Repository[T] {
-	return &mockRepositoryImpl[T]{mock: m}
-}
-
 // RepositoryMockGetArgs holds typed arguments for Get.
 type RepositoryMockGetArgs[T any] struct {
 	Id string
@@ -64,6 +52,19 @@ func (m *RepositoryMockGetMethod[T]) ExpectCalledWithExactly(id string) *Reposit
 func (m *RepositoryMockGetMethod[T]) ExpectCalledWithMatches(matchers ...any) *RepositoryMockGetCall[T] {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &RepositoryMockGetCall[T]{DependencyCall: call}
+}
+
+// RepositoryMockHandle is the test handle for Repository.
+type RepositoryMockHandle[T any] struct {
+	Mock   generics.Repository[T]
+	Method *RepositoryMockMethods[T]
+	imp    *_imptest.Imp
+}
+
+// RepositoryMockMethods holds method wrappers for setting expectations.
+type RepositoryMockMethods[T any] struct {
+	Save *RepositoryMockSaveMethod[T]
+	Get  *RepositoryMockGetMethod[T]
 }
 
 // RepositoryMockSaveArgs holds typed arguments for Save.
@@ -113,19 +114,24 @@ func (m *RepositoryMockSaveMethod[T]) ExpectCalledWithMatches(matchers ...any) *
 	return &RepositoryMockSaveCall[T]{DependencyCall: call}
 }
 
-// MockRepository creates a new RepositoryMock for testing.
-func MockRepository[T any](t _imptest.TestReporter) *RepositoryMock[T] {
+// MockRepository creates a new RepositoryMockHandle for testing.
+func MockRepository[T any](t _imptest.TestReporter) *RepositoryMockHandle[T] {
 	imp := _imptest.NewImp(t)
-	return &RepositoryMock[T]{
-		imp:  imp,
+	methods := &RepositoryMockMethods[T]{
 		Save: &RepositoryMockSaveMethod[T]{DependencyMethod: _imptest.NewDependencyMethod(imp, "Save")},
 		Get:  &RepositoryMockGetMethod[T]{DependencyMethod: _imptest.NewDependencyMethod(imp, "Get")},
 	}
+	h := &RepositoryMockHandle[T]{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockRepositoryImpl[T]{handle: h}
+	return h
 }
 
 // mockRepositoryImpl implements generics.Repository[T].
 type mockRepositoryImpl[T any] struct {
-	mock *RepositoryMock[T]
+	handle *RepositoryMockHandle[T]
 }
 
 // Get implements generics.Repository[T].Get.
@@ -135,7 +141,7 @@ func (impl *mockRepositoryImpl[T]) Get(id string) (T, error) {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -165,7 +171,7 @@ func (impl *mockRepositoryImpl[T]) Save(item T) error {
 		Args:         []any{item},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

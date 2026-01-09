@@ -20,11 +20,11 @@ func TestTypedInjectReturnValues(t *testing.T) {
 
 		// Launch goroutine that will call Store
 		go func() {
-			_, _ = mock.Interface().Store("key", "value")
+			_, _ = mock.Mock.Store("key", "value")
 		}()
 
 		// Use typed InjectReturnValues - should compile with correct types
-		call := mock.Store.ExpectCalledWithExactly("key", "value")
+		call := mock.Method.Store.ExpectCalledWithExactly("key", "value")
 		call.InjectReturnValues(42, nil) // ✓ Correct types: int, error
 
 		// Verify the mock received the call
@@ -40,12 +40,12 @@ func TestTypedInjectReturnValues(t *testing.T) {
 
 		// Launch goroutine that will call Store
 		go func() {
-			_, _ = mock.Interface().Store("foo", "bar")
+			_, _ = mock.Mock.Store("foo", "bar")
 		}()
 
 		// Use typed InjectReturnValues with error
 		testErr := errors.New("storage failure")
-		call := mock.Store.ExpectCalledWithExactly("foo", "bar")
+		call := mock.Method.Store.ExpectCalledWithExactly("foo", "bar")
 		call.InjectReturnValues(0, testErr) // ✓ Correct types: int, error
 	})
 
@@ -56,11 +56,11 @@ func TestTypedInjectReturnValues(t *testing.T) {
 
 		// Launch goroutine that will call Add
 		go func() {
-			_ = mock.Interface().Add(5, 3)
+			_ = mock.Mock.Add(5, 3)
 		}()
 
 		// Use typed InjectReturnValues for single return value
-		call := mock.Add.ExpectCalledWithExactly(5, 3)
+		call := mock.Method.Add.ExpectCalledWithExactly(5, 3)
 		call.InjectReturnValues(8) // ✓ Correct type: int
 	})
 
@@ -71,11 +71,11 @@ func TestTypedInjectReturnValues(t *testing.T) {
 
 		// Launch goroutine that will call Notify
 		go func() {
-			_ = mock.Interface().Notify("alert", 1, 2, 3)
+			_ = mock.Mock.Notify("alert", 1, 2, 3)
 		}()
 
 		// Use typed InjectReturnValues for bool return
-		call := mock.Notify.ExpectCalledWithExactly("alert", 1, 2, 3)
+		call := mock.Method.Notify.ExpectCalledWithExactly("alert", 1, 2, 3)
 		call.InjectReturnValues(true) // ✓ Correct type: bool
 	})
 }
@@ -84,8 +84,8 @@ func TestTypedInjectReturnValues(t *testing.T) {
 //
 // func TestWrongTypes(t *testing.T) {
 //     mock := MockOps(t)
-//     go func() { _, _ = mock.Interface().Store("key", "value") }()
-//     call := mock.Store.ExpectCalledWithExactly("key", "value")
+//     go func() { _, _ = mock.Mock.Store("key", "value") }()
+//     call := mock.Method.Store.ExpectCalledWithExactly("key", "value")
 //
 //     // ✗ COMPILE ERROR: cannot use "wrong" (type string) as type int
 //     call.InjectReturnValues("wrong", nil)

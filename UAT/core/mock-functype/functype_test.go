@@ -28,7 +28,7 @@ func TestFunctionTypeMock_BasicUsage(t *testing.T) {
 	mock := MockValidator(t)
 
 	// Get the function that can be passed where Validator is expected
-	validatorFunc := mock.Func()
+	validatorFunc := mock.Mock
 
 	// Use the mock function in a goroutine (simulating production code)
 	errChan := make(chan error, 1)
@@ -38,7 +38,7 @@ func TestFunctionTypeMock_BasicUsage(t *testing.T) {
 	}()
 
 	// Set up expectation and inject return value
-	mock.ExpectCalledWithExactly("test@example.com").
+	mock.Method.ExpectCalledWithExactly("test@example.com").
 		InjectReturnValues(nil)
 
 	// Verify result
@@ -53,14 +53,14 @@ func TestFunctionTypeMock_GetArgs(t *testing.T) {
 	t.Parallel()
 
 	mock := MockValidator(t)
-	validatorFunc := mock.Func()
+	validatorFunc := mock.Mock
 
 	go func() {
 		_ = validatorFunc("check-this-data")
 	}()
 
 	// Use ExpectCalledWithMatches to accept any call
-	call := mock.ExpectCalledWithMatches(imptest.Any())
+	call := mock.Method.ExpectCalledWithMatches(imptest.Any())
 
 	// Get typed args
 	args := call.GetArgs()
@@ -76,7 +76,7 @@ func TestFunctionTypeMock_ReturnError(t *testing.T) {
 	t.Parallel()
 
 	mock := MockValidator(t)
-	validatorFunc := mock.Func()
+	validatorFunc := mock.Mock
 
 	expectedErr := errors.New("invalid email format")
 	errChan := make(chan error, 1)
@@ -86,7 +86,7 @@ func TestFunctionTypeMock_ReturnError(t *testing.T) {
 	}()
 
 	// Inject error return
-	mock.ExpectCalledWithExactly("invalid-email").
+	mock.Method.ExpectCalledWithExactly("invalid-email").
 		InjectReturnValues(expectedErr)
 
 	// Verify error was returned

@@ -7,18 +7,6 @@ import (
 	imptest "github.com/toejough/imptest/imptest"
 )
 
-// TestReporterMock is the mock for TestReporter.
-type TestReporterMock struct {
-	imp    *_imptest.Imp
-	Helper *_imptest.DependencyMethod
-	Fatalf *TestReporterMockFatalfMethod
-}
-
-// Interface returns the TestReporter implementation that can be passed to code under test.
-func (m *TestReporterMock) Interface() imptest.TestReporter {
-	return &mockTestReporterImpl{mock: m}
-}
-
 // TestReporterMockFatalfArgs holds typed arguments for Fatalf.
 type TestReporterMockFatalfArgs struct {
 	Format string
@@ -67,19 +55,37 @@ func (m *TestReporterMockFatalfMethod) ExpectCalledWithMatches(matchers ...any) 
 	return &TestReporterMockFatalfCall{DependencyCall: call}
 }
 
-// MockTestReporter creates a new TestReporterMock for testing.
-func MockTestReporter(t _imptest.TestReporter) *TestReporterMock {
+// TestReporterMockHandle is the test handle for TestReporter.
+type TestReporterMockHandle struct {
+	Mock   imptest.TestReporter
+	Method *TestReporterMockMethods
+	imp    *_imptest.Imp
+}
+
+// TestReporterMockMethods holds method wrappers for setting expectations.
+type TestReporterMockMethods struct {
+	Helper *_imptest.DependencyMethod
+	Fatalf *TestReporterMockFatalfMethod
+}
+
+// MockTestReporter creates a new TestReporterMockHandle for testing.
+func MockTestReporter(t _imptest.TestReporter) *TestReporterMockHandle {
 	imp := _imptest.NewImp(t)
-	return &TestReporterMock{
-		imp:    imp,
+	methods := &TestReporterMockMethods{
 		Helper: _imptest.NewDependencyMethod(imp, "Helper"),
 		Fatalf: &TestReporterMockFatalfMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Fatalf")},
 	}
+	h := &TestReporterMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockTestReporterImpl{handle: h}
+	return h
 }
 
 // mockTestReporterImpl implements imptest.TestReporter.
 type mockTestReporterImpl struct {
-	mock *TestReporterMock
+	handle *TestReporterMockHandle
 }
 
 // Fatalf implements imptest.TestReporter.Fatalf.
@@ -93,7 +99,7 @@ func (impl *mockTestReporterImpl) Fatalf(format string, args ...any) {
 		Args:         callArgs,
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -108,7 +114,7 @@ func (impl *mockTestReporterImpl) Helper() {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -17,7 +17,7 @@ func TestStructWrapper_CallHandleHasExpectMethods(t *testing.T) {
 	counter := calculator.NewCounter(10)
 	wrapper := WrapCounter(t, counter)
 
-	call := wrapper.AddAmount.Start(5)
+	call := wrapper.Method.AddAmount.Start(5)
 
 	// ExpectReturnsEqual should work
 	call.ExpectReturnsEqual(15)
@@ -30,7 +30,7 @@ func TestStructWrapper_CallHandleHasReturnedField(t *testing.T) {
 	counter := calculator.NewCounter(0)
 	wrapper := WrapCounter(t, counter)
 
-	call := wrapper.Increment.Start()
+	call := wrapper.Method.Increment.Start()
 
 	// WaitForResponse should be available
 	call.WaitForResponse()
@@ -59,9 +59,9 @@ func TestStructWrapper_ConcurrentCalls(t *testing.T) {
 	wrapper3 := WrapCounter(t, counter3)
 
 	// Start 3 concurrent calls on different counters
-	call1 := wrapper1.AddAmount.Start(1)
-	call2 := wrapper2.AddAmount.Start(10)
-	call3 := wrapper3.AddAmount.Start(100)
+	call1 := wrapper1.Method.AddAmount.Start(1)
+	call2 := wrapper2.Method.AddAmount.Start(10)
+	call3 := wrapper3.Method.AddAmount.Start(100)
 
 	// Each handle should independently verify its own results
 	call1.ExpectReturnsEqual(1)
@@ -76,7 +76,7 @@ func TestStructWrapper_ExpectReturnsMatch(t *testing.T) {
 	counter := calculator.NewCounter(5)
 	wrapper := WrapCounter(t, counter)
 
-	call := wrapper.AddAmount.Start(10)
+	call := wrapper.Method.AddAmount.Start(10)
 
 	// Should be able to use matchers
 	call.ExpectReturnsMatch(imptest.Any())
@@ -96,8 +96,8 @@ func TestStructWrapper_NoGetCallsMethod(t *testing.T) {
 		GetCalls() any
 	}
 
-	if _, hasGetCalls := any(wrapper.Increment).(getCaller); hasGetCalls {
-		t.Fatalf("wrapper.Increment has GetCalls() method - this should not exist with call handle pattern")
+	if _, hasGetCalls := any(wrapper.Method.Increment).(getCaller); hasGetCalls {
+		t.Fatalf("wrapper.Method.Increment has GetCalls() method - this should not exist with call handle pattern")
 	}
 }
 
@@ -112,11 +112,11 @@ func TestStructWrapper_StartReturnsUniqueCallHandles(t *testing.T) {
 	wrapper := WrapCounter(t, counter)
 
 	// Start first call and wait for it to complete
-	call1 := wrapper.Increment.Start()
+	call1 := wrapper.Method.Increment.Start()
 	call1.WaitForResponse()
 
 	// Now start second call
-	call2 := wrapper.Increment.Start()
+	call2 := wrapper.Method.Increment.Start()
 
 	// Verify they are different objects
 	if call1 == call2 {
@@ -148,14 +148,14 @@ func TestUnifiedPattern_FunctionInterfaceStructSameAPI(t *testing.T) {
 	// Struct wrapper (Counter)
 	counter := calculator.NewCounter(3)
 	structWrapper := WrapCounter(t, counter)
-	structCall := structWrapper.GetValue.Start()
+	structCall := structWrapper.Method.GetValue.Start()
 
 	// All should have identical API
 	// 1. Return call handles with ExpectReturnsEqual
 	structCall.ExpectReturnsEqual(3)
 
 	// 2. Have WaitForResponse
-	structCall2 := structWrapper.Increment.Start()
+	structCall2 := structWrapper.Method.Increment.Start()
 	structCall2.WaitForResponse()
 
 	// 3. Have Returned field access
@@ -164,7 +164,7 @@ func TestUnifiedPattern_FunctionInterfaceStructSameAPI(t *testing.T) {
 	}
 
 	// 4. Support ExpectReturnsMatch
-	structCall3 := structWrapper.AddAmount.Start(5)
+	structCall3 := structWrapper.Method.AddAmount.Start(5)
 	structCall3.ExpectReturnsMatch(imptest.Any())
 
 	// Success: Struct wrappers have identical API to function and interface wrappers

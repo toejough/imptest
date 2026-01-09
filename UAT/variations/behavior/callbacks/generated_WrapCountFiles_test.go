@@ -91,16 +91,21 @@ type WrapCountFilesReturnsReturn struct {
 	Result1 error
 }
 
-// WrapCountFilesWrapper wraps a function for testing.
-type WrapCountFilesWrapper struct {
+// WrapCountFilesWrapperHandle is the test handle for a wrapped function.
+type WrapCountFilesWrapperHandle struct {
+	Method *WrapCountFilesWrapperMethod
+}
+
+// WrapCountFilesWrapperMethod wraps a function for testing.
+type WrapCountFilesWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(visitor.TreeWalker, string) (int, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCountFilesWrapper) Start(walker visitor.TreeWalker, root string) *WrapCountFilesCallHandle {
+func (m *WrapCountFilesWrapperMethod) Start(walker visitor.TreeWalker, root string) *WrapCountFilesCallHandle {
 	handle := &WrapCountFilesCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCountFilesReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapCountFilesReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -108,16 +113,18 @@ func (w *WrapCountFilesWrapper) Start(walker visitor.TreeWalker, root string) *W
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1 := w.callable(walker, root)
+		ret0, ret1 := m.callable(walker, root)
 		handle.ReturnChan <- WrapCountFilesReturnsReturn{Result0: ret0, Result1: ret1}
 	}()
 	return handle
 }
 
 // WrapCountFiles wraps a function for testing.
-func WrapCountFiles(t _imptest.TestReporter, fn func(visitor.TreeWalker, string) (int, error)) *WrapCountFilesWrapper {
-	return &WrapCountFilesWrapper{
-		t:        t,
-		callable: fn,
+func WrapCountFiles(t _imptest.TestReporter, fn func(visitor.TreeWalker, string) (int, error)) *WrapCountFilesWrapperHandle {
+	return &WrapCountFilesWrapperHandle{
+		Method: &WrapCountFilesWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

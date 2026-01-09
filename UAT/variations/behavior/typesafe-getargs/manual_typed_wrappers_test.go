@@ -45,31 +45,38 @@ func (m *CalculatorAddMethod) ExpectCalledWithMatches(matchers ...any) *Calculat
 	return &CalculatorAddCall{DependencyCall: call}
 }
 
-// Typesafe calculator mock
-type TypesafeCalculatorMock struct {
-	imp      *imptest.Imp
+// TypesafeCalculatorMockHandle is the test handle for Calculator.
+type TypesafeCalculatorMockHandle struct {
+	Mock   typesafeargs.Calculator
+	Method *TypesafeCalculatorMockMethods
+	imp    *imptest.Imp
+}
+
+// TypesafeCalculatorMockMethods holds method wrappers for setting expectations.
+type TypesafeCalculatorMockMethods struct {
 	Add      *CalculatorAddMethod
 	Multiply *imptest.DependencyMethod // For now, only Add is typed
 	Store    *imptest.DependencyMethod
 }
 
-func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMock {
+func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMockHandle {
 	imp := imptest.NewImp(t)
-
-	return &TypesafeCalculatorMock{
-		imp:      imp,
+	methods := &TypesafeCalculatorMockMethods{
 		Add:      &CalculatorAddMethod{DependencyMethod: imptest.NewDependencyMethod(imp, "Add")},
 		Multiply: imptest.NewDependencyMethod(imp, "Multiply"),
 		Store:    imptest.NewDependencyMethod(imp, "Store"),
 	}
-}
+	handle := &TypesafeCalculatorMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	handle.Mock = &mockCalculatorImpl{handle: handle}
 
-func (m *TypesafeCalculatorMock) Interface() typesafeargs.Calculator {
-	return &mockCalculatorImpl{mock: m}
+	return handle
 }
 
 type mockCalculatorImpl struct {
-	mock *TypesafeCalculatorMock
+	handle *TypesafeCalculatorMockHandle
 }
 
 func (impl *mockCalculatorImpl) Add(a, b int) int {
@@ -78,7 +85,7 @@ func (impl *mockCalculatorImpl) Add(a, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
@@ -102,7 +109,7 @@ func (impl *mockCalculatorImpl) Multiply(x, y int) int {
 		Args:         []any{x, y},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
@@ -126,7 +133,7 @@ func (impl *mockCalculatorImpl) Store(key string, value any) error {
 		Args:         []any{key, value},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {

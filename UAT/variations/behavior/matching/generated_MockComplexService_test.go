@@ -7,15 +7,16 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ComplexServiceMock is the mock for ComplexService.
-type ComplexServiceMock struct {
-	imp     *_imptest.Imp
-	Process *ComplexServiceMockProcessMethod
+// ComplexServiceMockHandle is the test handle for ComplexService.
+type ComplexServiceMockHandle struct {
+	Mock   matching.ComplexService
+	Method *ComplexServiceMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the ComplexService implementation that can be passed to code under test.
-func (m *ComplexServiceMock) Interface() matching.ComplexService {
-	return &mockComplexServiceImpl{mock: m}
+// ComplexServiceMockMethods holds method wrappers for setting expectations.
+type ComplexServiceMockMethods struct {
+	Process *ComplexServiceMockProcessMethod
 }
 
 // ComplexServiceMockProcessArgs holds typed arguments for Process.
@@ -65,18 +66,23 @@ func (m *ComplexServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...an
 	return &ComplexServiceMockProcessCall{DependencyCall: call}
 }
 
-// MockComplexService creates a new ComplexServiceMock for testing.
-func MockComplexService(t _imptest.TestReporter) *ComplexServiceMock {
+// MockComplexService creates a new ComplexServiceMockHandle for testing.
+func MockComplexService(t _imptest.TestReporter) *ComplexServiceMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ComplexServiceMock{
-		imp:     imp,
+	methods := &ComplexServiceMockMethods{
 		Process: &ComplexServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
 	}
+	h := &ComplexServiceMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockComplexServiceImpl{handle: h}
+	return h
 }
 
 // mockComplexServiceImpl implements matching.ComplexService.
 type mockComplexServiceImpl struct {
-	mock *ComplexServiceMock
+	handle *ComplexServiceMockHandle
 }
 
 // Process implements matching.ComplexService.Process.
@@ -86,7 +92,7 @@ func (impl *mockComplexServiceImpl) Process(d matching.Data) bool {
 		Args:         []any{d},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

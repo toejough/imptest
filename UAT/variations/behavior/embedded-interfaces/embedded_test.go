@@ -15,14 +15,14 @@ func TestEmbeddedInterfaceError(t *testing.T) {
 	mock := MockReadCloser(t)
 
 	go func() {
-		_, _ = embedded.ProcessStream(mock.Interface())
+		_, _ = embedded.ProcessStream(mock.Mock)
 	}()
 
 	// Simulate a read error
-	mock.Read.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(0, io.EOF)
+	mock.Method.Read.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(0, io.EOF)
 
 	// Verify Close is still called (standard Go cleanup pattern)
-	mock.Close.ExpectCalledWithExactly().InjectReturnValues(nil)
+	mock.Method.Close.ExpectCalledWithExactly().InjectReturnValues(nil)
 }
 
 //go:generate impgen embedded.ReadCloser --dependency
@@ -41,13 +41,13 @@ func TestEmbeddedInterfaces(t *testing.T) {
 	mock := MockReadCloser(t)
 
 	go func() {
-		_, _ = embedded.ProcessStream(mock.Interface())
+		_, _ = embedded.ProcessStream(mock.Mock)
 	}()
 
 	// Read is embedded from io.Reader
 	// Note: []byte is not comparable, so it uses reflect.DeepEqual automatically.
-	mock.Read.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(5, nil)
+	mock.Method.Read.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(5, nil)
 
 	// Close is embedded from Closer (no args, so ExpectCalledWithExactly is called with no arguments)
-	mock.Close.ExpectCalledWithExactly().InjectReturnValues(nil)
+	mock.Method.Close.ExpectCalledWithExactly().InjectReturnValues(nil)
 }

@@ -82,16 +82,21 @@ type WrapCalculatorMultiplyReturnsReturn struct {
 	Result0 int
 }
 
-// WrapCalculatorMultiplyWrapper wraps a function for testing.
-type WrapCalculatorMultiplyWrapper struct {
+// WrapCalculatorMultiplyWrapperHandle is the test handle for a wrapped function.
+type WrapCalculatorMultiplyWrapperHandle struct {
+	Method *WrapCalculatorMultiplyWrapperMethod
+}
+
+// WrapCalculatorMultiplyWrapperMethod wraps a function for testing.
+type WrapCalculatorMultiplyWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(int) int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCalculatorMultiplyWrapper) Start(value int) *WrapCalculatorMultiplyCallHandle {
+func (m *WrapCalculatorMultiplyWrapperMethod) Start(value int) *WrapCalculatorMultiplyCallHandle {
 	handle := &WrapCalculatorMultiplyCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -99,16 +104,18 @@ func (w *WrapCalculatorMultiplyWrapper) Start(value int) *WrapCalculatorMultiply
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(value)
+		ret0 := m.callable(value)
 		handle.ReturnChan <- WrapCalculatorMultiplyReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapCalculatorMultiply wraps a function for testing.
-func WrapCalculatorMultiply(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorMultiplyWrapper {
-	return &WrapCalculatorMultiplyWrapper{
-		t:        t,
-		callable: fn,
+func WrapCalculatorMultiply(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorMultiplyWrapperHandle {
+	return &WrapCalculatorMultiplyWrapperHandle{
+		Method: &WrapCalculatorMultiplyWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

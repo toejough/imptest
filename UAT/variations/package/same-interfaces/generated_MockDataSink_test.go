@@ -7,15 +7,16 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// DataSinkMock is the mock for DataSink.
-type DataSinkMock struct {
-	imp     *_imptest.Imp
-	PutData *DataSinkMockPutDataMethod
+// DataSinkMockHandle is the test handle for DataSink.
+type DataSinkMockHandle struct {
+	Mock   samepackage.DataSink
+	Method *DataSinkMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the DataSink implementation that can be passed to code under test.
-func (m *DataSinkMock) Interface() samepackage.DataSink {
-	return &mockDataSinkImpl{mock: m}
+// DataSinkMockMethods holds method wrappers for setting expectations.
+type DataSinkMockMethods struct {
+	PutData *DataSinkMockPutDataMethod
 }
 
 // DataSinkMockPutDataArgs holds typed arguments for PutData.
@@ -65,18 +66,23 @@ func (m *DataSinkMockPutDataMethod) ExpectCalledWithMatches(matchers ...any) *Da
 	return &DataSinkMockPutDataCall{DependencyCall: call}
 }
 
-// MockDataSink creates a new DataSinkMock for testing.
-func MockDataSink(t _imptest.TestReporter) *DataSinkMock {
+// MockDataSink creates a new DataSinkMockHandle for testing.
+func MockDataSink(t _imptest.TestReporter) *DataSinkMockHandle {
 	imp := _imptest.NewImp(t)
-	return &DataSinkMock{
-		imp:     imp,
+	methods := &DataSinkMockMethods{
 		PutData: &DataSinkMockPutDataMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "PutData")},
 	}
+	h := &DataSinkMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockDataSinkImpl{handle: h}
+	return h
 }
 
 // mockDataSinkImpl implements samepackage.DataSink.
 type mockDataSinkImpl struct {
-	mock *DataSinkMock
+	handle *DataSinkMockHandle
 }
 
 // PutData implements samepackage.DataSink.PutData.
@@ -86,7 +92,7 @@ func (impl *mockDataSinkImpl) PutData(data []byte) error {
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

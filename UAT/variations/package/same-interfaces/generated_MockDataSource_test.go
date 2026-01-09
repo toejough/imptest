@@ -7,17 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// DataSourceMock is the mock for DataSource.
-type DataSourceMock struct {
-	imp     *_imptest.Imp
-	GetData *_imptest.DependencyMethod
-}
-
-// Interface returns the DataSource implementation that can be passed to code under test.
-func (m *DataSourceMock) Interface() samepackage.DataSource {
-	return &mockDataSourceImpl{mock: m}
-}
-
 // DataSourceMockGetDataCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type DataSourceMockGetDataCall struct {
 	*_imptest.DependencyCall
@@ -28,18 +17,35 @@ func (c *DataSourceMockGetDataCall) InjectReturnValues(result0 []byte, result1 e
 	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
-// MockDataSource creates a new DataSourceMock for testing.
-func MockDataSource(t _imptest.TestReporter) *DataSourceMock {
+// DataSourceMockHandle is the test handle for DataSource.
+type DataSourceMockHandle struct {
+	Mock   samepackage.DataSource
+	Method *DataSourceMockMethods
+	imp    *_imptest.Imp
+}
+
+// DataSourceMockMethods holds method wrappers for setting expectations.
+type DataSourceMockMethods struct {
+	GetData *_imptest.DependencyMethod
+}
+
+// MockDataSource creates a new DataSourceMockHandle for testing.
+func MockDataSource(t _imptest.TestReporter) *DataSourceMockHandle {
 	imp := _imptest.NewImp(t)
-	return &DataSourceMock{
-		imp:     imp,
+	methods := &DataSourceMockMethods{
 		GetData: _imptest.NewDependencyMethod(imp, "GetData"),
 	}
+	h := &DataSourceMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockDataSourceImpl{handle: h}
+	return h
 }
 
 // mockDataSourceImpl implements samepackage.DataSource.
 type mockDataSourceImpl struct {
-	mock *DataSourceMock
+	handle *DataSourceMockHandle
 }
 
 // GetData implements samepackage.DataSource.GetData.
@@ -49,7 +55,7 @@ func (impl *mockDataSourceImpl) GetData() ([]byte, error) {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

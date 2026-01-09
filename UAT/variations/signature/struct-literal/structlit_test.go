@@ -21,7 +21,7 @@ func TestDependencyWithMultiFieldStructLiteral(t *testing.T) {
 	}{Debug: true, Level: 2}
 
 	go func() {
-		result, err := mock.Interface().Transform(opts)
+		result, err := mock.Mock.Transform(opts)
 		_ = result
 		_ = err
 	}()
@@ -46,7 +46,7 @@ func TestDependencyWithSingleFieldStructLiteral(t *testing.T) {
 
 	// Run code under test
 	go func() {
-		err := mock.Interface().Process(cfg)
+		err := mock.Mock.Process(cfg)
 		_ = err
 	}()
 
@@ -61,7 +61,7 @@ func TestDependencyWithStructLiteralBoth(t *testing.T) {
 	req := struct{ Method string }{Method: "POST"}
 
 	go func() {
-		resp := mock.Interface().Apply(req)
+		resp := mock.Mock.Apply(req)
 		_ = resp
 	}()
 
@@ -75,7 +75,7 @@ func TestDependencyWithStructLiteralReturn(t *testing.T) {
 	mock := MockDataProcessor(t)
 
 	go func() {
-		cfg := mock.Interface().GetConfig()
+		cfg := mock.Mock.GetConfig()
 		_ = cfg
 	}()
 
@@ -93,7 +93,7 @@ func TestFunctionWithStructLiteralParam(t *testing.T) {
 
 	wrapper := WrapValidateRequest(t, structlit.ValidateRequest)
 
-	wrapper.Start(req).ExpectReturnsEqual(nil)
+	wrapper.Method.Start(req).ExpectReturnsEqual(nil)
 }
 
 // TestFunctionWithStructLiteralReturn tests wrapping function with struct literal return.
@@ -103,7 +103,7 @@ func TestFunctionWithStructLiteralReturn(t *testing.T) {
 	wrapper := WrapGetDefaults(t, structlit.GetDefaults)
 
 	// Verify the function can be called and returns a struct literal
-	wrapper.Start().ExpectReturnsMatch(imptest.Any())
+	wrapper.Method.Start().ExpectReturnsMatch(imptest.Any())
 }
 
 // TestMethodWithStructLiteralReturn tests wrapping method with struct literal return.
@@ -111,8 +111,8 @@ func TestMethodWithStructLiteralReturn(t *testing.T) {
 	t.Parallel()
 
 	mgr := structlit.ConfigManager{}
-	wrapper := WrapLoad(t, mgr.Load)
+	wrapper := WrapConfigManagerLoad(t, mgr.Load)
 
 	// Verify the method can be called and returns a struct literal
-	wrapper.Start("/etc/config").ExpectReturnsMatch(imptest.Any())
+	wrapper.Method.Start("/etc/config").ExpectReturnsMatch(imptest.Any())
 }

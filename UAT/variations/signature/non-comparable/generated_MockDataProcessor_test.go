@@ -7,16 +7,17 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// DataProcessorMock is the mock for DataProcessor.
-type DataProcessorMock struct {
-	imp          *_imptest.Imp
-	ProcessSlice *DataProcessorMockProcessSliceMethod
-	ProcessMap   *DataProcessorMockProcessMapMethod
+// DataProcessorMockHandle is the test handle for DataProcessor.
+type DataProcessorMockHandle struct {
+	Mock   noncomparable.DataProcessor
+	Method *DataProcessorMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the DataProcessor implementation that can be passed to code under test.
-func (m *DataProcessorMock) Interface() noncomparable.DataProcessor {
-	return &mockDataProcessorImpl{mock: m}
+// DataProcessorMockMethods holds method wrappers for setting expectations.
+type DataProcessorMockMethods struct {
+	ProcessSlice *DataProcessorMockProcessSliceMethod
+	ProcessMap   *DataProcessorMockProcessMapMethod
 }
 
 // DataProcessorMockProcessMapArgs holds typed arguments for ProcessMap.
@@ -113,19 +114,24 @@ func (m *DataProcessorMockProcessSliceMethod) ExpectCalledWithMatches(matchers .
 	return &DataProcessorMockProcessSliceCall{DependencyCall: call}
 }
 
-// MockDataProcessor creates a new DataProcessorMock for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMock {
+// MockDataProcessor creates a new DataProcessorMockHandle for testing.
+func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
 	imp := _imptest.NewImp(t)
-	return &DataProcessorMock{
-		imp:          imp,
+	methods := &DataProcessorMockMethods{
 		ProcessSlice: &DataProcessorMockProcessSliceMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessSlice")},
 		ProcessMap:   &DataProcessorMockProcessMapMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessMap")},
 	}
+	h := &DataProcessorMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockDataProcessorImpl{handle: h}
+	return h
 }
 
 // mockDataProcessorImpl implements noncomparable.DataProcessor.
 type mockDataProcessorImpl struct {
-	mock *DataProcessorMock
+	handle *DataProcessorMockHandle
 }
 
 // ProcessMap implements noncomparable.DataProcessor.ProcessMap.
@@ -135,7 +141,7 @@ func (impl *mockDataProcessorImpl) ProcessMap(config map[string]int) bool {
 		Args:         []any{config},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -158,7 +164,7 @@ func (impl *mockDataProcessorImpl) ProcessSlice(data []string) int {
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

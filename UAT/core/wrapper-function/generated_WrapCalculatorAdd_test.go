@@ -82,16 +82,21 @@ type WrapCalculatorAddReturnsReturn struct {
 	Result0 int
 }
 
-// WrapCalculatorAddWrapper wraps a function for testing.
-type WrapCalculatorAddWrapper struct {
+// WrapCalculatorAddWrapperHandle is the test handle for a wrapped function.
+type WrapCalculatorAddWrapperHandle struct {
+	Method *WrapCalculatorAddWrapperMethod
+}
+
+// WrapCalculatorAddWrapperMethod wraps a function for testing.
+type WrapCalculatorAddWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(int, int) int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCalculatorAddWrapper) Start(a int, b int) *WrapCalculatorAddCallHandle {
+func (m *WrapCalculatorAddWrapperMethod) Start(a int, b int) *WrapCalculatorAddCallHandle {
 	handle := &WrapCalculatorAddCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCalculatorAddReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapCalculatorAddReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -99,16 +104,18 @@ func (w *WrapCalculatorAddWrapper) Start(a int, b int) *WrapCalculatorAddCallHan
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(a, b)
+		ret0 := m.callable(a, b)
 		handle.ReturnChan <- WrapCalculatorAddReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapCalculatorAdd wraps a function for testing.
-func WrapCalculatorAdd(t _imptest.TestReporter, fn func(int, int) int) *WrapCalculatorAddWrapper {
-	return &WrapCalculatorAddWrapper{
-		t:        t,
-		callable: fn,
+func WrapCalculatorAdd(t _imptest.TestReporter, fn func(int, int) int) *WrapCalculatorAddWrapperHandle {
+	return &WrapCalculatorAddWrapperHandle{
+		Method: &WrapCalculatorAddWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

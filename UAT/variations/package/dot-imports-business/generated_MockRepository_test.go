@@ -7,19 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// RepositoryMock is the mock for Repository.
-type RepositoryMock struct {
-	imp    *_imptest.Imp
-	Save   *RepositoryMockSaveMethod
-	Load   *RepositoryMockLoadMethod
-	Delete *RepositoryMockDeleteMethod
-}
-
-// Interface returns the Repository implementation that can be passed to code under test.
-func (m *RepositoryMock) Interface() storage.Repository {
-	return &mockRepositoryImpl{mock: m}
-}
-
 // RepositoryMockDeleteArgs holds typed arguments for Delete.
 type RepositoryMockDeleteArgs struct {
 	Key string
@@ -67,6 +54,13 @@ func (m *RepositoryMockDeleteMethod) ExpectCalledWithMatches(matchers ...any) *R
 	return &RepositoryMockDeleteCall{DependencyCall: call}
 }
 
+// RepositoryMockHandle is the test handle for Repository.
+type RepositoryMockHandle struct {
+	Mock   storage.Repository
+	Method *RepositoryMockMethods
+	imp    *_imptest.Imp
+}
+
 // RepositoryMockLoadArgs holds typed arguments for Load.
 type RepositoryMockLoadArgs struct {
 	Key string
@@ -112,6 +106,13 @@ func (m *RepositoryMockLoadMethod) ExpectCalledWithExactly(key string) *Reposito
 func (m *RepositoryMockLoadMethod) ExpectCalledWithMatches(matchers ...any) *RepositoryMockLoadCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &RepositoryMockLoadCall{DependencyCall: call}
+}
+
+// RepositoryMockMethods holds method wrappers for setting expectations.
+type RepositoryMockMethods struct {
+	Save   *RepositoryMockSaveMethod
+	Load   *RepositoryMockLoadMethod
+	Delete *RepositoryMockDeleteMethod
 }
 
 // RepositoryMockSaveArgs holds typed arguments for Save.
@@ -163,20 +164,25 @@ func (m *RepositoryMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *Rep
 	return &RepositoryMockSaveCall{DependencyCall: call}
 }
 
-// MockRepository creates a new RepositoryMock for testing.
-func MockRepository(t _imptest.TestReporter) *RepositoryMock {
+// MockRepository creates a new RepositoryMockHandle for testing.
+func MockRepository(t _imptest.TestReporter) *RepositoryMockHandle {
 	imp := _imptest.NewImp(t)
-	return &RepositoryMock{
-		imp:    imp,
+	methods := &RepositoryMockMethods{
 		Save:   &RepositoryMockSaveMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Save")},
 		Load:   &RepositoryMockLoadMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Load")},
 		Delete: &RepositoryMockDeleteMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Delete")},
 	}
+	h := &RepositoryMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockRepositoryImpl{handle: h}
+	return h
 }
 
 // mockRepositoryImpl implements storage.Repository.
 type mockRepositoryImpl struct {
-	mock *RepositoryMock
+	handle *RepositoryMockHandle
 }
 
 // Delete implements storage.Repository.Delete.
@@ -186,7 +192,7 @@ func (impl *mockRepositoryImpl) Delete(key string) error {
 		Args:         []any{key},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -209,7 +215,7 @@ func (impl *mockRepositoryImpl) Load(key string) ([]byte, error) {
 		Args:         []any{key},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -239,7 +245,7 @@ func (impl *mockRepositoryImpl) Save(key string, data []byte) error {
 		Args:         []any{key, data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

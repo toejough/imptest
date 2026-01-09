@@ -7,18 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ServiceMock is the mock for Service.
-type ServiceMock struct {
-	imp      *_imptest.Imp
-	Execute  *ServiceMockExecuteMethod
-	Validate *ServiceMockValidateMethod
-}
-
-// Interface returns the Service implementation that can be passed to code under test.
-func (m *ServiceMock) Interface() testpkgimport.Service {
-	return &mockServiceImpl{mock: m}
-}
-
 // ServiceMockExecuteArgs holds typed arguments for Execute.
 type ServiceMockExecuteArgs struct {
 	Input string
@@ -64,6 +52,19 @@ func (m *ServiceMockExecuteMethod) ExpectCalledWithExactly(input string) *Servic
 func (m *ServiceMockExecuteMethod) ExpectCalledWithMatches(matchers ...any) *ServiceMockExecuteCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &ServiceMockExecuteCall{DependencyCall: call}
+}
+
+// ServiceMockHandle is the test handle for Service.
+type ServiceMockHandle struct {
+	Mock   testpkgimport.Service
+	Method *ServiceMockMethods
+	imp    *_imptest.Imp
+}
+
+// ServiceMockMethods holds method wrappers for setting expectations.
+type ServiceMockMethods struct {
+	Execute  *ServiceMockExecuteMethod
+	Validate *ServiceMockValidateMethod
 }
 
 // ServiceMockValidateArgs holds typed arguments for Validate.
@@ -113,19 +114,24 @@ func (m *ServiceMockValidateMethod) ExpectCalledWithMatches(matchers ...any) *Se
 	return &ServiceMockValidateCall{DependencyCall: call}
 }
 
-// MockService creates a new ServiceMock for testing.
-func MockService(t _imptest.TestReporter) *ServiceMock {
+// MockService creates a new ServiceMockHandle for testing.
+func MockService(t _imptest.TestReporter) *ServiceMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ServiceMock{
-		imp:      imp,
+	methods := &ServiceMockMethods{
 		Execute:  &ServiceMockExecuteMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Execute")},
 		Validate: &ServiceMockValidateMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Validate")},
 	}
+	h := &ServiceMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockServiceImpl{handle: h}
+	return h
 }
 
 // mockServiceImpl implements testpkgimport.Service.
 type mockServiceImpl struct {
-	mock *ServiceMock
+	handle *ServiceMockHandle
 }
 
 // Execute implements testpkgimport.Service.Execute.
@@ -135,7 +141,7 @@ func (impl *mockServiceImpl) Execute(input string) (string, error) {
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -165,7 +171,7 @@ func (impl *mockServiceImpl) Validate(input string) bool {
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

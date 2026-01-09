@@ -6,21 +6,37 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// CounterIncMock is the mock for Counter.Inc function.
-type CounterIncMock struct {
-	imp *_imptest.Imp
-	*_imptest.DependencyMethod
+// CounterIncMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+type CounterIncMockCall struct {
+	*_imptest.DependencyCall
 }
 
-// Func returns a function that forwards calls to the mock.
-func (m *CounterIncMock) Func() func() int {
-	return func() int {
+// InjectReturnValues specifies the typed values the mock should return.
+func (c *CounterIncMockCall) InjectReturnValues(result0 int) {
+	c.DependencyCall.InjectReturnValues(result0)
+}
+
+// CounterIncMockHandle is the test handle for Counter.Inc function.
+type CounterIncMockHandle struct {
+	Mock   func() int
+	Method *_imptest.DependencyMethod
+	imp    *_imptest.Imp
+}
+
+// MockCounterInc creates a new CounterIncMockHandle for testing.
+func MockCounterInc(t _imptest.TestReporter) *CounterIncMockHandle {
+	imp := _imptest.NewImp(t)
+	h := &CounterIncMockHandle{
+		imp:    imp,
+		Method: _imptest.NewDependencyMethod(imp, "Counter.Inc"),
+	}
+	h.Mock = func() int {
 		call := &_imptest.GenericCall{
 			MethodName:   "Counter.Inc",
 			Args:         []any{},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		m.imp.CallChan <- call
+		h.imp.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)
@@ -35,23 +51,5 @@ func (m *CounterIncMock) Func() func() int {
 
 		return result1
 	}
-}
-
-// CounterIncMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
-type CounterIncMockCall struct {
-	*_imptest.DependencyCall
-}
-
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *CounterIncMockCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
-}
-
-// MockCounterInc creates a new CounterIncMock for testing.
-func MockCounterInc(t _imptest.TestReporter) *CounterIncMock {
-	imp := _imptest.NewImp(t)
-	return &CounterIncMock{
-		imp:              imp,
-		DependencyMethod: _imptest.NewDependencyMethod(imp, "Counter.Inc"),
-	}
+	return h
 }

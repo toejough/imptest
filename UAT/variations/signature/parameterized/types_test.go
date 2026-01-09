@@ -17,12 +17,12 @@ func TestDataProcessor_ProcessContainer(t *testing.T) {
 
 	// Expect call with parameterized type
 	go func() {
-		call := mock.ProcessContainer.ExpectCalledWithExactly(data)
+		call := mock.Method.ProcessContainer.ExpectCalledWithExactly(data)
 		call.InjectReturnValues(nil)
 	}()
 
 	// Call the mock
-	err := mock.Interface().ProcessContainer(data)
+	err := mock.Mock.ProcessContainer(data)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -37,12 +37,12 @@ func TestDataProcessor_ProcessPair(t *testing.T) {
 
 	// Expect call with parameterized type
 	go func() {
-		call := mock.ProcessPair.ExpectCalledWithExactly(pair)
+		call := mock.Method.ProcessPair.ExpectCalledWithExactly(pair)
 		call.InjectReturnValues("processed")
 	}()
 
 	// Call the mock
-	result := mock.Interface().ProcessPair(pair)
+	result := mock.Mock.ProcessPair(pair)
 
 	if result != "processed" {
 		t.Fatalf("expected 'processed', got %q", result)
@@ -58,12 +58,12 @@ func TestDataProcessor_ReturnContainer(t *testing.T) {
 
 	// Expect call and return parameterized type
 	go func() {
-		call := mock.ReturnContainer.ExpectCalledWithExactly()
+		call := mock.Method.ReturnContainer.ExpectCalledWithExactly()
 		call.InjectReturnValues(expected)
 	}()
 
 	// Call the mock
-	result := mock.Interface().ReturnContainer()
+	result := mock.Mock.ReturnContainer()
 
 	if result.Value != 99 {
 		t.Fatalf("expected Container{Value: 99}, got Container{Value: %d}", result.Value)

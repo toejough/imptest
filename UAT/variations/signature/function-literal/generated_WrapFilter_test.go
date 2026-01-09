@@ -82,16 +82,21 @@ type WrapFilterReturnsReturn struct {
 	Result0 []int
 }
 
-// WrapFilterWrapper wraps a function for testing.
-type WrapFilterWrapper struct {
+// WrapFilterWrapperHandle is the test handle for a wrapped function.
+type WrapFilterWrapperHandle struct {
+	Method *WrapFilterWrapperMethod
+}
+
+// WrapFilterWrapperMethod wraps a function for testing.
+type WrapFilterWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func([]int, func(int) bool) []int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapFilterWrapper) Start(items []int, predicate func(int) bool) *WrapFilterCallHandle {
+func (m *WrapFilterWrapperMethod) Start(items []int, predicate func(int) bool) *WrapFilterCallHandle {
 	handle := &WrapFilterCallHandle{
-		CallableController: _imptest.NewCallableController[WrapFilterReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapFilterReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -99,16 +104,18 @@ func (w *WrapFilterWrapper) Start(items []int, predicate func(int) bool) *WrapFi
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(items, predicate)
+		ret0 := m.callable(items, predicate)
 		handle.ReturnChan <- WrapFilterReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapFilter wraps a function for testing.
-func WrapFilter(t _imptest.TestReporter, fn func([]int, func(int) bool) []int) *WrapFilterWrapper {
-	return &WrapFilterWrapper{
-		t:        t,
-		callable: fn,
+func WrapFilter(t _imptest.TestReporter, fn func([]int, func(int) bool) []int) *WrapFilterWrapperHandle {
+	return &WrapFilterWrapperHandle{
+		Method: &WrapFilterWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

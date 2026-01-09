@@ -82,16 +82,21 @@ type WrapWalkFuncReturnsReturn struct {
 	Result0 error
 }
 
-// WrapWalkFuncWrapper wraps a function for testing.
-type WrapWalkFuncWrapper struct {
+// WrapWalkFuncWrapperHandle is the test handle for a wrapped function.
+type WrapWalkFuncWrapperHandle struct {
+	Method *WrapWalkFuncWrapperMethod
+}
+
+// WrapWalkFuncWrapperMethod wraps a function for testing.
+type WrapWalkFuncWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(string, string) error
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapWalkFuncWrapper) Start(path string, info string) *WrapWalkFuncCallHandle {
+func (m *WrapWalkFuncWrapperMethod) Start(path string, info string) *WrapWalkFuncCallHandle {
 	handle := &WrapWalkFuncCallHandle{
-		CallableController: _imptest.NewCallableController[WrapWalkFuncReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapWalkFuncReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -99,16 +104,18 @@ func (w *WrapWalkFuncWrapper) Start(path string, info string) *WrapWalkFuncCallH
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(path, info)
+		ret0 := m.callable(path, info)
 		handle.ReturnChan <- WrapWalkFuncReturnsReturn{Result0: ret0}
 	}()
 	return handle
 }
 
 // WrapWalkFunc wraps a function for testing.
-func WrapWalkFunc(t _imptest.TestReporter, fn func(string, string) error) *WrapWalkFuncWrapper {
-	return &WrapWalkFuncWrapper{
-		t:        t,
-		callable: fn,
+func WrapWalkFunc(t _imptest.TestReporter, fn func(string, string) error) *WrapWalkFuncWrapperHandle {
+	return &WrapWalkFuncWrapperHandle{
+		Method: &WrapWalkFuncWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

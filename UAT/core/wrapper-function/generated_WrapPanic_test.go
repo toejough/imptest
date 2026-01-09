@@ -11,7 +11,11 @@ type WrapPanicReturnsReturn struct {
 }
 
 // WrapPanicWrapper wraps a function for testing.
-type WrapPanicWrapper struct {
+type WrapPanicWrapperHandle struct {
+	Method *WrapPanicWrapperMethod
+}
+
+type WrapPanicWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func()
 }
@@ -22,7 +26,7 @@ type WrapPanicCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapPanicWrapper) Start() *WrapPanicCallHandle {
+func (w *WrapPanicWrapperMethod) Start() *WrapPanicCallHandle {
 	handle := &WrapPanicCallHandle{
 		CallableController: _imptest.NewCallableController[WrapPanicReturnsReturn](w.t),
 	}
@@ -71,9 +75,11 @@ func (h *WrapPanicCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapPanic wraps a function for testing.
-func WrapPanic(t _imptest.TestReporter, fn func()) *WrapPanicWrapper {
-	return &WrapPanicWrapper{
-		t:        t,
-		callable: fn,
+func WrapPanic(t _imptest.TestReporter, fn func()) *WrapPanicWrapperHandle {
+	return &WrapPanicWrapperHandle{
+		Method: &WrapPanicWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

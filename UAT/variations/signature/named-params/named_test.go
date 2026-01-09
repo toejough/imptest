@@ -28,13 +28,13 @@ func TestDependencyWithNamedParams(t *testing.T) {
 
 	// Run code under test
 	go func() {
-		user, err := mock.Interface().GetUser(ctx, 123)
+		user, err := mock.Mock.GetUser(ctx, 123)
 		_ = user
 		_ = err
 	}()
 
 	// Verify mock handles named parameters and returns correctly
-	mock.GetUser.ExpectCalledWithExactly(ctx, 123).
+	mock.Method.GetUser.ExpectCalledWithExactly(ctx, 123).
 		InjectReturnValues(named.User{ID: 123, Name: "Alice"}, nil)
 }
 
@@ -50,10 +50,10 @@ func TestFunctionWithNamedParams(t *testing.T) {
 	wrapper := WrapProcessUser(t, named.ProcessUser)
 
 	// Start the wrapped function
-	call := wrapper.Start(ctx, 456, mockRepo.Interface())
+	call := wrapper.Method.Start(ctx, 456, mockRepo.Mock)
 
 	// Handle the repository call
-	mockRepo.GetUser.ExpectCalledWithExactly(ctx, 456).
+	mockRepo.Method.GetUser.ExpectCalledWithExactly(ctx, 456).
 		InjectReturnValues(named.User{ID: 456, Name: "Bob"}, nil)
 
 	// Verify the wrapper received correct return values
@@ -70,30 +70,30 @@ func TestMultipleMethods(t *testing.T) {
 
 	go func() {
 		// Test SaveUser (named params + named returns)
-		savedUser, err := mock.Interface().SaveUser(ctx, named.User{ID: 789, Name: "Charlie"})
+		savedUser, err := mock.Mock.SaveUser(ctx, named.User{ID: 789, Name: "Charlie"})
 		_ = savedUser
 		_ = err
 
 		// Test DeleteUser (named params + single named return)
-		err = mock.Interface().DeleteUser(ctx, 789)
+		err = mock.Mock.DeleteUser(ctx, 789)
 		_ = err
 
 		// Test CountUsers (named param + named returns)
-		count, err := mock.Interface().CountUsers(ctx)
+		count, err := mock.Mock.CountUsers(ctx)
 		_ = count
 		_ = err
 	}()
 
 	// Handle SaveUser
-	mock.SaveUser.ExpectCalledWithExactly(ctx, named.User{ID: 789, Name: "Charlie"}).
+	mock.Method.SaveUser.ExpectCalledWithExactly(ctx, named.User{ID: 789, Name: "Charlie"}).
 		InjectReturnValues(named.User{ID: 789, Name: "Charlie"}, nil)
 
 	// Handle DeleteUser
-	mock.DeleteUser.ExpectCalledWithExactly(ctx, 789).
+	mock.Method.DeleteUser.ExpectCalledWithExactly(ctx, 789).
 		InjectReturnValues(nil)
 
 	// Handle CountUsers
-	mock.CountUsers.ExpectCalledWithExactly(ctx).
+	mock.Method.CountUsers.ExpectCalledWithExactly(ctx).
 		InjectReturnValues(3, nil)
 }
 
@@ -109,5 +109,5 @@ func TestTargetWithNamedReturns(t *testing.T) {
 	wrapper := WrapCalculatorDivide(t, calc.Divide)
 
 	// Execute and verify named returns (quotient, remainder, err)
-	wrapper.Start(10, 3).ExpectReturnsEqual(3, 1, nil)
+	wrapper.Method.Start(10, 3).ExpectReturnsEqual(3, 1, nil)
 }

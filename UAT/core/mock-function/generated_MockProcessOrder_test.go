@@ -8,44 +8,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ProcessOrderMock is the mock for ProcessOrder function.
-type ProcessOrderMock struct {
-	imp *_imptest.Imp
-	*ProcessOrderMockMethod
-}
-
-// Func returns a function that forwards calls to the mock.
-func (m *ProcessOrderMock) Func() func(ctx context.Context, orderID int) (*mockfunction.Order, error) {
-	return func(ctx context.Context, orderID int) (*mockfunction.Order, error) {
-		call := &_imptest.GenericCall{
-			MethodName:   "ProcessOrder",
-			Args:         []any{ctx, orderID},
-			ResponseChan: make(chan _imptest.GenericResponse, 1),
-		}
-		m.imp.CallChan <- call
-		resp := <-call.ResponseChan
-		if resp.Type == "panic" {
-			panic(resp.PanicValue)
-		}
-
-		var result1 *mockfunction.Order
-		if len(resp.ReturnValues) > 0 {
-			if value, ok := resp.ReturnValues[0].(*mockfunction.Order); ok {
-				result1 = value
-			}
-		}
-
-		var result2 error
-		if len(resp.ReturnValues) > 1 {
-			if value, ok := resp.ReturnValues[1].(error); ok {
-				result2 = value
-			}
-		}
-
-		return result1, result2
-	}
-}
-
 // ProcessOrderMockArgs holds typed arguments for ProcessOrder.
 type ProcessOrderMockArgs struct {
 	Ctx     context.Context
@@ -69,6 +31,13 @@ func (c *ProcessOrderMockCall) GetArgs() ProcessOrderMockArgs {
 // InjectReturnValues specifies the typed values the mock should return.
 func (c *ProcessOrderMockCall) InjectReturnValues(result0 *mockfunction.Order, result1 error) {
 	c.DependencyCall.InjectReturnValues(result0, result1)
+}
+
+// ProcessOrderMockHandle is the test handle for ProcessOrder function.
+type ProcessOrderMockHandle struct {
+	Mock   func(ctx context.Context, orderID int) (*mockfunction.Order, error)
+	Method *ProcessOrderMockMethod
+	imp    *_imptest.Imp
 }
 
 // ProcessOrderMockMethod wraps DependencyMethod with typed returns.
@@ -95,11 +64,40 @@ func (m *ProcessOrderMockMethod) ExpectCalledWithMatches(matchers ...any) *Proce
 	return &ProcessOrderMockCall{DependencyCall: call}
 }
 
-// MockProcessOrder creates a new ProcessOrderMock for testing.
-func MockProcessOrder(t _imptest.TestReporter) *ProcessOrderMock {
+// MockProcessOrder creates a new ProcessOrderMockHandle for testing.
+func MockProcessOrder(t _imptest.TestReporter) *ProcessOrderMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ProcessOrderMock{
-		imp:                    imp,
-		ProcessOrderMockMethod: &ProcessOrderMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessOrder")},
+	h := &ProcessOrderMockHandle{
+		imp:    imp,
+		Method: &ProcessOrderMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessOrder")},
 	}
+	h.Mock = func(ctx context.Context, orderID int) (*mockfunction.Order, error) {
+		call := &_imptest.GenericCall{
+			MethodName:   "ProcessOrder",
+			Args:         []any{ctx, orderID},
+			ResponseChan: make(chan _imptest.GenericResponse, 1),
+		}
+		h.imp.CallChan <- call
+		resp := <-call.ResponseChan
+		if resp.Type == "panic" {
+			panic(resp.PanicValue)
+		}
+
+		var result1 *mockfunction.Order
+		if len(resp.ReturnValues) > 0 {
+			if value, ok := resp.ReturnValues[0].(*mockfunction.Order); ok {
+				result1 = value
+			}
+		}
+
+		var result2 error
+		if len(resp.ReturnValues) > 1 {
+			if value, ok := resp.ReturnValues[1].(error); ok {
+				result2 = value
+			}
+		}
+
+		return result1, result2
+	}
+	return h
 }

@@ -7,18 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// ExternalServiceMock is the mock for ExternalService.
-type ExternalServiceMock struct {
-	imp       *_imptest.Imp
-	FetchData *ExternalServiceMockFetchDataMethod
-	Process   *ExternalServiceMockProcessMethod
-}
-
-// Interface returns the ExternalService implementation that can be passed to code under test.
-func (m *ExternalServiceMock) Interface() callable.ExternalService {
-	return &mockExternalServiceImpl{mock: m}
-}
-
 // ExternalServiceMockFetchDataArgs holds typed arguments for FetchData.
 type ExternalServiceMockFetchDataArgs struct {
 	Id int
@@ -64,6 +52,19 @@ func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithExactly(id int) *Ex
 func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithMatches(matchers ...any) *ExternalServiceMockFetchDataCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
+}
+
+// ExternalServiceMockHandle is the test handle for ExternalService.
+type ExternalServiceMockHandle struct {
+	Mock   callable.ExternalService
+	Method *ExternalServiceMockMethods
+	imp    *_imptest.Imp
+}
+
+// ExternalServiceMockMethods holds method wrappers for setting expectations.
+type ExternalServiceMockMethods struct {
+	FetchData *ExternalServiceMockFetchDataMethod
+	Process   *ExternalServiceMockProcessMethod
 }
 
 // ExternalServiceMockProcessArgs holds typed arguments for Process.
@@ -113,19 +114,24 @@ func (m *ExternalServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...a
 	return &ExternalServiceMockProcessCall{DependencyCall: call}
 }
 
-// MockExternalService creates a new ExternalServiceMock for testing.
-func MockExternalService(t _imptest.TestReporter) *ExternalServiceMock {
+// MockExternalService creates a new ExternalServiceMockHandle for testing.
+func MockExternalService(t _imptest.TestReporter) *ExternalServiceMockHandle {
 	imp := _imptest.NewImp(t)
-	return &ExternalServiceMock{
-		imp:       imp,
+	methods := &ExternalServiceMockMethods{
 		FetchData: &ExternalServiceMockFetchDataMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "FetchData")},
 		Process:   &ExternalServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Process")},
 	}
+	h := &ExternalServiceMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockExternalServiceImpl{handle: h}
+	return h
 }
 
 // mockExternalServiceImpl implements callable.ExternalService.
 type mockExternalServiceImpl struct {
-	mock *ExternalServiceMock
+	handle *ExternalServiceMockHandle
 }
 
 // FetchData implements callable.ExternalService.FetchData.
@@ -135,7 +141,7 @@ func (impl *mockExternalServiceImpl) FetchData(id int) (string, error) {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -165,7 +171,7 @@ func (impl *mockExternalServiceImpl) Process(data string) string {
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

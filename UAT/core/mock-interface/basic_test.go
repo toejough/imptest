@@ -20,25 +20,25 @@ func TestBasicMocking(t *testing.T) {
 	mock := MockOps(t)
 
 	// Run the code under test in a goroutine so the test can interact with it synchronously.
-	go basic.PerformOps(mock.Interface())
+	go basic.PerformOps(mock.Mock)
 
 	// Interactive Control Pattern: Expect -> Inject -> Resolve
 
 	// 1. Intercept 'Add' and provide a return value via InjectReturnValues.
-	mock.Add.ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
+	mock.Method.Add.ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
 
 	// 2. Intercept 'Store' and provide multiple return values via InjectReturnValues.
-	mock.Store.ExpectCalledWithExactly("foo", "bar").InjectReturnValues(100, nil)
+	mock.Method.Store.ExpectCalledWithExactly("foo", "bar").InjectReturnValues(100, nil)
 
 	// 3. Intercept 'Log' (void method) and signal completion via InjectReturnValues with no args.
-	mock.Log.ExpectCalledWithExactly("action performed").InjectReturnValues()
+	mock.Method.Log.ExpectCalledWithExactly("action performed").InjectReturnValues()
 
 	// 4. Intercept 'Notify' (variadic) and provide a return value.
 	// Note: Variadic arguments are passed normally to ExpectCalledWithExactly.
-	mock.Notify.ExpectCalledWithExactly("alert", 1, 2, 3).InjectReturnValues(true)
+	mock.Method.Notify.ExpectCalledWithExactly("alert", 1, 2, 3).InjectReturnValues(true)
 
 	// 5. Intercept 'Finish' (no args) and provide a return value.
-	mock.Finish.ExpectCalledWithExactly().InjectReturnValues(true)
+	mock.Method.Finish.ExpectCalledWithExactly().InjectReturnValues(true)
 }
 
 // You can also use --name to specify a custom base name (CustomOps here, which becomes MockCustomOps).

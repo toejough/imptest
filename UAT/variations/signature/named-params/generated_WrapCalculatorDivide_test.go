@@ -98,16 +98,21 @@ type WrapCalculatorDivideReturnsReturn struct {
 	Result2 error
 }
 
-// WrapCalculatorDivideWrapper wraps a function for testing.
-type WrapCalculatorDivideWrapper struct {
+// WrapCalculatorDivideWrapperHandle is the test handle for a wrapped function.
+type WrapCalculatorDivideWrapperHandle struct {
+	Method *WrapCalculatorDivideWrapperMethod
+}
+
+// WrapCalculatorDivideWrapperMethod wraps a function for testing.
+type WrapCalculatorDivideWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(int, int) (int, int, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapCalculatorDivideWrapper) Start(dividend int, divisor int) *WrapCalculatorDivideCallHandle {
+func (m *WrapCalculatorDivideWrapperMethod) Start(dividend int, divisor int) *WrapCalculatorDivideCallHandle {
 	handle := &WrapCalculatorDivideCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -115,16 +120,18 @@ func (w *WrapCalculatorDivideWrapper) Start(dividend int, divisor int) *WrapCalc
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1, ret2 := w.callable(dividend, divisor)
+		ret0, ret1, ret2 := m.callable(dividend, divisor)
 		handle.ReturnChan <- WrapCalculatorDivideReturnsReturn{Result0: ret0, Result1: ret1, Result2: ret2}
 	}()
 	return handle
 }
 
 // WrapCalculatorDivide wraps a function for testing.
-func WrapCalculatorDivide(t _imptest.TestReporter, fn func(int, int) (int, int, error)) *WrapCalculatorDivideWrapper {
-	return &WrapCalculatorDivideWrapper{
-		t:        t,
-		callable: fn,
+func WrapCalculatorDivide(t _imptest.TestReporter, fn func(int, int) (int, int, error)) *WrapCalculatorDivideWrapperHandle {
+	return &WrapCalculatorDivideWrapperHandle{
+		Method: &WrapCalculatorDivideWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

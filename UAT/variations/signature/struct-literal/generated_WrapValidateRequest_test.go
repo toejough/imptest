@@ -82,8 +82,13 @@ type WrapValidateRequestReturnsReturn struct {
 	Result0 error
 }
 
-// WrapValidateRequestWrapper wraps a function for testing.
-type WrapValidateRequestWrapper struct {
+// WrapValidateRequestWrapperHandle is the test handle for a wrapped function.
+type WrapValidateRequestWrapperHandle struct {
+	Method *WrapValidateRequestWrapperMethod
+}
+
+// WrapValidateRequestWrapperMethod wraps a function for testing.
+type WrapValidateRequestWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(struct {
 		APIKey  string
@@ -92,12 +97,12 @@ type WrapValidateRequestWrapper struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapValidateRequestWrapper) Start(req struct {
+func (m *WrapValidateRequestWrapperMethod) Start(req struct {
 	APIKey  string
 	Timeout int
 }) *WrapValidateRequestCallHandle {
 	handle := &WrapValidateRequestCallHandle{
-		CallableController: _imptest.NewCallableController[WrapValidateRequestReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapValidateRequestReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -105,7 +110,7 @@ func (w *WrapValidateRequestWrapper) Start(req struct {
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := w.callable(req)
+		ret0 := m.callable(req)
 		handle.ReturnChan <- WrapValidateRequestReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -115,9 +120,11 @@ func (w *WrapValidateRequestWrapper) Start(req struct {
 func WrapValidateRequest(t _imptest.TestReporter, fn func(struct {
 	APIKey  string
 	Timeout int
-}) error) *WrapValidateRequestWrapper {
-	return &WrapValidateRequestWrapper{
-		t:        t,
-		callable: fn,
+}) error) *WrapValidateRequestWrapperHandle {
+	return &WrapValidateRequestWrapperHandle{
+		Method: &WrapValidateRequestWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

@@ -16,7 +16,11 @@ type WrapSlowAddReturnsReturn struct {
 }
 
 // WrapSlowAddWrapper wraps a function for testing.
-type WrapSlowAddWrapper struct {
+type WrapSlowAddWrapperHandle struct {
+	Method *WrapSlowAddWrapperMethod
+}
+
+type WrapSlowAddWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(a, b int, delay time.Duration) int
 }
@@ -27,7 +31,7 @@ type WrapSlowAddCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapSlowAddWrapper) Start(a, b int, delay time.Duration) *WrapSlowAddCallHandle {
+func (w *WrapSlowAddWrapperMethod) Start(a, b int, delay time.Duration) *WrapSlowAddCallHandle {
 	handle := &WrapSlowAddCallHandle{
 		CallableController: _imptest.NewCallableController[WrapSlowAddReturnsReturn](w.t),
 	}
@@ -109,9 +113,11 @@ func (h *WrapSlowAddCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapSlowAdd wraps a function for testing.
-func WrapSlowAdd(t _imptest.TestReporter, fn func(a, b int, delay time.Duration) int) *WrapSlowAddWrapper {
-	return &WrapSlowAddWrapper{
-		t:        t,
-		callable: fn,
+func WrapSlowAdd(t _imptest.TestReporter, fn func(a, b int, delay time.Duration) int) *WrapSlowAddWrapperHandle {
+	return &WrapSlowAddWrapperHandle{
+		Method: &WrapSlowAddWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

@@ -11,11 +11,11 @@ func TestManualTypeSafeGetArgs(t *testing.T) {
 	calc := NewTypesafeCalculatorMock(t)
 
 	go func() {
-		_ = calc.Interface().Add(10, 20)
+		_ = calc.Mock.Add(10, 20)
 	}()
 
 	// Use the typed wrapper
-	call := calc.Add.Eventually().ExpectCalledWithExactly(10, 20)
+	call := calc.Method.Add.Eventually().ExpectCalledWithExactly(10, 20)
 
 	// GetArgs should return typed struct - no casting!
 	args := call.GetArgs()

@@ -92,16 +92,21 @@ type WrapProcessUserReturnsReturn struct {
 	Result1 error
 }
 
-// WrapProcessUserWrapper wraps a function for testing.
-type WrapProcessUserWrapper struct {
+// WrapProcessUserWrapperHandle is the test handle for a wrapped function.
+type WrapProcessUserWrapperHandle struct {
+	Method *WrapProcessUserWrapperMethod
+}
+
+// WrapProcessUserWrapperMethod wraps a function for testing.
+type WrapProcessUserWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(context.Context, int, named.UserRepository) (named.User, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapProcessUserWrapper) Start(ctx context.Context, userID int, repo named.UserRepository) *WrapProcessUserCallHandle {
+func (m *WrapProcessUserWrapperMethod) Start(ctx context.Context, userID int, repo named.UserRepository) *WrapProcessUserCallHandle {
 	handle := &WrapProcessUserCallHandle{
-		CallableController: _imptest.NewCallableController[WrapProcessUserReturnsReturn](w.t),
+		CallableController: _imptest.NewCallableController[WrapProcessUserReturnsReturn](m.t),
 	}
 	go func() {
 		defer func() {
@@ -109,16 +114,18 @@ func (w *WrapProcessUserWrapper) Start(ctx context.Context, userID int, repo nam
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1 := w.callable(ctx, userID, repo)
+		ret0, ret1 := m.callable(ctx, userID, repo)
 		handle.ReturnChan <- WrapProcessUserReturnsReturn{Result0: ret0, Result1: ret1}
 	}()
 	return handle
 }
 
 // WrapProcessUser wraps a function for testing.
-func WrapProcessUser(t _imptest.TestReporter, fn func(context.Context, int, named.UserRepository) (named.User, error)) *WrapProcessUserWrapper {
-	return &WrapProcessUserWrapper{
-		t:        t,
-		callable: fn,
+func WrapProcessUser(t _imptest.TestReporter, fn func(context.Context, int, named.UserRepository) (named.User, error)) *WrapProcessUserWrapperHandle {
+	return &WrapProcessUserWrapperHandle{
+		Method: &WrapProcessUserWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

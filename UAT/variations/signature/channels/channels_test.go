@@ -13,12 +13,12 @@ func TestChannelHandler_Bidirectional(t *testing.T) {
 
 	// Expect call with bidirectional channel
 	go func() {
-		call := mock.Bidirectional.ExpectCalledWithExactly(testChannel)
+		call := mock.Method.Bidirectional.ExpectCalledWithExactly(testChannel)
 		call.InjectReturnValues(true)
 	}()
 
 	// Call the mock
-	result := mock.Interface().Bidirectional(testChannel)
+	result := mock.Mock.Bidirectional(testChannel)
 
 	if !result {
 		t.Fatal("expected true, got false")
@@ -37,12 +37,12 @@ func TestChannelHandler_ReceiveOnly(t *testing.T) {
 
 	// Expect call with receive-only channel
 	go func() {
-		call := mock.ReceiveOnly.ExpectCalledWithExactly(testChannel)
+		call := mock.Method.ReceiveOnly.ExpectCalledWithExactly(testChannel)
 		call.InjectReturnValues("received", nil)
 	}()
 
 	// Call the mock
-	result, err := mock.Interface().ReceiveOnly(testChannel)
+	result, err := mock.Mock.ReceiveOnly(testChannel)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -67,12 +67,12 @@ func TestChannelHandler_ReturnChannel(t *testing.T) {
 
 	// Expect call and return a channel
 	go func() {
-		call := mock.ReturnChannel.ExpectCalledWithExactly()
+		call := mock.Method.ReturnChannel.ExpectCalledWithExactly()
 		call.InjectReturnValues(recvOnlyCh)
 	}()
 
 	// Call the mock
-	channel := mock.Interface().ReturnChannel()
+	channel := mock.Mock.ReturnChannel()
 
 	value := <-channel
 	if value != 42 {
@@ -91,12 +91,12 @@ func TestChannelHandler_SendOnly(t *testing.T) {
 
 	// Expect call with send-only channel
 	go func() {
-		call := mock.SendOnly.ExpectCalledWithExactly(testChannel)
+		call := mock.Method.SendOnly.ExpectCalledWithExactly(testChannel)
 		call.InjectReturnValues(nil)
 	}()
 
 	// Call the mock
-	err := mock.Interface().SendOnly(testChannel)
+	err := mock.Mock.SendOnly(testChannel)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}

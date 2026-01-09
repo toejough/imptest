@@ -20,10 +20,10 @@ func TestUseTimer(t *testing.T) {
 	mock := MockTimer(t)
 
 	go func() {
-		result := timeconflict.UseTimer(mock.Interface())
+		result := timeconflict.UseTimer(mock.Mock)
 		_ = result // Use the result to avoid unused variable warning
 	}()
 
-	mock.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
-	mock.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
+	mock.Method.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
+	mock.Method.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
 }

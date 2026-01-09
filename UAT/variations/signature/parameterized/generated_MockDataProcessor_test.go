@@ -7,17 +7,18 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// DataProcessorMock is the mock for DataProcessor.
-type DataProcessorMock struct {
-	imp              *_imptest.Imp
+// DataProcessorMockHandle is the test handle for DataProcessor.
+type DataProcessorMockHandle struct {
+	Mock   parameterized.DataProcessor
+	Method *DataProcessorMockMethods
+	imp    *_imptest.Imp
+}
+
+// DataProcessorMockMethods holds method wrappers for setting expectations.
+type DataProcessorMockMethods struct {
 	ProcessContainer *DataProcessorMockProcessContainerMethod
 	ProcessPair      *DataProcessorMockProcessPairMethod
 	ReturnContainer  *_imptest.DependencyMethod
-}
-
-// Interface returns the DataProcessor implementation that can be passed to code under test.
-func (m *DataProcessorMock) Interface() parameterized.DataProcessor {
-	return &mockDataProcessorImpl{mock: m}
 }
 
 // DataProcessorMockProcessContainerArgs holds typed arguments for ProcessContainer.
@@ -124,20 +125,25 @@ func (c *DataProcessorMockReturnContainerCall) InjectReturnValues(result0 parame
 	c.DependencyCall.InjectReturnValues(result0)
 }
 
-// MockDataProcessor creates a new DataProcessorMock for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMock {
+// MockDataProcessor creates a new DataProcessorMockHandle for testing.
+func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
 	imp := _imptest.NewImp(t)
-	return &DataProcessorMock{
-		imp:              imp,
+	methods := &DataProcessorMockMethods{
 		ProcessContainer: &DataProcessorMockProcessContainerMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessContainer")},
 		ProcessPair:      &DataProcessorMockProcessPairMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "ProcessPair")},
 		ReturnContainer:  _imptest.NewDependencyMethod(imp, "ReturnContainer"),
 	}
+	h := &DataProcessorMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockDataProcessorImpl{handle: h}
+	return h
 }
 
 // mockDataProcessorImpl implements parameterized.DataProcessor.
 type mockDataProcessorImpl struct {
-	mock *DataProcessorMock
+	handle *DataProcessorMockHandle
 }
 
 // ProcessContainer implements parameterized.DataProcessor.ProcessContainer.
@@ -147,7 +153,7 @@ func (impl *mockDataProcessorImpl) ProcessContainer(data parameterized.Container
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -170,7 +176,7 @@ func (impl *mockDataProcessorImpl) ProcessPair(pair parameterized.Pair[int, bool
 		Args:         []any{pair},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -193,7 +199,7 @@ func (impl *mockDataProcessorImpl) ReturnContainer() parameterized.Container[int
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -6,37 +6,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// FormatPriceMock is the mock for FormatPrice function.
-type FormatPriceMock struct {
-	imp *_imptest.Imp
-	*FormatPriceMockMethod
-}
-
-// Func returns a function that forwards calls to the mock.
-func (m *FormatPriceMock) Func() func(amount float64, currency string) string {
-	return func(amount float64, currency string) string {
-		call := &_imptest.GenericCall{
-			MethodName:   "FormatPrice",
-			Args:         []any{amount, currency},
-			ResponseChan: make(chan _imptest.GenericResponse, 1),
-		}
-		m.imp.CallChan <- call
-		resp := <-call.ResponseChan
-		if resp.Type == "panic" {
-			panic(resp.PanicValue)
-		}
-
-		var result1 string
-		if len(resp.ReturnValues) > 0 {
-			if value, ok := resp.ReturnValues[0].(string); ok {
-				result1 = value
-			}
-		}
-
-		return result1
-	}
-}
-
 // FormatPriceMockArgs holds typed arguments for FormatPrice.
 type FormatPriceMockArgs struct {
 	Amount   float64
@@ -60,6 +29,13 @@ func (c *FormatPriceMockCall) GetArgs() FormatPriceMockArgs {
 // InjectReturnValues specifies the typed values the mock should return.
 func (c *FormatPriceMockCall) InjectReturnValues(result0 string) {
 	c.DependencyCall.InjectReturnValues(result0)
+}
+
+// FormatPriceMockHandle is the test handle for FormatPrice function.
+type FormatPriceMockHandle struct {
+	Mock   func(amount float64, currency string) string
+	Method *FormatPriceMockMethod
+	imp    *_imptest.Imp
 }
 
 // FormatPriceMockMethod wraps DependencyMethod with typed returns.
@@ -86,11 +62,33 @@ func (m *FormatPriceMockMethod) ExpectCalledWithMatches(matchers ...any) *Format
 	return &FormatPriceMockCall{DependencyCall: call}
 }
 
-// MockFormatPrice creates a new FormatPriceMock for testing.
-func MockFormatPrice(t _imptest.TestReporter) *FormatPriceMock {
+// MockFormatPrice creates a new FormatPriceMockHandle for testing.
+func MockFormatPrice(t _imptest.TestReporter) *FormatPriceMockHandle {
 	imp := _imptest.NewImp(t)
-	return &FormatPriceMock{
-		imp:                   imp,
-		FormatPriceMockMethod: &FormatPriceMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "FormatPrice")},
+	h := &FormatPriceMockHandle{
+		imp:    imp,
+		Method: &FormatPriceMockMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "FormatPrice")},
 	}
+	h.Mock = func(amount float64, currency string) string {
+		call := &_imptest.GenericCall{
+			MethodName:   "FormatPrice",
+			Args:         []any{amount, currency},
+			ResponseChan: make(chan _imptest.GenericResponse, 1),
+		}
+		h.imp.CallChan <- call
+		resp := <-call.ResponseChan
+		if resp.Type == "panic" {
+			panic(resp.PanicValue)
+		}
+
+		var result1 string
+		if len(resp.ReturnValues) > 0 {
+			if value, ok := resp.ReturnValues[0].(string); ok {
+				result1 = value
+			}
+		}
+
+		return result1
+	}
+	return h
 }

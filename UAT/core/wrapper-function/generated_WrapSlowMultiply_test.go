@@ -16,7 +16,11 @@ type WrapSlowMultiplyReturnsReturn struct {
 }
 
 // WrapSlowMultiplyWrapper wraps a function for testing.
-type WrapSlowMultiplyWrapper struct {
+type WrapSlowMultiplyWrapperHandle struct {
+	Method *WrapSlowMultiplyWrapperMethod
+}
+
+type WrapSlowMultiplyWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(a int, delay time.Duration) int
 }
@@ -27,7 +31,7 @@ type WrapSlowMultiplyCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapSlowMultiplyWrapper) Start(a int, delay time.Duration) *WrapSlowMultiplyCallHandle {
+func (w *WrapSlowMultiplyWrapperMethod) Start(a int, delay time.Duration) *WrapSlowMultiplyCallHandle {
 	handle := &WrapSlowMultiplyCallHandle{
 		CallableController: _imptest.NewCallableController[WrapSlowMultiplyReturnsReturn](w.t),
 	}
@@ -109,9 +113,11 @@ func (h *WrapSlowMultiplyCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapSlowMultiply wraps a function for testing.
-func WrapSlowMultiply(t _imptest.TestReporter, fn func(a int, delay time.Duration) int) *WrapSlowMultiplyWrapper {
-	return &WrapSlowMultiplyWrapper{
-		t:        t,
-		callable: fn,
+func WrapSlowMultiply(t _imptest.TestReporter, fn func(a int, delay time.Duration) int) *WrapSlowMultiplyWrapperHandle {
+	return &WrapSlowMultiplyWrapperHandle{
+		Method: &WrapSlowMultiplyWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

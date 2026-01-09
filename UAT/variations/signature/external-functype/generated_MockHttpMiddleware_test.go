@@ -8,15 +8,16 @@ import (
 	http "net/http"
 )
 
-// HTTPMiddlewareMock is the mock for HTTPMiddleware.
-type HTTPMiddlewareMock struct {
-	imp  *_imptest.Imp
-	Wrap *HTTPMiddlewareMockWrapMethod
+// HTTPMiddlewareMockHandle is the test handle for HTTPMiddleware.
+type HTTPMiddlewareMockHandle struct {
+	Mock   middleware.HTTPMiddleware
+	Method *HTTPMiddlewareMockMethods
+	imp    *_imptest.Imp
 }
 
-// Interface returns the HTTPMiddleware implementation that can be passed to code under test.
-func (m *HTTPMiddlewareMock) Interface() middleware.HTTPMiddleware {
-	return &mockHTTPMiddlewareImpl{mock: m}
+// HTTPMiddlewareMockMethods holds method wrappers for setting expectations.
+type HTTPMiddlewareMockMethods struct {
+	Wrap *HTTPMiddlewareMockWrapMethod
 }
 
 // HTTPMiddlewareMockWrapArgs holds typed arguments for Wrap.
@@ -66,18 +67,23 @@ func (m *HTTPMiddlewareMockWrapMethod) ExpectCalledWithMatches(matchers ...any) 
 	return &HTTPMiddlewareMockWrapCall{DependencyCall: call}
 }
 
-// MockHTTPMiddleware creates a new HTTPMiddlewareMock for testing.
-func MockHTTPMiddleware(t _imptest.TestReporter) *HTTPMiddlewareMock {
+// MockHTTPMiddleware creates a new HTTPMiddlewareMockHandle for testing.
+func MockHTTPMiddleware(t _imptest.TestReporter) *HTTPMiddlewareMockHandle {
 	imp := _imptest.NewImp(t)
-	return &HTTPMiddlewareMock{
-		imp:  imp,
+	methods := &HTTPMiddlewareMockMethods{
 		Wrap: &HTTPMiddlewareMockWrapMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Wrap")},
 	}
+	h := &HTTPMiddlewareMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockHTTPMiddlewareImpl{handle: h}
+	return h
 }
 
 // mockHTTPMiddlewareImpl implements middleware.HTTPMiddleware.
 type mockHTTPMiddlewareImpl struct {
-	mock *HTTPMiddlewareMock
+	handle *HTTPMiddlewareMockHandle
 }
 
 // Wrap implements middleware.HTTPMiddleware.Wrap.
@@ -87,7 +93,7 @@ func (impl *mockHTTPMiddlewareImpl) Wrap(handler http.HandlerFunc) http.HandlerF
 		Args:         []any{handler},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

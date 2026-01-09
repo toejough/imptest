@@ -7,19 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest/imptest"
 )
 
-// DataProcessorMock is the mock for DataProcessor.
-type DataProcessorMock struct {
-	imp       *_imptest.Imp
-	Transform *DataProcessorMockTransformMethod
-	Filter    *DataProcessorMockFilterMethod
-	Reduce    *DataProcessorMockReduceMethod
-}
-
-// Interface returns the DataProcessor implementation that can be passed to code under test.
-func (m *DataProcessorMock) Interface() funclit.DataProcessor {
-	return &mockDataProcessorImpl{mock: m}
-}
-
 // DataProcessorMockFilterArgs holds typed arguments for Filter.
 type DataProcessorMockFilterArgs struct {
 	Items     []int
@@ -67,6 +54,20 @@ func (m *DataProcessorMockFilterMethod) ExpectCalledWithExactly(items []int, pre
 func (m *DataProcessorMockFilterMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockFilterCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &DataProcessorMockFilterCall{DependencyCall: call}
+}
+
+// DataProcessorMockHandle is the test handle for DataProcessor.
+type DataProcessorMockHandle struct {
+	Mock   funclit.DataProcessor
+	Method *DataProcessorMockMethods
+	imp    *_imptest.Imp
+}
+
+// DataProcessorMockMethods holds method wrappers for setting expectations.
+type DataProcessorMockMethods struct {
+	Transform *DataProcessorMockTransformMethod
+	Filter    *DataProcessorMockFilterMethod
+	Reduce    *DataProcessorMockReduceMethod
 }
 
 // DataProcessorMockReduceArgs holds typed arguments for Reduce.
@@ -169,20 +170,25 @@ func (m *DataProcessorMockTransformMethod) ExpectCalledWithMatches(matchers ...a
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
-// MockDataProcessor creates a new DataProcessorMock for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMock {
+// MockDataProcessor creates a new DataProcessorMockHandle for testing.
+func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
 	imp := _imptest.NewImp(t)
-	return &DataProcessorMock{
-		imp:       imp,
+	methods := &DataProcessorMockMethods{
 		Transform: &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Transform")},
 		Filter:    &DataProcessorMockFilterMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Filter")},
 		Reduce:    &DataProcessorMockReduceMethod{DependencyMethod: _imptest.NewDependencyMethod(imp, "Reduce")},
 	}
+	h := &DataProcessorMockHandle{
+		Method: methods,
+		imp:    imp,
+	}
+	h.Mock = &mockDataProcessorImpl{handle: h}
+	return h
 }
 
 // mockDataProcessorImpl implements funclit.DataProcessor.
 type mockDataProcessorImpl struct {
-	mock *DataProcessorMock
+	handle *DataProcessorMockHandle
 }
 
 // Filter implements funclit.DataProcessor.Filter.
@@ -192,7 +198,7 @@ func (impl *mockDataProcessorImpl) Filter(items []int, predicate func(int) bool)
 		Args:         []any{items, predicate},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -215,7 +221,7 @@ func (impl *mockDataProcessorImpl) Reduce(items []int, initial int, reducer func
 		Args:         []any{items, initial, reducer},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -238,7 +244,7 @@ func (impl *mockDataProcessorImpl) Transform(items []int, fn func(int) (int, err
 		Args:         []any{items, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.mock.imp.CallChan <- call
+	impl.handle.imp.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

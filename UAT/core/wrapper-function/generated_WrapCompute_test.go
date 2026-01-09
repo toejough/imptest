@@ -16,7 +16,11 @@ type WrapComputeReturnsReturn struct {
 }
 
 // WrapComputeWrapper wraps a function for testing.
-type WrapComputeWrapper struct {
+type WrapComputeWrapperHandle struct {
+	Method *WrapComputeWrapperMethod
+}
+
+type WrapComputeWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(x int) (int, string, bool)
 }
@@ -27,7 +31,7 @@ type WrapComputeCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapComputeWrapper) Start(x int) *WrapComputeCallHandle {
+func (w *WrapComputeWrapperMethod) Start(x int) *WrapComputeCallHandle {
 	handle := &WrapComputeCallHandle{
 		CallableController: _imptest.NewCallableController[WrapComputeReturnsReturn](w.t),
 	}
@@ -123,9 +127,11 @@ func (h *WrapComputeCallHandle) ExpectPanicMatches(matcher any) {
 }
 
 // WrapCompute wraps a function for testing.
-func WrapCompute(t _imptest.TestReporter, fn func(x int) (int, string, bool)) *WrapComputeWrapper {
-	return &WrapComputeWrapper{
-		t:        t,
-		callable: fn,
+func WrapCompute(t _imptest.TestReporter, fn func(x int) (int, string, bool)) *WrapComputeWrapperHandle {
+	return &WrapComputeWrapperHandle{
+		Method: &WrapComputeWrapperMethod{
+			t:        t,
+			callable: fn,
+		},
 	}
 }

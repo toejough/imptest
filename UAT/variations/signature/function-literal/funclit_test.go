@@ -29,14 +29,14 @@ func TestDependencyWithFunctionLiterals(t *testing.T) {
 
 	// Run code under test
 	go func() {
-		result, err := mock.Interface().Transform(items, transformFn)
+		result, err := mock.Mock.Transform(items, transformFn)
 		_ = result
 		_ = err
 	}()
 
 	// Verify mock handles function literal parameter correctly
 	// Note: Function literals can't be compared with ==, so use matcher
-	mock.Transform.ExpectCalledWithMatches(items, imptest.Any()).
+	mock.Method.Transform.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{2, 4, 6}, nil)
 }
 
@@ -49,11 +49,11 @@ func TestDependencyWithPredicate(t *testing.T) {
 	isEven := func(x int) bool { return x%2 == 0 }
 
 	go func() {
-		result := mock.Interface().Filter(items, isEven)
+		result := mock.Mock.Filter(items, isEven)
 		_ = result
 	}()
 
-	mock.Filter.ExpectCalledWithMatches(items, imptest.Any()).
+	mock.Method.Filter.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{2, 4})
 }
 
@@ -67,11 +67,11 @@ func TestDependencyWithReducer(t *testing.T) {
 	sum := func(acc, item int) int { return acc + item }
 
 	go func() {
-		result := mock.Interface().Reduce(items, 0, sum)
+		result := mock.Mock.Reduce(items, 0, sum)
 		_ = result
 	}()
 
-	mock.Reduce.ExpectCalledWithMatches(items, imptest.Any(), imptest.Any()).
+	mock.Method.Reduce.ExpectCalledWithMatches(items, imptest.Any(), imptest.Any()).
 		InjectReturnValues(10)
 }
 
@@ -84,7 +84,7 @@ func TestFunctionWithPredicate(t *testing.T) {
 
 	wrapper := WrapFilter(t, funclit.Filter)
 
-	wrapper.Start(items, isOdd).ExpectReturnsEqual([]int{1, 3, 5})
+	wrapper.Method.Start(items, isOdd).ExpectReturnsEqual([]int{1, 3, 5})
 }
 
 // TestFunctionWithTransform demonstrates wrapping standalone functions
@@ -97,7 +97,7 @@ func TestFunctionWithTransform(t *testing.T) {
 
 	wrapper := WrapMap(t, funclit.Map)
 
-	wrapper.Start(items, double).ExpectReturnsEqual([]int{2, 4, 6})
+	wrapper.Method.Start(items, double).ExpectReturnsEqual([]int{2, 4, 6})
 }
 
 // TestMultipleFunctionLiterals demonstrates handling multiple function literal
@@ -112,23 +112,23 @@ func TestMultipleFunctionLiterals(t *testing.T) {
 	transformFn := func(x int) (int, error) { return x * 3, nil }
 
 	go func() {
-		result, err := mock.Interface().Transform(items, transformFn)
+		result, err := mock.Mock.Transform(items, transformFn)
 		_ = result
 		_ = err
 	}()
 
-	mock.Transform.ExpectCalledWithMatches(items, imptest.Any()).
+	mock.Method.Transform.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{3, 6, 9, 12, 15}, nil)
 
 	// Second call: Filter on same mock
 	predicateFn := func(x int) bool { return x > 10 }
 
 	go func() {
-		result := mock.Interface().Filter(items, predicateFn)
+		result := mock.Mock.Filter(items, predicateFn)
 		_ = result
 	}()
 
-	mock.Filter.ExpectCalledWithMatches(items, imptest.Any()).
+	mock.Method.Filter.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{12, 15})
 }
 
@@ -148,7 +148,7 @@ func TestTargetWithCallback(t *testing.T) {
 	wrapper := WrapExecutorRun(t, executor.Run)
 
 	// Execute and verify
-	wrapper.Start(callback).ExpectReturnsEqual(nil)
+	wrapper.Method.Start(callback).ExpectReturnsEqual(nil)
 
 	if !callbackCalled {
 		t.Error("expected callback to be called")
@@ -167,5 +167,5 @@ func TestTargetWithCallbackError(t *testing.T) {
 
 	wrapper := WrapExecutorRun(t, executor.Run)
 
-	wrapper.Start(callback).ExpectReturnsEqual(expectedErr)
+	wrapper.Method.Start(callback).ExpectReturnsEqual(expectedErr)
 }

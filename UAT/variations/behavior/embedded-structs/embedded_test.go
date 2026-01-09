@@ -24,18 +24,18 @@ func TestEmbeddedStructMethods(t *testing.T) {
 	const expectedResult = "[APP] Hello (count: 1)"
 
 	go func() {
-		result := embeddedstructs.UseTimedLogger(mock.Interface(), "Hello")
+		result := embeddedstructs.UseTimedLogger(mock.Mock, "Hello")
 		if result != expectedResult {
 			t.Errorf("expected %q, got %q", expectedResult, result)
 		}
 	}()
 
 	// SetPrefix is promoted from Logger
-	mock.SetPrefix.ExpectCalledWithExactly("APP").InjectReturnValues()
+	mock.Method.SetPrefix.ExpectCalledWithExactly("APP").InjectReturnValues()
 
 	// LogWithCount is a direct method on TimedLogger
 	// It internally calls Inc (from Counter) and Log (from Logger)
-	mock.LogWithCount.ExpectCalledWithExactly("Hello").InjectReturnValues(expectedResult)
+	mock.Method.LogWithCount.ExpectCalledWithExactly("Hello").InjectReturnValues(expectedResult)
 }
 
 // TestPromotedMethodsFromCounter demonstrates using promoted methods from Counter.
@@ -51,14 +51,14 @@ func TestPromotedMethodsFromCounter(t *testing.T) {
 
 	go func() {
 		// Directly use Counter's promoted methods through the interface
-		iface := mock.Interface()
+		iface := mock.Mock
 		_ = iface.Value()
 		_ = iface.Inc()
 	}()
 
 	// Both methods are promoted from embedded Counter
-	mock.Value.ExpectCalledWithMatches().InjectReturnValues(initialValue)
-	mock.Inc.ExpectCalledWithMatches().InjectReturnValues(afterInc)
+	mock.Method.Value.ExpectCalledWithMatches().InjectReturnValues(initialValue)
+	mock.Method.Inc.ExpectCalledWithMatches().InjectReturnValues(afterInc)
 }
 
 // TestPromotedMethodsFromLogger demonstrates using promoted methods from Logger.
@@ -71,15 +71,15 @@ func TestPromotedMethodsFromLogger(t *testing.T) {
 
 	go func() {
 		// UseLogger only uses Logger methods
-		result := embeddedstructs.UseLogger(mock.Interface(), "Test message")
+		result := embeddedstructs.UseLogger(mock.Mock, "Test message")
 		if result != expectedLog {
 			t.Errorf("expected %q, got %q", expectedLog, result)
 		}
 	}()
 
 	// Both methods are promoted from embedded Logger
-	mock.SetPrefix.ExpectCalledWithExactly("INFO").InjectReturnValues()
-	mock.Log.ExpectCalledWithExactly("Test message").InjectReturnValues(expectedLog)
+	mock.Method.SetPrefix.ExpectCalledWithExactly("INFO").InjectReturnValues()
+	mock.Method.Log.ExpectCalledWithExactly("Test message").InjectReturnValues(expectedLog)
 }
 
 // TestRealTimedLogger exercises the actual TimedLogger implementation.

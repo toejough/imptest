@@ -33,24 +33,24 @@ func TestSamePackageInterfaces(t *testing.T) {
 
 	// Set up source to return test data
 	go func() {
-		source.GetData.ExpectCalledWithExactly().InjectReturnValues(testData, nil)
+		source.Method.GetData.ExpectCalledWithExactly().InjectReturnValues(testData, nil)
 	}()
 
 	// Set up sink to accept data
 	go func() {
-		sink.PutData.ExpectCalledWithExactly(testData).InjectReturnValues(testErr)
+		sink.Method.PutData.ExpectCalledWithExactly(testData).InjectReturnValues(testErr)
 	}()
 
 	// Set up processor expectation with same-package interface arguments
 	go func() {
-		processor.Process.ExpectCalledWithMatches(
+		processor.Method.Process.ExpectCalledWithMatches(
 			imptest.Any(),
 			imptest.Any(),
 		).InjectReturnValues(testErr)
 	}()
 
 	// Call the processor
-	result := processor.Interface().Process(source.Interface(), sink.Interface())
+	result := processor.Mock.Process(source.Mock, sink.Mock)
 
 	// Verify result
 	if !errors.Is(result, testErr) {
@@ -71,17 +71,17 @@ func TestTransformReturnsInterface(t *testing.T) {
 	outputSource := MockDataSource(t)
 
 	// Get the interface value to return
-	expectedOutput := outputSource.Interface()
+	expectedOutput := outputSource.Mock
 
 	// Set up processor to return a different source
 	go func() {
-		processor.Transform.ExpectCalledWithMatches(
+		processor.Method.Transform.ExpectCalledWithMatches(
 			imptest.Any(),
 		).InjectReturnValues(expectedOutput, nil)
 	}()
 
 	// Call transform
-	result, err := processor.Interface().Transform(inputSource.Interface())
+	result, err := processor.Mock.Transform(inputSource.Mock)
 	// Verify result
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
