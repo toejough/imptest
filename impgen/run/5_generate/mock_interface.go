@@ -1,4 +1,3 @@
-//nolint:varnamelen,perfsprint,prealloc
 package generate
 
 import (
@@ -140,7 +139,7 @@ func (gen *dependencyGenerator) buildMethodTemplateData(
 		HasResults:        len(resultTypes) > 0,
 		ResultVars:        resultVars,
 		ReturnList:        returnList,
-		ReturnStatement:   fmt.Sprintf("return %s", returnList),
+		ReturnStatement:   "return " + returnList,
 		ParamFields:       paramFields,
 		HasParams:         len(paramFields) > 0,
 		ArgsTypeName:      fmt.Sprintf("%s%sArgs", gen.mockTypeName, methodName),
@@ -155,8 +154,7 @@ func (gen *dependencyGenerator) buildMethodTemplateData(
 // buildParamFields extracts parameter fields for type-safe args.
 func (gen *dependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramField {
 	paramInfos := extractParams(gen.fset, ftype)
-
-	var paramFields []paramField
+	paramFields := make([]paramField, 0, len(paramInfos))
 
 	for _, pinfo := range paramInfos {
 		// Use actual parameter name if present, otherwise generate A1, A2, A3 style names
@@ -287,18 +285,18 @@ func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistr
 func buildResultVars(resultTypes []string) (resultVars []resultVar, returnList string) {
 	var returnListBuilder strings.Builder
 
-	for i, resultType := range resultTypes {
+	for idx, resultType := range resultTypes {
 		resultVars = append(resultVars, resultVar{
-			Name:  fmt.Sprintf("result%d", i+1),
+			Name:  fmt.Sprintf("result%d", idx+1),
 			Type:  resultType,
-			Index: i,
+			Index: idx,
 		})
 
-		if i > 0 {
+		if idx > 0 {
 			returnListBuilder.WriteString(", ")
 		}
 
-		returnListBuilder.WriteString(fmt.Sprintf("result%d", i+1))
+		returnListBuilder.WriteString(fmt.Sprintf("result%d", idx+1))
 	}
 
 	return resultVars, returnListBuilder.String()

@@ -1,4 +1,3 @@
-//nolint:staticcheck,intrange
 package generate
 
 import (
@@ -224,7 +223,7 @@ func (gen *targetGenerator) extractResultTypes(results *dst.FieldList) []string 
 			count = 1
 		}
 
-		for i := 0; i < count; i++ {
+		for range count {
 			types = append(types, fieldType)
 		}
 	}
@@ -343,7 +342,7 @@ func (gen *targetGenerator) writeFunctionParamsToBuilder(builder *strings.Builde
 
 			first = false
 
-			builder.WriteString(fmt.Sprintf("arg%d ", argCounter))
+			fmt.Fprintf(builder, "arg%d ", argCounter)
 			builder.WriteString(fieldType)
 
 			argCounter++

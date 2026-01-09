@@ -1,4 +1,3 @@
-//nolint:perfsprint
 package generate
 
 import (
@@ -136,7 +135,7 @@ func (gen *functionDependencyGenerator) buildMethodTemplateData() depMethodTempl
 		HasResults:        len(resultTypes) > 0,
 		ResultVars:        resultVars,
 		ReturnList:        returnList,
-		ReturnStatement:   fmt.Sprintf("return %s", returnList),
+		ReturnStatement:   "return " + returnList,
 		ParamFields:       paramFields,
 		HasParams:         len(paramFields) > 0,
 		ArgsTypeName:      gen.mockTypeName + "Args",

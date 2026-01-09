@@ -1,4 +1,3 @@
-//nolint:intrange
 package generate
 
 import (
@@ -172,7 +171,7 @@ func (gen *interfaceTargetGenerator) buildParamFieldsFromNames(
 			count = 1
 		}
 
-		for i := 0; i < count; i++ {
+		for range count {
 			if paramIndex < len(paramNames) {
 				name := paramNames[paramIndex]
 				// Capitalize first letter for exported field
