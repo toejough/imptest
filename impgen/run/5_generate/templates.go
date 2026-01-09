@@ -1,4 +1,4 @@
-package run
+package generate
 
 // unexported variables.
 // All template definitions have been migrated to quicktemplate (.qtpl files).

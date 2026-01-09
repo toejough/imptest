@@ -1,5 +1,5 @@
 //nolint:varnamelen,wsl_v5,nestif,intrange,cyclop,funlen
-package run
+package generate
 
 import (
 	"fmt"
@@ -8,7 +8,28 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
+
+// GenerateInterfaceTargetCode generates target wrapper code for an interface or struct type.
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateInterfaceTargetCode(
+	astFiles []*dst.File,
+	info GeneratorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+	ifaceWithDetails detect.IfaceWithDetails,
+	isStructType bool,
+) (string, error) {
+	gen, err := newInterfaceTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
+	if err != nil {
+		return "", err
+	}
+
+	return gen.generate(isStructType)
+}
 
 // interfaceTargetGenerator generates target wrappers for interfaces and struct types.
 // Each interface method gets wrapped like a function with its own wrapper struct.
@@ -21,9 +42,9 @@ type interfaceTargetGenerator struct {
 	implName            string // Name for the real implementation field
 	astFiles            []*dst.File
 	pkgImportPath       string
-	pkgLoader           PackageLoader
+	pkgLoader           detect.PackageLoader
 	methodNames         []string
-	identifiedInterface ifaceWithDetails // full interface details including source imports
+	identifiedInterface detect.IfaceWithDetails // full interface details including source imports
 }
 
 // buildMethodWrapperData builds wrapper data for a single interface method.
@@ -208,7 +229,7 @@ func (gen *interfaceTargetGenerator) buildResultReturnList(fields []resultField)
 // checkIfQualifierNeeded determines if we need a package qualifier.
 func (gen *interfaceTargetGenerator) checkIfQualifierNeeded() {
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(_ string, ftype *dst.FuncType) {
 			gen.baseGenerator.checkIfQualifierNeeded(ftype)
 		},
@@ -218,7 +239,7 @@ func (gen *interfaceTargetGenerator) checkIfQualifierNeeded() {
 // collectAdditionalImports collects imports needed for interface method signatures.
 func (gen *interfaceTargetGenerator) collectAdditionalImports() []importInfo {
 	// Use the source imports from the interface's file (tracked during parsing)
-	sourceImports := gen.identifiedInterface.sourceImports
+	sourceImports := gen.identifiedInterface.SourceImports
 
 	// Fallback: if interface's file has no imports, collect from all files
 	if len(sourceImports) == 0 {
@@ -230,7 +251,7 @@ func (gen *interfaceTargetGenerator) collectAdditionalImports() []importInfo {
 	}
 
 	return gen.collectAdditionalImportsFromInterface(
-		gen.identifiedInterface.iface,
+		gen.identifiedInterface.Iface,
 		gen.astFiles,
 		gen.pkgImportPath,
 		gen.pkgLoader,
@@ -270,7 +291,7 @@ func (gen *interfaceTargetGenerator) generateWithTemplates(templates *TemplateRe
 	// Determine if we need reflect (for ExpectReturnsEqual with DeepEqual)
 	needsReflect := false
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(_ string, ftype *dst.FuncType) {
 			if ftype.Results != nil && len(ftype.Results.List) > 0 {
 				needsReflect = true
@@ -316,7 +337,7 @@ func (gen *interfaceTargetGenerator) generateWithTemplates(templates *TemplateRe
 	// Collect method wrappers for all interface methods
 	var methodWrappers []methodWrapperData
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(methodName string, ftype *dst.FuncType) {
 			methodData := gen.buildMethodWrapperData(methodName, ftype)
 			methodWrappers = append(methodWrappers, methodData)
@@ -354,32 +375,14 @@ func (gen *interfaceTargetGenerator) generateWithTemplates(templates *TemplateRe
 	}
 }
 
-// generateInterfaceTargetCode generates target wrapper code for an interface or struct type.
-func generateInterfaceTargetCode(
-	astFiles []*dst.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	pkgImportPath string,
-	pkgLoader PackageLoader,
-	ifaceWithDetails ifaceWithDetails,
-	isStructType bool,
-) (string, error) {
-	gen, err := newInterfaceTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
-	if err != nil {
-		return "", err
-	}
-
-	return gen.generate(isStructType)
-}
-
 // newInterfaceTargetGenerator creates a new interface or struct target wrapper generator.
 func newInterfaceTargetGenerator(
 	astFiles []*dst.File,
-	info generatorInfo,
+	info GeneratorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
-	ifaceWithDetails ifaceWithDetails,
+	pkgLoader detect.PackageLoader,
+	ifaceWithDetails detect.IfaceWithDetails,
 ) (*interfaceTargetGenerator, error) {
 	var (
 		pkgPath, qualifier string
@@ -391,7 +394,7 @@ func newInterfaceTargetGenerator(
 		// Symbol found in external package (e.g., via dot import or qualified name)
 		// For qualified names (e.g., "basic.Ops"), resolve package info normally
 		// For unqualified names from dot imports (e.g., "Storage"), use pkgImportPath directly
-		if strings.Contains(info.interfaceName, ".") {
+		if strings.Contains(info.InterfaceName, ".") {
 			// Qualified name - use normal resolution
 			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 			if err != nil {
@@ -403,7 +406,7 @@ func newInterfaceTargetGenerator(
 			parts := strings.Split(pkgImportPath, "/")
 			qualifier = parts[len(parts)-1]
 		}
-	} else if strings.HasSuffix(info.pkgName, "_test") {
+	} else if strings.HasSuffix(info.PkgName, "_test") {
 		// In test package, interface is from non-test version of same package
 		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 		if err != nil {
@@ -412,15 +415,15 @@ func newInterfaceTargetGenerator(
 	}
 
 	// Wrapper type naming: WrapLogger -> WrapLoggerWrapper
-	wrapperType := info.impName + "Wrapper"
+	wrapperType := info.ImpName + "Wrapper"
 
 	gen := &interfaceTargetGenerator{
 		baseGenerator: newBaseGenerator(
-			fset, info.pkgName, info.impName, pkgPath, qualifier, ifaceWithDetails.typeParams,
+			fset, info.PkgName, info.ImpName, pkgPath, qualifier, ifaceWithDetails.TypeParams,
 		),
-		wrapName:            info.impName,
+		wrapName:            info.ImpName,
 		wrapperType:         wrapperType,
-		interfaceName:       info.localInterfaceName,
+		interfaceName:       info.LocalInterfaceName,
 		implName:            "impl",
 		astFiles:            astFiles,
 		pkgImportPath:       pkgImportPath,
@@ -429,7 +432,7 @@ func newInterfaceTargetGenerator(
 	}
 
 	// Collect method names
-	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.iface, astFiles, fset, pkgImportPath, pkgLoader)
+	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.Iface, astFiles, fset, pkgImportPath, pkgLoader)
 	if err != nil {
 		return nil, err
 	}

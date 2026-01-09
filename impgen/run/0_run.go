@@ -10,6 +10,8 @@ import (
 
 	"github.com/alexflint/go-arg"
 	"github.com/dave/dst"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
+	generate "github.com/toejough/imptest/impgen/run/5_generate"
 	output "github.com/toejough/imptest/impgen/run/6_output"
 )
 
@@ -40,14 +42,14 @@ type FileSystem interface {
 // returns an error if any step fails. On success, it generates a Go source file implementing the specified interface,
 // in the calling test package.
 func Run(
-	args []string, getEnv func(string) string, fileWriter output.Writer, pkgLoader PackageLoader, out io.Writer,
+	args []string, getEnv func(string) string, fileWriter output.Writer, pkgLoader detect.PackageLoader, out io.Writer,
 ) error {
 	info, err := getGeneratorCallInfo(args, getEnv)
 	if err != nil {
 		return err
 	}
 
-	pkgImportPath, err := getInterfacePackagePath(info.interfaceName, pkgLoader, info.importPathFlag, getEnv)
+	pkgImportPath, err := getInterfacePackagePath(info.InterfaceName, pkgLoader, info.ImportPathFlag, getEnv)
 	if err != nil {
 		return err
 	}
@@ -55,10 +57,10 @@ func Run(
 	// If it's a local package, we should use the full name for symbol lookup
 	// (e.g. "MyType.MyMethod" instead of just "MyMethod")
 	if pkgImportPath == "." {
-		info.localInterfaceName = info.interfaceName
+		info.LocalInterfaceName = info.InterfaceName
 		// Recalculate impName with the corrected localInterfaceName if not user-provided
-		if !info.nameProvided {
-			info.impName = determineGeneratedTypeName(info.mode, info.localInterfaceName)
+		if !info.NameProvided {
+			info.ImpName = determineGeneratedTypeName(info.Mode, info.LocalInterfaceName)
 		}
 	}
 
@@ -72,7 +74,7 @@ func Run(
 		return err
 	}
 
-	err = output.WriteGeneratedCode(code, info.impName, info.pkgName, getEnv, fileWriter, out)
+	err = output.WriteGeneratedCode(code, info.ImpName, info.PkgName, getEnv, fileWriter, out)
 	if err != nil {
 		return fmt.Errorf("failed to write generated code: %w", err)
 	}
@@ -80,40 +82,15 @@ func Run(
 	return nil
 }
 
-// Functions - Public
-
-// WithCache executes the impgen tool with caching support. It checks if a cached version exists based on the
-// package signature and uses it if available. Otherwise, it generates new code and caches the result.
-
-// 1. Calculate current signature
-
-// If signature calculation fails, run without cache
-
-// 2. Find project root and cache file
-
-// If project root not found, run without cache
-
-// 3. Check cache
-
-// Cache hit! Just write the file if it doesn't exist or differs
-
-// 4. Cache miss - run and record
-
-// 5. Update cache
-
-// namingMode represents the different modes for generating type names.
-type namingMode int
-
-// namingMode values.
+// unexported constants.
 const (
-	namingModeDefault namingMode = iota
-	namingModeTarget
-	namingModeDependency
+	goPackageEnvVarName = "GOPACKAGE"
 )
 
 // unexported variables.
 var (
 	errAmbiguousPackage       = errors.New("package is ambiguous: both stdlib and local package exist")
+	errGOPACKAGENotSet        = errors.New(goPackageEnvVarName + " environment variable not set")
 	errMutuallyExclusiveFlags = errors.New("--target and --dependency flags are mutually exclusive")
 )
 
@@ -128,26 +105,18 @@ type cliArgs struct {
 	ImportPath string `arg:"--import-path"       help:"explicit import path when ambiguous"`
 }
 
-// generatorInfo holds information gathered for generation.
-type generatorInfo struct {
-	pkgName, interfaceName, localInterfaceName, impName string
-	mode                                                namingMode
-	importPathFlag                                      string
-	nameProvided                                        bool // true if --name was explicitly provided
-}
-
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
-func determineGeneratedTypeName(mode namingMode, localInterfaceName string) string {
+func determineGeneratedTypeName(mode generate.NamingMode, localInterfaceName string) string {
 	// Remove dots from localInterfaceName to create valid Go type names
 	// e.g., "Calculator.Add" -> "CalculatorAdd", "MyInterface" -> "MyInterface"
 	typeName := strings.ReplaceAll(localInterfaceName, ".", "")
 
 	switch mode {
-	case namingModeTarget:
+	case generate.NamingModeTarget:
 		return "Wrap" + typeName
-	case namingModeDependency:
+	case generate.NamingModeDependency:
 		return "Mock" + typeName
-	case namingModeDefault:
+	case generate.NamingModeDefault:
 		// Default: backward compatible (Imp suffix, no prefix)
 		// For methods (contains dots in original), use name as-is
 		// For interfaces, append "Imp" suffix
@@ -163,21 +132,21 @@ func determineGeneratedTypeName(mode namingMode, localInterfaceName string) stri
 }
 
 func generateCode(
-	info generatorInfo,
+	info generate.GeneratorInfo,
 	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 ) (string, error) {
 	// Auto-detect the symbol type
-	symbol, err := findSymbol(astFiles, fset, info.localInterfaceName, pkgImportPath, pkgLoader)
+	symbol, err := detect.FindSymbol(astFiles, fset, info.LocalInterfaceName, pkgImportPath, pkgLoader)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to find symbol %s: %w", info.LocalInterfaceName, err)
 	}
 
 	// Use the actual package path where the symbol was found
-	// (important for dot imports where symbol.pkgPath differs from pkgImportPath)
-	actualPkgPath := symbol.pkgPath
+	// (important for dot imports where symbol.PkgPath differs from pkgImportPath)
+	actualPkgPath := symbol.PkgPath
 
 	// If symbol was found via dot import, we need to load that package's AST
 	if actualPkgPath != pkgImportPath {
@@ -194,15 +163,15 @@ func generateCode(
 // Functions - Private
 
 // getGeneratorCallInfo returns basic information about the current call to the generator.
-func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorInfo, error) {
+func getGeneratorCallInfo(args []string, getEnv func(string) string) (generate.GeneratorInfo, error) {
 	pkgName := getEnv(goPackageEnvVarName)
 	if pkgName == "" {
-		return generatorInfo{}, errGOPACKAGENotSet
+		return generate.GeneratorInfo{}, errGOPACKAGENotSet
 	}
 
 	parsed, err := parseArgs(args)
 	if err != nil {
-		return generatorInfo{}, err
+		return generate.GeneratorInfo{}, err
 	}
 
 	interfaceName := parsed.Interface
@@ -212,15 +181,15 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 
 	// Validate mutually exclusive flags
 	if parsed.Target && parsed.Dependency {
-		return generatorInfo{}, errMutuallyExclusiveFlags
+		return generate.GeneratorInfo{}, errMutuallyExclusiveFlags
 	}
 
 	// Determine naming mode based on flags
-	mode := namingModeDefault
+	mode := generate.NamingModeDefault
 	if parsed.Target {
-		mode = namingModeTarget
+		mode = generate.NamingModeTarget
 	} else if parsed.Dependency {
-		mode = namingModeDependency
+		mode = generate.NamingModeDependency
 	}
 
 	// set impname if not provided
@@ -228,14 +197,14 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 		impName = determineGeneratedTypeName(mode, localInterfaceName)
 	}
 
-	return generatorInfo{
-		pkgName:            pkgName,
-		interfaceName:      interfaceName,
-		localInterfaceName: localInterfaceName,
-		impName:            impName,
-		mode:               mode,
-		importPathFlag:     parsed.ImportPath,
-		nameProvided:       nameProvided,
+	return generate.GeneratorInfo{
+		PkgName:            pkgName,
+		InterfaceName:      interfaceName,
+		LocalInterfaceName: localInterfaceName,
+		ImpName:            impName,
+		Mode:               mode,
+		ImportPathFlag:     parsed.ImportPath,
+		NameProvided:       nameProvided,
 	}, nil
 }
 
@@ -247,7 +216,7 @@ func getGeneratorCallInfo(args []string, getEnv func(string) string) (generatorI
 // 4. Fallback to existing import resolution logic
 func getInterfacePackagePath(
 	interfaceName string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	importPathFlag string,
 	getEnv func(string) string,
 ) (string, error) {
@@ -255,7 +224,7 @@ func getInterfacePackagePath(
 		return ".", nil
 	}
 
-	pkgName := extractPackageName(interfaceName)
+	pkgName := detect.ExtractPackageName(interfaceName)
 
 	// Tier 1: Explicit --import-path flag
 	if importPathFlag != "" {
@@ -271,7 +240,7 @@ func getInterfacePackagePath(
 	// Tier 2: Infer from test file imports
 	goFile := getEnv("GOFILE")
 	if goFile != "" {
-		inferredPath, err := inferImportPathFromTestFile(goFile, pkgName)
+		inferredPath, err := detect.InferImportPathFromTestFile(goFile, pkgName)
 		if err == nil {
 			// Found in imports - use it
 			return inferredPath, nil
@@ -280,7 +249,7 @@ func getInterfacePackagePath(
 	}
 
 	// Tier 3: Ambiguity detection
-	hasStdlib, hasLocal, localPath := detectPackageAmbiguity(pkgName)
+	hasStdlib, hasLocal, localPath := detect.PackageAmbiguity(pkgName)
 	if hasStdlib && hasLocal {
 		return "", fmt.Errorf(
 			"%w: %q\n"+
@@ -302,7 +271,7 @@ func getInterfacePackagePath(
 
 	// Try to find the import path for the prefix.
 	// If it's not found in imports, it might be a local type/method reference (e.g. MyType.MyMethod)
-	path, err := findImportPath(astFiles, pkgName, pkgLoader)
+	path, err := detect.FindImportPath(astFiles, pkgName, pkgLoader)
 	if err != nil {
 		// If it's not a package we know about, assume it's a local reference
 		return ".", nil //nolint:nilerr
@@ -322,7 +291,7 @@ func getLocalInterfaceName(interfaceName string) string {
 }
 
 // loadPackage loads the AST for the package at the given path.
-func loadPackage(pkgPath string, pkgLoader PackageLoader) ([]*dst.File, *token.FileSet, error) {
+func loadPackage(pkgPath string, pkgLoader detect.PackageLoader) ([]*dst.File, *token.FileSet, error) {
 	astFiles, fset, _, err := pkgLoader.Load(pkgPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load package %s: %w", pkgPath, err)
@@ -354,16 +323,18 @@ func parseArgs(args []string) (cliArgs, error) {
 }
 
 // routeFunctionGenerator routes to function generators based on mode.
+//
+//nolint:wrapcheck // internal subpackage, errors already have context
 func routeFunctionGenerator(
-	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
-	pkgPath string, pkgLoader PackageLoader, funcDecl *dst.FuncDecl,
+	astFiles []*dst.File, info generate.GeneratorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader detect.PackageLoader, funcDecl *dst.FuncDecl,
 ) (string, error) {
-	switch info.mode {
-	case namingModeTarget:
-		return generateTargetCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
-	case namingModeDependency:
-		return generateFunctionDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
-	case namingModeDefault:
+	switch info.Mode {
+	case generate.NamingModeTarget:
+		return generate.GenerateTargetCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
+	case generate.NamingModeDependency:
+		return generate.GenerateFunctionDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
+	case generate.NamingModeDefault:
 		return "", ErrFunctionModeRequired
 	}
 
@@ -371,16 +342,18 @@ func routeFunctionGenerator(
 }
 
 // routeFunctionTypeGenerator routes to function type generators based on mode.
+//
+//nolint:wrapcheck // internal subpackage, errors already have context
 func routeFunctionTypeGenerator(
-	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
-	pkgPath string, pkgLoader PackageLoader, funcType funcTypeWithDetails,
+	astFiles []*dst.File, info generate.GeneratorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader detect.PackageLoader, funcType detect.FuncTypeWithDetails,
 ) (string, error) {
-	switch info.mode {
-	case namingModeTarget:
-		return generateTargetCodeFromFuncType(astFiles, info, fset, pkgPath, pkgLoader, funcType)
-	case namingModeDependency:
-		return generateFunctionTypeDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcType)
-	case namingModeDefault:
+	switch info.Mode {
+	case generate.NamingModeTarget:
+		return generate.GenerateTargetCodeFromFuncType(astFiles, info, fset, pkgPath, pkgLoader, funcType)
+	case generate.NamingModeDependency:
+		return generate.GenerateFunctionTypeDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcType)
+	case generate.NamingModeDefault:
 		return "", ErrFunctionModeRequired
 	}
 
@@ -388,16 +361,18 @@ func routeFunctionTypeGenerator(
 }
 
 // routeInterfaceGenerator routes to interface generators based on mode.
+//
+//nolint:wrapcheck // internal subpackage, errors already have context
 func routeInterfaceGenerator(
-	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
-	pkgPath string, pkgLoader PackageLoader, iface ifaceWithDetails,
+	astFiles []*dst.File, info generate.GeneratorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader detect.PackageLoader, iface detect.IfaceWithDetails,
 ) (string, error) {
-	switch info.mode {
-	case namingModeDependency:
-		return generateDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, iface)
-	case namingModeTarget:
-		return generateInterfaceTargetCode(astFiles, info, fset, pkgPath, pkgLoader, iface, false)
-	case namingModeDefault:
+	switch info.Mode {
+	case generate.NamingModeDependency:
+		return generate.GenerateDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, iface)
+	case generate.NamingModeTarget:
+		return generate.GenerateInterfaceTargetCode(astFiles, info, fset, pkgPath, pkgLoader, iface, false)
+	case generate.NamingModeDefault:
 		return "", ErrInterfaceModeRequired
 	}
 
@@ -405,16 +380,18 @@ func routeInterfaceGenerator(
 }
 
 // routeStructGenerator routes to struct generators based on mode.
+//
+//nolint:wrapcheck // internal subpackage, errors already have context
 func routeStructGenerator(
-	astFiles []*dst.File, info generatorInfo, fset *token.FileSet,
-	pkgPath string, pkgLoader PackageLoader, structType structWithDetails,
+	astFiles []*dst.File, info generate.GeneratorInfo, fset *token.FileSet,
+	pkgPath string, pkgLoader detect.PackageLoader, structType detect.StructWithDetails,
 ) (string, error) {
-	switch info.mode {
-	case namingModeTarget:
-		return generateStructTargetCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
-	case namingModeDependency:
-		return generateStructDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
-	case namingModeDefault:
+	switch info.Mode {
+	case generate.NamingModeTarget:
+		return generate.GenerateStructTargetCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+	case generate.NamingModeDependency:
+		return generate.GenerateStructDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+	case generate.NamingModeDefault:
 		return "", ErrFunctionModeRequired
 	}
 
@@ -424,22 +401,22 @@ func routeStructGenerator(
 // routeToGenerator routes to the appropriate generator based on symbol type and mode.
 func routeToGenerator(
 	astFiles []*dst.File,
-	info generatorInfo,
+	info generate.GeneratorInfo,
 	fset *token.FileSet,
 	actualPkgPath string,
-	pkgLoader PackageLoader,
-	symbol symbolDetails,
+	pkgLoader detect.PackageLoader,
+	symbol detect.SymbolDetails,
 ) (string, error) {
-	switch symbol.kind {
-	case symbolFunction:
-		return routeFunctionGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcDecl)
-	case symbolFunctionType:
-		return routeFunctionTypeGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.funcType)
-	case symbolStructType:
-		return routeStructGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.structType)
-	case symbolInterface:
-		return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
+	switch symbol.Kind {
+	case detect.SymbolFunction:
+		return routeFunctionGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.FuncDecl)
+	case detect.SymbolFunctionType:
+		return routeFunctionTypeGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.FuncType)
+	case detect.SymbolStructType:
+		return routeStructGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.StructType)
+	case detect.SymbolInterface:
+		return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.Iface)
 	}
 
-	return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.iface)
+	return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.Iface)
 }

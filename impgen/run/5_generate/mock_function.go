@@ -1,5 +1,5 @@
 //nolint:wsl_v5,perfsprint,cyclop
-package run
+package generate
 
 import (
 	"fmt"
@@ -8,7 +8,55 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
+
+// GenerateFunctionDependencyCode generates dependency mock code for a package-level function.
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateFunctionDependencyCode(
+	astFiles []*dst.File,
+	info GeneratorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+	funcDecl *dst.FuncDecl,
+) (string, error) {
+	gen, err := newFunctionDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
+	if err != nil {
+		return "", err
+	}
+
+	return gen.generate()
+}
+
+// GenerateFunctionTypeDependencyCode generates dependency mock code for a function type.
+// It creates a synthetic function declaration from the function type and delegates to GenerateFunctionDependencyCode.
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateFunctionTypeDependencyCode(
+	astFiles []*dst.File,
+	info GeneratorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+	funcTypeDetails detect.FuncTypeWithDetails,
+) (string, error) {
+	// Create a synthetic function declaration from the function type
+	// For a type like: type Handler func(w http.ResponseWriter, r *http.Request)
+	// We create: func Handler(w http.ResponseWriter, r *http.Request) { ... }
+	funcDecl := &dst.FuncDecl{
+		Name: &dst.Ident{Name: funcTypeDetails.TypeName},
+		Type: funcTypeDetails.FuncType,
+	}
+
+	// If the function type has type parameters, attach them to the FuncType
+	if funcTypeDetails.TypeParams != nil {
+		funcDecl.Type.TypeParams = funcTypeDetails.TypeParams
+	}
+
+	return GenerateFunctionDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
+}
 
 // funcDepTemplateData holds data for function dependency mock templates.
 type funcDepTemplateData struct {
@@ -288,56 +336,13 @@ func (gen *functionDependencyGenerator) generateWithTemplates(templates *Templat
 	templates.WriteFuncDepConstructor(&gen.buf, data)
 }
 
-// generateFunctionDependencyCode generates dependency mock code for a package-level function.
-func generateFunctionDependencyCode(
-	astFiles []*dst.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	pkgImportPath string,
-	pkgLoader PackageLoader,
-	funcDecl *dst.FuncDecl,
-) (string, error) {
-	gen, err := newFunctionDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
-	if err != nil {
-		return "", err
-	}
-
-	return gen.generate()
-}
-
-// generateFunctionTypeDependencyCode generates dependency mock code for a function type.
-// It creates a synthetic function declaration from the function type and delegates to generateFunctionDependencyCode.
-func generateFunctionTypeDependencyCode(
-	astFiles []*dst.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	pkgImportPath string,
-	pkgLoader PackageLoader,
-	funcTypeDetails funcTypeWithDetails,
-) (string, error) {
-	// Create a synthetic function declaration from the function type
-	// For a type like: type Handler func(w http.ResponseWriter, r *http.Request)
-	// We create: func Handler(w http.ResponseWriter, r *http.Request) { ... }
-	funcDecl := &dst.FuncDecl{
-		Name: &dst.Ident{Name: funcTypeDetails.typeName},
-		Type: funcTypeDetails.funcType,
-	}
-
-	// If the function type has type parameters, attach them to the FuncType
-	if funcTypeDetails.typeParams != nil {
-		funcDecl.Type.TypeParams = funcTypeDetails.typeParams
-	}
-
-	return generateFunctionDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
-}
-
 // newFunctionDependencyGenerator creates a new function dependency mock generator.
 func newFunctionDependencyGenerator(
 	astFiles []*dst.File,
-	info generatorInfo,
+	info GeneratorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	funcDecl *dst.FuncDecl,
 ) (*functionDependencyGenerator, error) {
 	pkgPath, qualifier, err := resolveFunctionPackageInfo(info, pkgImportPath, pkgLoader)
@@ -346,13 +351,13 @@ func newFunctionDependencyGenerator(
 	}
 
 	// Convert MockXxx -> XxxMock for the struct type name
-	mockTypeName := strings.TrimPrefix(info.impName, "Mock") + "Mock"
+	mockTypeName := strings.TrimPrefix(info.ImpName, "Mock") + "Mock"
 
 	gen := &functionDependencyGenerator{
-		baseGenerator: newBaseGenerator(fset, info.pkgName, info.impName, pkgPath, qualifier, nil),
-		mockName:      info.impName,
+		baseGenerator: newBaseGenerator(fset, info.PkgName, info.ImpName, pkgPath, qualifier, nil),
+		mockName:      info.ImpName,
 		mockTypeName:  mockTypeName,
-		funcName:      info.localInterfaceName, // This is actually the function name
+		funcName:      info.LocalInterfaceName, // This is actually the function name
 		astFiles:      astFiles,
 		funcDecl:      funcDecl,
 	}
@@ -362,11 +367,11 @@ func newFunctionDependencyGenerator(
 
 // resolveFunctionPackageInfo determines the package path and qualifier for a function.
 func resolveFunctionPackageInfo(
-	info generatorInfo, pkgImportPath string, pkgLoader PackageLoader,
+	info GeneratorInfo, pkgImportPath string, pkgLoader detect.PackageLoader,
 ) (string, string, error) {
 	// External package
 	if pkgImportPath != "." {
-		if strings.Contains(info.interfaceName, ".") {
+		if strings.Contains(info.InterfaceName, ".") {
 			pkgPath, qualifier, err := resolvePackageInfo(info, pkgLoader)
 			if err != nil {
 				return "", "", fmt.Errorf("failed to get function package info: %w", err)
@@ -383,7 +388,7 @@ func resolveFunctionPackageInfo(
 	}
 
 	// Test package needs to import the main package
-	if strings.HasSuffix(info.pkgName, "_test") {
+	if strings.HasSuffix(info.PkgName, "_test") {
 		pkgPath, qualifier, err := resolvePackageInfo(info, pkgLoader)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get function package info: %w", err)

@@ -1,8 +1,7 @@
-package run
+package generate
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"go/token"
 	"sort"
@@ -11,12 +10,34 @@ import (
 
 	"github.com/dave/dst"
 	astutil "github.com/toejough/imptest/impgen/run/0_util"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
+
+// NamingMode represents the different modes for generating type names.
+type NamingMode int
+
+// NamingMode values.
+const (
+	NamingModeDefault NamingMode = iota
+	NamingModeTarget
+	NamingModeDependency
+)
+
+// GeneratorInfo holds information gathered for generation.
+type GeneratorInfo struct {
+	PkgName            string
+	InterfaceName      string
+	LocalInterfaceName string
+	ImpName            string
+	Mode               NamingMode
+	ImportPathFlag     string
+	NameProvided       bool // true if --name was explicitly provided
+}
 
 // GetPackageInfo extracts package info for a given target name (e.g., "pkg.Interface").
 func GetPackageInfo(
 	targetName string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	currentPkgName string,
 ) (pkgPath, pkgName string, err error) {
 	before, _, ok := strings.Cut(targetName, ".")
@@ -46,7 +67,7 @@ func GetPackageInfo(
 		return "", "", nil
 	}
 
-	pkgPath, err = findImportPath(astFiles, pkgName, pkgLoader)
+	pkgPath, err = detect.FindImportPath(astFiles, pkgName, pkgLoader)
 	if err != nil {
 		// If it's not a package we know about, assume it's a local reference (e.g. MyType.MyMethod)
 		return "", "", nil //nolint:nilerr
@@ -57,18 +78,12 @@ func GetPackageInfo(
 
 // unexported constants.
 const (
-	anyTypeString       = "any"
-	goPackageEnvVarName = "GOPACKAGE"
-	pkgFmt              = "_fmt"
-	pkgImptest          = "_imptest"
-	pkgReflect          = "_reflect"
-	pkgTesting          = "_testing"
-	pkgTime             = "_time"
-)
-
-// unexported variables.
-var (
-	errGOPACKAGENotSet = errors.New(goPackageEnvVarName + " environment variable not set")
+	anyTypeString = "any"
+	pkgFmt        = "_fmt"
+	pkgImptest    = "_imptest"
+	pkgReflect    = "_reflect"
+	pkgTesting    = "_testing"
+	pkgTime       = "_time"
 )
 
 // baseGenerator holds common state and methods for code generation.
@@ -190,7 +205,7 @@ func (baseGen *baseGenerator) collectAdditionalImportsFromInterface(
 	iface *dst.InterfaceType,
 	astFiles []*dst.File,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	sourceImports []*dst.ImportSpec,
 ) []importInfo {
 	if len(astFiles) == 0 {
@@ -590,8 +605,8 @@ func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []im
 					alias := pkgAlias
 					// If this is a stdlib package and there's a non-stdlib source import with the same name,
 					// prefix the stdlib package with "_" to avoid the conflict
-					if isStdlibPackage(path) && path == pkgAlias {
-						if existingPath, exists := sourcePackageNames[pkgAlias]; exists && !isStdlibPackage(existingPath) {
+					if detect.IsStdlibPackage(path) && path == pkgAlias {
+						if existingPath, exists := sourcePackageNames[pkgAlias]; exists && !detect.IsStdlibPackage(existingPath) {
 							// There's a non-stdlib package with the same name - prefix the stdlib one
 							alias = "_" + pkgAlias
 						}
@@ -1080,24 +1095,12 @@ func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
 }
 
 // stringifyDSTExpr delegates to astutil.StringifyExpr.
-func stringifyDSTExpr(expr dst.Expr) string {
-	return astutil.StringifyExpr(expr)
-}
 
 // stringifyFuncType delegates to astutil.StringifyExpr.
-func stringifyFuncType(funcType *dst.FuncType) string {
-	return astutil.StringifyExpr(funcType)
-}
 
 // stringifyInterfaceType delegates to astutil.StringifyExpr.
-func stringifyInterfaceType(interfaceType *dst.InterfaceType) string {
-	return astutil.StringifyExpr(interfaceType)
-}
 
 // stringifyStructType delegates to astutil.StringifyExpr.
-func stringifyStructType(structType *dst.StructType) string {
-	return astutil.StringifyExpr(structType)
-}
 
 // typeWithQualifierFunc handles function types.
 func typeWithQualifierFunc(_ *token.FileSet, funcType *dst.FuncType, typeFormatter func(dst.Expr) string) string {

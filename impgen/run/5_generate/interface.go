@@ -1,4 +1,4 @@
-package run
+package generate
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
 // unexported variables.
@@ -356,7 +357,7 @@ func forEachInterfaceMethod(
 	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	callback func(methodName string, ftype *dst.FuncType),
 ) error {
 	for _, field := range iface.Methods.List {
@@ -380,7 +381,8 @@ func forEachInterfaceMethod(
 
 // interfaceCollectMethodNames collects all method names from an interface, including embedded ones.
 func interfaceCollectMethodNames(
-	iface *dst.InterfaceType, astFiles []*dst.File, fset *token.FileSet, pkgImportPath string, pkgLoader PackageLoader,
+	iface *dst.InterfaceType, astFiles []*dst.File, fset *token.FileSet,
+	pkgImportPath string, pkgLoader detect.PackageLoader,
 ) ([]string, error) {
 	var methodNames []string
 
@@ -403,7 +405,7 @@ func interfaceExpandEmbedded(
 	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	callback func(methodName string, ftype *dst.FuncType),
 ) error {
 	var (
@@ -426,7 +428,7 @@ func interfaceExpandEmbedded(
 		}
 
 		// Find the import path for this package
-		importPath, err := findImportPath(astFiles, pkgIdent.Name, pkgLoader)
+		importPath, err := detect.FindImportPath(astFiles, pkgIdent.Name, pkgLoader)
 		if err != nil {
 			return fmt.Errorf("failed to find import path for embedded interface %s.%s: %w", pkgIdent.Name, typ.Sel.Name, err)
 		}
@@ -458,7 +460,7 @@ func interfaceExpandEmbedded(
 	}
 
 	// Find the embedded interface in the AST
-	embeddedInterfaceWithDetails, err := getMatchingInterfaceFromAST(
+	embeddedInterfaceWithDetails, err := detect.GetMatchingInterfaceFromAST(
 		embeddedAstFiles, embeddedInterfaceName, embeddedPkgPath,
 	)
 	if err != nil {
@@ -467,7 +469,7 @@ func interfaceExpandEmbedded(
 
 	// Recursively process the embedded interface's methods
 	return forEachInterfaceMethod(
-		embeddedInterfaceWithDetails.iface, embeddedAstFiles, embeddedFset, embeddedPkgPath, pkgLoader, callback,
+		embeddedInterfaceWithDetails.Iface, embeddedAstFiles, embeddedFset, embeddedPkgPath, pkgLoader, callback,
 	)
 }
 
@@ -498,7 +500,7 @@ func interfaceProcessFieldMethods(
 	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	callback func(methodName string, ftype *dst.FuncType),
 ) error {
 	// Handle embedded interfaces (they have no names)
@@ -522,11 +524,11 @@ func interfaceProcessFieldMethods(
 
 // resolvePackageInfo resolves the package path and qualifier for an interface.
 // Handles special case of test packages needing to import the non-test version.
-func resolvePackageInfo(info generatorInfo, pkgLoader PackageLoader) (pkgPath, qualifier string, err error) {
+func resolvePackageInfo(info GeneratorInfo, pkgLoader detect.PackageLoader) (pkgPath, qualifier string, err error) {
 	pkgPath, qualifier, err = GetPackageInfo(
-		info.interfaceName,
+		info.InterfaceName,
 		pkgLoader,
-		info.pkgName,
+		info.PkgName,
 	)
 	if err != nil {
 		return "", "", err
@@ -535,8 +537,8 @@ func resolvePackageInfo(info generatorInfo, pkgLoader PackageLoader) (pkgPath, q
 	// Special case: when in a test package (e.g., "imptest_test") and the interface
 	// has no package qualifier (GetPackageInfo returned empty), the interface is from
 	// the non-test version of this package. We need to import it with its full path.
-	if qualifier == "" && strings.HasSuffix(info.pkgName, "_test") {
-		basePkgPath, baseQualifier := resolveTestPackageImport(pkgLoader, info.pkgName)
+	if qualifier == "" && strings.HasSuffix(info.PkgName, "_test") {
+		basePkgPath, baseQualifier := resolveTestPackageImport(pkgLoader, info.PkgName)
 		if basePkgPath != "" {
 			return basePkgPath, baseQualifier, nil
 		}
@@ -546,7 +548,7 @@ func resolvePackageInfo(info generatorInfo, pkgLoader PackageLoader) (pkgPath, q
 }
 
 // resolveTestPackageImport resolves the import path for the non-test version of a test package.
-func resolveTestPackageImport(pkgLoader PackageLoader, pkgName string) (pkgPath, qualifier string) {
+func resolveTestPackageImport(pkgLoader detect.PackageLoader, pkgName string) (pkgPath, qualifier string) {
 	// Strip _test suffix to get the base package name
 	basePkgName := strings.TrimSuffix(pkgName, "_test")
 
@@ -557,7 +559,7 @@ func resolveTestPackageImport(pkgLoader PackageLoader, pkgName string) (pkgPath,
 	}
 
 	// Get the import path from the package's own declaration
-	path, err := getImportPathFromFiles(basePkgFiles, baseFset, "")
+	path, err := detect.GetImportPathFromFiles(basePkgFiles, baseFset, "")
 	if err != nil || path == "" {
 		return "", ""
 	}

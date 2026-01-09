@@ -1,26 +1,29 @@
 //nolint:wsl_v5
-package run
+package generate
 
 import (
 	"go/token"
 	"sort"
 
 	"github.com/dave/dst"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// generateStructDependencyCode generates dependency mock code for a struct type.
+// GenerateStructDependencyCode generates dependency mock code for a struct type.
 // It converts the struct type into an interface-like representation by collecting all methods
 // on the struct, then delegates to the existing dependencyGenerator.
-func generateStructDependencyCode(
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateStructDependencyCode(
 	astFiles []*dst.File,
-	info generatorInfo,
+	info GeneratorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
-	structWithDetails structWithDetails,
+	pkgLoader detect.PackageLoader,
+	structWithDetails detect.StructWithDetails,
 ) (string, error) {
 	// Collect all methods for this struct type
-	methods := collectStructMethods(astFiles, fset, structWithDetails.typeName)
+	methods := detect.CollectStructMethods(astFiles, fset, structWithDetails.TypeName)
 
 	// Convert methods map to sorted slice of method names (for deterministic output)
 	methodNames := make([]string, 0, len(methods))
@@ -47,30 +50,32 @@ func generateStructDependencyCode(
 	}
 
 	// Create ifaceWithDetails from the synthetic interface
-	ifaceDetails := ifaceWithDetails{
-		iface:         interfaceType,
-		typeParams:    structWithDetails.typeParams,
-		sourceImports: structWithDetails.sourceImports,
-		isStructType:  true, // Mark as struct-derived to generate synthetic interface in output
+	ifaceDetails := detect.IfaceWithDetails{
+		Iface:         interfaceType,
+		TypeParams:    structWithDetails.TypeParams,
+		SourceImports: structWithDetails.SourceImports,
+		IsStructType:  true, // Mark as struct-derived to generate synthetic interface in output
 	}
 
 	// Delegate to the existing dependencyGenerator
-	return generateDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails)
+	return GenerateDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails)
 }
 
-// generateStructTargetCode generates target wrapper code for a struct type.
+// GenerateStructTargetCode generates target wrapper code for a struct type.
 // It converts the struct type into an interface-like representation by collecting all methods
 // on the struct, then delegates to the existing interfaceTargetGenerator.
-func generateStructTargetCode(
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateStructTargetCode(
 	astFiles []*dst.File,
-	info generatorInfo,
+	info GeneratorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
-	structWithDetails structWithDetails,
+	pkgLoader detect.PackageLoader,
+	structWithDetails detect.StructWithDetails,
 ) (string, error) {
 	// Collect all methods for this struct type
-	methods := collectStructMethods(astFiles, fset, structWithDetails.typeName)
+	methods := detect.CollectStructMethods(astFiles, fset, structWithDetails.TypeName)
 
 	// Convert methods map to sorted slice of method names (for deterministic output)
 	methodNames := make([]string, 0, len(methods))
@@ -97,13 +102,13 @@ func generateStructTargetCode(
 	}
 
 	// Create ifaceWithDetails from the synthetic interface
-	ifaceDetails := ifaceWithDetails{
-		iface:         interfaceType,
-		typeParams:    structWithDetails.typeParams,
-		sourceImports: structWithDetails.sourceImports,
+	ifaceDetails := detect.IfaceWithDetails{
+		Iface:         interfaceType,
+		TypeParams:    structWithDetails.TypeParams,
+		SourceImports: structWithDetails.SourceImports,
 	}
 
 	// Delegate to the existing interfaceTargetGenerator with isStructType=true
 	// The generator will create wrappers for all methods on the struct using pointer types
-	return generateInterfaceTargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails, true)
+	return GenerateInterfaceTargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails, true)
 }

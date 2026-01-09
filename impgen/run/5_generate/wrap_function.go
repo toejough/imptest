@@ -1,5 +1,5 @@
 //nolint:varnamelen,wsl_v5,staticcheck,cyclop,gocognit,intrange,funlen
-package run
+package generate
 
 import (
 	"fmt"
@@ -8,7 +8,81 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
+
+// GenerateTargetCode generates target wrapper code for a function.
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateTargetCode(
+	astFiles []*dst.File,
+	info GeneratorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+	funcDecl *dst.FuncDecl,
+) (string, error) {
+	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, false)
+	if err != nil {
+		return "", err
+	}
+
+	return gen.generate()
+}
+
+// GenerateTargetCodeFromFuncType generates target wrapper code for a function type.
+// It creates a synthetic function declaration from the function type and delegates to GenerateTargetCode.
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateTargetCodeFromFuncType(
+	astFiles []*dst.File,
+	info GeneratorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+	funcTypeDetails detect.FuncTypeWithDetails,
+) (string, error) {
+	funcType := funcTypeDetails.FuncType
+
+	// Track if we need to add external package import for qualified types
+	var externalPkgPath, externalQualifier string
+
+	// For external function types (from outside the current module), qualify types from the source package.
+	// E.g., http.HandlerFunc's ResponseWriter becomes http.ResponseWriter.
+	// For local function types (within the module), the types are already qualified in the source
+	// (e.g., fs.DirEntry), so we don't need to import the source package.
+	if pkgImportPath != "." && !isLocalPackage(pkgImportPath) {
+		qualifier := extractPkgNameFromPath(pkgImportPath)
+		funcType = qualifyFuncType(funcType, qualifier)
+		// Store the external package info so we can add the import later
+		externalPkgPath = pkgImportPath
+		externalQualifier = qualifier
+	}
+
+	// Create a synthetic function declaration from the function type
+	// For a type like: type WalkFunc func(path string, info string) error
+	// We create: func WalkFunc(path string, info string) error { ... }
+	funcDecl := &dst.FuncDecl{
+		Name: &dst.Ident{Name: funcTypeDetails.TypeName},
+		Type: funcType,
+	}
+
+	// If the function type has type parameters, attach them to the FuncType
+	if funcTypeDetails.TypeParams != nil {
+		funcDecl.Type.TypeParams = funcTypeDetails.TypeParams
+	}
+
+	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, true)
+	if err != nil {
+		return "", err
+	}
+
+	// Set the external package fields for import collection
+	gen.externalPkgPath = externalPkgPath
+	gen.externalQualifier = externalQualifier
+
+	return gen.generate()
+}
 
 // targetGenerator generates target wrappers.
 type targetGenerator struct {
@@ -348,83 +422,14 @@ func extractParamNames(funcType *dst.FuncType) []string {
 	return names
 }
 
-// generateTargetCode generates target wrapper code for a function.
-func generateTargetCode(
-	astFiles []*dst.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	pkgImportPath string,
-	pkgLoader PackageLoader,
-	funcDecl *dst.FuncDecl,
-) (string, error) {
-	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, false)
-	if err != nil {
-		return "", err
-	}
-
-	return gen.generate()
-}
-
-// generateTargetCodeFromFuncType generates target wrapper code for a function type.
-// It creates a synthetic function declaration from the function type and delegates to generateTargetCode.
-func generateTargetCodeFromFuncType(
-	astFiles []*dst.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	pkgImportPath string,
-	pkgLoader PackageLoader,
-	funcTypeDetails funcTypeWithDetails,
-) (string, error) {
-	funcType := funcTypeDetails.funcType
-
-	// Track if we need to add external package import for qualified types
-	var externalPkgPath, externalQualifier string
-
-	// For external function types (from outside the current module), qualify types from the source package.
-	// E.g., http.HandlerFunc's ResponseWriter becomes http.ResponseWriter.
-	// For local function types (within the module), the types are already qualified in the source
-	// (e.g., fs.DirEntry), so we don't need to import the source package.
-	if pkgImportPath != "." && !isLocalPackage(pkgImportPath) {
-		qualifier := extractPkgNameFromPath(pkgImportPath)
-		funcType = qualifyFuncType(funcType, qualifier)
-		// Store the external package info so we can add the import later
-		externalPkgPath = pkgImportPath
-		externalQualifier = qualifier
-	}
-
-	// Create a synthetic function declaration from the function type
-	// For a type like: type WalkFunc func(path string, info string) error
-	// We create: func WalkFunc(path string, info string) error { ... }
-	funcDecl := &dst.FuncDecl{
-		Name: &dst.Ident{Name: funcTypeDetails.typeName},
-		Type: funcType,
-	}
-
-	// If the function type has type parameters, attach them to the FuncType
-	if funcTypeDetails.typeParams != nil {
-		funcDecl.Type.TypeParams = funcTypeDetails.typeParams
-	}
-
-	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, true)
-	if err != nil {
-		return "", err
-	}
-
-	// Set the external package fields for import collection
-	gen.externalPkgPath = externalPkgPath
-	gen.externalQualifier = externalQualifier
-
-	return gen.generate()
-}
-
 // newTargetGenerator creates a new target wrapper generator.
 // isFunctionType should be true when wrapping a function type (not a function declaration).
 func newTargetGenerator(
 	astFiles []*dst.File,
-	info generatorInfo,
+	info GeneratorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
+	pkgLoader detect.PackageLoader,
 	funcDecl *dst.FuncDecl,
 	isFunctionType bool,
 ) (*targetGenerator, error) {
@@ -447,7 +452,7 @@ func newTargetGenerator(
 	// (ResponseWriter → http.ResponseWriter), and collectImportsFromFuncDecl adds the http import.
 	if !isFunctionType {
 		// For non-function-type cases (regular functions), use the original logic
-		if pkgImportPath != "." || strings.HasSuffix(info.pkgName, "_test") {
+		if pkgImportPath != "." || strings.HasSuffix(info.PkgName, "_test") {
 			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get function package info: %w", err)
@@ -457,15 +462,15 @@ func newTargetGenerator(
 	// For function types, pkgPath and qualifier remain empty (initialized above)
 
 	// Wrapper type naming: WrapAdd -> WrapAddWrapper, WrapAddCallHandle
-	wrapperType := info.impName + "Wrapper"
-	callHandleType := info.impName + "CallHandle"
-	returnsType := info.impName + "Returns"
+	wrapperType := info.ImpName + "Wrapper"
+	callHandleType := info.ImpName + "CallHandle"
+	returnsType := info.ImpName + "Returns"
 
 	gen := &targetGenerator{
 		baseGenerator: newBaseGenerator(
-			fset, info.pkgName, info.impName, pkgPath, qualifier, funcDecl.Type.TypeParams,
+			fset, info.PkgName, info.ImpName, pkgPath, qualifier, funcDecl.Type.TypeParams,
 		),
-		wrapName:       info.impName,
+		wrapName:       info.ImpName,
 		wrapperType:    wrapperType,
 		callHandleType: callHandleType,
 		returnsType:    returnsType,

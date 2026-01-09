@@ -1,5 +1,5 @@
 //nolint:varnamelen,wsl_v5,perfsprint,prealloc,nestif,funlen
-package run
+package generate
 
 import (
 	"fmt"
@@ -8,7 +8,27 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
+
+// GenerateDependencyCode generates dependency mock code for an interface.
+//
+//nolint:revive // stutter acceptable for exported API consistency
+func GenerateDependencyCode(
+	astFiles []*dst.File,
+	info GeneratorInfo,
+	fset *token.FileSet,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+	ifaceWithDetails detect.IfaceWithDetails,
+) (string, error) {
+	gen, err := newDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
+	if err != nil {
+		return "", err
+	}
+
+	return gen.generate()
+}
 
 // dependencyGenerator generates dependency mocks.
 type dependencyGenerator struct {
@@ -20,9 +40,9 @@ type dependencyGenerator struct {
 	implName            string
 	astFiles            []*dst.File
 	pkgImportPath       string
-	pkgLoader           PackageLoader
+	pkgLoader           detect.PackageLoader
 	methodNames         []string
-	identifiedInterface ifaceWithDetails // full interface details including source imports
+	identifiedInterface detect.IfaceWithDetails // full interface details including source imports
 }
 
 func (gen *dependencyGenerator) buildMethodTemplateData(
@@ -112,7 +132,7 @@ func (gen *dependencyGenerator) buildParamFields(ftype *dst.FuncType) []paramFie
 // checkIfQualifierNeeded determines if we need a package qualifier.
 func (gen *dependencyGenerator) checkIfQualifierNeeded() {
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(_ string, ftype *dst.FuncType) {
 			gen.baseGenerator.checkIfQualifierNeeded(ftype)
 		},
@@ -122,7 +142,7 @@ func (gen *dependencyGenerator) checkIfQualifierNeeded() {
 // collectAdditionalImports collects imports needed for interface method signatures.
 func (gen *dependencyGenerator) collectAdditionalImports() []importInfo {
 	// Use the source imports from the interface's file (tracked during parsing)
-	sourceImports := gen.identifiedInterface.sourceImports
+	sourceImports := gen.identifiedInterface.SourceImports
 
 	// Fallback: if interface's file has no imports, collect from all files
 	if len(sourceImports) == 0 {
@@ -134,7 +154,7 @@ func (gen *dependencyGenerator) collectAdditionalImports() []importInfo {
 	}
 
 	return gen.collectAdditionalImportsFromInterface(
-		gen.identifiedInterface.iface,
+		gen.identifiedInterface.Iface,
 		gen.astFiles,
 		gen.pkgImportPath,
 		gen.pkgLoader,
@@ -149,7 +169,7 @@ func (gen *dependencyGenerator) generate() (string, error) {
 
 	// If we have an interface from an external package, we need the qualifier
 	// Exception: struct types generate a synthetic interface, so they don't need the package import
-	if gen.interfaceName != "" && gen.qualifier != "" && gen.pkgPath != "" && !gen.identifiedInterface.isStructType {
+	if gen.interfaceName != "" && gen.qualifier != "" && gen.pkgPath != "" && !gen.identifiedInterface.IsStructType {
 		gen.needsQualifier = true
 	}
 
@@ -210,7 +230,7 @@ func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistr
 	// Collect method data for all methods first (needed for typed wrappers)
 	var methods []depMethodTemplateData
 	_ = forEachInterfaceMethod(
-		gen.identifiedInterface.iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
+		gen.identifiedInterface.Iface, gen.astFiles, gen.fset, gen.pkgImportPath, gen.pkgLoader,
 		func(methodName string, ftype *dst.FuncType) {
 			methodData := gen.buildMethodTemplateData(methodName, ftype, interfaceType)
 			methods = append(methods, methodData)
@@ -229,7 +249,7 @@ func (gen *dependencyGenerator) generateWithTemplates(templates *TemplateRegistr
 		ImplName:         gen.implName,
 		MethodNames:      gen.methodNames,
 		Methods:          methods,
-		IsStructType:     gen.identifiedInterface.isStructType,
+		IsStructType:     gen.identifiedInterface.IsStructType,
 	}
 
 	// Generate each section using templates
@@ -295,31 +315,14 @@ func buildTypedReturnParams(resultTypes []string) (typedParams, paramNames strin
 	return typedBuilder.String(), namesBuilder.String()
 }
 
-// generateDependencyCode generates dependency mock code for an interface.
-func generateDependencyCode(
-	astFiles []*dst.File,
-	info generatorInfo,
-	fset *token.FileSet,
-	pkgImportPath string,
-	pkgLoader PackageLoader,
-	ifaceWithDetails ifaceWithDetails,
-) (string, error) {
-	gen, err := newDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
-	if err != nil {
-		return "", err
-	}
-
-	return gen.generate()
-}
-
 // newDependencyGenerator creates a new dependency mock generator.
 func newDependencyGenerator(
 	astFiles []*dst.File,
-	info generatorInfo,
+	info GeneratorInfo,
 	fset *token.FileSet,
 	pkgImportPath string,
-	pkgLoader PackageLoader,
-	ifaceWithDetails ifaceWithDetails,
+	pkgLoader detect.PackageLoader,
+	ifaceWithDetails detect.IfaceWithDetails,
 ) (*dependencyGenerator, error) {
 	var (
 		pkgPath, qualifier string
@@ -331,7 +334,7 @@ func newDependencyGenerator(
 		// Symbol found in external package (e.g., via dot import or qualified name)
 		// For qualified names (e.g., "basic.Ops"), resolve package info normally
 		// For unqualified names from dot imports (e.g., "Storage"), use pkgImportPath directly
-		if strings.Contains(info.interfaceName, ".") {
+		if strings.Contains(info.InterfaceName, ".") {
 			// Qualified name - use normal resolution
 			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 			if err != nil {
@@ -343,7 +346,7 @@ func newDependencyGenerator(
 			parts := strings.Split(pkgImportPath, "/")
 			qualifier = parts[len(parts)-1]
 		}
-	} else if strings.HasSuffix(info.pkgName, "_test") {
+	} else if strings.HasSuffix(info.PkgName, "_test") {
 		// In test package, interface is from non-test version of same package
 		pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
 		if err != nil {
@@ -356,16 +359,16 @@ func newDependencyGenerator(
 	// Note: When using --name with a value ending in "Mock" (e.g., CustomOpsMock),
 	//       you'll get MockMock in the struct name to avoid conflicts.
 	//       Recommend using --name without the Mock suffix (e.g., --name CustomOps)
-	mockTypeName := strings.TrimPrefix(info.impName, "Mock") + "Mock"
+	mockTypeName := strings.TrimPrefix(info.ImpName, "Mock") + "Mock"
 
 	gen := &dependencyGenerator{
 		baseGenerator: newBaseGenerator(
-			fset, info.pkgName, info.impName, pkgPath, qualifier, ifaceWithDetails.typeParams,
+			fset, info.PkgName, info.ImpName, pkgPath, qualifier, ifaceWithDetails.TypeParams,
 		),
-		mockName:            info.impName,
+		mockName:            info.ImpName,
 		mockTypeName:        mockTypeName,
-		interfaceName:       info.localInterfaceName,
-		implName:            strings.ToLower(string(info.impName[0])) + info.impName[1:] + "Impl",
+		interfaceName:       info.LocalInterfaceName,
+		implName:            strings.ToLower(string(info.ImpName[0])) + info.ImpName[1:] + "Impl",
 		astFiles:            astFiles,
 		pkgImportPath:       pkgImportPath,
 		pkgLoader:           pkgLoader,
@@ -373,7 +376,7 @@ func newDependencyGenerator(
 	}
 
 	// Collect method names
-	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.iface, astFiles, fset, pkgImportPath, pkgLoader)
+	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.Iface, astFiles, fset, pkgImportPath, pkgLoader)
 	if err != nil {
 		return nil, err
 	}

@@ -1,5 +1,5 @@
 //nolint:testpackage // Needs access to unexported stringifyStructType for whitebox testing
-package run
+package astutil
 
 import (
 	"testing"
