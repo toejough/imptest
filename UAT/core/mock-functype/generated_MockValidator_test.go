@@ -39,13 +39,8 @@ type ValidatorMockHandle struct {
 // ValidatorMockMethod wraps DependencyMethod with typed returns.
 type ValidatorMockMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *ValidatorMockMethod) Eventually() *ValidatorMockMethod {
-	return &ValidatorMockMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *ValidatorMockMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -65,7 +60,7 @@ func MockValidator(t _imptest.TestReporter) *ValidatorMockHandle {
 	ctrl := _imptest.NewImp(t)
 	h := &ValidatorMockHandle{
 		Controller: ctrl,
-		Method:     &ValidatorMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Validator")},
+		Method:     newValidatorMockMethod(_imptest.NewDependencyMethod(ctrl, "Validator")),
 	}
 	h.Mock = func(data string) error {
 		call := &_imptest.GenericCall{
@@ -89,4 +84,11 @@ func MockValidator(t _imptest.TestReporter) *ValidatorMockHandle {
 		return result1
 	}
 	return h
+}
+
+// newValidatorMockMethod creates a typed method wrapper with Eventually initialized.
+func newValidatorMockMethod(dm *_imptest.DependencyMethod) *ValidatorMockMethod {
+	m := &ValidatorMockMethod{DependencyMethod: dm}
+	m.Eventually = &ValidatorMockMethod{DependencyMethod: dm.Eventually}
+	return m
 }

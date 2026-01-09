@@ -29,10 +29,9 @@ func (c *CalculatorAddCall) GetArgs() CalculatorAddArgs {
 // CalculatorAddMethod wraps DependencyMethod with typed return
 type CalculatorAddMethod struct {
 	*imptest.DependencyMethod
-}
 
-func (m *CalculatorAddMethod) Eventually() *CalculatorAddMethod {
-	return &CalculatorAddMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *CalculatorAddMethod
 }
 
 func (m *CalculatorAddMethod) ExpectCalledWithExactly(a, b int) *CalculatorAddCall {
@@ -62,7 +61,7 @@ type TypesafeCalculatorMockMethods struct {
 func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMockHandle {
 	ctrl := imptest.NewImp(t)
 	methods := &TypesafeCalculatorMockMethods{
-		Add:      &CalculatorAddMethod{DependencyMethod: imptest.NewDependencyMethod(ctrl, "Add")},
+		Add:      newCalculatorAddMethod(imptest.NewDependencyMethod(ctrl, "Add")),
 		Multiply: imptest.NewDependencyMethod(ctrl, "Multiply"),
 		Store:    imptest.NewDependencyMethod(ctrl, "Store"),
 	}
@@ -149,4 +148,11 @@ func (impl *mockCalculatorImpl) Store(key string, value any) error {
 	}
 
 	return result1
+}
+
+func newCalculatorAddMethod(depMethod *imptest.DependencyMethod) *CalculatorAddMethod {
+	m := &CalculatorAddMethod{DependencyMethod: depMethod}
+	m.Eventually = &CalculatorAddMethod{DependencyMethod: depMethod.Eventually}
+
+	return m
 }

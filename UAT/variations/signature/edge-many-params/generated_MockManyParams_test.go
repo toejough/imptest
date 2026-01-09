@@ -63,13 +63,8 @@ func (c *ManyParamsMockProcessCall) InjectReturnValues(result0 string) {
 // ManyParamsMockProcessMethod wraps DependencyMethod with typed returns.
 type ManyParamsMockProcessMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *ManyParamsMockProcessMethod) Eventually() *ManyParamsMockProcessMethod {
-	return &ManyParamsMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *ManyParamsMockProcessMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -88,7 +83,7 @@ func (m *ManyParamsMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *
 func MockManyParams(t _imptest.TestReporter) *ManyParamsMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &ManyParamsMockMethods{
-		Process: &ManyParamsMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Process")},
+		Process: newManyParamsMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}
 	h := &ManyParamsMockHandle{
 		Method:     methods,
@@ -124,4 +119,11 @@ func (impl *mockManyParamsImpl) Process(a int, b int, c int, d int, e int, f int
 	}
 
 	return result1
+}
+
+// newManyParamsMockProcessMethod creates a typed method wrapper with Eventually initialized.
+func newManyParamsMockProcessMethod(dm *_imptest.DependencyMethod) *ManyParamsMockProcessMethod {
+	m := &ManyParamsMockProcessMethod{DependencyMethod: dm}
+	m.Eventually = &ManyParamsMockProcessMethod{DependencyMethod: dm.Eventually}
+	return m
 }

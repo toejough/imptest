@@ -45,13 +45,8 @@ func (c *DataSinkMockPutDataCall) InjectReturnValues(result0 error) {
 // DataSinkMockPutDataMethod wraps DependencyMethod with typed returns.
 type DataSinkMockPutDataMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *DataSinkMockPutDataMethod) Eventually() *DataSinkMockPutDataMethod {
-	return &DataSinkMockPutDataMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *DataSinkMockPutDataMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -70,7 +65,7 @@ func (m *DataSinkMockPutDataMethod) ExpectCalledWithMatches(matchers ...any) *Da
 func MockDataSink(t _imptest.TestReporter) *DataSinkMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &DataSinkMockMethods{
-		PutData: &DataSinkMockPutDataMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "PutData")},
+		PutData: newDataSinkMockPutDataMethod(_imptest.NewDependencyMethod(ctrl, "PutData")),
 	}
 	h := &DataSinkMockHandle{
 		Method:     methods,
@@ -106,4 +101,11 @@ func (impl *mockDataSinkImpl) PutData(data []byte) error {
 	}
 
 	return result1
+}
+
+// newDataSinkMockPutDataMethod creates a typed method wrapper with Eventually initialized.
+func newDataSinkMockPutDataMethod(dm *_imptest.DependencyMethod) *DataSinkMockPutDataMethod {
+	m := &DataSinkMockPutDataMethod{DependencyMethod: dm}
+	m.Eventually = &DataSinkMockPutDataMethod{DependencyMethod: dm.Eventually}
+	return m
 }

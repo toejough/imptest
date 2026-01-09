@@ -15,7 +15,7 @@ func TestManualTypeSafeGetArgs(t *testing.T) {
 	}()
 
 	// Use the typed wrapper
-	call := calc.Method.Add.Eventually().ExpectCalledWithExactly(10, 20)
+	call := calc.Method.Add.Eventually.ExpectCalledWithExactly(10, 20)
 
 	// GetArgs should return typed struct - no casting!
 	args := call.GetArgs()

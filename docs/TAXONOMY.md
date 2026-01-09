@@ -137,7 +137,7 @@ call.ExpectReturnsEqual(expectedReturn1, expectedReturn2)
 call.ExpectPanicEquals("expected panic message")
 
 // For async verification on wrappers:
-call.Eventually().ExpectReturnsEqual(expected)
+call.Eventually.ExpectReturnsEqual(expected)
 wrapper.Controller.Wait()  // blocks until satisfied
 ```
 
@@ -277,8 +277,8 @@ h.Method.MethodName.ExpectCalledWithExactly(arg1, arg2).
 h.Method.MethodName.ExpectCalledWithMatches(imptest.Any(), expectedArg2).
     InjectReturnValues(ret1, ret2)
 
-// For concurrent code, use Eventually() with h.Controller.Wait():
-h.Method.MethodName.Eventually().ExpectCalledWithExactly(arg1, arg2).
+// For concurrent code, use Eventually with h.Controller.Wait():
+h.Method.MethodName.Eventually.ExpectCalledWithExactly(arg1, arg2).
     InjectReturnValues(ret1, ret2)
 h.Controller.Wait()  // blocks until all Eventually expectations satisfied
 ```
@@ -488,7 +488,7 @@ If calls arrive out of order, the test fails immediately.
 
 #### Eventually Mode (Async)
 
-For concurrent code where call order is non-deterministic, use `Eventually()` with `h.Controller.Wait()`:
+For concurrent code where call order is non-deterministic, use `Eventually` with `h.Controller.Wait()`:
 
 ```go
 h := MockService(t)
@@ -498,16 +498,16 @@ go func() { h.Mock.TaskB("b") }()
 go func() { h.Mock.TaskC("c") }()
 
 // Register async expectations (non-blocking)
-h.Method.TaskA.Eventually().ExpectCalledWithExactly("a").InjectReturnValues()
-h.Method.TaskB.Eventually().ExpectCalledWithExactly("b").InjectReturnValues()
-h.Method.TaskC.Eventually().ExpectCalledWithExactly("c").InjectReturnValues()
+h.Method.TaskA.Eventually.ExpectCalledWithExactly("a").InjectReturnValues()
+h.Method.TaskB.Eventually.ExpectCalledWithExactly("b").InjectReturnValues()
+h.Method.TaskC.Eventually.ExpectCalledWithExactly("c").InjectReturnValues()
 
 // Block until all expectations are satisfied
 h.Controller.Wait()
 ```
 
 **Key points:**
-- `Eventually()` expectations are **non-blocking** - they register and return immediately
+- `Eventually` expectations are **non-blocking** - they register and return immediately
 - `h.Controller.Wait()` blocks until **all** Eventually expectations are matched
 - Calls that don't match any pending expectation are queued for later matching
 - Use `h.Controller.SetTimeout(d)` to configure timeout for all blocking operations
@@ -520,8 +520,8 @@ call1 := wrapper.Method.Start(arg1)
 call2 := wrapper.Method.Start(arg2)
 
 // Non-blocking expectations on wrapper calls
-call1.Eventually().ExpectReturnsEqual(expected1)
-call2.Eventually().ExpectReturnsEqual(expected2)
+call1.Eventually.ExpectReturnsEqual(expected1)
+call2.Eventually.ExpectReturnsEqual(expected2)
 
 // Wait for all to complete
 wrapper.Controller.Wait()
@@ -652,5 +652,5 @@ func (c Calculator) Add(a, b int) int { return a + b }
 
 | UAT | Name | Variation |
 |-----|------|-----------|
-| [06](../UAT/06-concurrency/) | concurrency | Eventually() |
+| [06](../UAT/06-concurrency/) | concurrency | Eventually |
 | [28](../UAT/28-ordered-eventually-modes/) | ordered-eventually-modes | Ordered vs Eventually |

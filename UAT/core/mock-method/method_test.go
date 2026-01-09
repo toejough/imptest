@@ -83,6 +83,6 @@ func TestMultipleMethodMocks(t *testing.T) {
 	}()
 
 	// Verify both mocks independently
-	addMock.Method.Eventually().ExpectCalledWithExactly(addInput).InjectReturnValues(addReturn)
-	incMock.Method.Eventually().ExpectCalledWithMatches().InjectReturnValues(incReturn)
+	addMock.Method.Eventually.ExpectCalledWithExactly(addInput).InjectReturnValues(addReturn)
+	incMock.Method.Eventually.ExpectCalledWithMatches().InjectReturnValues(incReturn)
 }

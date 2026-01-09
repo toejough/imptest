@@ -98,7 +98,7 @@ type {{.MockTypeName}}Methods{{.TypeParamsDecl}} struct {
 func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
 	ctrl := {{.PkgImptest}}.NewImp(t)
 	methods := &{{.MockTypeName}}Methods{{.TypeParamsUse}}{
-{{range .Methods}}{{if .HasParams}}		{{.MethodName}}: &{{.MethodTypeName}}{{$.TypeParamsUse}}{DependencyMethod: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}")},
+{{range .Methods}}{{if .HasParams}}		{{.MethodName}}: new{{.MethodTypeName}}{{$.TypeParamsUse}}({{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}")),
 {{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}"),
 {{end}}{{end}}	}
 	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
@@ -215,6 +215,15 @@ func (c *{{.CallTypeName}}{{.TypeParamsUse}}) InjectReturnValues({{.TypedReturnP
 	registry.depMethodWrapperTmpl, err = parseTemplate("depMethodWrapper", `{{if .HasParams}}// {{.MethodTypeName}} wraps DependencyMethod with typed returns.
 type {{.MethodTypeName}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.DependencyMethod
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *{{.MethodTypeName}}{{.TypeParamsUse}}
+}
+
+// new{{.MethodTypeName}} creates a typed method wrapper with Eventually initialized.
+func new{{.MethodTypeName}}{{.TypeParamsDecl}}(dm *{{.PkgImptest}}.DependencyMethod) *{{.MethodTypeName}}{{.TypeParamsUse}} {
+	m := &{{.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm}
+	m.Eventually = &{{.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm.Eventually}
+	return m
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -233,12 +242,6 @@ func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers
 	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) Eventually() *{{.MethodTypeName}}{{.TypeParamsUse}} {
-	return &{{.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: m.DependencyMethod.Eventually()}
-}
 {{end}}
 `)
 	if err != nil {
@@ -309,19 +312,34 @@ type {{.CallHandleType}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.CallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}]
 	controller        *{{.PkgImptest}}.TargetController
 	pendingCompletion *{{.PkgImptest}}.PendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *{{.CallHandleType}}Eventually{{.TypeParamsUse}}
 }
 
-// Eventually returns a pending completion for async expectation registration.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) Eventually() *{{.PkgImptest}}.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
+// {{.CallHandleType}}Eventually wraps a call handle for async expectation registration.
+type {{.CallHandleType}}Eventually{{.TypeParamsDecl}} struct {
+	h *{{.CallHandleType}}{{.TypeParamsUse}}
+}
+
+func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ensureStarted() *{{.PkgImptest}}.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
 		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
 		}()
 	}
-	return h.pendingCompletion
+	return e.h.pendingCompletion
+}
+
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
 }
 
 `)
@@ -337,6 +355,7 @@ func (m *{{.WrapperType}}Method{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHa
 		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](m.t),
 		controller:         m.controller,
 	}
+	handle.Eventually = &{{.CallHandleType}}Eventually{{.TypeParamsUse}}{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -718,7 +737,7 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTy
 	ctrl := {{.PkgImptest}}.NewImp(t)
 	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
 		Controller: ctrl,
-{{if .Method.HasParams}}		Method: &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: {{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}")},
+{{if .Method.HasParams}}		Method: new{{.Method.MethodTypeName}}{{.TypeParamsUse}}({{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}")),
 {{else}}		Method: {{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}"),
 {{end}}	}
 	h.Mock = func({{.Method.Params}}){{.Method.Results}} {
@@ -759,6 +778,15 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTy
 	registry.funcDepMethodWrapperTmpl, err = parseTemplate("funcDepMethodWrapper", `{{if .Method.HasParams}}// {{.Method.MethodTypeName}} wraps DependencyMethod with typed returns.
 type {{.Method.MethodTypeName}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.DependencyMethod
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *{{.Method.MethodTypeName}}{{.TypeParamsUse}}
+}
+
+// new{{.Method.MethodTypeName}} creates a typed method wrapper with Eventually initialized.
+func new{{.Method.MethodTypeName}}{{.TypeParamsDecl}}(dm *{{.PkgImptest}}.DependencyMethod) *{{.Method.MethodTypeName}}{{.TypeParamsUse}} {
+	m := &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm}
+	m.Eventually = &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm.Eventually}
+	return m
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -777,12 +805,6 @@ func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(m
 	return &{{.Method.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) Eventually() *{{.Method.MethodTypeName}}{{.TypeParamsUse}} {
-	return &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: m.DependencyMethod.Eventually()}
-}
 {{end}}
 `)
 	if err != nil {

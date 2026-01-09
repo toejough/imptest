@@ -12,19 +12,8 @@ type WrapCalculatorMultiplyCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorMultiplyReturnsReturn]
 	controller        *_imptest.TargetController
 	pendingCompletion *_imptest.PendingCompletion
-}
-
-// Eventually returns a pending completion for async expectation registration.
-func (h *WrapCalculatorMultiplyCallHandle) Eventually() *_imptest.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
-		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
-		}()
-	}
-	return h.pendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *WrapCalculatorMultiplyCallHandleEventually
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -92,6 +81,32 @@ func (h *WrapCalculatorMultiplyCallHandle) ExpectReturnsMatch(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
+// WrapCalculatorMultiplyCallHandleEventually wraps a call handle for async expectation registration.
+type WrapCalculatorMultiplyCallHandleEventually struct {
+	h *WrapCalculatorMultiplyCallHandle
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *WrapCalculatorMultiplyCallHandleEventually) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
+}
+
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *WrapCalculatorMultiplyCallHandleEventually) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+func (e *WrapCalculatorMultiplyCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
+		go func() {
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
+		}()
+	}
+	return e.h.pendingCompletion
+}
+
 // WrapCalculatorMultiplyReturnsReturn holds the return values from the wrapped function.
 type WrapCalculatorMultiplyReturnsReturn struct {
 	Result0 int
@@ -116,6 +131,7 @@ func (m *WrapCalculatorMultiplyWrapperMethod) Start(value int) *WrapCalculatorMu
 		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](m.t),
 		controller:         m.controller,
 	}
+	handle.Eventually = &WrapCalculatorMultiplyCallHandleEventually{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

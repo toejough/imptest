@@ -56,13 +56,8 @@ func (c *TimerMockWaitCall) InjectReturnValues(result0 error) {
 // TimerMockWaitMethod wraps DependencyMethod with typed returns.
 type TimerMockWaitMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *TimerMockWaitMethod) Eventually() *TimerMockWaitMethod {
-	return &TimerMockWaitMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *TimerMockWaitMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -81,7 +76,7 @@ func (m *TimerMockWaitMethod) ExpectCalledWithMatches(matchers ...any) *TimerMoc
 func MockTimer(t _imptest.TestReporter) *TimerMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &TimerMockMethods{
-		Wait:       &TimerMockWaitMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Wait")},
+		Wait:       newTimerMockWaitMethod(_imptest.NewDependencyMethod(ctrl, "Wait")),
 		GetElapsed: _imptest.NewDependencyMethod(ctrl, "GetElapsed"),
 	}
 	h := &TimerMockHandle{
@@ -141,4 +136,11 @@ func (impl *mockTimerImpl) Wait(seconds int) error {
 	}
 
 	return result1
+}
+
+// newTimerMockWaitMethod creates a typed method wrapper with Eventually initialized.
+func newTimerMockWaitMethod(dm *_imptest.DependencyMethod) *TimerMockWaitMethod {
+	m := &TimerMockWaitMethod{DependencyMethod: dm}
+	m.Eventually = &TimerMockWaitMethod{DependencyMethod: dm.Eventually}
+	return m
 }

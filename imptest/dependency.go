@@ -111,27 +111,29 @@ type DependencyMethod struct {
 	imp        *Imp
 	methodName string
 	eventually bool
+
+	// Eventually is the async version of this method.
+	// Use this for concurrent code where calls may arrive out of order.
+	// Example: h.Method.Add.Eventually.ExpectCalledWithExactly(1, 2)
+	Eventually *DependencyMethod
 }
 
 // NewDependencyMethod creates a new DependencyMethod.
 // This is used by generated mock code.
 func NewDependencyMethod(imp *Imp, methodName string) *DependencyMethod {
-	return &DependencyMethod{
+	depMethod := &DependencyMethod{
 		imp:        imp,
 		methodName: methodName,
 		eventually: false,
 	}
-}
-
-// Eventually switches this DependencyMethod to eventually mode.
-// Use this for concurrent code where calls may arrive out of order.
-// Returns a new DependencyMethod with eventually mode enabled.
-func (dm *DependencyMethod) Eventually() *DependencyMethod {
-	return &DependencyMethod{
-		imp:        dm.imp,
-		methodName: dm.methodName,
+	// Initialize the Eventually field as a copy with eventually mode enabled
+	depMethod.Eventually = &DependencyMethod{
+		imp:        imp,
+		methodName: methodName,
 		eventually: true,
 	}
+
+	return depMethod
 }
 
 // ExpectCalledWithExactly waits for a call to this method with exactly the specified arguments.

@@ -42,7 +42,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	}()
 
 	// Expect the Wrap call and inject the wrapped handler
-	call := mock.Method.Wrap.Eventually().ExpectCalledWithMatches(imptest.Any())
+	call := mock.Method.Wrap.Eventually.ExpectCalledWithMatches(imptest.Any())
 	call.InjectReturnValues(wrappedHandler)
 
 	// Wait for the result

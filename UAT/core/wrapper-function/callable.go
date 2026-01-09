@@ -65,6 +65,14 @@ func BusinessLogic(svc ExternalService, id int) (string, error) {
 	return "Result: " + result, nil
 }
 
+// PanicWithMessage panics with the given message if non-empty.
+// Used for testing panic handling in wrapped functions.
+func PanicWithMessage(msg string) {
+	if msg != "" {
+		panic(msg)
+	}
+}
+
 // unexported constants.
 const (
 	processingOffset = 10

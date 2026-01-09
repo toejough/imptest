@@ -37,13 +37,8 @@ func (c *FileSystemMockCreateCall) InjectReturnValues(result0 error) {
 // FileSystemMockCreateMethod wraps DependencyMethod with typed returns.
 type FileSystemMockCreateMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *FileSystemMockCreateMethod) Eventually() *FileSystemMockCreateMethod {
-	return &FileSystemMockCreateMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *FileSystemMockCreateMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -97,13 +92,8 @@ func (c *FileSystemMockStatCall) InjectReturnValues(result0 os.FileMode, result1
 // FileSystemMockStatMethod wraps DependencyMethod with typed returns.
 type FileSystemMockStatMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *FileSystemMockStatMethod) Eventually() *FileSystemMockStatMethod {
-	return &FileSystemMockStatMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *FileSystemMockStatMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -122,8 +112,8 @@ func (m *FileSystemMockStatMethod) ExpectCalledWithMatches(matchers ...any) *Fil
 func MockFileSystem(t _imptest.TestReporter) *FileSystemMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &FileSystemMockMethods{
-		Stat:   &FileSystemMockStatMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Stat")},
-		Create: &FileSystemMockCreateMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Create")},
+		Stat:   newFileSystemMockStatMethod(_imptest.NewDependencyMethod(ctrl, "Stat")),
+		Create: newFileSystemMockCreateMethod(_imptest.NewDependencyMethod(ctrl, "Create")),
 	}
 	h := &FileSystemMockHandle{
 		Method:     methods,
@@ -196,4 +186,18 @@ func (impl *mockFileSystemImpl) Stat(path string) (os.FileMode, time.Time, error
 	}
 
 	return result1, result2, result3
+}
+
+// newFileSystemMockCreateMethod creates a typed method wrapper with Eventually initialized.
+func newFileSystemMockCreateMethod(dm *_imptest.DependencyMethod) *FileSystemMockCreateMethod {
+	m := &FileSystemMockCreateMethod{DependencyMethod: dm}
+	m.Eventually = &FileSystemMockCreateMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newFileSystemMockStatMethod creates a typed method wrapper with Eventually initialized.
+func newFileSystemMockStatMethod(dm *_imptest.DependencyMethod) *FileSystemMockStatMethod {
+	m := &FileSystemMockStatMethod{DependencyMethod: dm}
+	m.Eventually = &FileSystemMockStatMethod{DependencyMethod: dm.Eventually}
+	return m
 }

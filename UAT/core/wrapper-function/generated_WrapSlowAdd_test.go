@@ -32,20 +32,34 @@ type WrapSlowAddCallHandle struct {
 	*_imptest.CallableController[WrapSlowAddReturnsReturn]
 	controller        *_imptest.TargetController
 	pendingCompletion *_imptest.PendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *WrapSlowAddCallHandleEventually
 }
 
-// Eventually returns a pending completion for async expectation registration.
-func (h *WrapSlowAddCallHandle) Eventually() *_imptest.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
+// WrapSlowAddCallHandleEventually wraps a call handle for async expectation registration.
+type WrapSlowAddCallHandleEventually struct {
+	h *WrapSlowAddCallHandle
+}
+
+func (e *WrapSlowAddCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
 		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
 		}()
 	}
+	return e.h.pendingCompletion
+}
 
-	return h.pendingCompletion
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *WrapSlowAddCallHandleEventually) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *WrapSlowAddCallHandleEventually) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
 }
 
 // Start executes the wrapped function in a goroutine.
@@ -54,6 +68,7 @@ func (w *WrapSlowAddWrapperMethod) Start(a, b int, delay time.Duration) *WrapSlo
 		CallableController: _imptest.NewCallableController[WrapSlowAddReturnsReturn](w.t),
 		controller:         w.controller,
 	}
+	handle.Eventually = &WrapSlowAddCallHandleEventually{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

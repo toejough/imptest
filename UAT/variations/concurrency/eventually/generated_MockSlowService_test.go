@@ -33,13 +33,8 @@ func (c *SlowServiceMockDoACall) InjectReturnValues(result0 string) {
 // SlowServiceMockDoAMethod wraps DependencyMethod with typed returns.
 type SlowServiceMockDoAMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *SlowServiceMockDoAMethod) Eventually() *SlowServiceMockDoAMethod {
-	return &SlowServiceMockDoAMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *SlowServiceMockDoAMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -80,13 +75,8 @@ func (c *SlowServiceMockDoBCall) InjectReturnValues(result0 string) {
 // SlowServiceMockDoBMethod wraps DependencyMethod with typed returns.
 type SlowServiceMockDoBMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *SlowServiceMockDoBMethod) Eventually() *SlowServiceMockDoBMethod {
-	return &SlowServiceMockDoBMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *SlowServiceMockDoBMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -118,8 +108,8 @@ type SlowServiceMockMethods struct {
 func MockSlowService(t _imptest.TestReporter) *SlowServiceMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &SlowServiceMockMethods{
-		DoA: &SlowServiceMockDoAMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "DoA")},
-		DoB: &SlowServiceMockDoBMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "DoB")},
+		DoA: newSlowServiceMockDoAMethod(_imptest.NewDependencyMethod(ctrl, "DoA")),
+		DoB: newSlowServiceMockDoBMethod(_imptest.NewDependencyMethod(ctrl, "DoB")),
 	}
 	h := &SlowServiceMockHandle{
 		Method:     methods,
@@ -178,4 +168,18 @@ func (impl *mockSlowServiceImpl) DoB(id int) string {
 	}
 
 	return result1
+}
+
+// newSlowServiceMockDoAMethod creates a typed method wrapper with Eventually initialized.
+func newSlowServiceMockDoAMethod(dm *_imptest.DependencyMethod) *SlowServiceMockDoAMethod {
+	m := &SlowServiceMockDoAMethod{DependencyMethod: dm}
+	m.Eventually = &SlowServiceMockDoAMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newSlowServiceMockDoBMethod creates a typed method wrapper with Eventually initialized.
+func newSlowServiceMockDoBMethod(dm *_imptest.DependencyMethod) *SlowServiceMockDoBMethod {
+	m := &SlowServiceMockDoBMethod{DependencyMethod: dm}
+	m.Eventually = &SlowServiceMockDoBMethod{DependencyMethod: dm.Eventually}
+	return m
 }

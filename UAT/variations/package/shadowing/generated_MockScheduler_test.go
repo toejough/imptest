@@ -36,13 +36,8 @@ func (c *SchedulerMockDelayCall) InjectReturnValues(result0 error) {
 // SchedulerMockDelayMethod wraps DependencyMethod with typed returns.
 type SchedulerMockDelayMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *SchedulerMockDelayMethod) Eventually() *SchedulerMockDelayMethod {
-	return &SchedulerMockDelayMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *SchedulerMockDelayMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -83,13 +78,8 @@ func (c *SchedulerMockGetIntervalCall) InjectReturnValues(result0 time.Duration)
 // SchedulerMockGetIntervalMethod wraps DependencyMethod with typed returns.
 type SchedulerMockGetIntervalMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *SchedulerMockGetIntervalMethod) Eventually() *SchedulerMockGetIntervalMethod {
-	return &SchedulerMockGetIntervalMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *SchedulerMockGetIntervalMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -157,13 +147,8 @@ func (c *SchedulerMockScheduleAtCall) InjectReturnValues(result0 error) {
 // SchedulerMockScheduleAtMethod wraps DependencyMethod with typed returns.
 type SchedulerMockScheduleAtMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *SchedulerMockScheduleAtMethod) Eventually() *SchedulerMockScheduleAtMethod {
-	return &SchedulerMockScheduleAtMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *SchedulerMockScheduleAtMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -182,10 +167,10 @@ func (m *SchedulerMockScheduleAtMethod) ExpectCalledWithMatches(matchers ...any)
 func MockScheduler(t _imptest.TestReporter) *SchedulerMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &SchedulerMockMethods{
-		ScheduleAt:  &SchedulerMockScheduleAtMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ScheduleAt")},
-		Delay:       &SchedulerMockDelayMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Delay")},
+		ScheduleAt:  newSchedulerMockScheduleAtMethod(_imptest.NewDependencyMethod(ctrl, "ScheduleAt")),
+		Delay:       newSchedulerMockDelayMethod(_imptest.NewDependencyMethod(ctrl, "Delay")),
 		NextRun:     _imptest.NewDependencyMethod(ctrl, "NextRun"),
-		GetInterval: &SchedulerMockGetIntervalMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "GetInterval")},
+		GetInterval: newSchedulerMockGetIntervalMethod(_imptest.NewDependencyMethod(ctrl, "GetInterval")),
 	}
 	h := &SchedulerMockHandle{
 		Method:     methods,
@@ -297,4 +282,25 @@ func (impl *mockSchedulerImpl) ScheduleAt(taskID string, when time.Time) error {
 	}
 
 	return result1
+}
+
+// newSchedulerMockDelayMethod creates a typed method wrapper with Eventually initialized.
+func newSchedulerMockDelayMethod(dm *_imptest.DependencyMethod) *SchedulerMockDelayMethod {
+	m := &SchedulerMockDelayMethod{DependencyMethod: dm}
+	m.Eventually = &SchedulerMockDelayMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newSchedulerMockGetIntervalMethod creates a typed method wrapper with Eventually initialized.
+func newSchedulerMockGetIntervalMethod(dm *_imptest.DependencyMethod) *SchedulerMockGetIntervalMethod {
+	m := &SchedulerMockGetIntervalMethod{DependencyMethod: dm}
+	m.Eventually = &SchedulerMockGetIntervalMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newSchedulerMockScheduleAtMethod creates a typed method wrapper with Eventually initialized.
+func newSchedulerMockScheduleAtMethod(dm *_imptest.DependencyMethod) *SchedulerMockScheduleAtMethod {
+	m := &SchedulerMockScheduleAtMethod{DependencyMethod: dm}
+	m.Eventually = &SchedulerMockScheduleAtMethod{DependencyMethod: dm.Eventually}
+	return m
 }

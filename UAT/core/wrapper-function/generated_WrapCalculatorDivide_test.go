@@ -12,19 +12,8 @@ type WrapCalculatorDivideCallHandle struct {
 	*_imptest.CallableController[WrapCalculatorDivideReturnsReturn]
 	controller        *_imptest.TargetController
 	pendingCompletion *_imptest.PendingCompletion
-}
-
-// Eventually returns a pending completion for async expectation registration.
-func (h *WrapCalculatorDivideCallHandle) Eventually() *_imptest.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
-		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
-		}()
-	}
-	return h.pendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *WrapCalculatorDivideCallHandleEventually
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -99,6 +88,32 @@ func (h *WrapCalculatorDivideCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
+// WrapCalculatorDivideCallHandleEventually wraps a call handle for async expectation registration.
+type WrapCalculatorDivideCallHandleEventually struct {
+	h *WrapCalculatorDivideCallHandle
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *WrapCalculatorDivideCallHandleEventually) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
+}
+
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *WrapCalculatorDivideCallHandleEventually) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+func (e *WrapCalculatorDivideCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
+		go func() {
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
+		}()
+	}
+	return e.h.pendingCompletion
+}
+
 // WrapCalculatorDivideReturnsReturn holds the return values from the wrapped function.
 type WrapCalculatorDivideReturnsReturn struct {
 	Result0 int
@@ -124,6 +139,7 @@ func (m *WrapCalculatorDivideWrapperMethod) Start(numerator int, denominator int
 		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](m.t),
 		controller:         m.controller,
 	}
+	handle.Eventually = &WrapCalculatorDivideCallHandleEventually{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

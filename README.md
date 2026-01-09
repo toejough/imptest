@@ -105,7 +105,7 @@ func Test_PrintSum_Flexible(t *testing.T) {
 | **Test Handle Pattern** | Mocks return `h` with `h.Mock` (interface), `h.Method` (expectations), `h.Controller` (wait/timeout) |
 | **Two-Step Matching** | Access methods via `h.Method.X`, then specify matching mode (`ExpectCalledWithExactly()` or `ExpectCalledWithMatches()`) |
 | **Type Safety** | `ExpectCalledWithExactly(int, int)` is compile-time checked; `ExpectCalledWithMatches(matcher, matcher)` accepts matchers |
-| **Concurrent Support** | Use `Eventually()` for async expectations, then `h.Controller.Wait()` to block until satisfied |
+| **Concurrent Support** | Use `.Eventually` for async expectations, then `h.Controller.Wait()` to block until satisfied |
 | **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
 
 ## Examples
@@ -120,8 +120,8 @@ func Test_Concurrent(t *testing.T) {
     go func() { h.Mock.Add(5, 6) }()
 
     // Register async expectations (non-blocking)
-    h.Method.Add.Eventually().ExpectCalledWithExactly(5, 6).InjectReturnValues(11)
-    h.Method.Add.Eventually().ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
+    h.Method.Add.Eventually.ExpectCalledWithExactly(5, 6).InjectReturnValues(11)
+    h.Method.Add.Eventually.ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
 
     // Wait for all expectations to be satisfied
     h.Controller.Wait()
@@ -172,7 +172,7 @@ When your code passes callback functions to mocked dependencies, imptest makes i
 h := MockTreeWalker(t)
 
 // Wait for the call with a callback parameter (use imptest.Any() to match any function)
-call := h.Method.Walk.Eventually().ExpectCalledWithMatches("/test", imptest.Any())
+call := h.Method.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
 
 // Extract the callback from the arguments (blocks until call arrives and matches)
 rawArgs := call.GetMatchedArgs()

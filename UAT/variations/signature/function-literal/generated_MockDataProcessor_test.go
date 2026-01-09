@@ -35,13 +35,8 @@ func (c *DataProcessorMockFilterCall) InjectReturnValues(result0 []int) {
 // DataProcessorMockFilterMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockFilterMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *DataProcessorMockFilterMethod) Eventually() *DataProcessorMockFilterMethod {
-	return &DataProcessorMockFilterMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *DataProcessorMockFilterMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -100,13 +95,8 @@ func (c *DataProcessorMockReduceCall) InjectReturnValues(result0 int) {
 // DataProcessorMockReduceMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockReduceMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *DataProcessorMockReduceMethod) Eventually() *DataProcessorMockReduceMethod {
-	return &DataProcessorMockReduceMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *DataProcessorMockReduceMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -149,13 +139,8 @@ func (c *DataProcessorMockTransformCall) InjectReturnValues(result0 []int, resul
 // DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockTransformMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *DataProcessorMockTransformMethod) Eventually() *DataProcessorMockTransformMethod {
-	return &DataProcessorMockTransformMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *DataProcessorMockTransformMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -174,9 +159,9 @@ func (m *DataProcessorMockTransformMethod) ExpectCalledWithMatches(matchers ...a
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &DataProcessorMockMethods{
-		Transform: &DataProcessorMockTransformMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Transform")},
-		Filter:    &DataProcessorMockFilterMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Filter")},
-		Reduce:    &DataProcessorMockReduceMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Reduce")},
+		Transform: newDataProcessorMockTransformMethod(_imptest.NewDependencyMethod(ctrl, "Transform")),
+		Filter:    newDataProcessorMockFilterMethod(_imptest.NewDependencyMethod(ctrl, "Filter")),
+		Reduce:    newDataProcessorMockReduceMethod(_imptest.NewDependencyMethod(ctrl, "Reduce")),
 	}
 	h := &DataProcessorMockHandle{
 		Method:     methods,
@@ -265,4 +250,25 @@ func (impl *mockDataProcessorImpl) Transform(items []int, fn func(int) (int, err
 	}
 
 	return result1, result2
+}
+
+// newDataProcessorMockFilterMethod creates a typed method wrapper with Eventually initialized.
+func newDataProcessorMockFilterMethod(dm *_imptest.DependencyMethod) *DataProcessorMockFilterMethod {
+	m := &DataProcessorMockFilterMethod{DependencyMethod: dm}
+	m.Eventually = &DataProcessorMockFilterMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newDataProcessorMockReduceMethod creates a typed method wrapper with Eventually initialized.
+func newDataProcessorMockReduceMethod(dm *_imptest.DependencyMethod) *DataProcessorMockReduceMethod {
+	m := &DataProcessorMockReduceMethod{DependencyMethod: dm}
+	m.Eventually = &DataProcessorMockReduceMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newDataProcessorMockTransformMethod creates a typed method wrapper with Eventually initialized.
+func newDataProcessorMockTransformMethod(dm *_imptest.DependencyMethod) *DataProcessorMockTransformMethod {
+	m := &DataProcessorMockTransformMethod{DependencyMethod: dm}
+	m.Eventually = &DataProcessorMockTransformMethod{DependencyMethod: dm.Eventually}
+	return m
 }

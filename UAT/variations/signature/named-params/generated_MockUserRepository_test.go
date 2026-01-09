@@ -34,13 +34,8 @@ func (c *UserRepositoryMockCountUsersCall) InjectReturnValues(result0 int, resul
 // UserRepositoryMockCountUsersMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockCountUsersMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *UserRepositoryMockCountUsersMethod) Eventually() *UserRepositoryMockCountUsersMethod {
-	return &UserRepositoryMockCountUsersMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *UserRepositoryMockCountUsersMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -83,13 +78,8 @@ func (c *UserRepositoryMockDeleteUserCall) InjectReturnValues(result0 error) {
 // UserRepositoryMockDeleteUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockDeleteUserMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *UserRepositoryMockDeleteUserMethod) Eventually() *UserRepositoryMockDeleteUserMethod {
-	return &UserRepositoryMockDeleteUserMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *UserRepositoryMockDeleteUserMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -132,13 +122,8 @@ func (c *UserRepositoryMockGetUserCall) InjectReturnValues(result0 named.User, r
 // UserRepositoryMockGetUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockGetUserMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *UserRepositoryMockGetUserMethod) Eventually() *UserRepositoryMockGetUserMethod {
-	return &UserRepositoryMockGetUserMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *UserRepositoryMockGetUserMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -196,13 +181,8 @@ func (c *UserRepositoryMockSaveUserCall) InjectReturnValues(result0 named.User, 
 // UserRepositoryMockSaveUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockSaveUserMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *UserRepositoryMockSaveUserMethod) Eventually() *UserRepositoryMockSaveUserMethod {
-	return &UserRepositoryMockSaveUserMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *UserRepositoryMockSaveUserMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -221,10 +201,10 @@ func (m *UserRepositoryMockSaveUserMethod) ExpectCalledWithMatches(matchers ...a
 func MockUserRepository(t _imptest.TestReporter) *UserRepositoryMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &UserRepositoryMockMethods{
-		GetUser:    &UserRepositoryMockGetUserMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "GetUser")},
-		SaveUser:   &UserRepositoryMockSaveUserMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "SaveUser")},
-		DeleteUser: &UserRepositoryMockDeleteUserMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "DeleteUser")},
-		CountUsers: &UserRepositoryMockCountUsersMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "CountUsers")},
+		GetUser:    newUserRepositoryMockGetUserMethod(_imptest.NewDependencyMethod(ctrl, "GetUser")),
+		SaveUser:   newUserRepositoryMockSaveUserMethod(_imptest.NewDependencyMethod(ctrl, "SaveUser")),
+		DeleteUser: newUserRepositoryMockDeleteUserMethod(_imptest.NewDependencyMethod(ctrl, "DeleteUser")),
+		CountUsers: newUserRepositoryMockCountUsersMethod(_imptest.NewDependencyMethod(ctrl, "CountUsers")),
 	}
 	h := &UserRepositoryMockHandle{
 		Method:     methods,
@@ -350,4 +330,32 @@ func (impl *mockUserRepositoryImpl) SaveUser(ctx context.Context, user named.Use
 	}
 
 	return result1, result2
+}
+
+// newUserRepositoryMockCountUsersMethod creates a typed method wrapper with Eventually initialized.
+func newUserRepositoryMockCountUsersMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockCountUsersMethod {
+	m := &UserRepositoryMockCountUsersMethod{DependencyMethod: dm}
+	m.Eventually = &UserRepositoryMockCountUsersMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newUserRepositoryMockDeleteUserMethod creates a typed method wrapper with Eventually initialized.
+func newUserRepositoryMockDeleteUserMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockDeleteUserMethod {
+	m := &UserRepositoryMockDeleteUserMethod{DependencyMethod: dm}
+	m.Eventually = &UserRepositoryMockDeleteUserMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newUserRepositoryMockGetUserMethod creates a typed method wrapper with Eventually initialized.
+func newUserRepositoryMockGetUserMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockGetUserMethod {
+	m := &UserRepositoryMockGetUserMethod{DependencyMethod: dm}
+	m.Eventually = &UserRepositoryMockGetUserMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newUserRepositoryMockSaveUserMethod creates a typed method wrapper with Eventually initialized.
+func newUserRepositoryMockSaveUserMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockSaveUserMethod {
+	m := &UserRepositoryMockSaveUserMethod{DependencyMethod: dm}
+	m.Eventually = &UserRepositoryMockSaveUserMethod{DependencyMethod: dm.Eventually}
+	return m
 }

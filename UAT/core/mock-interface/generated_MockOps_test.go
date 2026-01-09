@@ -35,13 +35,8 @@ func (c *OpsMockAddCall) InjectReturnValues(result0 int) {
 // OpsMockAddMethod wraps DependencyMethod with typed returns.
 type OpsMockAddMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *OpsMockAddMethod) Eventually() *OpsMockAddMethod {
-	return &OpsMockAddMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *OpsMockAddMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -94,13 +89,8 @@ func (c *OpsMockLogCall) GetArgs() OpsMockLogArgs {
 // OpsMockLogMethod wraps DependencyMethod with typed returns.
 type OpsMockLogMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *OpsMockLogMethod) Eventually() *OpsMockLogMethod {
-	return &OpsMockLogMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *OpsMockLogMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -152,13 +142,8 @@ func (c *OpsMockNotifyCall) InjectReturnValues(result0 bool) {
 // OpsMockNotifyMethod wraps DependencyMethod with typed returns.
 type OpsMockNotifyMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *OpsMockNotifyMethod) Eventually() *OpsMockNotifyMethod {
-	return &OpsMockNotifyMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *OpsMockNotifyMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -205,13 +190,8 @@ func (c *OpsMockStoreCall) InjectReturnValues(result0 int, result1 error) {
 // OpsMockStoreMethod wraps DependencyMethod with typed returns.
 type OpsMockStoreMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *OpsMockStoreMethod) Eventually() *OpsMockStoreMethod {
-	return &OpsMockStoreMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *OpsMockStoreMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -230,10 +210,10 @@ func (m *OpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockSt
 func MockOps(t _imptest.TestReporter) *OpsMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &OpsMockMethods{
-		Add:    &OpsMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Add")},
-		Store:  &OpsMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Store")},
-		Log:    &OpsMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Log")},
-		Notify: &OpsMockNotifyMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Notify")},
+		Add:    newOpsMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add")),
+		Store:  newOpsMockStoreMethod(_imptest.NewDependencyMethod(ctrl, "Store")),
+		Log:    newOpsMockLogMethod(_imptest.NewDependencyMethod(ctrl, "Log")),
+		Notify: newOpsMockNotifyMethod(_imptest.NewDependencyMethod(ctrl, "Notify")),
 		Finish: _imptest.NewDependencyMethod(ctrl, "Finish"),
 	}
 	h := &OpsMockHandle{
@@ -365,4 +345,32 @@ func (impl *mockOpsImpl) Store(key string, value any) (int, error) {
 	}
 
 	return result1, result2
+}
+
+// newOpsMockAddMethod creates a typed method wrapper with Eventually initialized.
+func newOpsMockAddMethod(dm *_imptest.DependencyMethod) *OpsMockAddMethod {
+	m := &OpsMockAddMethod{DependencyMethod: dm}
+	m.Eventually = &OpsMockAddMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newOpsMockLogMethod creates a typed method wrapper with Eventually initialized.
+func newOpsMockLogMethod(dm *_imptest.DependencyMethod) *OpsMockLogMethod {
+	m := &OpsMockLogMethod{DependencyMethod: dm}
+	m.Eventually = &OpsMockLogMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newOpsMockNotifyMethod creates a typed method wrapper with Eventually initialized.
+func newOpsMockNotifyMethod(dm *_imptest.DependencyMethod) *OpsMockNotifyMethod {
+	m := &OpsMockNotifyMethod{DependencyMethod: dm}
+	m.Eventually = &OpsMockNotifyMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newOpsMockStoreMethod creates a typed method wrapper with Eventually initialized.
+func newOpsMockStoreMethod(dm *_imptest.DependencyMethod) *OpsMockStoreMethod {
+	m := &OpsMockStoreMethod{DependencyMethod: dm}
+	m.Eventually = &OpsMockStoreMethod{DependencyMethod: dm.Eventually}
+	return m
 }

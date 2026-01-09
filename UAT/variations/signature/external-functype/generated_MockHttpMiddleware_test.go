@@ -46,13 +46,8 @@ func (c *HTTPMiddlewareMockWrapCall) InjectReturnValues(result0 http.HandlerFunc
 // HTTPMiddlewareMockWrapMethod wraps DependencyMethod with typed returns.
 type HTTPMiddlewareMockWrapMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *HTTPMiddlewareMockWrapMethod) Eventually() *HTTPMiddlewareMockWrapMethod {
-	return &HTTPMiddlewareMockWrapMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *HTTPMiddlewareMockWrapMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -71,7 +66,7 @@ func (m *HTTPMiddlewareMockWrapMethod) ExpectCalledWithMatches(matchers ...any) 
 func MockHTTPMiddleware(t _imptest.TestReporter) *HTTPMiddlewareMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &HTTPMiddlewareMockMethods{
-		Wrap: &HTTPMiddlewareMockWrapMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Wrap")},
+		Wrap: newHTTPMiddlewareMockWrapMethod(_imptest.NewDependencyMethod(ctrl, "Wrap")),
 	}
 	h := &HTTPMiddlewareMockHandle{
 		Method:     methods,
@@ -107,4 +102,11 @@ func (impl *mockHTTPMiddlewareImpl) Wrap(handler http.HandlerFunc) http.HandlerF
 	}
 
 	return result1
+}
+
+// newHTTPMiddlewareMockWrapMethod creates a typed method wrapper with Eventually initialized.
+func newHTTPMiddlewareMockWrapMethod(dm *_imptest.DependencyMethod) *HTTPMiddlewareMockWrapMethod {
+	m := &HTTPMiddlewareMockWrapMethod{DependencyMethod: dm}
+	m.Eventually = &HTTPMiddlewareMockWrapMethod{DependencyMethod: dm.Eventually}
+	return m
 }

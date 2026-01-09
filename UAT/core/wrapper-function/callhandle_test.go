@@ -4,8 +4,11 @@ import (
 	"testing"
 	"time"
 
+	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
 	"github.com/toejough/imptest/imptest"
 )
+
+//go:generate impgen callable.PanicWithMessage --target
 
 // TestCallHandle_ConcurrentCalls verifies multiple goroutines can be managed independently.
 //
@@ -32,21 +35,16 @@ func TestCallHandle_ConcurrentCalls(t *testing.T) {
 	call3.ExpectReturnsEqual(300)
 }
 
-// TestCallHandle_EventuallyExpectPanic verifies async Eventually() with panic expectations.
+// TestCallHandle_EventuallyExpectPanic verifies async Eventually with panic expectations.
 func TestCallHandle_EventuallyExpectPanic(t *testing.T) {
 	t.Parallel()
 
-	panicFunc := func(msg string) {
-		if msg != "" {
-			panic(msg)
-		}
-	}
-	wrapper := WrapPanicWithMessage(t, panicFunc)
+	wrapper := WrapPanicWithMessage(t, callable.PanicWithMessage)
 
 	call := wrapper.Method.Start("expected panic")
 
 	// Register panic expectation (NON-BLOCKING)
-	call.Eventually().ExpectPanicEquals("expected panic")
+	call.Eventually.ExpectPanicEquals("expected panic")
 
 	// Wait for expectation to be satisfied
 	wrapper.Controller.Wait()
@@ -74,9 +72,9 @@ func TestCallHandle_EventuallyExpectReturns(t *testing.T) {
 
 	// Register expectations (NON-BLOCKING) - this is the key difference from current API
 	// With regular ExpectReturnsEqual, we'd block on call1 before moving to call2
-	call1.Eventually().ExpectReturnsEqual(3)
-	call2.Eventually().ExpectReturnsEqual(30)
-	call3.Eventually().ExpectReturnsEqual(300)
+	call1.Eventually.ExpectReturnsEqual(3)
+	call2.Eventually.ExpectReturnsEqual(30)
+	call3.Eventually.ExpectReturnsEqual(300)
 
 	// Wait for all expectations to be satisfied
 	wrapper.Controller.Wait()
@@ -300,12 +298,7 @@ func TestCallHandle_PanicCapture(t *testing.T) {
 func TestCallHandle_PanicMatches(t *testing.T) {
 	t.Parallel()
 
-	panicFunc := func(msg string) {
-		if msg != "" {
-			panic(msg)
-		}
-	}
-	wrapper := WrapPanicWithMessage(t, panicFunc)
+	wrapper := WrapPanicWithMessage(t, callable.PanicWithMessage)
 
 	call := wrapper.Method.Start("critical error")
 	// Use Any() matcher to accept any panic value

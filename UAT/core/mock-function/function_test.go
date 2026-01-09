@@ -32,8 +32,8 @@ func TestMockFunction_Eventually(t *testing.T) {
 	go func() { _ = mock.Mock("input2") }()
 
 	// Match calls in any order using Eventually
-	mock.Method.Eventually().ExpectCalledWithExactly("input2").InjectReturnValues(nil)
-	mock.Method.Eventually().ExpectCalledWithExactly("input1").InjectReturnValues(nil)
+	mock.Method.Eventually.ExpectCalledWithExactly("input2").InjectReturnValues(nil)
+	mock.Method.Eventually.ExpectCalledWithExactly("input1").InjectReturnValues(nil)
 }
 
 // TestMockFunction_GetArgs demonstrates accessing typed arguments.

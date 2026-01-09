@@ -14,19 +14,8 @@ type WrapProcessUserCallHandle struct {
 	*_imptest.CallableController[WrapProcessUserReturnsReturn]
 	controller        *_imptest.TargetController
 	pendingCompletion *_imptest.PendingCompletion
-}
-
-// Eventually returns a pending completion for async expectation registration.
-func (h *WrapProcessUserCallHandle) Eventually() *_imptest.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
-		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
-		}()
-	}
-	return h.pendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *WrapProcessUserCallHandleEventually
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -101,6 +90,32 @@ func (h *WrapProcessUserCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
+// WrapProcessUserCallHandleEventually wraps a call handle for async expectation registration.
+type WrapProcessUserCallHandleEventually struct {
+	h *WrapProcessUserCallHandle
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *WrapProcessUserCallHandleEventually) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
+}
+
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *WrapProcessUserCallHandleEventually) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+func (e *WrapProcessUserCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
+		go func() {
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
+		}()
+	}
+	return e.h.pendingCompletion
+}
+
 // WrapProcessUserReturnsReturn holds the return values from the wrapped function.
 type WrapProcessUserReturnsReturn struct {
 	Result0 named.User
@@ -126,6 +141,7 @@ func (m *WrapProcessUserWrapperMethod) Start(ctx context.Context, userID int, re
 		CallableController: _imptest.NewCallableController[WrapProcessUserReturnsReturn](m.t),
 		controller:         m.controller,
 	}
+	handle.Eventually = &WrapProcessUserCallHandleEventually{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

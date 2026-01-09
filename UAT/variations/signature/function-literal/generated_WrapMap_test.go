@@ -12,19 +12,8 @@ type WrapMapCallHandle struct {
 	*_imptest.CallableController[WrapMapReturnsReturn]
 	controller        *_imptest.TargetController
 	pendingCompletion *_imptest.PendingCompletion
-}
-
-// Eventually returns a pending completion for async expectation registration.
-func (h *WrapMapCallHandle) Eventually() *_imptest.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
-		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
-		}()
-	}
-	return h.pendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *WrapMapCallHandleEventually
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -92,6 +81,32 @@ func (h *WrapMapCallHandle) ExpectReturnsMatch(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
+// WrapMapCallHandleEventually wraps a call handle for async expectation registration.
+type WrapMapCallHandleEventually struct {
+	h *WrapMapCallHandle
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *WrapMapCallHandleEventually) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
+}
+
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *WrapMapCallHandleEventually) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+func (e *WrapMapCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
+		go func() {
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
+		}()
+	}
+	return e.h.pendingCompletion
+}
+
 // WrapMapReturnsReturn holds the return values from the wrapped function.
 type WrapMapReturnsReturn struct {
 	Result0 []int
@@ -116,6 +131,7 @@ func (m *WrapMapWrapperMethod) Start(items []int, transform func(int) int) *Wrap
 		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](m.t),
 		controller:         m.controller,
 	}
+	handle.Eventually = &WrapMapCallHandleEventually{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

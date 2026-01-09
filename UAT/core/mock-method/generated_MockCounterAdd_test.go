@@ -39,13 +39,8 @@ type CounterAddMockHandle struct {
 // CounterAddMockMethod wraps DependencyMethod with typed returns.
 type CounterAddMockMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *CounterAddMockMethod) Eventually() *CounterAddMockMethod {
-	return &CounterAddMockMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *CounterAddMockMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -65,7 +60,7 @@ func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
 	ctrl := _imptest.NewImp(t)
 	h := &CounterAddMockHandle{
 		Controller: ctrl,
-		Method:     &CounterAddMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Counter.Add")},
+		Method:     newCounterAddMockMethod(_imptest.NewDependencyMethod(ctrl, "Counter.Add")),
 	}
 	h.Mock = func(n int) int {
 		call := &_imptest.GenericCall{
@@ -89,4 +84,11 @@ func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
 		return result1
 	}
 	return h
+}
+
+// newCounterAddMockMethod creates a typed method wrapper with Eventually initialized.
+func newCounterAddMockMethod(dm *_imptest.DependencyMethod) *CounterAddMockMethod {
+	m := &CounterAddMockMethod{DependencyMethod: dm}
+	m.Eventually = &CounterAddMockMethod{DependencyMethod: dm.Eventually}
+	return m
 }

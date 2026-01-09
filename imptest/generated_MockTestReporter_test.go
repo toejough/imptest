@@ -30,13 +30,8 @@ func (c *TestReporterMockFatalfCall) GetArgs() TestReporterMockFatalfArgs {
 // TestReporterMockFatalfMethod wraps DependencyMethod with typed returns.
 type TestReporterMockFatalfMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *TestReporterMockFatalfMethod) Eventually() *TestReporterMockFatalfMethod {
-	return &TestReporterMockFatalfMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *TestReporterMockFatalfMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -73,7 +68,7 @@ func MockTestReporter(t _imptest.TestReporter) *TestReporterMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &TestReporterMockMethods{
 		Helper: _imptest.NewDependencyMethod(ctrl, "Helper"),
-		Fatalf: &TestReporterMockFatalfMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Fatalf")},
+		Fatalf: newTestReporterMockFatalfMethod(_imptest.NewDependencyMethod(ctrl, "Fatalf")),
 	}
 	h := &TestReporterMockHandle{
 		Method:     methods,
@@ -120,4 +115,11 @@ func (impl *mockTestReporterImpl) Helper() {
 		panic(resp.PanicValue)
 	}
 
+}
+
+// newTestReporterMockFatalfMethod creates a typed method wrapper with Eventually initialized.
+func newTestReporterMockFatalfMethod(dm *_imptest.DependencyMethod) *TestReporterMockFatalfMethod {
+	m := &TestReporterMockFatalfMethod{DependencyMethod: dm}
+	m.Eventually = &TestReporterMockFatalfMethod{DependencyMethod: dm.Eventually}
+	return m
 }

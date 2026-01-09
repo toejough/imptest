@@ -45,13 +45,8 @@ func (c *ComplexServiceMockProcessCall) InjectReturnValues(result0 bool) {
 // ComplexServiceMockProcessMethod wraps DependencyMethod with typed returns.
 type ComplexServiceMockProcessMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *ComplexServiceMockProcessMethod) Eventually() *ComplexServiceMockProcessMethod {
-	return &ComplexServiceMockProcessMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *ComplexServiceMockProcessMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -70,7 +65,7 @@ func (m *ComplexServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...an
 func MockComplexService(t _imptest.TestReporter) *ComplexServiceMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &ComplexServiceMockMethods{
-		Process: &ComplexServiceMockProcessMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Process")},
+		Process: newComplexServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}
 	h := &ComplexServiceMockHandle{
 		Method:     methods,
@@ -106,4 +101,11 @@ func (impl *mockComplexServiceImpl) Process(d matching.Data) bool {
 	}
 
 	return result1
+}
+
+// newComplexServiceMockProcessMethod creates a typed method wrapper with Eventually initialized.
+func newComplexServiceMockProcessMethod(dm *_imptest.DependencyMethod) *ComplexServiceMockProcessMethod {
+	m := &ComplexServiceMockProcessMethod{DependencyMethod: dm}
+	m.Eventually = &ComplexServiceMockProcessMethod{DependencyMethod: dm.Eventually}
+	return m
 }

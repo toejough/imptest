@@ -58,13 +58,8 @@ func (c *TimedLoggerMockLogCall) InjectReturnValues(result0 string) {
 // TimedLoggerMockLogMethod wraps DependencyMethod with typed returns.
 type TimedLoggerMockLogMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *TimedLoggerMockLogMethod) Eventually() *TimedLoggerMockLogMethod {
-	return &TimedLoggerMockLogMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *TimedLoggerMockLogMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -105,13 +100,8 @@ func (c *TimedLoggerMockLogWithCountCall) InjectReturnValues(result0 string) {
 // TimedLoggerMockLogWithCountMethod wraps DependencyMethod with typed returns.
 type TimedLoggerMockLogWithCountMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *TimedLoggerMockLogWithCountMethod) Eventually() *TimedLoggerMockLogWithCountMethod {
-	return &TimedLoggerMockLogWithCountMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *TimedLoggerMockLogWithCountMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -156,13 +146,8 @@ func (c *TimedLoggerMockSetPrefixCall) GetArgs() TimedLoggerMockSetPrefixArgs {
 // TimedLoggerMockSetPrefixMethod wraps DependencyMethod with typed returns.
 type TimedLoggerMockSetPrefixMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *TimedLoggerMockSetPrefixMethod) Eventually() *TimedLoggerMockSetPrefixMethod {
-	return &TimedLoggerMockSetPrefixMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *TimedLoggerMockSetPrefixMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -192,9 +177,9 @@ func MockTimedLogger(t _imptest.TestReporter) *TimedLoggerMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &TimedLoggerMockMethods{
 		Inc:          _imptest.NewDependencyMethod(ctrl, "Inc"),
-		Log:          &TimedLoggerMockLogMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Log")},
-		LogWithCount: &TimedLoggerMockLogWithCountMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "LogWithCount")},
-		SetPrefix:    &TimedLoggerMockSetPrefixMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "SetPrefix")},
+		Log:          newTimedLoggerMockLogMethod(_imptest.NewDependencyMethod(ctrl, "Log")),
+		LogWithCount: newTimedLoggerMockLogWithCountMethod(_imptest.NewDependencyMethod(ctrl, "LogWithCount")),
+		SetPrefix:    newTimedLoggerMockSetPrefixMethod(_imptest.NewDependencyMethod(ctrl, "SetPrefix")),
 		Value:        _imptest.NewDependencyMethod(ctrl, "Value"),
 	}
 	h := &TimedLoggerMockHandle{
@@ -315,4 +300,25 @@ func (impl *mockTimedLoggerImpl) Value() int {
 	}
 
 	return result1
+}
+
+// newTimedLoggerMockLogMethod creates a typed method wrapper with Eventually initialized.
+func newTimedLoggerMockLogMethod(dm *_imptest.DependencyMethod) *TimedLoggerMockLogMethod {
+	m := &TimedLoggerMockLogMethod{DependencyMethod: dm}
+	m.Eventually = &TimedLoggerMockLogMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newTimedLoggerMockLogWithCountMethod creates a typed method wrapper with Eventually initialized.
+func newTimedLoggerMockLogWithCountMethod(dm *_imptest.DependencyMethod) *TimedLoggerMockLogWithCountMethod {
+	m := &TimedLoggerMockLogWithCountMethod{DependencyMethod: dm}
+	m.Eventually = &TimedLoggerMockLogWithCountMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newTimedLoggerMockSetPrefixMethod creates a typed method wrapper with Eventually initialized.
+func newTimedLoggerMockSetPrefixMethod(dm *_imptest.DependencyMethod) *TimedLoggerMockSetPrefixMethod {
+	m := &TimedLoggerMockSetPrefixMethod{DependencyMethod: dm}
+	m.Eventually = &TimedLoggerMockSetPrefixMethod{DependencyMethod: dm.Eventually}
+	return m
 }

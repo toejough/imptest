@@ -12,19 +12,8 @@ type WrapUnsafeRunnerCallHandle struct {
 	*_imptest.CallableController[WrapUnsafeRunnerReturnsReturn]
 	controller        *_imptest.TargetController
 	pendingCompletion *_imptest.PendingCompletion
-}
-
-// Eventually returns a pending completion for async expectation registration.
-func (h *WrapUnsafeRunnerCallHandle) Eventually() *_imptest.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
-		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
-		}()
-	}
-	return h.pendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *WrapUnsafeRunnerCallHandleEventually
 }
 
 // ExpectCompletes verifies the function completes without panicking.
@@ -69,6 +58,32 @@ func (h *WrapUnsafeRunnerCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
+// WrapUnsafeRunnerCallHandleEventually wraps a call handle for async expectation registration.
+type WrapUnsafeRunnerCallHandleEventually struct {
+	h *WrapUnsafeRunnerCallHandle
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *WrapUnsafeRunnerCallHandleEventually) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
+}
+
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *WrapUnsafeRunnerCallHandleEventually) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+func (e *WrapUnsafeRunnerCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
+		go func() {
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
+		}()
+	}
+	return e.h.pendingCompletion
+}
+
 // WrapUnsafeRunnerReturnsReturn holds the return values from the wrapped function.
 type WrapUnsafeRunnerReturnsReturn struct {
 }
@@ -92,6 +107,7 @@ func (m *WrapUnsafeRunnerWrapperMethod) Start(dep safety.CriticalDependency) *Wr
 		CallableController: _imptest.NewCallableController[WrapUnsafeRunnerReturnsReturn](m.t),
 		controller:         m.controller,
 	}
+	handle.Eventually = &WrapUnsafeRunnerCallHandleEventually{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

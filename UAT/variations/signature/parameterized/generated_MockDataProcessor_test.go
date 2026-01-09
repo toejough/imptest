@@ -47,13 +47,8 @@ func (c *DataProcessorMockProcessContainerCall) InjectReturnValues(result0 error
 // DataProcessorMockProcessContainerMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessContainerMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *DataProcessorMockProcessContainerMethod) Eventually() *DataProcessorMockProcessContainerMethod {
-	return &DataProcessorMockProcessContainerMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *DataProcessorMockProcessContainerMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -94,13 +89,8 @@ func (c *DataProcessorMockProcessPairCall) InjectReturnValues(result0 string) {
 // DataProcessorMockProcessPairMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessPairMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *DataProcessorMockProcessPairMethod) Eventually() *DataProcessorMockProcessPairMethod {
-	return &DataProcessorMockProcessPairMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *DataProcessorMockProcessPairMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -129,8 +119,8 @@ func (c *DataProcessorMockReturnContainerCall) InjectReturnValues(result0 parame
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &DataProcessorMockMethods{
-		ProcessContainer: &DataProcessorMockProcessContainerMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessContainer")},
-		ProcessPair:      &DataProcessorMockProcessPairMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "ProcessPair")},
+		ProcessContainer: newDataProcessorMockProcessContainerMethod(_imptest.NewDependencyMethod(ctrl, "ProcessContainer")),
+		ProcessPair:      newDataProcessorMockProcessPairMethod(_imptest.NewDependencyMethod(ctrl, "ProcessPair")),
 		ReturnContainer:  _imptest.NewDependencyMethod(ctrl, "ReturnContainer"),
 	}
 	h := &DataProcessorMockHandle{
@@ -213,4 +203,18 @@ func (impl *mockDataProcessorImpl) ReturnContainer() parameterized.Container[int
 	}
 
 	return result1
+}
+
+// newDataProcessorMockProcessContainerMethod creates a typed method wrapper with Eventually initialized.
+func newDataProcessorMockProcessContainerMethod(dm *_imptest.DependencyMethod) *DataProcessorMockProcessContainerMethod {
+	m := &DataProcessorMockProcessContainerMethod{DependencyMethod: dm}
+	m.Eventually = &DataProcessorMockProcessContainerMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newDataProcessorMockProcessPairMethod creates a typed method wrapper with Eventually initialized.
+func newDataProcessorMockProcessPairMethod(dm *_imptest.DependencyMethod) *DataProcessorMockProcessPairMethod {
+	m := &DataProcessorMockProcessPairMethod{DependencyMethod: dm}
+	m.Eventually = &DataProcessorMockProcessPairMethod{DependencyMethod: dm.Eventually}
+	return m
 }

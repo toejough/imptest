@@ -39,9 +39,9 @@ func TestEventually_CallsOutOfOrder(t *testing.T) {
 
 	// Use Eventually() to handle out-of-order calls
 	// Eventually mode queues mismatches and waits for matches
-	mock.Method.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.Method.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.Method.OperationC.Eventually().ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	mock.Method.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -77,9 +77,9 @@ func TestEventually_ConcurrentCalls(t *testing.T) {
 	}()
 
 	// Eventually mode handles any arrival order
-	mock.Method.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.Method.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.Method.OperationC.Eventually().ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	mock.Method.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -98,7 +98,7 @@ func TestEventually_PreservesTypeSafety(t *testing.T) {
 	}()
 
 	// Eventually() returns *ServiceMockOperationAMethod, not *DependencyMethod
-	call := mock.Method.OperationA.Eventually().ExpectCalledWithExactly(42)
+	call := mock.Method.OperationA.Eventually.ExpectCalledWithExactly(42)
 
 	// Type-safe GetArgs() access
 	args := call.GetArgs()
@@ -141,8 +141,8 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 	// - A with eventually (can arrive in any order)
 	// - B with eventually (can arrive in any order)
 	// - C ordered (but since we already got all calls, it will work)
-	mock.Method.OperationA.Eventually().ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.Method.OperationB.Eventually().ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
 
 	// By the time we get here, C has already arrived and been queued
 	// Ordered mode will find it in the queue

@@ -13,19 +13,8 @@ type WrapProcessItemCallHandle[T any] struct {
 	*_imptest.CallableController[WrapProcessItemReturnsReturn[T]]
 	controller        *_imptest.TargetController
 	pendingCompletion *_imptest.PendingCompletion
-}
-
-// Eventually returns a pending completion for async expectation registration.
-func (h *WrapProcessItemCallHandle[T]) Eventually() *_imptest.PendingCompletion {
-	if h.pendingCompletion == nil {
-		h.pendingCompletion = h.controller.RegisterPendingCompletion()
-		// Start a goroutine to wait for completion and notify the pending completion
-		go func() {
-			h.WaitForResponse()
-			h.pendingCompletion.SetCompleted(h.Returned, h.Panicked)
-		}()
-	}
-	return h.pendingCompletion
+	// Eventually is the async version of this call handle for registering non-blocking expectations.
+	Eventually *WrapProcessItemCallHandleEventually[T]
 }
 
 // ExpectPanicEquals verifies the function panics with the expected value.
@@ -93,6 +82,32 @@ func (h *WrapProcessItemCallHandle[T]) ExpectReturnsMatch(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
+// WrapProcessItemCallHandleEventually wraps a call handle for async expectation registration.
+type WrapProcessItemCallHandleEventually[T any] struct {
+	h *WrapProcessItemCallHandle[T]
+}
+
+// ExpectPanicEquals registers an async expectation for a panic value.
+func (e *WrapProcessItemCallHandleEventually[T]) ExpectPanicEquals(value any) {
+	e.ensureStarted().ExpectPanicEquals(value)
+}
+
+// ExpectReturnsEqual registers an async expectation for return values.
+func (e *WrapProcessItemCallHandleEventually[T]) ExpectReturnsEqual(values ...any) {
+	e.ensureStarted().ExpectReturnsEqual(values...)
+}
+
+func (e *WrapProcessItemCallHandleEventually[T]) ensureStarted() *_imptest.PendingCompletion {
+	if e.h.pendingCompletion == nil {
+		e.h.pendingCompletion = e.h.controller.RegisterPendingCompletion()
+		go func() {
+			e.h.WaitForResponse()
+			e.h.pendingCompletion.SetCompleted(e.h.Returned, e.h.Panicked)
+		}()
+	}
+	return e.h.pendingCompletion
+}
+
 // WrapProcessItemReturnsReturn holds the return values from the wrapped function.
 type WrapProcessItemReturnsReturn[T any] struct {
 	Result0 error
@@ -117,6 +132,7 @@ func (m *WrapProcessItemWrapperMethod[T]) Start(repo generics.Repository[T], id 
 		CallableController: _imptest.NewCallableController[WrapProcessItemReturnsReturn[T]](m.t),
 		controller:         m.controller,
 	}
+	handle.Eventually = &WrapProcessItemCallHandleEventually[T]{h: handle}
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {

@@ -36,13 +36,8 @@ type NotifyMockHandle struct {
 // NotifyMockMethod wraps DependencyMethod with typed returns.
 type NotifyMockMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *NotifyMockMethod) Eventually() *NotifyMockMethod {
-	return &NotifyMockMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *NotifyMockMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -62,7 +57,7 @@ func MockNotify(t _imptest.TestReporter) *NotifyMockHandle {
 	ctrl := _imptest.NewImp(t)
 	h := &NotifyMockHandle{
 		Controller: ctrl,
-		Method:     &NotifyMockMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Notify")},
+		Method:     newNotifyMockMethod(_imptest.NewDependencyMethod(ctrl, "Notify")),
 	}
 	h.Mock = func(userID int, message string) {
 		call := &_imptest.GenericCall{
@@ -78,4 +73,11 @@ func MockNotify(t _imptest.TestReporter) *NotifyMockHandle {
 
 	}
 	return h
+}
+
+// newNotifyMockMethod creates a typed method wrapper with Eventually initialized.
+func newNotifyMockMethod(dm *_imptest.DependencyMethod) *NotifyMockMethod {
+	m := &NotifyMockMethod{DependencyMethod: dm}
+	m.Eventually = &NotifyMockMethod{DependencyMethod: dm.Eventually}
+	return m
 }

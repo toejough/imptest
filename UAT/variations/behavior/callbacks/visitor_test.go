@@ -57,7 +57,7 @@ func TestCallbackPanicSupport(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for the Walk call
-	call := mock.Method.Walk.Eventually().ExpectCalledWithMatches("/test", imptest.Any())
+	call := mock.Method.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
 
 	// V2 Pattern: Extract callback and invoke it, catching the panic
 	rawArgs := call.RawArgs()
@@ -97,7 +97,7 @@ func TestCountFiles(t *testing.T) {
 	wrapperCall := wrapper.Method.Start(mock.Mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call
-	call := mock.Method.Walk.Eventually().ExpectCalledWithMatches("/test", imptest.Any())
+	call := mock.Method.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
 
 	// V2 Pattern: Extract the callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
@@ -146,7 +146,7 @@ func TestWalkWithNamedType(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for and verify the WalkWithNamedType call
-	call := mock.Method.WalkWithNamedType.Eventually().ExpectCalledWithMatches("/data", imptest.Any())
+	call := mock.Method.WalkWithNamedType.Eventually.ExpectCalledWithMatches("/data", imptest.Any())
 
 	// V2 Pattern: Extract callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()

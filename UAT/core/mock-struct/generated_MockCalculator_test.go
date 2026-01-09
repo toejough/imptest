@@ -34,13 +34,8 @@ func (c *CalculatorMockAddCall) InjectReturnValues(result0 int) {
 // CalculatorMockAddMethod wraps DependencyMethod with typed returns.
 type CalculatorMockAddMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *CalculatorMockAddMethod) Eventually() *CalculatorMockAddMethod {
-	return &CalculatorMockAddMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *CalculatorMockAddMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -114,13 +109,8 @@ func (c *CalculatorMockStoreCall) InjectReturnValues(result0 int) {
 // CalculatorMockStoreMethod wraps DependencyMethod with typed returns.
 type CalculatorMockStoreMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *CalculatorMockStoreMethod) Eventually() *CalculatorMockStoreMethod {
-	return &CalculatorMockStoreMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *CalculatorMockStoreMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -139,10 +129,10 @@ func (m *CalculatorMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *Ca
 func MockCalculator(t _imptest.TestReporter) *CalculatorMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &CalculatorMockMethods{
-		Add:   &CalculatorMockAddMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Add")},
+		Add:   newCalculatorMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add")),
 		Get:   _imptest.NewDependencyMethod(ctrl, "Get"),
 		Reset: _imptest.NewDependencyMethod(ctrl, "Reset"),
-		Store: &CalculatorMockStoreMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Store")},
+		Store: newCalculatorMockStoreMethod(_imptest.NewDependencyMethod(ctrl, "Store")),
 	}
 	h := &CalculatorMockHandle{
 		Method:     methods,
@@ -246,4 +236,18 @@ func (impl *mockCalculatorImpl) Store(value int) int {
 	}
 
 	return result1
+}
+
+// newCalculatorMockAddMethod creates a typed method wrapper with Eventually initialized.
+func newCalculatorMockAddMethod(dm *_imptest.DependencyMethod) *CalculatorMockAddMethod {
+	m := &CalculatorMockAddMethod{DependencyMethod: dm}
+	m.Eventually = &CalculatorMockAddMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newCalculatorMockStoreMethod creates a typed method wrapper with Eventually initialized.
+func newCalculatorMockStoreMethod(dm *_imptest.DependencyMethod) *CalculatorMockStoreMethod {
+	m := &CalculatorMockStoreMethod{DependencyMethod: dm}
+	m.Eventually = &CalculatorMockStoreMethod{DependencyMethod: dm.Eventually}
+	return m
 }

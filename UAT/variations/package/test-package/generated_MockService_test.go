@@ -33,13 +33,8 @@ func (c *ServiceMockExecuteCall) InjectReturnValues(result0 string, result1 erro
 // ServiceMockExecuteMethod wraps DependencyMethod with typed returns.
 type ServiceMockExecuteMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *ServiceMockExecuteMethod) Eventually() *ServiceMockExecuteMethod {
-	return &ServiceMockExecuteMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *ServiceMockExecuteMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -93,13 +88,8 @@ func (c *ServiceMockValidateCall) InjectReturnValues(result0 bool) {
 // ServiceMockValidateMethod wraps DependencyMethod with typed returns.
 type ServiceMockValidateMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *ServiceMockValidateMethod) Eventually() *ServiceMockValidateMethod {
-	return &ServiceMockValidateMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *ServiceMockValidateMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -118,8 +108,8 @@ func (m *ServiceMockValidateMethod) ExpectCalledWithMatches(matchers ...any) *Se
 func MockService(t _imptest.TestReporter) *ServiceMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &ServiceMockMethods{
-		Execute:  &ServiceMockExecuteMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Execute")},
-		Validate: &ServiceMockValidateMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Validate")},
+		Execute:  newServiceMockExecuteMethod(_imptest.NewDependencyMethod(ctrl, "Execute")),
+		Validate: newServiceMockValidateMethod(_imptest.NewDependencyMethod(ctrl, "Validate")),
 	}
 	h := &ServiceMockHandle{
 		Method:     methods,
@@ -185,4 +175,18 @@ func (impl *mockServiceImpl) Validate(input string) bool {
 	}
 
 	return result1
+}
+
+// newServiceMockExecuteMethod creates a typed method wrapper with Eventually initialized.
+func newServiceMockExecuteMethod(dm *_imptest.DependencyMethod) *ServiceMockExecuteMethod {
+	m := &ServiceMockExecuteMethod{DependencyMethod: dm}
+	m.Eventually = &ServiceMockExecuteMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newServiceMockValidateMethod creates a typed method wrapper with Eventually initialized.
+func newServiceMockValidateMethod(dm *_imptest.DependencyMethod) *ServiceMockValidateMethod {
+	m := &ServiceMockValidateMethod{DependencyMethod: dm}
+	m.Eventually = &ServiceMockValidateMethod{DependencyMethod: dm.Eventually}
+	return m
 }

@@ -33,13 +33,8 @@ func (c *RepositoryMockDeleteCall) InjectReturnValues(result0 error) {
 // RepositoryMockDeleteMethod wraps DependencyMethod with typed returns.
 type RepositoryMockDeleteMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *RepositoryMockDeleteMethod) Eventually() *RepositoryMockDeleteMethod {
-	return &RepositoryMockDeleteMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *RepositoryMockDeleteMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -87,13 +82,8 @@ func (c *RepositoryMockLoadCall) InjectReturnValues(result0 []byte, result1 erro
 // RepositoryMockLoadMethod wraps DependencyMethod with typed returns.
 type RepositoryMockLoadMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *RepositoryMockLoadMethod) Eventually() *RepositoryMockLoadMethod {
-	return &RepositoryMockLoadMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *RepositoryMockLoadMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -143,13 +133,8 @@ func (c *RepositoryMockSaveCall) InjectReturnValues(result0 error) {
 // RepositoryMockSaveMethod wraps DependencyMethod with typed returns.
 type RepositoryMockSaveMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *RepositoryMockSaveMethod) Eventually() *RepositoryMockSaveMethod {
-	return &RepositoryMockSaveMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *RepositoryMockSaveMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -168,9 +153,9 @@ func (m *RepositoryMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *Rep
 func MockRepository(t _imptest.TestReporter) *RepositoryMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &RepositoryMockMethods{
-		Save:   &RepositoryMockSaveMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Save")},
-		Load:   &RepositoryMockLoadMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Load")},
-		Delete: &RepositoryMockDeleteMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "Delete")},
+		Save:   newRepositoryMockSaveMethod(_imptest.NewDependencyMethod(ctrl, "Save")),
+		Load:   newRepositoryMockLoadMethod(_imptest.NewDependencyMethod(ctrl, "Load")),
+		Delete: newRepositoryMockDeleteMethod(_imptest.NewDependencyMethod(ctrl, "Delete")),
 	}
 	h := &RepositoryMockHandle{
 		Method:     methods,
@@ -259,4 +244,25 @@ func (impl *mockRepositoryImpl) Save(key string, data []byte) error {
 	}
 
 	return result1
+}
+
+// newRepositoryMockDeleteMethod creates a typed method wrapper with Eventually initialized.
+func newRepositoryMockDeleteMethod(dm *_imptest.DependencyMethod) *RepositoryMockDeleteMethod {
+	m := &RepositoryMockDeleteMethod{DependencyMethod: dm}
+	m.Eventually = &RepositoryMockDeleteMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newRepositoryMockLoadMethod creates a typed method wrapper with Eventually initialized.
+func newRepositoryMockLoadMethod(dm *_imptest.DependencyMethod) *RepositoryMockLoadMethod {
+	m := &RepositoryMockLoadMethod{DependencyMethod: dm}
+	m.Eventually = &RepositoryMockLoadMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newRepositoryMockSaveMethod creates a typed method wrapper with Eventually initialized.
+func newRepositoryMockSaveMethod(dm *_imptest.DependencyMethod) *RepositoryMockSaveMethod {
+	m := &RepositoryMockSaveMethod{DependencyMethod: dm}
+	m.Eventually = &RepositoryMockSaveMethod{DependencyMethod: dm.Eventually}
+	return m
 }

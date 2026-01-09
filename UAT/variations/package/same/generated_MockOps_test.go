@@ -45,13 +45,8 @@ func (c *OpsMockPublicMethodCall) InjectReturnValues(result0 int) {
 // OpsMockPublicMethodMethod wraps DependencyMethod with typed returns.
 type OpsMockPublicMethodMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *OpsMockPublicMethodMethod) Eventually() *OpsMockPublicMethodMethod {
-	return &OpsMockPublicMethodMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *OpsMockPublicMethodMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -92,13 +87,8 @@ func (c *OpsMockinternalMethodCall) InjectReturnValues(result0 int) {
 // OpsMockinternalMethodMethod wraps DependencyMethod with typed returns.
 type OpsMockinternalMethodMethod struct {
 	*_imptest.DependencyMethod
-}
-
-// Eventually switches to unordered mode for concurrent code.
-// Waits indefinitely for a matching call; mismatches are queued.
-// Returns typed wrapper preserving type-safe GetArgs() access.
-func (m *OpsMockinternalMethodMethod) Eventually() *OpsMockinternalMethodMethod {
-	return &OpsMockinternalMethodMethod{DependencyMethod: m.DependencyMethod.Eventually()}
+	// Eventually is the async version of this method for concurrent code.
+	Eventually *OpsMockinternalMethodMethod
 }
 
 // ExpectCalledWithExactly waits for a call with exactly the specified arguments.
@@ -117,8 +107,8 @@ func (m *OpsMockinternalMethodMethod) ExpectCalledWithMatches(matchers ...any) *
 func MockOps(t _imptest.TestReporter) *OpsMockHandle {
 	ctrl := _imptest.NewImp(t)
 	methods := &OpsMockMethods{
-		internalMethod: &OpsMockinternalMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "internalMethod")},
-		PublicMethod:   &OpsMockPublicMethodMethod{DependencyMethod: _imptest.NewDependencyMethod(ctrl, "PublicMethod")},
+		internalMethod: newOpsMockinternalMethodMethod(_imptest.NewDependencyMethod(ctrl, "internalMethod")),
+		PublicMethod:   newOpsMockPublicMethodMethod(_imptest.NewDependencyMethod(ctrl, "PublicMethod")),
 	}
 	h := &OpsMockHandle{
 		Method:     methods,
@@ -177,4 +167,18 @@ func (impl *mockOpsImpl) internalMethod(x int) int {
 	}
 
 	return result1
+}
+
+// newOpsMockPublicMethodMethod creates a typed method wrapper with Eventually initialized.
+func newOpsMockPublicMethodMethod(dm *_imptest.DependencyMethod) *OpsMockPublicMethodMethod {
+	m := &OpsMockPublicMethodMethod{DependencyMethod: dm}
+	m.Eventually = &OpsMockPublicMethodMethod{DependencyMethod: dm.Eventually}
+	return m
+}
+
+// newOpsMockinternalMethodMethod creates a typed method wrapper with Eventually initialized.
+func newOpsMockinternalMethodMethod(dm *_imptest.DependencyMethod) *OpsMockinternalMethodMethod {
+	m := &OpsMockinternalMethodMethod{DependencyMethod: dm}
+	m.Eventually = &OpsMockinternalMethodMethod{DependencyMethod: dm.Eventually}
+	return m
 }
