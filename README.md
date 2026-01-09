@@ -185,12 +185,6 @@ err := callback("/test/file.txt", mockDirEntry{name: "file.txt"}, nil)
 call.InjectReturnValues(nil)
 ```
 
-See [CALLBACKS.md](./CALLBACKS.md) for comprehensive examples including:
-- Testing callbacks that panic
-- Multiple callback invocations
-- Named function types
-- Mixing exact values and matchers
-
 ## Installation
 
 Install the library with:

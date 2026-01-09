@@ -127,41 +127,24 @@ Standard issue structure organized by category:
 #### Universal
 
 **Status**
-backlog
+done
 
 **Description**
 Multiple documents (README.md, docs/V1_TO_V2_MIGRATION.md, etc.) describe API/usage with redundancy
 
-#### Planning
+#### Work Tracking
 
-**Acceptance**
-Consolidated documentation with clear organization, no reattern)
-- 2026-01-02 09:39 EST - PLAN MODE: Refined approach - compose per-method function wrappers
-- 2026-01-02 09:23 EST - PLAN MODE: Breaking down implementation steps (simple fix - reuse existing wrapper generator)
-- 2026-01-02 09:12 EST - PLAN MODE: Designing interface wrapping implementation approach
-- 2026-01-02 02:07 EST - RED: Created UAT-32 tests (currently failing - feature not implemented)
+**Completed**
+2026-01-09
 
-#### Planning
+**Solution**
+Removed 12 outdated/redundant documentation files. Kept: README.md (user-facing), TAXONOMY.md (reference), REORGANIZATION_PROPOSAL.md (design), mutation-task.md. Historical docs available in git history.
 
-**Rationale**
-Taxonomy matrix shows "?" for "Interface type as Target", capability untested
-
-**Acceptance**
-UAT demonstrating interface wrapping with --target, or documented limitation with workaround
-
-**Effort**
-Small (1-2 hours)
-
-**Priority**
-Medium
-
-**Note**
-After completing UAT, update Capability Matrix in TAXONOMY.md to mark "Interface type as Target" as "Yes" with UAT reference OR add to "Cannot Do" section if unsupported
-
-#### Special Fields
-
-**Taxonomy Gap**
-Capability Matrix - "Interface type" row, "As Target" column
+**Files Removed**
+- CALLBACKS.md, GEMINI.md, GOPLS-MCP.md, thoughts.md
+- docs/API_REDESIGN.md, docs/audit-notes.md, docs/ISSUE-48-*.md
+- docs/archive/PHASE2_TYPESAFE_ARGS_DESIGN.md
+- imptest/RACE_*.md, imptest/REGRESSION_TEST_SUMMARY.md
 
 ---
 ### 18. Reduce blanket nolint directives in V2 generators (TOE-106)
