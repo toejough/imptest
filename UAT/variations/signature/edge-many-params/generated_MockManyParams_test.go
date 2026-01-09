@@ -3,8 +3,8 @@
 package many_params_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	many_params "github.com/toejough/imptest/UAT/variations/signature/edge-many-params"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ManyParamsMockHandle is the test handle for ManyParams.

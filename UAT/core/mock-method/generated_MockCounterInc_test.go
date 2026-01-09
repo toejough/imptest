@@ -3,7 +3,7 @@
 package mockmethod_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // CounterIncMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.

@@ -3,8 +3,8 @@
 package matching_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	matching "github.com/toejough/imptest/UAT/variations/behavior/matching"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ComplexServiceMockHandle is the test handle for ComplexService.

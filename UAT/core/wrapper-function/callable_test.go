@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/toejough/imptest"
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
-	"github.com/toejough/imptest/imptest"
 )
 
 // Generate a mock for the dependency using v2 API.

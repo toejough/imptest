@@ -71,7 +71,7 @@ Use [gomega](https://github.com/onsi/gomega)-style matchers for flexible asserti
 
 ```go
 import . "github.com/onsi/gomega"
-import "github.com/toejough/imptest/imptest"
+import "github.com/toejough/imptest"
 
 func Test_PrintSum_Flexible(t *testing.T) {
     t.Parallel()

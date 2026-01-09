@@ -3,8 +3,8 @@
 package safety_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	safety "github.com/toejough/imptest/UAT/variations/behavior/panic-handling"
-	_imptest "github.com/toejough/imptest/imptest"
 	_reflect "reflect"
 )
 

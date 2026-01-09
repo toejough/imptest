@@ -3,7 +3,7 @@
 package mockfunction_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // ValidateInputMockArgs holds typed arguments for ValidateInput.

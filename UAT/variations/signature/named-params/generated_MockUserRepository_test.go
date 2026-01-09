@@ -4,8 +4,8 @@ package named_test
 
 import (
 	context "context"
+	_imptest "github.com/toejough/imptest"
 	named "github.com/toejough/imptest/UAT/variations/signature/named-params"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // UserRepositoryMockCountUsersArgs holds typed arguments for CountUsers.

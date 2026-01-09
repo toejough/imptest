@@ -3,7 +3,7 @@
 package handlers_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // ValidatorMockArgs holds typed arguments for Validator.

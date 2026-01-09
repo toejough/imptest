@@ -3,7 +3,7 @@
 package callable_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 	_reflect "reflect"
 )
 

@@ -3,7 +3,7 @@
 package externalfuncs_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 	http "net/http"
 )
 

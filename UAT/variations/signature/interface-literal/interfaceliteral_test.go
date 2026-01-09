@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/imptest"
+	"github.com/toejough/imptest"
 )
 
 //go:generate impgen DataProcessor --dependency

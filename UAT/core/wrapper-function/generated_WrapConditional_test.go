@@ -5,7 +5,7 @@ package callable_test
 import (
 	_reflect "reflect"
 
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // WrapConditionalReturnsReturn holds the return values from the wrapped function.

@@ -3,8 +3,8 @@
 package callable_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ExternalServiceMockFetchDataArgs holds typed arguments for FetchData.

@@ -5,7 +5,7 @@ package structlit_test
 import (
 	_reflect "reflect"
 
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // WrapLoadCallHandle represents a single call to the wrapped function.

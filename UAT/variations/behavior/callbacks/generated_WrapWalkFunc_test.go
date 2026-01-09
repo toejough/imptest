@@ -3,7 +3,7 @@
 package visitor_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 	fs "io/fs"
 	_reflect "reflect"
 )

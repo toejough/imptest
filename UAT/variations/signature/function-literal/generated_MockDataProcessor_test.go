@@ -3,8 +3,8 @@
 package funclit_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	funclit "github.com/toejough/imptest/UAT/variations/signature/function-literal"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // DataProcessorMockFilterArgs holds typed arguments for Filter.

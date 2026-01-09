@@ -3,8 +3,8 @@
 package visitor_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	visitor "github.com/toejough/imptest/UAT/variations/behavior/callbacks"
-	_imptest "github.com/toejough/imptest/imptest"
 	_reflect "reflect"
 )
 

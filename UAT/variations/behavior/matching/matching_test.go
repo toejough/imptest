@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"github.com/toejough/imptest"
 	matching "github.com/toejough/imptest/UAT/variations/behavior/matching"
-	"github.com/toejough/imptest/imptest"
 )
 
 //go:generate impgen matching.ComplexService --dependency

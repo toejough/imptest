@@ -3,8 +3,8 @@
 package externalimports_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	externalimports "github.com/toejough/imptest/UAT/variations/signature/external-types"
-	_imptest "github.com/toejough/imptest/imptest"
 	io "io"
 	os "os"
 )

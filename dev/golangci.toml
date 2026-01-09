@@ -26,6 +26,7 @@ allow = [
 	'github.com/dave/dst/decorator',
 	'github.com/dave/dst/dstutil',
 	'golang.org/x/tools/go/packages',
+	'github.com/toejough/imptest/internal/core',
 	'github.com/toejough/imptest/UAT/run',
 	'github.com/toejough/imptest/impgen/run',
 	'github.com/toejough/go-reorder',
@@ -41,7 +42,7 @@ allow = [
 	'github.com/onsi/gomega',
 	'pgregory.net/rapid',
 	'github.com/toejough/imptest',
-	'github.com/toejough/imptest/imptest',
+	'github.com/toejough/imptest',
 	'github.com/toejough/imptest/UAT/run',
 	'github.com/toejough/imptest/impgen/run',
 	'github.com/toejough/go-reorder',
@@ -71,22 +72,12 @@ linters = ['err113', 'goconst', 'wrapcheck', 'errorlint', 'gochecknoglobals']
 
 [[linters.exclusions.rules]]
 # Tester and TestReporter are intentionally duplicate (v1 and v2 APIs during migration).
-path = "imptest/"
+path = "internal/core/"
 linters = ['iface']
 
 [[linters.exclusions.rules]]
-# UAT/11 intentionally uses a package name that conflicts with stdlib to test aliasing.
-path = "UAT/11-package-name-conflicts"
-linters = ['depguard', 'mnd', 'revive']
-
-[[linters.exclusions.rules]]
-# UAT/12 intentionally uses whitebox testing (tests in same package as code).
-path = "UAT/12-whitebox-testing"
-linters = ['testpackage']
-
-[[linters.exclusions.rules]]
-# imptest/imp_test.go intentionally uses whitebox testing to test internal adapters.
-path = "imptest/imp_test.go"
+# internal/core/imp_test.go intentionally uses whitebox testing to test internal adapters.
+path = "internal/core/imp_test.go"
 linters = ['testpackage']
 
 [[linters.exclusions.rules]]

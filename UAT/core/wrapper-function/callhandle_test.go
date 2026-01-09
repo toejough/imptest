@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toejough/imptest"
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
-	"github.com/toejough/imptest/imptest"
 )
 
 //go:generate impgen callable.PanicWithMessage --target

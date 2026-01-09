@@ -1,9 +1,9 @@
-package imptest_test
+package core_test
 
 import (
 	"testing"
 
-	"github.com/toejough/imptest/imptest"
+	"github.com/toejough/imptest"
 )
 
 // TestDependencyCall_GetArgs verifies GetArgs returns correct argument values.

@@ -3,8 +3,8 @@
 package orderedvsmode_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	orderedvsmode "github.com/toejough/imptest/UAT/variations/concurrency/ordered"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ServiceMockHandle is the test handle for Service.

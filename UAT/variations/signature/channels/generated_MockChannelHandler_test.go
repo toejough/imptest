@@ -3,8 +3,8 @@
 package channels_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	channels "github.com/toejough/imptest/UAT/variations/signature/channels"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ChannelHandlerMockBidirectionalArgs holds typed arguments for Bidirectional.

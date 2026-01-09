@@ -5,7 +5,7 @@ package callable_test
 import (
 	_testing "testing"
 
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // CalculatorProcessValue wraps a callable function for testing.

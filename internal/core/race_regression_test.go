@@ -1,4 +1,4 @@
-package imptest_test
+package core_test
 
 // This file contains regression tests for data races in the mockTester pattern.
 
@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toejough/imptest/imptest"
+	"github.com/toejough/imptest"
 )
 
 // TestProperSynchronization_AtomicBased demonstrates the CORRECT pattern

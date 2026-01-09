@@ -3,8 +3,8 @@
 package samepackage_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	samepackage "github.com/toejough/imptest/UAT/variations/package/same-package/interface-refs"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // DataSinkMockHandle is the test handle for DataSink.

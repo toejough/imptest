@@ -3,8 +3,8 @@
 package generics_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	generics "github.com/toejough/imptest/UAT/variations/signature/generics"
-	_imptest "github.com/toejough/imptest/imptest"
 	_reflect "reflect"
 )
 

@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/imptest"
+	"github.com/toejough/imptest"
 )
 
 // TestSamePackageInterfaces tests that interfaces using other interfaces

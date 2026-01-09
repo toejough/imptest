@@ -3,8 +3,8 @@
 package concurrency_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	concurrency "github.com/toejough/imptest/UAT/variations/concurrency/eventually"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // SlowServiceMockDoAArgs holds typed arguments for DoA.

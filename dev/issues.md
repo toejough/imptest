@@ -165,11 +165,11 @@ See docs/REORGANIZATION_PROPOSAL.md for detailed design.
 #### Planning
 
 **Acceptance**
-- Root directory contains only essential files (go.mod, README, LICENSE, .gitignore)
-- Project management (issues.md) moved to dev/
-- imptest/ has clear public API organization
-- impgen/run/ reorganized by execution flow
-- Build artifacts cleaned up and .gitignore updated
+- [x] Root directory contains only essential files (go.mod, README, LICENSE, .gitignore)
+- [x] Project management (issues.md) moved to dev/
+- [x] imptest/ has clear public API organization
+- [ ] impgen/run/ reorganized by execution flow
+- [x] Build artifacts cleaned up and .gitignore updated
 
 **Effort**
 Large
@@ -179,6 +179,12 @@ Medium
 
 **Linear**
 TOE-115
+
+#### Work Tracking
+
+**Timeline**
+- 2026-01-09 - Phase 1: Cleaned root directory, moved issues.md to dev/, deleted local patterns.md, moved mutation files to dev/
+- 2026-01-09 - Phase 2: Renamed imptest/ to internal/core/, created root imptest.go exposing public API, updated all imports
 
 ---
 

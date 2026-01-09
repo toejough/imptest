@@ -3,8 +3,8 @@
 package interfaceliteral_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	interfaceliteral "github.com/toejough/imptest/UAT/variations/signature/interface-literal"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // DataProcessorMockHandle is the test handle for DataProcessor.

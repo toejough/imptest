@@ -1,13 +1,13 @@
-package imptest_test
+package core_test
 
-//go:generate ../bin/impgen TestReporter --dependency
+//go:generate ../../bin/impgen TestReporter --dependency
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/toejough/imptest/imptest"
+	"github.com/toejough/imptest"
 )
 
 // TestGenericCallDone tests GenericCall.Done.

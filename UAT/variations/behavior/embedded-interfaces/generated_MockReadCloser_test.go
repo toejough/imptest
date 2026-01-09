@@ -3,8 +3,8 @@
 package embedded_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	embedded "github.com/toejough/imptest/UAT/variations/behavior/embedded-interfaces"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ReadCloserMockCloseCall wraps DependencyCall with typed GetArgs and InjectReturnValues.

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/toejough/imptest/imptest"
+	"github.com/toejough/imptest"
 )
 
 // TestHTTPMiddleware tests using an interface with external function type parameters.

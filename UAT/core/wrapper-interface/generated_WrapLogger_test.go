@@ -4,8 +4,8 @@ package handlers_test
 
 import (
 	context "context"
+	_imptest "github.com/toejough/imptest"
 	handlers "github.com/toejough/imptest/UAT/core/wrapper-interface"
-	_imptest "github.com/toejough/imptest/imptest"
 	_reflect "reflect"
 	"testing"
 )

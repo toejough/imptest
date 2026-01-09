@@ -2,8 +2,8 @@
 package typesafeargs_test
 
 import (
+	"github.com/toejough/imptest"
 	typesafeargs "github.com/toejough/imptest/UAT/variations/behavior/typesafe-getargs"
-	"github.com/toejough/imptest/imptest"
 )
 
 // CalculatorAddArgs holds typed arguments for Add method

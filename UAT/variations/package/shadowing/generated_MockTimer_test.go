@@ -3,8 +3,8 @@
 package timeconflict_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	time "github.com/toejough/imptest/UAT/variations/package/shadowing/time"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // TimerMockGetElapsedCall wraps DependencyCall with typed GetArgs and InjectReturnValues.

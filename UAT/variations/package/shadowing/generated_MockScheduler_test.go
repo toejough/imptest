@@ -3,8 +3,8 @@
 package timeconflict_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	timeconflict "github.com/toejough/imptest/UAT/variations/package/shadowing"
-	_imptest "github.com/toejough/imptest/imptest"
 	time "time"
 )
 

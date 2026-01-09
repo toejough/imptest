@@ -4,8 +4,8 @@ import (
 	"io"
 	"testing"
 
+	"github.com/toejough/imptest"
 	embedded "github.com/toejough/imptest/UAT/variations/behavior/embedded-interfaces"
-	"github.com/toejough/imptest/imptest"
 )
 
 // TestEmbeddedInterfaceError demonstrates error handling with embedded interfaces.

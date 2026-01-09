@@ -3,8 +3,8 @@
 package service_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	storage "github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // RepositoryMockDeleteArgs holds typed arguments for Delete.

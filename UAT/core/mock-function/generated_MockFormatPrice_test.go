@@ -3,7 +3,7 @@
 package mockfunction_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // FormatPriceMockArgs holds typed arguments for FormatPrice.

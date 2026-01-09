@@ -3,8 +3,8 @@
 package middleware_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	middleware "github.com/toejough/imptest/UAT/variations/signature/external-functype"
-	_imptest "github.com/toejough/imptest/imptest"
 	http "net/http"
 )
 

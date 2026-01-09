@@ -3,8 +3,8 @@
 package structlit_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	structlit "github.com/toejough/imptest/UAT/variations/signature/struct-literal"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // DataProcessorMockApplyArgs holds typed arguments for Apply.

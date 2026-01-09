@@ -3,7 +3,7 @@
 package whitebox
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // OpsMockHandle is the test handle for Ops.

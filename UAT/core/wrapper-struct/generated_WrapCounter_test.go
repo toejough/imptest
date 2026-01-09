@@ -3,8 +3,8 @@
 package calculator_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	calculator "github.com/toejough/imptest/UAT/core/wrapper-struct"
-	_imptest "github.com/toejough/imptest/imptest"
 	_reflect "reflect"
 	"testing"
 )

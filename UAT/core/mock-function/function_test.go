@@ -17,8 +17,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/toejough/imptest"
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
-	"github.com/toejough/imptest/imptest"
 )
 
 // TestMockFunction_Eventually demonstrates using Eventually for concurrent calls.

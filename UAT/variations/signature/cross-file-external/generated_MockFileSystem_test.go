@@ -3,8 +3,8 @@
 package crossfile_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	crossfile "github.com/toejough/imptest/UAT/variations/signature/cross-file-external"
-	_imptest "github.com/toejough/imptest/imptest"
 	os "os"
 	time "time"
 )

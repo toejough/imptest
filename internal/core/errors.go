@@ -1,4 +1,4 @@
-package imptest
+package core
 
 import "errors"
 

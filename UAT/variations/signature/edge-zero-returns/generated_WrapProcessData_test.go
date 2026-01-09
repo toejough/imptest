@@ -3,7 +3,7 @@
 package zero_returns_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // WrapProcessDataReturnsReturn holds the return values from the wrapped function.

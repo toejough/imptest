@@ -8,8 +8,8 @@ import (
 	"io/fs"
 	"testing"
 
+	imptest "github.com/toejough/imptest"
 	visitor "github.com/toejough/imptest/UAT/variations/behavior/callbacks"
-	imptest "github.com/toejough/imptest/imptest"
 )
 
 func TestCallbackMatcherSupport(t *testing.T) {

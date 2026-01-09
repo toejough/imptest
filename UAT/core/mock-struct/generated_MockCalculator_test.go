@@ -3,7 +3,7 @@
 package mockstruct_test
 
 import (
-	_imptest "github.com/toejough/imptest/imptest"
+	_imptest "github.com/toejough/imptest"
 )
 
 // CalculatorMockAddArgs holds typed arguments for Add.

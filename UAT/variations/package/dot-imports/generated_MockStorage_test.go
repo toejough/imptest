@@ -3,8 +3,8 @@
 package dotimports_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	helpers "github.com/toejough/imptest/UAT/variations/package/dot-imports/helpers"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // StorageMockHandle is the test handle for Storage.

@@ -62,7 +62,7 @@ func NewTemplateRegistry() (*TemplateRegistry, error) {
 package {{.PkgName}}
 
 import (
-	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsQualifier}}
+	{{.PkgImptest}} "github.com/toejough/imptest"{{if .NeedsQualifier}}
 	{{.Qualifier}} "{{.PkgPath}}"{{end}}{{range .AdditionalImports}}
 	{{.Alias}} "{{.Path}}"{{end}}
 )
@@ -254,7 +254,7 @@ func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers
 package {{.PkgName}}
 
 import (
-	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsReflect}}
+	{{.PkgImptest}} "github.com/toejough/imptest"{{if .NeedsReflect}}
 	{{.PkgReflect}} "reflect"{{end}}{{if .NeedsQualifier}}
 	{{.Qualifier}} "{{.PkgPath}}"{{end}}{{range .AdditionalImports}}
 	{{.Alias}} "{{.Path}}"{{end}}
@@ -496,7 +496,7 @@ package {{.PkgName}}
 
 import (
 	"testing"
-	{{.PkgImptest}} "github.com/toejough/imptest/imptest"{{if .NeedsReflect}}
+	{{.PkgImptest}} "github.com/toejough/imptest"{{if .NeedsReflect}}
 	{{.PkgReflect}} "reflect"{{end}}{{if .NeedsQualifier}}
 	{{.Qualifier}} "{{.PkgPath}}"{{end}}{{range .AdditionalImports}}
 	{{.Alias}} "{{.Path}}"{{end}}

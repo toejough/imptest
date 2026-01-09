@@ -3,8 +3,8 @@
 package noncomparable_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	noncomparable "github.com/toejough/imptest/UAT/variations/signature/non-comparable"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // DataProcessorMockHandle is the test handle for DataProcessor.

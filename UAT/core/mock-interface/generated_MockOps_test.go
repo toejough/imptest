@@ -3,8 +3,8 @@
 package basic_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	basic "github.com/toejough/imptest/UAT/core/mock-interface"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // OpsMockAddArgs holds typed arguments for Add.

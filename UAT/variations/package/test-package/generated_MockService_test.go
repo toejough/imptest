@@ -3,8 +3,8 @@
 package testpkgimport_test
 
 import (
+	_imptest "github.com/toejough/imptest"
 	testpkgimport "github.com/toejough/imptest/UAT/variations/package/test-package"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ServiceMockExecuteArgs holds typed arguments for Execute.

@@ -4,8 +4,8 @@ package mockfunction_test
 
 import (
 	context "context"
+	_imptest "github.com/toejough/imptest"
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
-	_imptest "github.com/toejough/imptest/imptest"
 )
 
 // ProcessOrderMockArgs holds typed arguments for ProcessOrder.

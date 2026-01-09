@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/toejough/imptest"
 	generics "github.com/toejough/imptest/UAT/variations/signature/generics"
-	"github.com/toejough/imptest/imptest"
 )
 
 // TestGenericCallable demonstrates how imptest supports generic functions.
