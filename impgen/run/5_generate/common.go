@@ -183,100 +183,40 @@ type baseGenerator struct {
 }
 
 // buildParamStrings builds the parameter string and collects parameter names from a function type.
-//
-//nolint:nestif // Complex logic for handling named/unnamed params
 func (baseGen *baseGenerator) buildParamStrings(
 	ftype *dst.FuncType,
 ) (paramsStr string, paramNames []string) {
-	var builder strings.Builder
+	if ftype.Params == nil {
+		return "", nil
+	}
 
-	first := true
+	var parts []string
 
-	if ftype.Params != nil {
-		for _, field := range ftype.Params.List {
-			fieldType := baseGen.typeWithQualifier(field.Type)
+	for _, field := range ftype.Params.List {
+		fieldType := baseGen.typeWithQualifier(field.Type)
+		names := fieldParamNames(field, len(paramNames))
 
-			if len(field.Names) > 0 {
-				for _, name := range field.Names {
-					if !first {
-						builder.WriteString(", ")
-					}
-
-					first = false
-
-					builder.WriteString(name.Name)
-					builder.WriteString(" ")
-					builder.WriteString(fieldType)
-
-					paramNames = append(paramNames, name.Name)
-				}
-			} else {
-				paramName := fmt.Sprintf("arg%d", len(paramNames)+1)
-
-				if !first {
-					builder.WriteString(", ")
-				}
-
-				first = false
-
-				builder.WriteString(paramName)
-				builder.WriteString(" ")
-				builder.WriteString(fieldType)
-
-				paramNames = append(paramNames, paramName)
-			}
+		for _, name := range names {
+			parts = append(parts, name+" "+fieldType)
+			paramNames = append(paramNames, name)
 		}
 	}
 
-	return builder.String(), paramNames
+	return strings.Join(parts, ", "), paramNames
 }
 
 // buildResultStrings builds the result string and collects result types from a function type.
-//
-//nolint:cyclop,nestif,intrange // Complex logic for formatting results
 func (baseGen *baseGenerator) buildResultStrings(
 	ftype *dst.FuncType,
 ) (resultsStr string, resultTypes []string) {
-	var builder strings.Builder
-
-	if ftype.Results != nil && len(ftype.Results.List) > 0 {
-		hasMultipleResults := len(ftype.Results.List) > 1 ||
-			(len(ftype.Results.List) == 1 && len(ftype.Results.List[0].Names) > 1)
-
-		if hasMultipleResults {
-			builder.WriteString(" (")
-		} else {
-			builder.WriteString(" ")
-		}
-
-		first := true
-
-		for _, field := range ftype.Results.List {
-			fieldType := baseGen.typeWithQualifier(field.Type)
-
-			count := len(field.Names)
-			if count == 0 {
-				count = 1
-			}
-
-			for i := 0; i < count; i++ {
-				if !first {
-					builder.WriteString(", ")
-				}
-
-				first = false
-
-				builder.WriteString(fieldType)
-				resultTypes = append(resultTypes, fieldType)
-			}
-		}
-
-		if hasMultipleResults {
-			builder.WriteString(")")
-		}
+	if ftype.Results == nil || len(ftype.Results.List) == 0 {
+		return "", nil
 	}
 
-	return builder.String(), resultTypes
+	resultTypes = baseGen.collectResultTypes(ftype.Results)
+	resultsStr = baseGen.formatResultTypes(ftype.Results, resultTypes)
+
+	return resultsStr, resultTypes
 }
 
 // checkIfQualifierNeeded pre-scans to determine if the package qualifier is needed.
@@ -345,6 +285,40 @@ func (baseGen *baseGenerator) collectAdditionalImportsFromInterface(
 	return result
 }
 
+// collectResultTypes extracts all result types from a field list.
+func (baseGen *baseGenerator) collectResultTypes(results *dst.FieldList) []string {
+	var types []string
+
+	for _, field := range results.List {
+		fieldType := baseGen.typeWithQualifier(field.Type)
+
+		count := len(field.Names)
+		if count == 0 {
+			count = 1
+		}
+
+		for range count {
+			types = append(types, fieldType)
+		}
+	}
+
+	return types
+}
+
+// formatResultTypes formats result types into a return type string.
+func (baseGen *baseGenerator) formatResultTypes(results *dst.FieldList, types []string) string {
+	hasMultiple := len(results.List) > 1 ||
+		(len(results.List) == 1 && len(results.List[0].Names) > 1)
+
+	joined := strings.Join(types, ", ")
+
+	if hasMultiple {
+		return " (" + joined + ")"
+	}
+
+	return " " + joined
+}
+
 // formatTypeParamsDecl formats type parameters for declaration.
 func (baseGen *baseGenerator) formatTypeParamsDecl() string {
 	return formatTypeParamsDecl(baseGen.fset, baseGen.typeParams)
@@ -403,8 +377,6 @@ type typeExprWalker[T any] struct {
 }
 
 // walk traverses an AST expression and returns the combined result.
-//
-//nolint:cyclop // Type-switch dispatcher handling all AST node types; complexity is inherent
 func (w *typeExprWalker[T]) walk(expr dst.Expr) T {
 	switch typeExpr := expr.(type) {
 	case *dst.Ident:
@@ -415,23 +387,16 @@ func (w *typeExprWalker[T]) walk(expr dst.Expr) T {
 		return w.walk(typeExpr.X)
 	case *dst.ArrayType:
 		return w.walk(typeExpr.Elt)
-	case *dst.MapType:
-		return w.combine(w.walk(typeExpr.Key), w.walk(typeExpr.Value))
 	case *dst.ChanType:
 		return w.walk(typeExpr.Value)
+	case *dst.MapType:
+		return w.walkMapType(typeExpr)
 	case *dst.FuncType:
 		return w.walkFieldList(typeExpr.Params, typeExpr.Results)
 	case *dst.StructType:
 		return w.walkFieldList(typeExpr.Fields)
-	case *dst.IndexExpr:
-		return w.combine(w.walk(typeExpr.X), w.walk(typeExpr.Index))
-	case *dst.IndexListExpr:
-		result := w.walk(typeExpr.X)
-		for _, idx := range typeExpr.Indices {
-			result = w.combine(result, w.walk(idx))
-		}
-
-		return result
+	case *dst.IndexExpr, *dst.IndexListExpr:
+		return w.walkIndexType(expr)
 	}
 
 	return w.zero
@@ -450,6 +415,32 @@ func (w *typeExprWalker[T]) walkFieldList(lists ...*dst.FieldList) T {
 	}
 
 	return result
+}
+
+func (w *typeExprWalker[T]) walkIndexListExpr(typeExpr *dst.IndexListExpr) T {
+	result := w.walk(typeExpr.X)
+	for _, idx := range typeExpr.Indices {
+		result = w.combine(result, w.walk(idx))
+	}
+
+	return result
+}
+
+// walkIndexType handles generic type indexing (IndexExpr and IndexListExpr).
+func (w *typeExprWalker[T]) walkIndexType(expr dst.Expr) T {
+	switch typeExpr := expr.(type) {
+	case *dst.IndexExpr:
+		return w.combine(w.walk(typeExpr.X), w.walk(typeExpr.Index))
+	case *dst.IndexListExpr:
+		return w.walkIndexListExpr(typeExpr)
+	}
+
+	return w.zero
+}
+
+// walkMapType handles map type traversal.
+func (w *typeExprWalker[T]) walkMapType(typeExpr *dst.MapType) T {
+	return w.combine(w.walk(typeExpr.Key), w.walk(typeExpr.Value))
 }
 
 // typeFormatter handles formatting AST types into strings with package qualifiers.
@@ -614,56 +605,40 @@ func buildResultReturnList(resultTypes []string) string {
 	return "(" + strings.Join(resultTypes, ", ") + ")"
 }
 
+// buildSourcePackageNameMap builds a map of package names to their import paths.
+func buildSourcePackageNameMap(sourceImports []*dst.ImportSpec) map[string]string {
+	result := make(map[string]string)
+
+	for _, imp := range sourceImports {
+		path := strings.Trim(imp.Path.Value, `"`)
+		pkgName := extractPackageNameFromImport(imp, path)
+		result[pkgName] = path
+	}
+
+	return result
+}
+
 // visitParams iterates over function parameters and calls the visitor for each.
 // The visitor receives each parameter with its type string and current indices,
 // and returns the updated indices for the next iteration.
 
 // buildVariadicArgs checks for variadic parameters and builds argument strings.
-//
-//nolint:cyclop // complexity from variadic handling
 func buildVariadicArgs(ftype *dst.FuncType, paramNames []string) variadicArgsResult {
-	var hasVariadic bool
+	hasVariadic := isVariadicFunc(ftype)
+	allArgs := strings.Join(paramNames, ", ")
 
-	var nonVariadicArgs, variadicArg, allArgs strings.Builder
-
-	if ftype.Params != nil && len(ftype.Params.List) > 0 {
-		lastField := ftype.Params.List[len(ftype.Params.List)-1]
-		_, hasVariadic = lastField.Type.(*dst.Ellipsis)
-	}
-
-	if hasVariadic && len(paramNames) > 0 {
-		for i := range len(paramNames) - 1 {
-			if i > 0 {
-				nonVariadicArgs.WriteString(", ")
-			}
-
-			nonVariadicArgs.WriteString(paramNames[i])
-		}
-
-		variadicArg.WriteString(paramNames[len(paramNames)-1])
-
-		for i, name := range paramNames {
-			if i > 0 {
-				allArgs.WriteString(", ")
-			}
-
-			allArgs.WriteString(name)
-		}
-	} else {
-		for i, name := range paramNames {
-			if i > 0 {
-				allArgs.WriteString(", ")
-			}
-
-			allArgs.WriteString(name)
+	if !hasVariadic || len(paramNames) == 0 {
+		return variadicArgsResult{
+			hasVariadic: hasVariadic,
+			allArgs:     allArgs,
 		}
 	}
 
 	return variadicArgsResult{
-		hasVariadic:     hasVariadic,
-		nonVariadicArgs: nonVariadicArgs.String(),
-		variadicArg:     variadicArg.String(),
-		allArgs:         allArgs.String(),
+		hasVariadic:     true,
+		nonVariadicArgs: strings.Join(paramNames[:len(paramNames)-1], ", "),
+		variadicArg:     paramNames[len(paramNames)-1],
+		allArgs:         allArgs,
 	}
 }
 
@@ -671,73 +646,23 @@ func buildVariadicArgs(ftype *dst.FuncType, paramNames []string) variadicArgsRes
 // from SelectorExpr nodes (e.g., "io.Reader", "os.FileMode").
 // It resolves each package reference to its full import path using the source imports.
 // For stdlib packages, it adds a "_" prefix when there's a naming conflict with non-stdlib imports.
-//
-//nolint:cyclop,nestif // Conflict detection requires nested checks; complexity is inherent
 func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []importInfo {
 	var imports []importInfo
 
-	seen := make(map[string]bool) // Deduplicate by import path
-
-	// Build a map of package names to their paths from source imports
-	// This helps us detect conflicts between stdlib and non-stdlib packages with the same name
-	sourcePackageNames := make(map[string]string) // name -> path
-
-	for _, imp := range sourceImports {
-		path := strings.Trim(imp.Path.Value, `"`)
-
-		var pkgName string
-		if imp.Name != nil {
-			pkgName = imp.Name.Name
-		} else {
-			// Extract package name from path
-			lastSlash := strings.LastIndex(path, "/")
-			if lastSlash >= 0 {
-				pkgName = path[lastSlash+1:]
-			} else {
-				pkgName = path
-			}
-		}
-
-		sourcePackageNames[pkgName] = path
-	}
+	seen := make(map[string]bool)
+	sourcePackageNames := buildSourcePackageNameMap(sourceImports)
 
 	walker := &typeExprWalker[struct{}]{
-		visitIdent: func(*dst.Ident) struct{} {
-			return struct{}{}
-		},
+		visitIdent: func(*dst.Ident) struct{} { return struct{}{} },
 		visitSelector: func(sel *dst.SelectorExpr) struct{} {
-			// Check if X is an identifier (package reference)
-			if ident, ok := sel.X.(*dst.Ident); ok {
-				pkgAlias := ident.Name
-				// Find the import path for this package alias
-				path := resolveImportPath(pkgAlias, sourceImports)
-				if path != "" && !seen[path] {
-					seen[path] = true
-
-					// Determine the alias to use
-					alias := pkgAlias
-					// If this is a stdlib package and there's a non-stdlib source import with the same name,
-					// prefix the stdlib package with "_" to avoid the conflict
-					if detect.IsStdlibPackage(path) && path == pkgAlias {
-						if existingPath, exists := sourcePackageNames[pkgAlias]; exists && !detect.IsStdlibPackage(existingPath) {
-							// There's a non-stdlib package with the same name - prefix the stdlib one
-							alias = "_" + pkgAlias
-						}
-					}
-
-					imports = append(imports, importInfo{
-						Alias: alias,
-						Path:  path,
-					})
-				}
+			if imp := collectImportFromSelector(sel, sourceImports, sourcePackageNames, seen); imp != nil {
+				imports = append(imports, *imp)
 			}
 
 			return struct{}{}
 		},
-		combine: func(_, _ struct{}) struct{} {
-			return struct{}{}
-		},
-		zero: struct{}{},
+		combine: func(_, _ struct{}) struct{} { return struct{}{} },
+		zero:    struct{}{},
 	}
 
 	walker.walk(expr)
@@ -745,59 +670,62 @@ func collectExternalImports(expr dst.Expr, sourceImports []*dst.ImportSpec) []im
 	return imports
 }
 
+// collectImportFromSelector extracts import info from a selector expression.
+func collectImportFromSelector(
+	sel *dst.SelectorExpr,
+	sourceImports []*dst.ImportSpec,
+	sourcePackageNames map[string]string,
+	seen map[string]bool,
+) *importInfo {
+	ident, ok := sel.X.(*dst.Ident)
+	if !ok {
+		return nil
+	}
+
+	pkgAlias := ident.Name
+	path := resolveImportPath(pkgAlias, sourceImports)
+
+	if path == "" || seen[path] {
+		return nil
+	}
+
+	seen[path] = true
+	alias := resolveAliasForImport(pkgAlias, path, sourcePackageNames)
+
+	return &importInfo{Alias: alias, Path: path}
+}
+
+// collectImportsFromFieldList collects imports from a field list into a map.
+func collectImportsFromFieldList(
+	fields *dst.FieldList,
+	sourceImports []*dst.ImportSpec,
+	allImports map[string]importInfo,
+) {
+	if fields == nil {
+		return
+	}
+
+	for _, field := range fields.List {
+		for _, imp := range collectExternalImports(field.Type, sourceImports) {
+			allImports[imp.Path] = imp
+		}
+	}
+}
+
 // collectImportsFromFuncDecl collects additional imports needed for a function declaration's parameters and returns.
 // This is shared logic used by both callableGenerator and targetGenerator.
-//
-//nolint:cyclop // Complexity from iterating params and results is unavoidable
 func collectImportsFromFuncDecl(funcDecl *dst.FuncDecl, astFiles []*dst.File) []importInfo {
 	if len(astFiles) == 0 {
 		return nil
 	}
 
-	// Get source imports from the first AST file
-	var sourceImports []*dst.ImportSpec
+	sourceImports := findSourceImports(astFiles)
+	allImports := make(map[string]importInfo)
 
-	for _, file := range astFiles {
-		if len(file.Imports) > 0 {
-			sourceImports = file.Imports
-			break
-		}
-	}
+	collectImportsFromFieldList(funcDecl.Type.Params, sourceImports, allImports)
+	collectImportsFromFieldList(funcDecl.Type.Results, sourceImports, allImports)
 
-	allImports := make(map[string]importInfo) // Deduplicate by path
-
-	// Collect from parameters
-	if funcDecl.Type.Params != nil {
-		for _, field := range funcDecl.Type.Params.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Collect from return types
-	if funcDecl.Type.Results != nil {
-		for _, field := range funcDecl.Type.Results.List {
-			imports := collectExternalImports(field.Type, sourceImports)
-			for _, imp := range imports {
-				allImports[imp.Path] = imp
-			}
-		}
-	}
-
-	// Convert map to slice and sort for deterministic output
-	result := make([]importInfo, 0, len(allImports))
-	for _, imp := range allImports {
-		result = append(result, imp)
-	}
-
-	// Sort by import path for consistent ordering
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Path < result[j].Path
-	})
-
-	return result
+	return sortedImportSlice(allImports)
 }
 
 // expandFieldListTypes expands a field list into individual type strings.
@@ -851,6 +779,20 @@ func extractFields(fields *dst.FieldList, prefix string) []fieldInfo {
 	return result
 }
 
+// extractPackageNameFromImport extracts the package name from an import spec.
+func extractPackageNameFromImport(imp *dst.ImportSpec, path string) string {
+	if imp.Name != nil {
+		return imp.Name.Name
+	}
+
+	lastSlash := strings.LastIndex(path, "/")
+	if lastSlash >= 0 {
+		return path[lastSlash+1:]
+	}
+
+	return path
+}
+
 // extractParams extracts parameter info from a function type.
 func extractParams(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
 	return extractFields(ftype.Params, "param")
@@ -861,6 +803,33 @@ func extractParams(_ *token.FileSet, ftype *dst.FuncType) []fieldInfo {
 func extractPkgNameFromPath(importPath string) string {
 	parts := strings.Split(importPath, "/")
 	return parts[len(parts)-1]
+}
+
+// fieldParamNames returns the parameter names for a field.
+// For named parameters, returns the names from the AST.
+// For unnamed parameters, generates a name like "arg1".
+func fieldParamNames(field *dst.Field, currentIndex int) []string {
+	if len(field.Names) > 0 {
+		names := make([]string, len(field.Names))
+		for i, name := range field.Names {
+			names[i] = name.Name
+		}
+
+		return names
+	}
+
+	return []string{fmt.Sprintf("arg%d", currentIndex+1)}
+}
+
+// findSourceImports finds the first non-empty imports from AST files.
+func findSourceImports(astFiles []*dst.File) []*dst.ImportSpec {
+	for _, file := range astFiles {
+		if len(file.Imports) > 0 {
+			return file.Imports
+		}
+	}
+
+	return nil
 }
 
 // extractResults extracts result info from a function type.
@@ -1039,6 +1008,18 @@ func isLocalPackage(importPath string) bool {
 	return strings.HasPrefix(importPath, modulePrefix)
 }
 
+// isVariadicFunc checks if the function has a variadic parameter.
+func isVariadicFunc(ftype *dst.FuncType) bool {
+	if ftype.Params == nil || len(ftype.Params.List) == 0 {
+		return false
+	}
+
+	lastField := ftype.Params.List[len(ftype.Params.List)-1]
+	_, isEllipsis := lastField.Type.(*dst.Ellipsis)
+
+	return isEllipsis
+}
+
 // isComparableExpr checks if an expression represents a comparable type.
 
 // For DST, we need to convert to AST to look up in types.Info
@@ -1089,56 +1070,29 @@ func normalizeVariadicType(typeStr string) string {
 // qualifyExternalTypes walks an expression and qualifies exported type identifiers
 // from an external package with the given qualifier.
 // E.g., transforms "ResponseWriter" to "http.ResponseWriter" when qualifier is "http".
-//
-//nolint:cyclop // Expression type switching inherently requires multiple cases
 func qualifyExternalTypes(expr dst.Expr, qualifier string) dst.Expr {
-	// Handle nil
 	if expr == nil {
 		return nil
 	}
 
 	switch node := expr.(type) {
 	case *dst.Ident:
-		// Only qualify exported identifiers (starts with uppercase)
-		// Skip builtins: error, string, int, bool, etc.
-		if isExportedIdent(node.Name) && !isBuiltinType(node.Name) {
-			return &dst.SelectorExpr{
-				X:   &dst.Ident{Name: qualifier},
-				Sel: node,
-			}
-		}
-
-		return node
-
+		return qualifyIdent(node, qualifier)
 	case *dst.StarExpr:
 		return &dst.StarExpr{X: qualifyExternalTypes(node.X, qualifier)}
-
 	case *dst.ArrayType:
-		return &dst.ArrayType{
-			Len: node.Len,
-			Elt: qualifyExternalTypes(node.Elt, qualifier),
-		}
-
+		return &dst.ArrayType{Len: node.Len, Elt: qualifyExternalTypes(node.Elt, qualifier)}
 	case *dst.MapType:
 		return &dst.MapType{
 			Key:   qualifyExternalTypes(node.Key, qualifier),
 			Value: qualifyExternalTypes(node.Value, qualifier),
 		}
-
 	case *dst.ChanType:
-		return &dst.ChanType{
-			Dir:   node.Dir,
-			Value: qualifyExternalTypes(node.Value, qualifier),
-		}
-
+		return &dst.ChanType{Dir: node.Dir, Value: qualifyExternalTypes(node.Value, qualifier)}
 	case *dst.SelectorExpr:
-		// Already qualified - leave as is
-		return node
-
+		return node // Already qualified
 	case *dst.FuncType:
-		// Recurse into function type params and results
 		return qualifyFuncType(node, qualifier)
-
 	default:
 		return node
 	}
@@ -1175,6 +1129,32 @@ func qualifyFuncType(funcType *dst.FuncType, qualifier string) *dst.FuncType {
 	}
 
 	return result
+}
+
+// qualifyIdent qualifies an identifier if it's an exported non-builtin type.
+func qualifyIdent(node *dst.Ident, qualifier string) dst.Expr {
+	if isExportedIdent(node.Name) && !isBuiltinType(node.Name) {
+		return &dst.SelectorExpr{
+			X:   &dst.Ident{Name: qualifier},
+			Sel: node,
+		}
+	}
+
+	return node
+}
+
+// resolveAliasForImport determines the alias to use for an import.
+// For stdlib packages with naming conflicts, adds a "_" prefix.
+func resolveAliasForImport(pkgAlias, path string, sourcePackageNames map[string]string) string {
+	if !detect.IsStdlibPackage(path) || path != pkgAlias {
+		return pkgAlias
+	}
+
+	if existingPath, exists := sourcePackageNames[pkgAlias]; exists && !detect.IsStdlibPackage(existingPath) {
+		return "_" + pkgAlias
+	}
+
+	return pkgAlias
 }
 
 // resolveImportPath finds the full import path for a package alias in the source imports.
@@ -1232,6 +1212,21 @@ func resolveInterfaceGeneratorPackage(
 	}
 
 	return "", "", nil
+}
+
+// sortedImportSlice converts an import map to a sorted slice.
+func sortedImportSlice(imports map[string]importInfo) []importInfo {
+	result := make([]importInfo, 0, len(imports))
+
+	for _, imp := range imports {
+		result = append(result, imp)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
+
+	return result
 }
 
 // stringifyDSTExpr delegates to astutil.StringifyExpr.
