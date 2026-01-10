@@ -331,9 +331,9 @@ func routeFunctionGenerator(
 ) (string, error) {
 	switch info.Mode {
 	case generate.NamingModeTarget:
-		return generate.GenerateTargetCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
+		return generate.TargetCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
 	case generate.NamingModeDependency:
-		return generate.GenerateFunctionDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
+		return generate.FunctionDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcDecl)
 	case generate.NamingModeDefault:
 		return "", ErrFunctionModeRequired
 	}
@@ -350,9 +350,9 @@ func routeFunctionTypeGenerator(
 ) (string, error) {
 	switch info.Mode {
 	case generate.NamingModeTarget:
-		return generate.GenerateTargetCodeFromFuncType(astFiles, info, fset, pkgPath, pkgLoader, funcType)
+		return generate.TargetCodeFromFuncType(astFiles, info, fset, pkgPath, pkgLoader, funcType)
 	case generate.NamingModeDependency:
-		return generate.GenerateFunctionTypeDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcType)
+		return generate.FunctionTypeDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcType)
 	case generate.NamingModeDefault:
 		return "", ErrFunctionModeRequired
 	}
@@ -369,9 +369,9 @@ func routeInterfaceGenerator(
 ) (string, error) {
 	switch info.Mode {
 	case generate.NamingModeDependency:
-		return generate.GenerateDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, iface)
+		return generate.DependencyCode(astFiles, info, fset, pkgPath, pkgLoader, iface)
 	case generate.NamingModeTarget:
-		return generate.GenerateInterfaceTargetCode(astFiles, info, fset, pkgPath, pkgLoader, iface, false)
+		return generate.InterfaceTargetCode(astFiles, info, fset, pkgPath, pkgLoader, iface, false)
 	case generate.NamingModeDefault:
 		return "", ErrInterfaceModeRequired
 	}
@@ -388,9 +388,9 @@ func routeStructGenerator(
 ) (string, error) {
 	switch info.Mode {
 	case generate.NamingModeTarget:
-		return generate.GenerateStructTargetCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+		return generate.StructTargetCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
 	case generate.NamingModeDependency:
-		return generate.GenerateStructDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
+		return generate.StructDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, structType)
 	case generate.NamingModeDefault:
 		return "", ErrFunctionModeRequired
 	}

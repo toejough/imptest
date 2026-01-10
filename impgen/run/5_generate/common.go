@@ -2,6 +2,7 @@ package generate
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/token"
 	"sort"
@@ -21,6 +22,11 @@ const (
 	NamingModeDefault NamingMode = iota
 	NamingModeTarget
 	NamingModeDependency
+)
+
+// Exported variables.
+var (
+	ErrNotPackageReference = errors.New("not a package reference")
 )
 
 // GeneratorInfo holds information gathered for generation.
@@ -149,8 +155,8 @@ func GetPackageInfo(
 
 	pkgPath, err = detect.FindImportPath(astFiles, pkgName, pkgLoader)
 	if err != nil {
-		// If it's not a package we know about, assume it's a local reference (e.g. MyType.MyMethod)
-		return "", "", nil //nolint:nilerr
+		// Not found as a package - likely a type method reference like Counter.Inc
+		return "", "", ErrNotPackageReference
 	}
 
 	return pkgPath, pkgName, nil

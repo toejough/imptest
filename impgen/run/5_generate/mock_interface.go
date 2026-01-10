@@ -10,10 +10,8 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// GenerateDependencyCode generates dependency mock code for an interface.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateDependencyCode(
+// DependencyCode generates dependency mock code for an interface.
+func DependencyCode(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,

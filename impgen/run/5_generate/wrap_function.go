@@ -10,10 +10,8 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// GenerateTargetCode generates target wrapper code for a function.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateTargetCode(
+// TargetCode generates target wrapper code for a function.
+func TargetCode(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,
@@ -29,11 +27,9 @@ func GenerateTargetCode(
 	return gen.generate()
 }
 
-// GenerateTargetCodeFromFuncType generates target wrapper code for a function type.
-// It creates a synthetic function declaration from the function type and delegates to GenerateTargetCode.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateTargetCodeFromFuncType(
+// TargetCodeFromFuncType generates target wrapper code for a function type.
+// It creates a synthetic function declaration from the function type and delegates to TargetCode.
+func TargetCodeFromFuncType(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,

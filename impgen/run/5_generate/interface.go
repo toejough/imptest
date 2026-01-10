@@ -473,27 +473,6 @@ func interfaceExpandEmbedded(
 	)
 }
 
-// interfaceExtractParamNames extracts or generates parameter names from a function type.
-
-// interfaceGenerateParamName generates a field name for an unnamed parameter
-// Uses common conventions: single string -> "S", single int -> "Input", multiple -> "A", "B", "C", etc.
-//
-
-// Remove common prefixes/suffixes for comparison
-
-// Single parameter cases
-
-//nolint:goconst,nolintlint // Type name comparison
-
-//nolint:goconst,nolintlint // Type name comparison
-
-// Multiple parameters - use A, B, C, etc.
-
-// Fallback
-
-// interfaceGetParamFieldName returns the struct field name for a parameter.
-// For named params, returns the name. For unnamed params, generates a name based on type/index.
-
 // interfaceProcessFieldMethods handles a single field in an interface's method list.
 func interfaceProcessFieldMethods(
 	field *dst.Field,
@@ -530,6 +509,11 @@ func resolvePackageInfo(info GeneratorInfo, pkgLoader detect.PackageLoader) (pkg
 		pkgLoader,
 		info.PkgName,
 	)
+	if errors.Is(err, ErrNotPackageReference) {
+		// Not a package reference (e.g., Counter.Inc) - no import needed
+		return "", "", nil
+	}
+
 	if err != nil {
 		return "", "", err
 	}

@@ -56,7 +56,7 @@ type callbackParamField struct {
 
 // depMethodTemplateData holds data for dependency impl method template.
 type depMethodTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
+	baseTemplateData //nolint:unused // Used in struct literal and accessed by templates
 
 	MethodName      string
 	InterfaceType   string
@@ -90,7 +90,7 @@ type depMethodTemplateData struct {
 
 // depTemplateData holds data for dependency mock templates.
 type depTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
+	baseTemplateData //nolint:unused // Used in struct literal and accessed by templates
 
 	MockName      string                  // Constructor function name (e.g., "MockOps")
 	MockTypeName  string                  // Struct type name (e.g., "OpsMock")
@@ -111,7 +111,7 @@ type importInfo struct {
 
 // interfaceTargetTemplateData holds data for interface target wrapper templates.
 type interfaceTargetTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
+	baseTemplateData //nolint:unused // Used in struct literal and accessed by templates
 
 	WrapName      string              // Constructor function name (e.g., "WrapLogger")
 	WrapperType   string              // Main wrapper struct type (e.g., "WrapLoggerWrapper")
@@ -177,7 +177,7 @@ type resultVar struct {
 
 // targetTemplateData holds data for target wrapper templates.
 type targetTemplateData struct {
-	baseTemplateData //nolint:unused // Used by templates
+	baseTemplateData //nolint:unused // Used in struct literal and accessed by templates
 
 	WrapName          string // Constructor function name (e.g., "WrapAdd")
 	WrapperType       string // Wrapper struct type (e.g., "WrapAddWrapper")

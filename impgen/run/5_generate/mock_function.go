@@ -10,10 +10,8 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// GenerateFunctionDependencyCode generates dependency mock code for a package-level function.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateFunctionDependencyCode(
+// FunctionDependencyCode generates dependency mock code for a package-level function.
+func FunctionDependencyCode(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,
@@ -29,11 +27,9 @@ func GenerateFunctionDependencyCode(
 	return gen.generate()
 }
 
-// GenerateFunctionTypeDependencyCode generates dependency mock code for a function type.
-// It creates a synthetic function declaration from the function type and delegates to GenerateFunctionDependencyCode.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateFunctionTypeDependencyCode(
+// FunctionTypeDependencyCode generates dependency mock code for a function type.
+// It creates a synthetic function declaration from the function type and delegates to FunctionDependencyCode.
+func FunctionTypeDependencyCode(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,
@@ -54,12 +50,12 @@ func GenerateFunctionTypeDependencyCode(
 		funcDecl.Type.TypeParams = funcTypeDetails.TypeParams
 	}
 
-	return GenerateFunctionDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
+	return FunctionDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
 }
 
 // funcDepTemplateData holds data for function dependency mock templates.
 type funcDepTemplateData struct {
-	baseTemplateData //nolint:unused // Embedded for template field access
+	baseTemplateData //nolint:unused // Used in struct literal and accessed by templates
 
 	MockName     string                // Constructor function name (e.g., "MockProcessOrder")
 	MockTypeName string                // Struct type name (e.g., "ProcessOrderMock")

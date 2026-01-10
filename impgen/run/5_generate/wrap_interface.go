@@ -10,10 +10,8 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// GenerateInterfaceTargetCode generates target wrapper code for an interface or struct type.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateInterfaceTargetCode(
+// InterfaceTargetCode generates target wrapper code for an interface or struct type.
+func InterfaceTargetCode(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,

@@ -8,12 +8,10 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// GenerateStructDependencyCode generates dependency mock code for a struct type.
+// StructDependencyCode generates dependency mock code for a struct type.
 // It converts the struct type into an interface-like representation by collecting all methods
 // on the struct, then delegates to the existing dependencyGenerator.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateStructDependencyCode(
+func StructDependencyCode(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,
@@ -58,15 +56,13 @@ func GenerateStructDependencyCode(
 	}
 
 	// Delegate to the existing dependencyGenerator
-	return GenerateDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails)
+	return DependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails)
 }
 
-// GenerateStructTargetCode generates target wrapper code for a struct type.
+// StructTargetCode generates target wrapper code for a struct type.
 // It converts the struct type into an interface-like representation by collecting all methods
 // on the struct, then delegates to the existing interfaceTargetGenerator.
-//
-//nolint:revive // stutter acceptable for exported API consistency
-func GenerateStructTargetCode(
+func StructTargetCode(
 	astFiles []*dst.File,
 	info GeneratorInfo,
 	fset *token.FileSet,
@@ -111,5 +107,5 @@ func GenerateStructTargetCode(
 
 	// Delegate to the existing interfaceTargetGenerator with isStructType=true
 	// The generator will create wrappers for all methods on the struct using pointer types
-	return GenerateInterfaceTargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails, true)
+	return InterfaceTargetCode(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceDetails, true)
 }
