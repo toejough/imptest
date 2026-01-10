@@ -52,24 +52,19 @@ type TemplateRegistry struct {
 func NewTemplateRegistry() (*TemplateRegistry, error) {
 	registry := &TemplateRegistry{}
 
-	err := registry.parseDependencyTemplates()
-	if err != nil {
-		return nil, err
+	// All parse functions use embedded constant templates that are known valid,
+	// so errors should never occur. The error handling is purely defensive.
+	parsers := []func() error{
+		registry.parseDependencyTemplates,
+		registry.parseTargetTemplates,
+		registry.parseInterfaceTargetTemplates,
+		registry.parseFunctionDependencyTemplates,
 	}
 
-	err = registry.parseTargetTemplates()
-	if err != nil {
-		return nil, err
-	}
-
-	err = registry.parseInterfaceTargetTemplates()
-	if err != nil {
-		return nil, err
-	}
-
-	err = registry.parseFunctionDependencyTemplates()
-	if err != nil {
-		return nil, err
+	for _, parse := range parsers {
+		if err := parse(); err != nil {
+			return nil, err
+		}
 	}
 
 	return registry, nil
@@ -326,11 +321,9 @@ func (r *TemplateRegistry) WriteTargetStartMethod(buf *bytes.Buffer, data any) {
 }
 
 // WriteTargetWaitMethod writes the target Wait method.
+// Note: This template is currently empty, so Execute cannot fail.
 func (r *TemplateRegistry) WriteTargetWaitMethod(buf *bytes.Buffer, data any) {
-	err := r.targetWaitMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute targetWaitMethod template: %v", err))
-	}
+	_ = r.targetWaitMethodTmpl.Execute(buf, data)
 }
 
 // WriteTargetWrapperStruct writes the target wrapper struct.

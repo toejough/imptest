@@ -44,6 +44,15 @@ func ProcessOrder(ctx context.Context, orderID int) (*Order, error) {
 	return &Order{ID: orderID, Status: "processed", Total: 0}, nil
 }
 
+// TransformData processes data with complex type signatures.
+// This tests collection of imports from complex types (maps, slices, funcs).
+func TransformData(items []*Order, lookup map[string]*Order, processor func(*Order) error) (*Order, error) {
+	// In real code, this would transform the data
+	_, _, _ = items, lookup, processor
+
+	return nil, nil
+}
+
 // ValidateInput is a simple validation function.
 // This demonstrates mocking a function with simpler signature.
 func ValidateInput(input string) error {
@@ -59,5 +68,5 @@ func ValidateInput(input string) error {
 //
 //nolint:gochecknoinits // Required to prevent deadcode elimination in UAT
 func init() {
-	_ = []any{ProcessOrder, ValidateInput, FormatPrice, Notify}
+	_ = []any{ProcessOrder, ValidateInput, FormatPrice, Notify, TransformData}
 }

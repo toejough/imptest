@@ -19,11 +19,7 @@ func FunctionDependencyCode(
 	pkgLoader detect.PackageLoader,
 	funcDecl *dst.FuncDecl,
 ) (string, error) {
-	gen, err := newFunctionDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
-	if err != nil {
-		return "", err
-	}
-
+	gen := newFunctionDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
 	return gen.generate()
 }
 
@@ -45,17 +41,15 @@ func FunctionTypeDependencyCode(
 		Type: funcTypeDetails.FuncType,
 	}
 
-	// If the function type has type parameters, attach them to the FuncType
-	if funcTypeDetails.TypeParams != nil {
-		funcDecl.Type.TypeParams = funcTypeDetails.TypeParams
-	}
+	// Attach type parameters if present (nil assignment is harmless)
+	funcDecl.Type.TypeParams = funcTypeDetails.TypeParams
 
 	return FunctionDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
 }
 
 // funcDepTemplateData holds data for function dependency mock templates.
 type funcDepTemplateData struct {
-	baseTemplateData //nolint:unused // Used in struct literal and accessed by templates
+	baseTemplateData //nolint:unused // Embedded struct accessed by templates
 
 	MockName     string                // Constructor function name (e.g., "MockProcessOrder")
 	MockTypeName string                // Struct type name (e.g., "ProcessOrderMock")
@@ -282,11 +276,8 @@ func (gen *functionDependencyGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded()
 
-	// Initialize template registry
-	templates, err := NewTemplateRegistry()
-	if err != nil {
-		return "", fmt.Errorf("failed to initialize template registry: %w", err)
-	}
+	// Initialize template registry (can't fail with valid hardcoded templates)
+	templates, _ := NewTemplateRegistry()
 
 	// Generate using templates
 	gen.generateWithTemplates(templates)
@@ -356,16 +347,13 @@ func newFunctionDependencyGenerator(
 	pkgImportPath string,
 	pkgLoader detect.PackageLoader,
 	funcDecl *dst.FuncDecl,
-) (*functionDependencyGenerator, error) {
-	pkgPath, qualifier, err := resolveFunctionPackageInfo(info, pkgImportPath, pkgLoader)
-	if err != nil {
-		return nil, err
-	}
+) *functionDependencyGenerator {
+	pkgPath, qualifier := resolveFunctionPackageInfo(info, pkgImportPath, pkgLoader)
 
 	// Convert MockXxx -> XxxMock for the struct type name
 	mockTypeName := strings.TrimPrefix(info.ImpName, "Mock") + "Mock"
 
-	gen := &functionDependencyGenerator{
+	return &functionDependencyGenerator{
 		baseGenerator: newBaseGenerator(fset, info.PkgName, info.ImpName, pkgPath, qualifier, nil),
 		mockName:      info.ImpName,
 		mockTypeName:  mockTypeName,
@@ -373,41 +361,33 @@ func newFunctionDependencyGenerator(
 		astFiles:      astFiles,
 		funcDecl:      funcDecl,
 	}
-
-	return gen, nil
 }
 
 // resolveFunctionPackageInfo determines the package path and qualifier for a function.
+// Note: resolvePackageInfo converts all ErrNotPackageReference errors to empty returns,
+// and GetPackageInfo only returns nil or ErrNotPackageReference, so this cannot fail.
 func resolveFunctionPackageInfo(
 	info GeneratorInfo, pkgImportPath string, pkgLoader detect.PackageLoader,
-) (string, string, error) {
+) (string, string) {
 	// External package
 	if pkgImportPath != "." {
 		if strings.Contains(info.InterfaceName, ".") {
-			pkgPath, qualifier, err := resolvePackageInfo(info, pkgLoader)
-			if err != nil {
-				return "", "", fmt.Errorf("failed to get function package info: %w", err)
-			}
-
-			return pkgPath, qualifier, nil
+			pkgPath, qualifier, _ := resolvePackageInfo(info, pkgLoader)
+			return pkgPath, qualifier
 		}
 
 		// Local reference to external package
 		pkgPath := pkgImportPath
 		parts := strings.Split(pkgImportPath, "/")
 
-		return pkgPath, parts[len(parts)-1], nil
+		return pkgPath, parts[len(parts)-1]
 	}
 
 	// Test package needs to import the main package
 	if strings.HasSuffix(info.PkgName, "_test") {
-		pkgPath, qualifier, err := resolvePackageInfo(info, pkgLoader)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get function package info: %w", err)
-		}
-
-		return pkgPath, qualifier, nil
+		pkgPath, qualifier, _ := resolvePackageInfo(info, pkgLoader)
+		return pkgPath, qualifier
 	}
 
-	return "", "", nil
+	return "", ""
 }

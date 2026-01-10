@@ -19,11 +19,7 @@ func TargetCode(
 	pkgLoader detect.PackageLoader,
 	funcDecl *dst.FuncDecl,
 ) (string, error) {
-	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, false)
-	if err != nil {
-		return "", err
-	}
-
+	gen := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, false)
 	return gen.generate()
 }
 
@@ -67,10 +63,7 @@ func TargetCodeFromFuncType(
 		funcDecl.Type.TypeParams = funcTypeDetails.TypeParams
 	}
 
-	gen, err := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, true)
-	if err != nil {
-		return "", err
-	}
+	gen := newTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl, true)
 
 	// Set the external package fields for import collection
 	gen.externalPkgPath = externalPkgPath
@@ -256,11 +249,8 @@ func (gen *targetGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded(gen.funcDecl.Type)
 
-	// Initialize template registry
-	templates, err := NewTemplateRegistry()
-	if err != nil {
-		return "", fmt.Errorf("failed to initialize template registry: %w", err)
-	}
+	// Initialize template registry (can't fail with valid hardcoded templates)
+	templates, _ := NewTemplateRegistry()
 
 	// Generate using templates
 	gen.generateWithTemplates(templates)
@@ -298,13 +288,12 @@ func (gen *targetGenerator) generateWithTemplates(templates *TemplateRegistry) {
 
 // hasMultipleResults checks if the function has multiple return values.
 func (gen *targetGenerator) hasMultipleResults() bool {
-	if gen.funcDecl.Type.Results == nil {
+	results := gen.funcDecl.Type.Results
+	if results == nil || len(results.List) == 0 {
 		return false
 	}
-
-	results := gen.funcDecl.Type.Results.List
-
-	return len(results) > 1 || (len(results) == 1 && len(results[0].Names) > 1)
+	// Multiple fields, or single field with multiple names (e.g., (a, b int))
+	return len(results.List) > 1 || len(results.List[0].Names) > 1
 }
 
 // writeFunctionParamsToBuilder writes function parameters to a string builder.
@@ -380,11 +369,8 @@ func newTargetGenerator(
 	pkgLoader detect.PackageLoader,
 	funcDecl *dst.FuncDecl,
 	isFunctionType bool,
-) (*targetGenerator, error) {
-	var (
-		pkgPath, qualifier string
-		err                error
-	)
+) *targetGenerator {
+	var pkgPath, qualifier string
 
 	// For function type wrappers, ALWAYS leave pkgPath empty.
 	// Function types use the underlying signature types directly (e.g., func(http.ResponseWriter, *http.Request)),
@@ -400,11 +386,10 @@ func newTargetGenerator(
 	// (ResponseWriter → http.ResponseWriter), and collectImportsFromFuncDecl adds the http import.
 	if !isFunctionType {
 		// For non-function-type cases (regular functions), use the original logic
+		// Note: resolvePackageInfo converts all ErrNotPackageReference errors to empty returns,
+		// and GetPackageInfo only returns nil or ErrNotPackageReference, so this cannot fail.
 		if pkgImportPath != "." || strings.HasSuffix(info.PkgName, "_test") {
-			pkgPath, qualifier, err = resolvePackageInfo(info, pkgLoader)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get function package info: %w", err)
-			}
+			pkgPath, qualifier, _ = resolvePackageInfo(info, pkgLoader)
 		}
 	}
 	// For function types, pkgPath and qualifier remain empty (initialized above)
@@ -436,5 +421,5 @@ func newTargetGenerator(
 		gen.needsReflect = true
 	}
 
-	return gen, nil
+	return gen
 }

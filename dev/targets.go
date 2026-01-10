@@ -30,6 +30,22 @@ import (
 	"github.com/toejough/targ/sh"
 )
 
+// Types
+
+// BaselineTestSpec specifies a baseline test for redundancy analysis.
+type BaselineTestSpec struct {
+	Package     string // Package path (e.g., "./impgen/run" or "./UAT/...")
+	TestPattern string // Test name pattern for -run flag (empty string runs all tests in package)
+}
+
+// RedundancyConfig configures the redundant test analysis.
+type RedundancyConfig struct {
+	BaselineTests     []BaselineTestSpec // Tests that form the baseline coverage
+	CoverageThreshold float64            // Percentage threshold (e.g., 80.0 for 80%)
+	PackageToAnalyze  string             // Package containing tests to analyze (e.g., "./impgen/run")
+	CoveragePackages  string             // Packages to measure coverage for (e.g., "./impgen/...,./imptest/...")
+}
+
 // Build builds the local impgen binary.
 func Build() error {
 	fmt.Println("Building impgen...")
@@ -282,18 +298,6 @@ func DeleteDeadcode() error {
 	return nil
 }
 
-// FixImports fixes all imports in the codebase.
-func FixImports() error {
-	fmt.Println("Fixing imports...")
-	return sh.Run("goimports", "-w", ".")
-}
-
-// Fuzz runs the fuzz tests.
-func Fuzz() error {
-	fmt.Println("Running fuzz tests...")
-	return sh.Run("./dev/fuzz.fish")
-}
-
 // FindRedundantTests identifies unit tests that don't provide unique coverage beyond golden+UAT tests.
 // This is a convenience wrapper for this repository's specific configuration.
 func FindRedundantTests() error {
@@ -310,6 +314,567 @@ func FindRedundantTests() error {
 	}
 
 	return findRedundantTestsWithConfig(config)
+}
+
+// FixImports fixes all imports in the codebase.
+func FixImports() error {
+	fmt.Println("Fixing imports...")
+	return sh.Run("goimports", "-w", ".")
+}
+
+// Fuzz runs the fuzz tests.
+func Fuzz() error {
+	fmt.Println("Running fuzz tests...")
+	return sh.Run("./dev/fuzz.fish")
+}
+
+// Generate runs go generate on all packages using the locally-built impgen binary.
+func Generate() error {
+	fmt.Println("Generating...")
+
+	if err := targ.Deps(Build); err != nil {
+		return err
+	}
+
+	// Get current PATH and prepend our bin directory
+	currentPath := os.Getenv("PATH")
+
+	binDir, err := filepath.Abs("bin")
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for bin: %w", err)
+	}
+
+	newPath := binDir + string(filepath.ListSeparator) + currentPath
+
+	// Run go generate with modified PATH
+	cmd := exec.Command("go", "generate", "./...")
+	cmd.Env = append(os.Environ(), "PATH="+newPath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+// InstallTools installs development tooling.
+func InstallTools() error {
+	fmt.Println("Installing development tools...")
+	return sh.Run("./dev/dev-install.sh")
+}
+
+// Lint lints the codebase.
+func Lint() error {
+	fmt.Println("Linting...")
+	return sh.Run("golangci-lint", "run", "-c", "dev/golangci.toml")
+}
+
+// LintForFail lints the codebase purely to find out whether anything fails.
+func LintForFail() error {
+	fmt.Println("Linting to check for overall pass/fail...")
+
+	return sh.Run(
+		"golangci-lint", "run",
+		"-c", "dev/golangci.toml",
+		"--fix=false",
+		"--max-issues-per-linter=1",
+		"--max-same-issues=1",
+		"--allow-parallel-runners",
+	)
+}
+
+// Modernize updates the codebase to use modern Go patterns.
+func Modernize() error {
+	fmt.Println("Modernizing codebase...")
+
+	return sh.Run("go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
+		"-fix", "./...")
+}
+
+// Mutate runs the mutation tests.
+func Mutate() error {
+	fmt.Println("Running mutation tests...")
+
+	if err := targ.Deps(TestForFail); err != nil {
+		return err
+	}
+
+	return sh.Run(
+		"go",
+		"test",
+		"-timeout=6000s",
+		"-tags=mutation",
+		"-ooze.v",
+		"./...",
+		"-run=TestMutation",
+	)
+}
+
+// ReorderDecls reorders declarations in Go files per conventions.
+func ReorderDecls() error {
+	fmt.Println("Reordering declarations...")
+
+	files, err := globs(".", []string{".go"})
+	if err != nil {
+		return fmt.Errorf("failed to find Go files: %w", err)
+	}
+
+	reorderedCount := 0
+
+	for _, file := range files {
+		// Skip generated files by name pattern
+		if strings.Contains(file, "generated_") {
+			continue
+		}
+		// Skip vendor
+		if strings.HasPrefix(file, "vendor/") {
+			continue
+		}
+		// Skip hidden directories
+		if strings.Contains(file, "/.") {
+			continue
+		}
+
+		// Skip files with generated markers (e.g., .qtpl.go files)
+		isGenerated, err := isGeneratedFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to check if %s is generated: %w", file, err)
+		}
+
+		if isGenerated {
+			continue
+		}
+
+		// Read file
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", file, err)
+		}
+
+		// Reorder
+		reordered, err := reorder.Source(string(content))
+		if err != nil {
+			fmt.Printf("Warning: failed to reorder %s: %v\n", file, err)
+
+			continue
+		}
+
+		// Write back if changed
+		if string(content) != reordered {
+			err = os.WriteFile(file, []byte(reordered), 0o600)
+			if err != nil {
+				return fmt.Errorf("failed to write %s: %w", file, err)
+			}
+
+			fmt.Printf("  Reordered: %s\n", file)
+			reorderedCount++
+		}
+	}
+
+	fmt.Printf("Reordered %d file(s).\n", reorderedCount)
+
+	return nil
+}
+
+// ReorderDeclsCheck checks which files need reordering without modifying them.
+func ReorderDeclsCheck() error {
+	fmt.Println("Checking declaration order...")
+
+	files, err := globs(".", []string{".go"})
+	if err != nil {
+		return fmt.Errorf("failed to find Go files: %w", err)
+	}
+
+	outOfOrderFiles := 0
+	filesProcessed := 0
+
+	for _, file := range files {
+		// Skip generated files by name pattern
+		if strings.Contains(file, "generated_") {
+			continue
+		}
+		// Skip vendor
+		if strings.HasPrefix(file, "vendor/") {
+			continue
+		}
+		// Skip hidden directories
+		if strings.Contains(file, "/.") {
+			continue
+		}
+
+		// Skip files with generated markers (e.g., .qtpl.go files)
+		isGenerated, err := isGeneratedFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to check if %s is generated: %w", file, err)
+		}
+
+		if isGenerated {
+			continue
+		}
+
+		// Read file
+		content, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", file, err)
+		}
+
+		// Analyze section order
+		sectionOrder, err := reorder.AnalyzeSectionOrder(string(content))
+		if err != nil {
+			fmt.Printf("Warning: failed to analyze %s: %v\n", file, err)
+
+			continue
+		}
+
+		filesProcessed++
+
+		// Get reordered version
+		reordered, err := reorder.Source(string(content))
+		if err != nil {
+			fmt.Printf("Warning: failed to reorder %s: %v\n", file, err)
+
+			continue
+		}
+
+		// Check if reordering would change the file
+		if string(content) != reordered {
+			outOfOrderFiles++
+			fmt.Printf("\n%s:\n", file)
+
+			// Print section analysis
+			fmt.Println("  Current order:")
+
+			for i, section := range sectionOrder.Sections {
+				posStr := fmt.Sprintf("%d", i+1)
+				expectedNote := ""
+
+				if section.Expected != i+1 {
+					expectedNote = fmt.Sprintf(" <- should be #%d", section.Expected)
+				}
+
+				fmt.Printf("    %s. %-24s%s\n", posStr, section.Name, expectedNote)
+			}
+
+			// Identify sections that are out of place
+			outOfPlace := []string{}
+
+			for i, section := range sectionOrder.Sections {
+				if section.Expected != i+1 {
+					outOfPlace = append(outOfPlace, fmt.Sprintf("%s (at #%d, should be #%d)",
+						section.Name, i+1, section.Expected))
+				}
+			}
+
+			if len(outOfPlace) > 0 {
+				fmt.Printf("  Sections out of place: %s\n", strings.Join(outOfPlace, ", "))
+			}
+
+			// Show diff
+			diff := textdiff.Unified(file+" (current)", file+" (reordered)", string(content), reordered)
+			if diff != "" {
+				fmt.Printf("\n%s\n", diff)
+			}
+		}
+	}
+
+	if outOfOrderFiles > 0 {
+		fmt.Printf("\n%d file(s) need reordering (out of %d processed). Run 'targ reorder-decls' to fix.\n", outOfOrderFiles, filesProcessed)
+
+		return fmt.Errorf("%d file(s) need reordering", outOfOrderFiles)
+	}
+
+	fmt.Printf("All files are correctly ordered (%d files processed).\n", filesProcessed)
+
+	return nil
+}
+
+// Test runs the unit tests.
+func Test() error {
+	fmt.Println("Running unit tests...")
+
+	if err := targ.Deps(Generate); err != nil {
+		return err
+	}
+
+	// Skip TestRaceRegression tests in CI runs
+	// Use -count=1 to disable caching so coverage is regenerated
+	err := sh.Run(
+		"go",
+		"test",
+		"-timeout=2m",
+		"-race",
+		"-count=1",
+		"-skip=TestRaceRegression",
+		"-coverprofile=coverage.out",
+		"-coverpkg=./impgen/...,./imptest/...",
+		"-cover",
+		"./...",
+	)
+	if err != nil {
+		return err
+	}
+
+	// Strip main.go and .qtpl coverage lines from coverage.out
+	data, err := os.ReadFile("coverage.out")
+	if err != nil {
+		return fmt.Errorf("failed to read coverage.out: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var filtered []string
+
+	for _, line := range lines {
+		if !strings.Contains(line, "/main.go:") && !strings.Contains(line, ".qtpl:") {
+			filtered = append(filtered, line)
+		}
+	}
+
+	err = os.WriteFile("coverage.out", []byte(strings.Join(filtered, "\n")), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write coverage.out: %w", err)
+	}
+
+	return nil
+}
+
+// TestForFail runs the unit tests purely to find out whether any fail.
+func TestForFail() error {
+	fmt.Println("Running unit tests for overall pass/fail...")
+
+	if err := targ.Deps(Generate); err != nil {
+		return err
+	}
+
+	return sh.Run(
+		"go",
+		"test",
+		"-timeout=10s",
+		"./...",
+		"-failfast",
+	)
+}
+
+// Tidy tidies up go.mod.
+func Tidy() error {
+	fmt.Println("Tidying go.mod...")
+	return sh.Run("go", "mod", "tidy")
+}
+
+// TodoCheck checks for TODO and FIXME comments using golangci-lint.
+func TodoCheck() error {
+	fmt.Println("Checking for TODOs...")
+	return sh.Run("golangci-lint", "run", "-c", "dev/golangci-todos.toml")
+}
+
+// Watch re-runs Check whenever files change.
+func Watch(ctx context.Context) error {
+	fmt.Println("Watching...")
+
+	return file.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, file.WatchOptions{}, func(_ file.ChangeSet) error {
+		fmt.Println("Change detected...")
+
+		err := Check()
+		if err != nil {
+			fmt.Printf("continuing to watch after check failure:\n  %s\n", err)
+		} else {
+			fmt.Println("continuing to watch after all checks passed!")
+		}
+
+		return nil // Don't stop watching on error
+	})
+}
+
+type coverageBlock struct {
+	file       string
+	startLine  int
+	startCol   int
+	endLine    int
+	endCol     int
+	statements int
+	count      int
+}
+
+// coveredLine represents a single line covered by a test.
+type coveredLine struct {
+	file string
+	line int
+}
+
+type deadFunc struct {
+	name string
+	line int
+}
+
+type lineAndCoverage struct {
+	line     string
+	coverage float64
+}
+
+type position struct {
+	line int
+	col  int
+}
+
+func (p position) compare(other position) int {
+	if p.line < other.line {
+		return -1
+	}
+
+	if p.line > other.line {
+		return 1
+	}
+
+	if p.col < other.col {
+		return -1
+	}
+
+	if p.col > other.col {
+		return 1
+	}
+
+	return 0
+}
+
+type segment struct {
+	start position
+	end   position
+	count int
+}
+
+// testInfo holds a test function name with its package.
+type testInfo struct {
+	pkg  string
+	name string
+}
+
+// qualifiedName returns the package-qualified test name (pkg:TestName).
+func (t testInfo) qualifiedName() string {
+	return t.pkg + ":" + t.name
+}
+
+// Helper Functions
+
+func deleteDeadFunctionsFromFile(filename string, funcs []deadFunc) (int, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	fset := token.NewFileSet()
+
+	file, err := parser.ParseFile(fset, filename, content, parser.ParseComments)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse file: %w", err)
+	}
+
+	toDelete := make(map[string]bool)
+	for _, f := range funcs {
+		toDelete[f.name] = true
+	}
+
+	newDecls := []ast.Decl{}
+	deleted := 0
+
+	for _, decl := range file.Decls {
+		keep := true
+
+		if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+			funcName := funcDecl.Name.Name
+
+			if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
+				recvType := funcDecl.Recv.List[0].Type
+				var typeName string
+
+				switch t := recvType.(type) {
+				case *ast.StarExpr:
+					if ident, ok := t.X.(*ast.Ident); ok {
+						typeName = ident.Name
+					}
+				case *ast.Ident:
+					typeName = t.Name
+				}
+
+				fullName := typeName + "." + funcName
+				if toDelete[fullName] || toDelete[funcName] {
+					keep = false
+				}
+			} else {
+				if toDelete[funcName] {
+					keep = false
+				}
+			}
+		}
+
+		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
+			for _, spec := range genDecl.Specs {
+				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+					if toDelete[typeSpec.Name.Name] {
+						keep = false
+					}
+				}
+			}
+		}
+
+		if keep {
+			newDecls = append(newDecls, decl)
+		} else {
+			deleted++
+		}
+	}
+
+	if deleted == 0 {
+		return 0, nil
+	}
+
+	file.Decls = newDecls
+
+	var buf bytes.Buffer
+
+	err = printer.Fprint(&buf, fset, file)
+	if err != nil {
+		return 0, fmt.Errorf("failed to print AST: %w", err)
+	}
+
+	err = os.WriteFile(filename, buf.Bytes(), 0o600)
+	if err != nil {
+		return 0, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	fmt.Printf("  %s: deleted %d declarations\n", filename, deleted)
+
+	return deleted, nil
+}
+
+// filterQtplFromCoverage removes .qtpl template file entries from a coverage file.
+func filterQtplFromCoverage(inputFile, outputFile string) error {
+	data, err := os.ReadFile(inputFile)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", inputFile, err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) == 0 {
+		return fmt.Errorf("empty coverage file: %s", inputFile)
+	}
+
+	// Keep mode line, filter out .qtpl entries
+	filtered := []string{lines[0]} // mode line
+
+	for _, line := range lines[1:] {
+		if line == "" || strings.Contains(line, ".qtpl:") {
+			continue
+		}
+
+		filtered = append(filtered, line)
+	}
+
+	result := strings.Join(filtered, "\n")
+
+	err = os.WriteFile(outputFile, []byte(result), 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", outputFile, err)
+	}
+
+	return nil
 }
 
 // findRedundantTestsWithConfig identifies unit tests that don't provide unique coverage beyond baseline tests.
@@ -702,751 +1267,6 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 	return nil
 }
 
-// Generate runs go generate on all packages using the locally-built impgen binary.
-func Generate() error {
-	fmt.Println("Generating...")
-
-	if err := targ.Deps(Build); err != nil {
-		return err
-	}
-
-	// Get current PATH and prepend our bin directory
-	currentPath := os.Getenv("PATH")
-
-	binDir, err := filepath.Abs("bin")
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for bin: %w", err)
-	}
-
-	newPath := binDir + string(filepath.ListSeparator) + currentPath
-
-	// Run go generate with modified PATH
-	cmd := exec.Command("go", "generate", "./...")
-	cmd.Env = append(os.Environ(), "PATH="+newPath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
-}
-
-// InstallTools installs development tooling.
-func InstallTools() error {
-	fmt.Println("Installing development tools...")
-	return sh.Run("./dev/dev-install.sh")
-}
-
-// Lint lints the codebase.
-func Lint() error {
-	fmt.Println("Linting...")
-	return sh.Run("golangci-lint", "run", "-c", "dev/golangci.toml")
-}
-
-// LintForFail lints the codebase purely to find out whether anything fails.
-func LintForFail() error {
-	fmt.Println("Linting to check for overall pass/fail...")
-
-	return sh.Run(
-		"golangci-lint", "run",
-		"-c", "dev/golangci.toml",
-		"--fix=false",
-		"--max-issues-per-linter=1",
-		"--max-same-issues=1",
-		"--allow-parallel-runners",
-	)
-}
-
-// Modernize updates the codebase to use modern Go patterns.
-func Modernize() error {
-	fmt.Println("Modernizing codebase...")
-
-	return sh.Run("go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
-		"-fix", "./...")
-}
-
-// Mutate runs the mutation tests.
-func Mutate() error {
-	fmt.Println("Running mutation tests...")
-
-	if err := targ.Deps(TestForFail); err != nil {
-		return err
-	}
-
-	return sh.Run(
-		"go",
-		"test",
-		"-timeout=6000s",
-		"-tags=mutation",
-		"-ooze.v",
-		"./...",
-		"-run=TestMutation",
-	)
-}
-
-// ReorderDecls reorders declarations in Go files per conventions.
-func ReorderDecls() error {
-	fmt.Println("Reordering declarations...")
-
-	files, err := globs(".", []string{".go"})
-	if err != nil {
-		return fmt.Errorf("failed to find Go files: %w", err)
-	}
-
-	reorderedCount := 0
-
-	for _, file := range files {
-		// Skip generated files by name pattern
-		if strings.Contains(file, "generated_") {
-			continue
-		}
-		// Skip vendor
-		if strings.HasPrefix(file, "vendor/") {
-			continue
-		}
-		// Skip hidden directories
-		if strings.Contains(file, "/.") {
-			continue
-		}
-
-		// Skip files with generated markers (e.g., .qtpl.go files)
-		isGenerated, err := isGeneratedFile(file)
-		if err != nil {
-			return fmt.Errorf("failed to check if %s is generated: %w", file, err)
-		}
-
-		if isGenerated {
-			continue
-		}
-
-		// Read file
-		content, err := os.ReadFile(file)
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", file, err)
-		}
-
-		// Reorder
-		reordered, err := reorder.Source(string(content))
-		if err != nil {
-			fmt.Printf("Warning: failed to reorder %s: %v\n", file, err)
-
-			continue
-		}
-
-		// Write back if changed
-		if string(content) != reordered {
-			err = os.WriteFile(file, []byte(reordered), 0o600)
-			if err != nil {
-				return fmt.Errorf("failed to write %s: %w", file, err)
-			}
-
-			fmt.Printf("  Reordered: %s\n", file)
-			reorderedCount++
-		}
-	}
-
-	fmt.Printf("Reordered %d file(s).\n", reorderedCount)
-
-	return nil
-}
-
-// ReorderDeclsCheck checks which files need reordering without modifying them.
-func ReorderDeclsCheck() error {
-	fmt.Println("Checking declaration order...")
-
-	files, err := globs(".", []string{".go"})
-	if err != nil {
-		return fmt.Errorf("failed to find Go files: %w", err)
-	}
-
-	outOfOrderFiles := 0
-	filesProcessed := 0
-
-	for _, file := range files {
-		// Skip generated files by name pattern
-		if strings.Contains(file, "generated_") {
-			continue
-		}
-		// Skip vendor
-		if strings.HasPrefix(file, "vendor/") {
-			continue
-		}
-		// Skip hidden directories
-		if strings.Contains(file, "/.") {
-			continue
-		}
-
-		// Skip files with generated markers (e.g., .qtpl.go files)
-		isGenerated, err := isGeneratedFile(file)
-		if err != nil {
-			return fmt.Errorf("failed to check if %s is generated: %w", file, err)
-		}
-
-		if isGenerated {
-			continue
-		}
-
-		// Read file
-		content, err := os.ReadFile(file)
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", file, err)
-		}
-
-		// Analyze section order
-		sectionOrder, err := reorder.AnalyzeSectionOrder(string(content))
-		if err != nil {
-			fmt.Printf("Warning: failed to analyze %s: %v\n", file, err)
-
-			continue
-		}
-
-		filesProcessed++
-
-		// Get reordered version
-		reordered, err := reorder.Source(string(content))
-		if err != nil {
-			fmt.Printf("Warning: failed to reorder %s: %v\n", file, err)
-
-			continue
-		}
-
-		// Check if reordering would change the file
-		if string(content) != reordered {
-			outOfOrderFiles++
-			fmt.Printf("\n%s:\n", file)
-
-			// Print section analysis
-			fmt.Println("  Current order:")
-
-			for i, section := range sectionOrder.Sections {
-				posStr := fmt.Sprintf("%d", i+1)
-				expectedNote := ""
-
-				if section.Expected != i+1 {
-					expectedNote = fmt.Sprintf(" <- should be #%d", section.Expected)
-				}
-
-				fmt.Printf("    %s. %-24s%s\n", posStr, section.Name, expectedNote)
-			}
-
-			// Identify sections that are out of place
-			outOfPlace := []string{}
-
-			for i, section := range sectionOrder.Sections {
-				if section.Expected != i+1 {
-					outOfPlace = append(outOfPlace, fmt.Sprintf("%s (at #%d, should be #%d)",
-						section.Name, i+1, section.Expected))
-				}
-			}
-
-			if len(outOfPlace) > 0 {
-				fmt.Printf("  Sections out of place: %s\n", strings.Join(outOfPlace, ", "))
-			}
-
-			// Show diff
-			diff := textdiff.Unified(file+" (current)", file+" (reordered)", string(content), reordered)
-			if diff != "" {
-				fmt.Printf("\n%s\n", diff)
-			}
-		}
-	}
-
-	if outOfOrderFiles > 0 {
-		fmt.Printf("\n%d file(s) need reordering (out of %d processed). Run 'targ reorder-decls' to fix.\n", outOfOrderFiles, filesProcessed)
-
-		return fmt.Errorf("%d file(s) need reordering", outOfOrderFiles)
-	}
-
-	fmt.Printf("All files are correctly ordered (%d files processed).\n", filesProcessed)
-
-	return nil
-}
-
-// Test runs the unit tests.
-func Test() error {
-	fmt.Println("Running unit tests...")
-
-	if err := targ.Deps(Generate); err != nil {
-		return err
-	}
-
-	// Skip TestRaceRegression tests in CI runs
-	err := sh.Run(
-		"go",
-		"test",
-		"-timeout=2m",
-		"-race",
-		"-skip=TestRaceRegression",
-		"-coverprofile=coverage.out",
-		"-coverpkg=./impgen/...,./imptest/...",
-		"-cover",
-		"./...",
-	)
-	if err != nil {
-		return err
-	}
-
-	// Strip main.go and .qtpl coverage lines from coverage.out
-	data, err := os.ReadFile("coverage.out")
-	if err != nil {
-		return fmt.Errorf("failed to read coverage.out: %w", err)
-	}
-
-	lines := strings.Split(string(data), "\n")
-	var filtered []string
-
-	for _, line := range lines {
-		if !strings.Contains(line, "/main.go:") && !strings.Contains(line, ".qtpl:") {
-			filtered = append(filtered, line)
-		}
-	}
-
-	err = os.WriteFile("coverage.out", []byte(strings.Join(filtered, "\n")), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write coverage.out: %w", err)
-	}
-
-	return nil
-}
-
-// TestForFail runs the unit tests purely to find out whether any fail.
-func TestForFail() error {
-	fmt.Println("Running unit tests for overall pass/fail...")
-
-	if err := targ.Deps(Generate); err != nil {
-		return err
-	}
-
-	return sh.Run(
-		"go",
-		"test",
-		"-timeout=10s",
-		"./...",
-		"-failfast",
-	)
-}
-
-// Tidy tidies up go.mod.
-func Tidy() error {
-	fmt.Println("Tidying go.mod...")
-	return sh.Run("go", "mod", "tidy")
-}
-
-// TodoCheck checks for TODO and FIXME comments using golangci-lint.
-func TodoCheck() error {
-	fmt.Println("Checking for TODOs...")
-	return sh.Run("golangci-lint", "run", "-c", "dev/golangci-todos.toml")
-}
-
-// Watch re-runs Check whenever files change.
-func Watch(ctx context.Context) error {
-	fmt.Println("Watching...")
-
-	return file.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, file.WatchOptions{}, func(_ file.ChangeSet) error {
-		fmt.Println("Change detected...")
-
-		err := Check()
-		if err != nil {
-			fmt.Printf("continuing to watch after check failure:\n  %s\n", err)
-		} else {
-			fmt.Println("continuing to watch after all checks passed!")
-		}
-
-		return nil // Don't stop watching on error
-	})
-}
-
-// Types
-
-// BaselineTestSpec specifies a baseline test for redundancy analysis.
-type BaselineTestSpec struct {
-	Package     string // Package path (e.g., "./impgen/run" or "./UAT/...")
-	TestPattern string // Test name pattern for -run flag (empty string runs all tests in package)
-}
-
-// RedundancyConfig configures the redundant test analysis.
-type RedundancyConfig struct {
-	BaselineTests     []BaselineTestSpec // Tests that form the baseline coverage
-	CoverageThreshold float64            // Percentage threshold (e.g., 80.0 for 80%)
-	PackageToAnalyze  string             // Package containing tests to analyze (e.g., "./impgen/run")
-	CoveragePackages  string             // Packages to measure coverage for (e.g., "./impgen/...,./imptest/...")
-}
-
-type coverageBlock struct {
-	file       string
-	startLine  int
-	startCol   int
-	endLine    int
-	endCol     int
-	statements int
-	count      int
-}
-
-// coveredLine represents a single line covered by a test.
-type coveredLine struct {
-	file string
-	line int
-}
-
-type deadFunc struct {
-	name string
-	line int
-}
-
-type lineAndCoverage struct {
-	line     string
-	coverage float64
-}
-
-type position struct {
-	line int
-	col  int
-}
-
-func (p position) compare(other position) int {
-	if p.line < other.line {
-		return -1
-	}
-
-	if p.line > other.line {
-		return 1
-	}
-
-	if p.col < other.col {
-		return -1
-	}
-
-	if p.col > other.col {
-		return 1
-	}
-
-	return 0
-}
-
-type segment struct {
-	start position
-	end   position
-	count int
-}
-
-// testInfo holds a test function name with its package.
-type testInfo struct {
-	pkg  string
-	name string
-}
-
-// qualifiedName returns the package-qualified test name (pkg:TestName).
-func (t testInfo) qualifiedName() string {
-	return t.pkg + ":" + t.name
-}
-
-// Helper Functions
-
-func deleteDeadFunctionsFromFile(filename string, funcs []deadFunc) (int, error) {
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	fset := token.NewFileSet()
-
-	file, err := parser.ParseFile(fset, filename, content, parser.ParseComments)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse file: %w", err)
-	}
-
-	toDelete := make(map[string]bool)
-	for _, f := range funcs {
-		toDelete[f.name] = true
-	}
-
-	newDecls := []ast.Decl{}
-	deleted := 0
-
-	for _, decl := range file.Decls {
-		keep := true
-
-		if funcDecl, ok := decl.(*ast.FuncDecl); ok {
-			funcName := funcDecl.Name.Name
-
-			if funcDecl.Recv != nil && len(funcDecl.Recv.List) > 0 {
-				recvType := funcDecl.Recv.List[0].Type
-				var typeName string
-
-				switch t := recvType.(type) {
-				case *ast.StarExpr:
-					if ident, ok := t.X.(*ast.Ident); ok {
-						typeName = ident.Name
-					}
-				case *ast.Ident:
-					typeName = t.Name
-				}
-
-				fullName := typeName + "." + funcName
-				if toDelete[fullName] || toDelete[funcName] {
-					keep = false
-				}
-			} else {
-				if toDelete[funcName] {
-					keep = false
-				}
-			}
-		}
-
-		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
-			for _, spec := range genDecl.Specs {
-				if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-					if toDelete[typeSpec.Name.Name] {
-						keep = false
-					}
-				}
-			}
-		}
-
-		if keep {
-			newDecls = append(newDecls, decl)
-		} else {
-			deleted++
-		}
-	}
-
-	if deleted == 0 {
-		return 0, nil
-	}
-
-	file.Decls = newDecls
-
-	var buf bytes.Buffer
-
-	err = printer.Fprint(&buf, fset, file)
-	if err != nil {
-		return 0, fmt.Errorf("failed to print AST: %w", err)
-	}
-
-	err = os.WriteFile(filename, buf.Bytes(), 0o600)
-	if err != nil {
-		return 0, fmt.Errorf("failed to write file: %w", err)
-	}
-
-	fmt.Printf("  %s: deleted %d declarations\n", filename, deleted)
-
-	return deleted, nil
-}
-
-func globs(dir string, ext []string) ([]string, error) {
-	files := []string{}
-
-	err := filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
-		if err != nil {
-			return fmt.Errorf("unable to find all glob matches: %w", err)
-		}
-
-		for _, each := range ext {
-			if filepath.Ext(path) == each {
-				files = append(files, path)
-
-				return nil
-			}
-		}
-
-		return nil
-	})
-
-	return files, err
-}
-
-func hashFile(path string) (string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func isGeneratedFile(path string) (bool, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return false, fmt.Errorf("failed to open %s: %w", path, err)
-	}
-	defer file.Close()
-
-	buf := make([]byte, 200)
-
-	n, err := file.Read(buf)
-	if err != nil && err != io.EOF {
-		return false, fmt.Errorf("failed to read %s: %w", path, err)
-	}
-
-	content := string(buf[:n])
-
-	return strings.Contains(content, "Code generated") || strings.Contains(content, "DO NOT EDIT"), nil
-}
-
-// mergeCoverageBlocks merges duplicate coverage blocks in a coverage file.
-// This handles the case where multiple test packages cover the same code.
-func mergeCoverageBlocks(coverageFile string) error {
-	data, err := os.ReadFile(coverageFile)
-	if err != nil {
-		return err
-	}
-
-	lines := strings.Split(string(data), "\n")
-	if len(lines) == 0 {
-		return nil
-	}
-
-	// First line is mode
-	modeLine := lines[0]
-
-	// Merge blocks by key (file:start,end statements)
-	blocks := make(map[string]coverageBlock)
-
-	for _, line := range lines[1:] {
-		if line == "" {
-			continue
-		}
-
-		block, err := parseCoverageBlock(line)
-		if err != nil {
-			continue
-		}
-
-		key := fmt.Sprintf("%s:%d.%d,%d.%d %d",
-			block.file, block.startLine, block.startCol,
-			block.endLine, block.endCol, block.statements)
-
-		if existing, ok := blocks[key]; ok {
-			existing.count += block.count
-			blocks[key] = existing
-		} else {
-			blocks[key] = block
-		}
-	}
-
-	// Write merged blocks
-	var result strings.Builder
-
-	result.WriteString(modeLine)
-	result.WriteString("\n")
-
-	for _, block := range blocks {
-		fmt.Fprintf(&result, "%s:%d.%d,%d.%d %d %d\n",
-			block.file, block.startLine, block.startCol,
-			block.endLine, block.endCol, block.statements, block.count)
-	}
-
-	return os.WriteFile(coverageFile, []byte(result.String()), 0o600)
-}
-
-// output runs a command and captures stdout only (stderr goes to os.Stderr).
-func output(command string, args ...string) (string, error) {
-	buf := &bytes.Buffer{}
-	cmd := exec.Command(command, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = buf
-	cmd.Stderr = os.Stderr
-	err := cmd.Run()
-
-	return strings.TrimSuffix(buf.String(), "\n"), err
-}
-
-func parseBlockID(blockID string) (file string, startLine, startCol, endLine, endCol int, err error) {
-	fileParts := strings.Split(blockID, ":")
-	if len(fileParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid block ID format: %s", blockID)
-	}
-
-	file = fileParts[0]
-
-	rangeParts := strings.Split(fileParts[1], ",")
-	if len(rangeParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid range format: %s", blockID)
-	}
-
-	startParts := strings.Split(rangeParts[0], ".")
-	if len(startParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid start position: %s", blockID)
-	}
-
-	endParts := strings.Split(rangeParts[1], ".")
-	if len(endParts) != 2 {
-		return "", 0, 0, 0, 0, fmt.Errorf("invalid end position: %s", blockID)
-	}
-
-	startLine, _ = strconv.Atoi(startParts[0])
-	startCol, _ = strconv.Atoi(startParts[1])
-	endLine, _ = strconv.Atoi(endParts[0])
-	endCol, _ = strconv.Atoi(endParts[1])
-
-	return file, startLine, startCol, endLine, endCol, nil
-}
-
-func parseCoverageBlock(line string) (coverageBlock, error) {
-	// Format: file:startLine.startCol,endLine.endCol statements count
-	parts := strings.Fields(line)
-	if len(parts) != 3 {
-		return coverageBlock{}, fmt.Errorf("invalid line format")
-	}
-
-	blockID := parts[0]
-	statements, _ := strconv.Atoi(parts[1])
-	count, _ := strconv.Atoi(parts[2])
-
-	file, startLine, startCol, endLine, endCol, err := parseBlockID(blockID)
-	if err != nil {
-		return coverageBlock{}, err
-	}
-
-	return coverageBlock{
-		file:       file,
-		startLine:  startLine,
-		startCol:   startCol,
-		endLine:    endLine,
-		endCol:     endCol,
-		statements: statements,
-		count:      count,
-	}, nil
-}
-
-// filterQtplFromCoverage removes .qtpl template file entries from a coverage file.
-func filterQtplFromCoverage(inputFile, outputFile string) error {
-	data, err := os.ReadFile(inputFile)
-	if err != nil {
-		return fmt.Errorf("failed to read %s: %w", inputFile, err)
-	}
-
-	lines := strings.Split(string(data), "\n")
-	if len(lines) == 0 {
-		return fmt.Errorf("empty coverage file: %s", inputFile)
-	}
-
-	// Keep mode line, filter out .qtpl entries
-	filtered := []string{lines[0]} // mode line
-
-	for _, line := range lines[1:] {
-		if line == "" || strings.Contains(line, ".qtpl:") {
-			continue
-		}
-
-		filtered = append(filtered, line)
-	}
-
-	result := strings.Join(filtered, "\n")
-
-	err = os.WriteFile(outputFile, []byte(result), 0o600)
-	if err != nil {
-		return fmt.Errorf("failed to write %s: %w", outputFile, err)
-	}
-
-	return nil
-}
-
 // getCoveredLines parses a coverage file and returns all lines that were executed.
 // A line is considered covered if any block covering it has count > 0.
 func getCoveredLines(coverageFile string) ([]coveredLine, error) {
@@ -1539,6 +1359,62 @@ func getFunctionsAboveThreshold(coverageFile string, threshold float64) (map[str
 	return funcs, nil
 }
 
+func globs(dir string, ext []string) ([]string, error) {
+	files := []string{}
+
+	err := filepath.Walk(dir, func(path string, _ os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("unable to find all glob matches: %w", err)
+		}
+
+		for _, each := range ext {
+			if filepath.Ext(path) == each {
+				files = append(files, path)
+
+				return nil
+			}
+		}
+
+		return nil
+	})
+
+	return files, err
+}
+
+func hashFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func isGeneratedFile(path string) (bool, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to open %s: %w", path, err)
+	}
+	defer file.Close()
+
+	buf := make([]byte, 200)
+
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return false, fmt.Errorf("failed to read %s: %w", path, err)
+	}
+
+	content := string(buf[:n])
+
+	return strings.Contains(content, "Code generated") || strings.Contains(content, "DO NOT EDIT"), nil
+}
+
 // listTestFunctionsWithPackages lists all test functions with their packages.
 func listTestFunctionsWithPackages(pkgPattern string) ([]testInfo, error) {
 	// First, expand the package pattern to get actual packages
@@ -1572,6 +1448,62 @@ func listTestFunctionsWithPackages(pkgPattern string) ([]testInfo, error) {
 	}
 
 	return allTests, nil
+}
+
+// mergeCoverageBlocks merges duplicate coverage blocks in a coverage file.
+// This handles the case where multiple test packages cover the same code.
+func mergeCoverageBlocks(coverageFile string) error {
+	data, err := os.ReadFile(coverageFile)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) == 0 {
+		return nil
+	}
+
+	// First line is mode
+	modeLine := lines[0]
+
+	// Merge blocks by key (file:start,end statements)
+	blocks := make(map[string]coverageBlock)
+
+	for _, line := range lines[1:] {
+		if line == "" {
+			continue
+		}
+
+		block, err := parseCoverageBlock(line)
+		if err != nil {
+			continue
+		}
+
+		key := fmt.Sprintf("%s:%d.%d,%d.%d %d",
+			block.file, block.startLine, block.startCol,
+			block.endLine, block.endCol, block.statements)
+
+		if existing, ok := blocks[key]; ok {
+			existing.count += block.count
+			blocks[key] = existing
+		} else {
+			blocks[key] = block
+		}
+	}
+
+	// Write merged blocks
+	var result strings.Builder
+
+	result.WriteString(modeLine)
+	result.WriteString("\n")
+
+	for _, block := range blocks {
+		fmt.Fprintf(&result, "%s:%d.%d,%d.%d %d %d\n",
+			block.file, block.startLine, block.startCol,
+			block.endLine, block.endCol, block.statements, block.count)
+	}
+
+	return os.WriteFile(coverageFile, []byte(result.String()), 0o600)
 }
 
 // mergeCoverageBlocksFile merges coverage blocks in the specified file (in-place).
@@ -1728,6 +1660,76 @@ func mergeMultipleCoverageFiles(files []string, outputFile string) error {
 
 	// Merge overlapping blocks using existing logic
 	return mergeCoverageBlocksFile(outputFile)
+}
+
+// output runs a command and captures stdout only (stderr goes to os.Stderr).
+func output(command string, args ...string) (string, error) {
+	buf := &bytes.Buffer{}
+	cmd := exec.Command(command, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = buf
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+
+	return strings.TrimSuffix(buf.String(), "\n"), err
+}
+
+func parseBlockID(blockID string) (file string, startLine, startCol, endLine, endCol int, err error) {
+	fileParts := strings.Split(blockID, ":")
+	if len(fileParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid block ID format: %s", blockID)
+	}
+
+	file = fileParts[0]
+
+	rangeParts := strings.Split(fileParts[1], ",")
+	if len(rangeParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid range format: %s", blockID)
+	}
+
+	startParts := strings.Split(rangeParts[0], ".")
+	if len(startParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid start position: %s", blockID)
+	}
+
+	endParts := strings.Split(rangeParts[1], ".")
+	if len(endParts) != 2 {
+		return "", 0, 0, 0, 0, fmt.Errorf("invalid end position: %s", blockID)
+	}
+
+	startLine, _ = strconv.Atoi(startParts[0])
+	startCol, _ = strconv.Atoi(startParts[1])
+	endLine, _ = strconv.Atoi(endParts[0])
+	endCol, _ = strconv.Atoi(endParts[1])
+
+	return file, startLine, startCol, endLine, endCol, nil
+}
+
+func parseCoverageBlock(line string) (coverageBlock, error) {
+	// Format: file:startLine.startCol,endLine.endCol statements count
+	parts := strings.Fields(line)
+	if len(parts) != 3 {
+		return coverageBlock{}, fmt.Errorf("invalid line format")
+	}
+
+	blockID := parts[0]
+	statements, _ := strconv.Atoi(parts[1])
+	count, _ := strconv.Atoi(parts[2])
+
+	file, startLine, startCol, endLine, endCol, err := parseBlockID(blockID)
+	if err != nil {
+		return coverageBlock{}, err
+	}
+
+	return coverageBlock{
+		file:       file,
+		startLine:  startLine,
+		startCol:   startCol,
+		endLine:    endLine,
+		endCol:     endCol,
+		statements: statements,
+		count:      count,
+	}, nil
 }
 
 // runQuietCoverage runs a go test command with coverage, filtering out expected warnings

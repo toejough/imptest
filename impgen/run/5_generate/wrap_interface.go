@@ -321,10 +321,7 @@ func newInterfaceTargetGenerator(
 	pkgLoader detect.PackageLoader,
 	ifaceWithDetails detect.IfaceWithDetails,
 ) (*interfaceTargetGenerator, error) {
-	pkgPath, qualifier, err := resolveInterfaceGeneratorPackage(info, pkgImportPath, pkgLoader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get interface package info: %w", err)
-	}
+	pkgPath, qualifier := resolveInterfaceGeneratorPackage(info, pkgImportPath, pkgLoader)
 
 	// Wrapper type naming: WrapLogger -> WrapLoggerWrapper
 	wrapperType := info.ImpName + "Wrapper"

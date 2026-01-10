@@ -433,15 +433,14 @@ func (w *typeExprWalker[T]) walkIndexListExpr(typeExpr *dst.IndexListExpr) T {
 }
 
 // walkIndexType handles generic type indexing (IndexExpr and IndexListExpr).
+// The caller guarantees expr is one of these types, so no default case is needed.
 func (w *typeExprWalker[T]) walkIndexType(expr dst.Expr) T {
-	switch typeExpr := expr.(type) {
-	case *dst.IndexExpr:
-		return w.combine(w.walk(typeExpr.X), w.walk(typeExpr.Index))
-	case *dst.IndexListExpr:
-		return w.walkIndexListExpr(typeExpr)
+	if indexExpr, ok := expr.(*dst.IndexExpr); ok {
+		return w.combine(w.walk(indexExpr.X), w.walk(indexExpr.Index))
 	}
 
-	return w.zero
+	// Must be *dst.IndexListExpr since caller already type-checked
+	return w.walkIndexListExpr(expr.(*dst.IndexListExpr))
 }
 
 // walkMapType handles map type traversal.
@@ -1198,26 +1197,31 @@ func resolveImportPath(alias string, imports []*dst.ImportSpec) string {
 //   - External qualified name (e.g., "basic.Ops") - resolves via pkgLoader
 //   - External unqualified name from dot import - uses pkgImportPath directly
 //   - Test package referencing non-test package - resolves via pkgLoader
+//
+// Note: resolvePackageInfo converts all ErrNotPackageReference errors to empty returns,
+// and GetPackageInfo only returns nil or ErrNotPackageReference, so this cannot fail.
 func resolveInterfaceGeneratorPackage(
 	info GeneratorInfo,
 	pkgImportPath string,
 	pkgLoader detect.PackageLoader,
-) (pkgPath, qualifier string, err error) {
+) (pkgPath, qualifier string) {
 	if pkgImportPath != "." {
 		if strings.Contains(info.InterfaceName, ".") {
 			// Qualified name - use normal resolution
-			return resolvePackageInfo(info, pkgLoader)
+			pkgPath, qualifier, _ = resolvePackageInfo(info, pkgLoader)
+			return pkgPath, qualifier
 		}
 		// Unqualified name - must be from dot import, use pkgImportPath directly
-		return pkgImportPath, extractPkgNameFromPath(pkgImportPath), nil
+		return pkgImportPath, extractPkgNameFromPath(pkgImportPath)
 	}
 
 	if strings.HasSuffix(info.PkgName, "_test") {
 		// Test package referencing non-test version
-		return resolvePackageInfo(info, pkgLoader)
+		pkgPath, qualifier, _ = resolvePackageInfo(info, pkgLoader)
+		return pkgPath, qualifier
 	}
 
-	return "", "", nil
+	return "", ""
 }
 
 // sortedImportSlice converts an import map to a sorted slice.

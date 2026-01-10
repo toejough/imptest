@@ -21,6 +21,33 @@ import (
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
 )
 
+// TestMockFunction_ComplexTypes demonstrates mocking a function with complex type signatures.
+// This exercises import collection from arrays, maps, and func types.
+func TestMockFunction_ComplexTypes(t *testing.T) {
+	t.Parallel()
+
+	mock := MockTransformData(t)
+
+	order := &mockfunction.Order{ID: 1, Status: "test", Total: 10.0}
+	items := []*mockfunction.Order{order}
+	lookup := map[string]*mockfunction.Order{"key": order}
+	processor := func(*mockfunction.Order) error { return nil }
+
+	resultChan := make(chan *mockfunction.Order, 1)
+
+	go func() {
+		result, _ := mock.Mock(items, lookup, processor)
+		resultChan <- result
+	}()
+
+	mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any(), imptest.Any()).InjectReturnValues(order, nil)
+
+	result := <-resultChan
+	if result != order {
+		t.Errorf("expected %v, got %v", order, result)
+	}
+}
+
 // TestMockFunction_Eventually demonstrates using Eventually for concurrent calls.
 func TestMockFunction_Eventually(t *testing.T) {
 	t.Parallel()
@@ -186,6 +213,7 @@ func TestMockFunction_WithMatchers(t *testing.T) {
 //go:generate impgen mockfunction.ValidateInput --dependency
 //go:generate impgen mockfunction.FormatPrice --dependency
 //go:generate impgen mockfunction.Notify --dependency
+//go:generate impgen mockfunction.TransformData --dependency
 
 // TestMockFunction_WithReturns demonstrates mocking a function that returns values.
 func TestMockFunction_WithReturns(t *testing.T) {

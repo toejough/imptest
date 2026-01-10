@@ -23,7 +23,6 @@ func DependencyCode(
 	if err != nil {
 		return "", err
 	}
-
 	return gen.generate()
 }
 
@@ -336,10 +335,7 @@ func newDependencyGenerator(
 	pkgLoader detect.PackageLoader,
 	ifaceWithDetails detect.IfaceWithDetails,
 ) (*dependencyGenerator, error) {
-	pkgPath, qualifier, err := resolveInterfaceGeneratorPackage(info, pkgImportPath, pkgLoader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get interface package info: %w", err)
-	}
+	pkgPath, qualifier := resolveInterfaceGeneratorPackage(info, pkgImportPath, pkgLoader)
 
 	// Convert MockXxx -> XxxMock for the struct type name
 	// This avoids naming conflict between the constructor function and the struct type
