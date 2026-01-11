@@ -3,6 +3,7 @@ package generate
 
 import (
 	"bytes"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -76,166 +77,41 @@ type templateWriteTest struct {
 }
 
 // allTemplateWriteTests returns test cases for all template Write functions.
+// WriteTargetWaitMethod is intentionally omitted - template has empty content and won't panic.
 func allTemplateWriteTests() []templateWriteTest {
-	return []templateWriteTest{
-		{
-			"WriteDepArgsStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepArgsStruct(b, struct{}{}) },
-			"depArgsStruct",
-		},
-		{
-			"WriteDepCallWrapper",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepCallWrapper(b, struct{}{}) },
-			"depCallWrapper",
-		},
-		{
-			"WriteDepConstructor",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepConstructor(b, struct{}{}) },
-			"depConstructor",
-		},
-		{
-			"WriteDepHeader",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepHeader(b, struct{}{}) },
-			"depHeader",
-		},
-		{
-			"WriteDepImplMethod",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepImplMethod(b, struct{}{}) },
-			"depImplMethod",
-		},
-		{
-			"WriteDepImplStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepImplStruct(b, struct{}{}) },
-			"depImplStruct",
-		},
-		{
-			"WriteDepInterfaceMethod",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepInterfaceMethod(b, struct{}{}) },
-			"depInterfaceMethod",
-		},
-		{
-			"WriteDepMethodWrapper",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepMethodWrapper(b, struct{}{}) },
-			"depMethodWrapper",
-		},
-		{
-			"WriteDepMockStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteDepMockStruct(b, struct{}{}) },
-			"depMockStruct",
-		},
-		{
-			"WriteFuncDepConstructor",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteFuncDepConstructor(b, struct{}{}) },
-			"funcDepConstructor",
-		},
-		{
-			"WriteFuncDepMethodWrapper",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteFuncDepMethodWrapper(b, struct{}{}) },
-			"funcDepMethodWrapper",
-		},
-		{
-			"WriteFuncDepMockStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteFuncDepMockStruct(b, struct{}{}) },
-			"funcDepMockStruct",
-		},
-		{
-			"WriteInterfaceTargetConstructor",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetConstructor(b, struct{}{}) },
-			"interfaceTargetConstructor",
-		},
-		{
-			"WriteInterfaceTargetHeader",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetHeader(b, struct{}{}) },
-			"interfaceTargetHeader",
-		},
-		{"WriteInterfaceTargetMethodCallHandleStruct", func(r *TemplateRegistry, b *bytes.Buffer) {
-			r.WriteInterfaceTargetMethodCallHandleStruct(b, struct{}{})
-		}, "interfaceTargetMethodCallHandleStruct"},
-		{
-			"WriteInterfaceTargetMethodExpectCompletes",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetMethodExpectCompletes(b, struct{}{}) },
-			"interfaceTargetMethodExpectCompletes",
-		},
-		{
-			"WriteInterfaceTargetMethodExpectPanic",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetMethodExpectPanic(b, struct{}{}) },
-			"interfaceTargetMethodExpectPanic",
-		},
-		{
-			"WriteInterfaceTargetMethodExpectReturns",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetMethodExpectReturns(b, struct{}{}) },
-			"interfaceTargetMethodExpectReturns",
-		},
-		{
-			"WriteInterfaceTargetMethodReturns",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetMethodReturns(b, struct{}{}) },
-			"interfaceTargetMethodReturns",
-		},
-		{
-			"WriteInterfaceTargetMethodStart",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetMethodStart(b, struct{}{}) },
-			"interfaceTargetMethodStart",
-		},
-		{
-			"WriteInterfaceTargetMethodWrapperFunc",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetMethodWrapperFunc(b, struct{}{}) },
-			"interfaceTargetMethodWrapperFunc",
-		},
-		{
-			"WriteInterfaceTargetMethodWrapperStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetMethodWrapperStruct(b, struct{}{}) },
-			"interfaceTargetMethodWrapperStruct",
-		},
-		{
-			"WriteInterfaceTargetWrapperStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteInterfaceTargetWrapperStruct(b, struct{}{}) },
-			"interfaceTargetWrapperStruct",
-		},
-		{
-			"WriteTargetCallHandleStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetCallHandleStruct(b, struct{}{}) },
-			"targetCallHandleStruct",
-		},
-		{
-			"WriteTargetConstructor",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetConstructor(b, struct{}{}) },
-			"targetConstructor",
-		},
-		{
-			"WriteTargetExpectCompletes",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetExpectCompletes(b, struct{}{}) },
-			"targetExpectCompletes",
-		},
-		{
-			"WriteTargetExpectPanic",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetExpectPanic(b, struct{}{}) },
-			"targetExpectPanic",
-		},
-		{
-			"WriteTargetExpectReturns",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetExpectReturns(b, struct{}{}) },
-			"targetExpectReturns",
-		},
-		{
-			"WriteTargetHeader",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetHeader(b, struct{}{}) },
-			"targetHeader",
-		},
-		{
-			"WriteTargetReturnsStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetReturnsStruct(b, struct{}{}) },
-			"targetReturnsStruct",
-		},
-		{
-			"WriteTargetStartMethod",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetStartMethod(b, struct{}{}) },
-			"targetStartMethod",
-		},
-		// WriteTargetWaitMethod intentionally omitted - template has empty content and won't panic
-		{
-			"WriteTargetWrapperStruct",
-			func(r *TemplateRegistry, b *bytes.Buffer) { r.WriteTargetWrapperStruct(b, struct{}{}) },
-			"targetWrapperStruct",
-		},
+	methodNames := []string{
+		"WriteDepArgsStruct", "WriteDepCallWrapper", "WriteDepConstructor", "WriteDepHeader",
+		"WriteDepImplMethod", "WriteDepImplStruct", "WriteDepInterfaceMethod", "WriteDepMethodWrapper",
+		"WriteDepMockStruct", "WriteFuncDepConstructor", "WriteFuncDepMethodWrapper",
+		"WriteFuncDepMockStruct", "WriteInterfaceTargetConstructor", "WriteInterfaceTargetHeader",
+		"WriteInterfaceTargetMethodCallHandleStruct", "WriteInterfaceTargetMethodExpectCompletes",
+		"WriteInterfaceTargetMethodExpectPanic", "WriteInterfaceTargetMethodExpectReturns",
+		"WriteInterfaceTargetMethodReturns", "WriteInterfaceTargetMethodStart",
+		"WriteInterfaceTargetMethodWrapperFunc", "WriteInterfaceTargetMethodWrapperStruct",
+		"WriteInterfaceTargetWrapperStruct", "WriteTargetCallHandleStruct", "WriteTargetConstructor",
+		"WriteTargetExpectCompletes", "WriteTargetExpectPanic", "WriteTargetExpectReturns",
+		"WriteTargetHeader", "WriteTargetReturnsStruct", "WriteTargetStartMethod",
+		"WriteTargetWrapperStruct",
+	}
+
+	tests := make([]templateWriteTest, 0, len(methodNames))
+
+	for _, methodName := range methodNames {
+		// Derive panicMsg by removing "Write" prefix and lowercasing first char
+		panicMsg := strings.ToLower(methodName[5:6]) + methodName[6:]
+		tests = append(tests, templateWriteTest{
+			name:      methodName,
+			writeFunc: makeWriteFunc(methodName),
+			panicMsg:  panicMsg,
+		})
+	}
+
+	return tests
+}
+
+func makeWriteFunc(methodName string) func(*TemplateRegistry, *bytes.Buffer) {
+	return func(r *TemplateRegistry, b *bytes.Buffer) {
+		method := reflect.ValueOf(r).MethodByName(methodName)
+		method.Call([]reflect.Value{reflect.ValueOf(b), reflect.ValueOf(struct{}{})})
 	}
 }
