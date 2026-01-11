@@ -1,4 +1,4 @@
-//nolint:testpackage,lll,varnamelen // Tests internal functions with long template test lines
+//nolint:testpackage // Tests internal functions
 package generate
 
 import (
