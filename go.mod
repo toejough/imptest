@@ -9,7 +9,7 @@ require (
 	github.com/gtramontina/ooze v0.2.0
 	github.com/onsi/gomega v1.38.3
 	github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc
-	github.com/toejough/targ v0.0.0-20260111010949-4d3786d14b6c
+	github.com/toejough/targ v0.0.0-20260111013259-387ca28402fc
 )
 
 require (

@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/akedrou/textdiff"
 	"github.com/toejough/go-reorder"
@@ -58,26 +59,26 @@ func Build() error {
 }
 
 // Check runs all checks & fixes on the code, in order of correctness.
-func Check() error {
+func Check(ctx context.Context) error {
 	fmt.Println("Checking...")
 
 	return targ.Deps(
-		Tidy,           // clean up the module dependencies
-		DeleteDeadcode, // no use doing anything else to dead code
-		FixImports,     // after dead code removal, fix imports to remove unused ones
-		Modernize,      // no use doing anything else to old code patterns
-		CheckCoverage,  // does our code work?
-		CheckNils,      // is it nil free?
-		ReorderDecls,   // linter will yell about declaration order if not correct
-		Lint,
+		func() error { return Tidy(ctx) },           // clean up the module dependencies
+		func() error { return DeleteDeadcode(ctx) }, // no use doing anything else to dead code
+		func() error { return FixImports(ctx) },     // after dead code removal, fix imports to remove unused ones
+		func() error { return Modernize(ctx) },      // no use doing anything else to old code patterns
+		func() error { return CheckCoverage(ctx) },  // does our code work?
+		func() error { return CheckNils(ctx) },      // is it nil free?
+		func() error { return ReorderDecls(ctx) },   // linter will yell about declaration order if not correct
+		func() error { return Lint(ctx) },
 	)
 }
 
 // CheckCoverage checks that function coverage meets the minimum threshold.
-func CheckCoverage() error {
+func CheckCoverage(ctx context.Context) error {
 	fmt.Println("Checking coverage...")
 
-	if err := targ.Deps(Test); err != nil {
+	if err := targ.Deps(func() error { return Test(ctx) }); err != nil {
 		return err
 	}
 
@@ -86,7 +87,7 @@ func CheckCoverage() error {
 		return fmt.Errorf("failed to merge coverage blocks: %w", err)
 	}
 
-	out, err := output("go", "tool", "cover", "-func=coverage.out")
+	out, err := output(ctx, "go", "tool", "cover", "-func=coverage.out")
 	if err != nil {
 		return err
 	}
@@ -165,15 +166,15 @@ func CheckForFail() error {
 }
 
 // CheckNils checks for nils and fixes what it can.
-func CheckNils() error {
+func CheckNils(ctx context.Context) error {
 	fmt.Println("Running check for nils...")
-	return sh.Run("nilaway", "-fix", "./...")
+	return sh.RunContext(ctx, "nilaway", "-fix", "./...")
 }
 
 // CheckNilsForFail checks for nils, just for failure.
-func CheckNilsForFail() error {
+func CheckNilsForFail(ctx context.Context) error {
 	fmt.Println("Running check for nils...")
-	return sh.Run("nilaway", "./...")
+	return sh.RunContext(ctx, "nilaway", "./...")
 }
 
 // Clean cleans up the dev env.
@@ -183,10 +184,10 @@ func Clean() {
 }
 
 // Deadcode checks that there's no dead code in codebase.
-func Deadcode() error {
+func Deadcode(ctx context.Context) error {
 	fmt.Println("Checking for dead code...")
 
-	out, err := output("deadcode", "-test", "./...")
+	out, err := output(ctx, "deadcode", "-test", "./...")
 	if err != nil {
 		return err
 	}
@@ -234,10 +235,10 @@ func Deadcode() error {
 }
 
 // DeleteDeadcode removes unreachable functions from the codebase.
-func DeleteDeadcode() error {
+func DeleteDeadcode(ctx context.Context) error {
 	fmt.Println("Deleting dead code...")
 
-	out, err := output("deadcode", "-test", "./...")
+	out, err := output(ctx, "deadcode", "-test", "./...")
 	if err != nil {
 		return err
 	}
@@ -317,9 +318,9 @@ func FindRedundantTests() error {
 }
 
 // FixImports fixes all imports in the codebase.
-func FixImports() error {
+func FixImports(ctx context.Context) error {
 	fmt.Println("Fixing imports...")
-	return sh.Run("goimports", "-w", ".")
+	return sh.RunContext(ctx, "goimports", "-w", ".")
 }
 
 // Fuzz runs the fuzz tests.
@@ -363,9 +364,9 @@ func InstallTools() error {
 }
 
 // Lint lints the codebase.
-func Lint() error {
+func Lint(ctx context.Context) error {
 	fmt.Println("Linting...")
-	return sh.Run("golangci-lint", "run", "-c", "dev/golangci.toml")
+	return sh.RunContext(ctx, "golangci-lint", "run", "-c", "dev/golangci.toml")
 }
 
 // LintForFail lints the codebase purely to find out whether anything fails.
@@ -383,10 +384,10 @@ func LintForFail() error {
 }
 
 // Modernize updates the codebase to use modern Go patterns.
-func Modernize() error {
+func Modernize(ctx context.Context) error {
 	fmt.Println("Modernizing codebase...")
 
-	return sh.Run("go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
+	return sh.RunContext(ctx, "go", "run", "golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest",
 		"-fix", "./...")
 }
 
@@ -410,7 +411,8 @@ func Mutate() error {
 }
 
 // ReorderDecls reorders declarations in Go files per conventions.
-func ReorderDecls() error {
+func ReorderDecls(ctx context.Context) error {
+	_ = ctx // Reserved for future cancellation support
 	fmt.Println("Reordering declarations...")
 
 	files, err := globs(".", []string{".go"})
@@ -588,7 +590,7 @@ func ReorderDeclsCheck() error {
 }
 
 // Test runs the unit tests.
-func Test() error {
+func Test(ctx context.Context) error {
 	fmt.Println("Running unit tests...")
 
 	if err := targ.Deps(Generate); err != nil {
@@ -597,7 +599,7 @@ func Test() error {
 
 	// Skip TestRaceRegression tests in CI runs
 	// Use -count=1 to disable caching so coverage is regenerated
-	err := sh.Run(
+	err := sh.RunContext(ctx,
 		"go",
 		"test",
 		"-timeout=2m",
@@ -654,9 +656,9 @@ func TestForFail() error {
 }
 
 // Tidy tidies up go.mod.
-func Tidy() error {
+func Tidy(ctx context.Context) error {
 	fmt.Println("Tidying go.mod...")
-	return sh.Run("go", "mod", "tidy")
+	return sh.RunContext(ctx, "go", "mod", "tidy")
 }
 
 // TodoCheck checks for TODO and FIXME comments using golangci-lint.
@@ -669,18 +671,48 @@ func TodoCheck() error {
 func Watch(ctx context.Context) error {
 	fmt.Println("Watching...")
 
+	var (
+		cancelCheck context.CancelFunc
+		checkMu     sync.Mutex
+	)
+
 	return file.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, file.WatchOptions{}, func(changes file.ChangeSet) error {
 		// Filter out generated files and coverage output to avoid infinite loops
 		if !hasRelevantChanges(changes) {
 			return nil
 		}
 
-		fmt.Println("Change detected...")
+		// Log the changed files for debugging
+		fmt.Println("Change detected in:")
+		for _, f := range changes.Added {
+			fmt.Printf("  + %s\n", f)
+		}
+		for _, f := range changes.Modified {
+			fmt.Printf("  ~ %s\n", f)
+		}
+		for _, f := range changes.Removed {
+			fmt.Printf("  - %s\n", f)
+		}
+
+		checkMu.Lock()
+		defer checkMu.Unlock()
+
+		// Cancel any running check
+		if cancelCheck != nil {
+			fmt.Println("Cancelling previous check...")
+			cancelCheck()
+		}
+
+		// Create new cancellable context for this check
+		checkCtx, cancel := context.WithCancel(ctx)
+		cancelCheck = cancel
 
 		targ.ResetDeps() // Clear execution cache so targets run again
 
-		err := Check()
-		if err != nil {
+		err := Check(checkCtx)
+		if errors.Is(err, context.Canceled) {
+			fmt.Println("Check cancelled, restarting...")
+		} else if err != nil {
 			fmt.Println("continuing to watch after check failure (see errors above)")
 		} else {
 			fmt.Println("continuing to watch after all checks passed!")
@@ -916,7 +948,7 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 			}
 
 			// Resolve package path to full module path for consistent matching
-			fullPkg, err := output("go", "list", spec.Package)
+			fullPkg, err := output(context.Background(), "go", "list", spec.Package)
 			if err != nil {
 				return fmt.Errorf("failed to resolve package %s: %w", spec.Package, err)
 			}
@@ -1446,7 +1478,7 @@ func isGeneratedFile(path string) (bool, error) {
 // listTestFunctionsWithPackages lists all test functions with their packages.
 func listTestFunctionsWithPackages(pkgPattern string) ([]testInfo, error) {
 	// First, expand the package pattern to get actual packages
-	listOut, err := output("go", "list", pkgPattern)
+	listOut, err := output(context.Background(), "go", "list", pkgPattern)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list packages: %w", err)
 	}
@@ -1459,7 +1491,7 @@ func listTestFunctionsWithPackages(pkgPattern string) ([]testInfo, error) {
 			continue
 		}
 
-		out, err := output("go", "test", "-list", ".", pkg)
+		out, err := output(context.Background(), "go", "test", "-list", ".", pkg)
 		if err != nil {
 			// Package may have no tests, skip it
 			continue
@@ -1691,9 +1723,9 @@ func mergeMultipleCoverageFiles(files []string, outputFile string) error {
 }
 
 // output runs a command and captures stdout only (stderr goes to os.Stderr).
-func output(command string, args ...string) (string, error) {
+func output(ctx context.Context, command string, args ...string) (string, error) {
 	buf := &bytes.Buffer{}
-	cmd := exec.Command(command, args...)
+	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = buf
 	cmd.Stderr = os.Stderr
