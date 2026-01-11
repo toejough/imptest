@@ -99,19 +99,11 @@ func TestResolveTestPackageImport(t *testing.T) {
 
 			pkgPath, qualifier := resolveTestPackageImport(tt.loader, tt.pkgName)
 			if pkgPath != tt.wantPkgPath {
-				t.Errorf(
-					"resolveTestPackageImport() pkgPath = %v, want %v",
-					pkgPath,
-					tt.wantPkgPath,
-				)
+				t.Errorf("pkgPath = %v, want %v", pkgPath, tt.wantPkgPath)
 			}
 
 			if qualifier != tt.wantQualifier {
-				t.Errorf(
-					"resolveTestPackageImport() qualifier = %v, want %v",
-					qualifier,
-					tt.wantQualifier,
-				)
+				t.Errorf("qualifier = %v, want %v", qualifier, tt.wantQualifier)
 			}
 		})
 	}

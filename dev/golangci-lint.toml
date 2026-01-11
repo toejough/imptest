@@ -24,7 +24,7 @@ allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest', 'github
 
 [linters.settings.depguard.rules.test]
 files = ['$test']
-allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest']
+allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest', 'github.com/onsi/gomega']
 
 [linters.settings.nlreturn]
 block-size = 2

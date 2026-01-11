@@ -135,6 +135,13 @@ func FindImportPath(
 	return "", fmt.Errorf("%w: %s", errPackageNotFound, pkgName)
 }
 
+// symbolFinder attempts to find a symbol and returns details if found.
+type symbolFinder func(
+	astFiles []*dst.File,
+	fset *token.FileSet,
+	symbolName, pkgImportPath string,
+) (SymbolDetails, bool)
+
 // FindSymbol looks for either an interface, struct type, function type, or function/method in the given AST files.
 func FindSymbol(
 	astFiles []*dst.File,
@@ -142,72 +149,88 @@ func FindSymbol(
 	symbolName, pkgImportPath string,
 	pkgLoader PackageLoader,
 ) (SymbolDetails, error) {
-	// 1. Try finding it as an interface first
-	iface, err := GetMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
-	if err == nil {
-		return SymbolDetails{
-			Kind:    SymbolInterface,
-			Iface:   iface,
-			PkgPath: pkgImportPath,
-		}, nil
+	// Try each symbol type in order
+	finders := []symbolFinder{
+		findInterfaceSymbol,
+		findStructSymbol,
+		findFunctionTypeSymbol,
+		findFunctionSymbol,
 	}
 
-	// 2. Try finding it as a struct type
-	structType, err := findStructTypeInAST(astFiles, symbolName, pkgImportPath)
-	if err == nil {
-		return SymbolDetails{
-			Kind:       SymbolStructType,
-			StructType: structType,
-			PkgPath:    pkgImportPath,
-		}, nil
-	}
-
-	// 3. Try finding it as a function type
-	funcType, err := findFunctionTypeInAST(astFiles, symbolName, pkgImportPath)
-	if err == nil {
-		return SymbolDetails{
-			Kind:     SymbolFunctionType,
-			FuncType: funcType,
-			PkgPath:  pkgImportPath,
-		}, nil
-	}
-
-	// 4. Try finding it as a function or method
-	funcDecl, err := findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
-	if err == nil {
-		return SymbolDetails{
-			Kind:     SymbolFunction,
-			FuncDecl: funcDecl,
-			PkgPath:  pkgImportPath,
-		}, nil
-	}
-
-	// 5. If not found in current package and this is the current package (".")
-	// check dot-imported packages
-	if pkgImportPath == "." {
-		dotImports := getDotImportPaths(astFiles)
-
-		for _, dotImportPath := range dotImports {
-			// Load the dot-imported package
-			dotFiles, dotFset, _, err := pkgLoader.Load(dotImportPath)
-			if err != nil {
-				continue // Skip if we can't load this package
-			}
-
-			// Try to find the symbol in the dot-imported package
-			symbol, err := FindSymbol(dotFiles, dotFset, symbolName, dotImportPath, pkgLoader)
-			if err == nil {
-				return symbol, nil
-			}
+	for _, finder := range finders {
+		if details, found := finder(astFiles, fset, symbolName, pkgImportPath); found {
+			return details, nil
 		}
 	}
 
-	return SymbolDetails{}, fmt.Errorf(
-		"%w: %s in package %s",
-		errSymbolNotFound,
-		symbolName,
-		pkgImportPath,
-	)
+	// If not found and this is the current package, check dot-imported packages
+	if pkgImportPath == "." {
+		if details, found := findInDotImports(astFiles, symbolName, pkgLoader); found {
+			return details, nil
+		}
+	}
+
+	return SymbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
+}
+
+func findInDotImports(astFiles []*dst.File, symbolName string, pkgLoader PackageLoader) (SymbolDetails, bool) {
+	for _, dotImportPath := range getDotImportPaths(astFiles) {
+		dotFiles, dotFset, _, err := pkgLoader.Load(dotImportPath)
+		if err != nil {
+			continue
+		}
+
+		symbol, err := FindSymbol(dotFiles, dotFset, symbolName, dotImportPath, pkgLoader)
+		if err == nil {
+			return symbol, true
+		}
+	}
+
+	return SymbolDetails{}, false
+}
+
+func findInterfaceSymbol(
+	astFiles []*dst.File, _ *token.FileSet, symbolName, pkgImportPath string,
+) (SymbolDetails, bool) {
+	iface, err := GetMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
+	if err != nil {
+		return SymbolDetails{}, false
+	}
+
+	return SymbolDetails{Kind: SymbolInterface, Iface: iface, PkgPath: pkgImportPath}, true
+}
+
+func findStructSymbol(
+	astFiles []*dst.File, _ *token.FileSet, symbolName, pkgImportPath string,
+) (SymbolDetails, bool) {
+	structType, err := findStructTypeInAST(astFiles, symbolName, pkgImportPath)
+	if err != nil {
+		return SymbolDetails{}, false
+	}
+
+	return SymbolDetails{Kind: SymbolStructType, StructType: structType, PkgPath: pkgImportPath}, true
+}
+
+func findFunctionTypeSymbol(
+	astFiles []*dst.File, _ *token.FileSet, symbolName, pkgImportPath string,
+) (SymbolDetails, bool) {
+	funcType, err := findFunctionTypeInAST(astFiles, symbolName, pkgImportPath)
+	if err != nil {
+		return SymbolDetails{}, false
+	}
+
+	return SymbolDetails{Kind: SymbolFunctionType, FuncType: funcType, PkgPath: pkgImportPath}, true
+}
+
+func findFunctionSymbol(
+	astFiles []*dst.File, fset *token.FileSet, symbolName, pkgImportPath string,
+) (SymbolDetails, bool) {
+	funcDecl, err := findFunctionInAST(astFiles, fset, symbolName, pkgImportPath)
+	if err != nil {
+		return SymbolDetails{}, false
+	}
+
+	return SymbolDetails{Kind: SymbolFunction, FuncDecl: funcDecl, PkgPath: pkgImportPath}, true
 }
 
 // GetImportPathFromFiles determines the import path of a package by examining its loaded files.
