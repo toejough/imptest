@@ -8,8 +8,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/alexflint/go-arg"
 	"github.com/dave/dst"
+	"github.com/toejough/targ"
 
 	load "github.com/toejough/imptest/impgen/run/2_load"
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
@@ -111,12 +111,15 @@ var (
 
 // cliArgs defines the command-line arguments for the generator.
 type cliArgs struct {
-	Interface  string `arg:"positional,required" help:"interface or function name to wrap/mock"`
-	Name       string `arg:"--name"              help:"name for the generated code (overrides default naming)"`
-	Target     bool   `arg:"--target"            help:"generate target wrapper (WrapXxx) instead of dependency mock"`
-	Dependency bool   `arg:"--dependency"        help:"generate dependency mock (MockXxx) - this is the default behavior"`
-	ImportPath string `arg:"--import-path"       help:"explicit import path when ambiguous"`
+	Interface  string `targ:"positional,required,desc=interface or function name to wrap/mock"`
+	Name       string `targ:"flag,desc=name for the generated code (overrides default naming)"`
+	Target     bool   `targ:"flag,desc=generate target wrapper (WrapXxx) instead of dependency mock"`
+	Dependency bool   `targ:"flag,desc=generate dependency mock (MockXxx) - this is the default behavior"`
+	ImportPath string `targ:"flag,name=import-path,desc=explicit import path when ambiguous"`
 }
+
+// Run is required by targ but not used - parsing only.
+func (c *cliArgs) Run() {}
 
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
 func determineGeneratedTypeName(mode generate.NamingMode, localInterfaceName string) string {
@@ -332,17 +335,7 @@ func loadPackage(
 func parseArgs(args []string) (cliArgs, error) {
 	var parsed cliArgs
 
-	parser, err := arg.NewParser(arg.Config{}, &parsed)
-	if err != nil {
-		return cliArgs{}, fmt.Errorf("failed to create argument parser: %w", err)
-	}
-
-	var cmdArgs []string
-	if len(args) > 1 {
-		cmdArgs = args[1:]
-	}
-
-	err = parser.Parse(cmdArgs)
+	_, err := targ.Execute(args, &parsed)
 	if err != nil {
 		return cliArgs{}, fmt.Errorf("failed to parse arguments: %w", err)
 	}

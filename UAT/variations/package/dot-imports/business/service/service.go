@@ -1,9 +1,10 @@
+// Package service demonstrates business logic using dot-imported interfaces.
 package service
 
 import (
 	"fmt"
 
-	. "github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage" //nolint:staticcheck // Dot import intentional
+	. "github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage" //nolint:staticcheck,revive // Dot import intentional for UAT
 )
 
 // UserService demonstrates business logic that uses dot-imported interfaces.

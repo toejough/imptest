@@ -380,7 +380,7 @@ func (r *TemplateRegistry) parseFunctionDependencyTemplates() error {
 
 // parseInterfaceTargetTemplates parses all interface target wrapper templates.
 //
-//nolint:lll // Table entries have long identifiers for clarity
+
 func (r *TemplateRegistry) parseInterfaceTargetTemplates() error {
 	templates := []struct {
 		target  **template.Template

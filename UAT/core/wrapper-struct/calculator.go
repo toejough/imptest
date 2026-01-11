@@ -1,3 +1,4 @@
+// Package calculator demonstrates wrapping struct method implementations.
 package calculator
 
 import (

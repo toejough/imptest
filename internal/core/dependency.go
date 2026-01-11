@@ -22,6 +22,7 @@ type DependencyCall struct {
 	pending *PendingExpectation // set in async mode (Eventually)
 }
 
+// GetArgs returns the arguments passed to the mock method in this call.
 func (dc *DependencyCall) GetArgs() *DependencyArgs {
 	dc.imp.Helper()
 

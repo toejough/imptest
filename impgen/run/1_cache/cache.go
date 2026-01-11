@@ -1,3 +1,5 @@
+// Package cache provides caching for generated code signatures to support
+// incremental regeneration in the impgen tool.
 package cache
 
 import (

@@ -77,7 +77,7 @@ func TestBusinessLogicError(t *testing.T) {
 }
 
 // TestCalculatorAdd demonstrates wrapping a simple method with multiple parameters.
-func TestCalculatorAdd(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestCalculatorAdd(t *testing.T) {
 	t.Parallel()
 
 	calc := callable.NewCalculator(2)
@@ -90,7 +90,7 @@ func TestCalculatorAdd(t *testing.T) { //nolint:varnamelen // Standard Go test c
 }
 
 // TestCalculatorDivide demonstrates wrapping a method with multiple return values.
-func TestCalculatorDivide(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestCalculatorDivide(t *testing.T) {
 	t.Parallel()
 
 	calc := callable.NewCalculator(1)
@@ -103,7 +103,7 @@ func TestCalculatorDivide(t *testing.T) { //nolint:varnamelen // Standard Go tes
 }
 
 // TestCalculatorDivideByZero demonstrates testing error conditions.
-func TestCalculatorDivideByZero(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestCalculatorDivideByZero(t *testing.T) {
 	t.Parallel()
 
 	calc := callable.NewCalculator(1)
@@ -116,7 +116,7 @@ func TestCalculatorDivideByZero(t *testing.T) { //nolint:varnamelen // Standard 
 }
 
 // TestCalculatorMultiply demonstrates wrapping a method that uses receiver state.
-func TestCalculatorMultiply(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestCalculatorMultiply(t *testing.T) {
 	t.Parallel()
 
 	// Create calculator with multiplier=3
@@ -132,7 +132,7 @@ func TestCalculatorMultiply(t *testing.T) { //nolint:varnamelen // Standard Go t
 // TestCalculatorProcessValuePanic demonstrates testing panic behavior.
 func TestCalculatorProcessValuePanic(
 	t *testing.T,
-) { //nolint:varnamelen // Standard Go test convention
+) {
 	t.Parallel()
 
 	calc := callable.NewCalculator(5)
@@ -147,7 +147,7 @@ func TestCalculatorProcessValuePanic(
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.
 func TestCalculatorProcessValueSuccess(
 	t *testing.T,
-) { //nolint:varnamelen // Standard Go test convention
+) {
 	t.Parallel()
 
 	calc := callable.NewCalculator(5)

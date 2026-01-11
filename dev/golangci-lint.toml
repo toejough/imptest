@@ -13,16 +13,27 @@ disable = [
 	'wsl',            # deprecated
 ]
 
+# Exclude certain linters from test files
+[[linters.exclusions.rules]]
+path = '_test\.go$'
+linters = ['dogsled', 'err113', 'wrapcheck']
+
 [linters.settings.depguard.rules.all]
 files = ['$all', '!$test']
-allow = ['$gostd']
+allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest', 'github.com/toejough/targ', 'github.com/toejough/go-reorder']
 
 [linters.settings.depguard.rules.test]
 files = ['$test']
-allow = ['$gostd']
+allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest']
 
 [linters.settings.nlreturn]
 block-size = 2
+
+[linters.settings.varnamelen]
+# ignore-decls should work for conventional declarations like 't *testing.T' but doesn't
+# See: https://github.com/blizzy78/varnamelen/issues/5
+# Using ignore-names as workaround
+ignore-names = ['t', 'b']
 
 [linters.settings.unused]
 field-writes-are-uses = false
@@ -46,5 +57,5 @@ max-issues-per-linter = 10
 sort-order = ['severity', 'linter', 'file']
 
 # The formats used to render issues.
-#[output.formats.text]
 [output.formats.tab]
+path = "stdout"

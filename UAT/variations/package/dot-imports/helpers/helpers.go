@@ -1,3 +1,4 @@
+// Package helpers provides helper interfaces for dot-import testing.
 package helpers
 
 // Processor demonstrates a second interface for comprehensive testing.

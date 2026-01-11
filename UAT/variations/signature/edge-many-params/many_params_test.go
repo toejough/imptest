@@ -1,6 +1,6 @@
-package many_params_test
+package manyparams_test
 
-//go:generate impgen many_params.ManyParams --dependency
+//go:generate impgen manyparams.ManyParams --dependency
 
 import (
 	"testing"

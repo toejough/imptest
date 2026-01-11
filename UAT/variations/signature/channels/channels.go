@@ -1,3 +1,4 @@
+// Package channels demonstrates mocking interfaces with channel types.
 package channels
 
 // ChannelHandler demonstrates using different channel types in interface methods.

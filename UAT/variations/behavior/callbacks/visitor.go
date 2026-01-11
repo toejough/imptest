@@ -1,3 +1,4 @@
+// Package visitor demonstrates mocking interfaces with callback parameters.
 package visitor
 
 import (

@@ -1,9 +1,7 @@
-package timeconflict_test
+package timeconflict
 
 import (
 	"testing"
-
-	timeconflict "github.com/toejough/imptest/UAT/variations/package/shadowing"
 )
 
 //go:generate impgen --import-path=github.com/toejough/imptest/UAT/variations/package/shadowing/time time.Timer --dependency
@@ -20,7 +18,7 @@ func TestUseTimer(t *testing.T) {
 	mock := MockTimer(t)
 
 	go func() {
-		result := timeconflict.UseTimer(mock.Mock)
+		result := UseTimer(mock.Mock)
 		_ = result // Use the result to avoid unused variable warning
 	}()
 

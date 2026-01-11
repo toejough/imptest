@@ -1,3 +1,4 @@
+// Package storage provides storage interfaces for dot-import testing.
 package storage
 
 // Repository demonstrates an interface that will be dot-imported by business logic.

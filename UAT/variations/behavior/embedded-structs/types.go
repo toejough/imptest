@@ -1,3 +1,4 @@
+// Package embeddedstructs demonstrates mocking interfaces with embedded structs.
 package embeddedstructs
 
 import "fmt"

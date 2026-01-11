@@ -1,3 +1,4 @@
+// Package handlers demonstrates wrapping interface implementations.
 package handlers
 
 import (

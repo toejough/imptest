@@ -1,3 +1,4 @@
+// Package externalimports demonstrates mocking interfaces with external types.
 package externalimports
 
 import (

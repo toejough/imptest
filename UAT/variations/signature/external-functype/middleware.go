@@ -1,3 +1,4 @@
+// Package middleware demonstrates mocking interfaces with external function types.
 package middleware
 
 import "net/http"

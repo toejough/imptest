@@ -1,3 +1,5 @@
+// Package core provides the internal implementation of imptest's mock and
+// target controller infrastructure.
 package core
 
 import (
@@ -31,6 +33,7 @@ func NewCallableController[T any](t TestReporter) *CallableController[T] {
 	}
 }
 
+// WaitForResponse blocks until the wrapped function returns or panics.
 func (c *CallableController[T]) WaitForResponse() {
 	if c.Returned != nil || c.Panicked != nil {
 		return

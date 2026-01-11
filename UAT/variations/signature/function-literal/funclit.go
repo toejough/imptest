@@ -1,3 +1,4 @@
+// Package funclit demonstrates mocking interfaces with function literal parameters.
 package funclit
 
 import "errors"

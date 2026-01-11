@@ -1,3 +1,4 @@
+// Package mockmethod demonstrates mocking individual struct methods.
 package mockmethod
 
 // Counter is a struct type with methods that we want to mock individually.

@@ -1,3 +1,4 @@
+// Package generics demonstrates mocking generic interfaces.
 package generics
 
 import "fmt"

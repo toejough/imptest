@@ -1,3 +1,4 @@
+// Package embedded demonstrates mocking interfaces that embed other interfaces.
 package embedded
 
 import (
@@ -17,7 +18,6 @@ type ReadCloser interface {
 }
 
 // ProcessStream reads from a ReadCloser and then closes it.
-
 func ProcessStream(readCloser ReadCloser) (int, error) {
 	const bufSize = 10
 
