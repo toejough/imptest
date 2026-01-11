@@ -672,9 +672,11 @@ func Watch(ctx context.Context) error {
 	return file.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, file.WatchOptions{}, func(_ file.ChangeSet) error {
 		fmt.Println("Change detected...")
 
+		targ.ResetDeps() // Clear execution cache so targets run again
+
 		err := Check()
 		if err != nil {
-			fmt.Printf("continuing to watch after check failure:\n  %s\n", err)
+			fmt.Println("continuing to watch after check failure (see errors above)")
 		} else {
 			fmt.Println("continuing to watch after all checks passed!")
 		}

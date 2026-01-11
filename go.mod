@@ -9,13 +9,13 @@ require (
 	github.com/gtramontina/ooze v0.2.0
 	github.com/onsi/gomega v1.38.3
 	github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc
-	github.com/toejough/targ v0.0.0-20260110150223-6880d0bb721c
+	github.com/toejough/targ v0.0.0-20260111010949-4d3786d14b6c
 )
 
 require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/alexflint/go-scalar v1.2.0 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.9.1 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.9.2 // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect

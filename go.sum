@@ -8,8 +8,8 @@ github.com/alexflint/go-arg v1.6.0 h1:wPP9TwTPO54fUVQl4nZoxbFfKCcy5E6HBCumj1XVRS
 github.com/alexflint/go-arg v1.6.0/go.mod h1:A7vTJzvjoaSTypg4biM5uYNTkJ27SkNTArtYXnlqVO8=
 github.com/alexflint/go-scalar v1.2.0 h1:WR7JPKkeNpnYIOfHRa7ivM21aWAdHD0gEWHCx+WQBRw=
 github.com/alexflint/go-scalar v1.2.0/go.mod h1:LoFvNMqS1CPrMVltza4LvnGKhaSpc3oyLEBUZVhhS2o=
-github.com/bmatcuk/doublestar/v4 v4.9.1 h1:X8jg9rRZmJd4yRy7ZeNDRnM+T3ZfHv15JiBJ/avrEXE=
-github.com/bmatcuk/doublestar/v4 v4.9.1/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
+github.com/bmatcuk/doublestar/v4 v4.9.2 h1:b0mc6WyRSYLjzofB2v/0cuDUZ+MqoGyH3r0dVij35GI=
+github.com/bmatcuk/doublestar/v4 v4.9.2/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/dave/dst v0.27.3 h1:P1HPoMza3cMEquVf9kKy8yXsFirry4zEnWOdYPOoIzY=
 github.com/dave/dst v0.27.3/go.mod h1:jHh6EOibnHgcUW3WjKHisiooEkYwqpHLBSX1iOBhEyc=
 github.com/dave/jennifer v1.5.0 h1:HmgPN93bVDpkQyYbqhCHj5QlgvUkvEOzMyEvKLgCRrg=
@@ -48,8 +48,8 @@ github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKs
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc h1:ngRqitI5flfDOX6bgcjJuefhGiEhnhgnFK4woRlZU7c=
 github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc/go.mod h1:RPG0RKzyzlpkYcX8YNsX4QpOJzt87lGdeRFA1NoOwFk=
-github.com/toejough/targ v0.0.0-20260110150223-6880d0bb721c h1:KEm1VQZQTtbED+UyR3REVVnfszvinQ28rFxdIi3DZjo=
-github.com/toejough/targ v0.0.0-20260110150223-6880d0bb721c/go.mod h1:7ArqnI7QqyXqdvgBRzCqmYVNfkWH+xCw1C6tjHJxN+w=
+github.com/toejough/targ v0.0.0-20260111010949-4d3786d14b6c h1:kc6cqTWw5yeHcw2Z3uOypQP3mIzIMCOOj9vqgCvMwAQ=
+github.com/toejough/targ v0.0.0-20260111010949-4d3786d14b6c/go.mod h1:7ArqnI7QqyXqdvgBRzCqmYVNfkWH+xCw1C6tjHJxN+w=
 go.uber.org/automaxprocs v1.6.0 h1:O3y2/QNTOdbF+e/dpXNNW7Rx2hZ4sTIPyybbxyNqTUs=
 go.uber.org/automaxprocs v1.6.0/go.mod h1:ifeIMSnPZuznNm6jmdzmU3/bfk01Fe2fotchwEFJ8r8=
 go.yaml.in/yaml/v3 v3.0.4 h1:tfq32ie2Jv2UxXFdLJdh3jXuOzWiL1fo0bu/FbuKpbc=
