@@ -20,6 +20,8 @@ import (
 	cache "github.com/toejough/imptest/impgen/run/1_cache"
 )
 
+const goPackageEnvVar = "GOPACKAGE"
+
 // TestUATConsistency ensures that the generated files in the UAT directory
 // are exactly what the current generator code produces.
 func TestUATConsistency(t *testing.T) {
@@ -408,7 +410,7 @@ func verifyUATFile(
 	}
 
 	getEnv := func(key string) string {
-		if key == "GOPACKAGE" {
+		if key == goPackageEnvVar {
 			return testCase.pkgName
 		}
 

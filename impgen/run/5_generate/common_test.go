@@ -12,6 +12,9 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
+// Test fixture type names.
+const testTypeSomeType = "SomeType"
+
 func TestExtractFields(t *testing.T) {
 	t.Parallel()
 
@@ -302,7 +305,7 @@ func TestQualifyExternalTypes(t *testing.T) {
 		},
 		{
 			name:      "exported ident gets qualified",
-			expr:      &dst.Ident{Name: "SomeType"},
+			expr:      &dst.Ident{Name: testTypeSomeType},
 			qualifier: "pkg",
 			check: func(t *testing.T, result dst.Expr) {
 				sel, ok := result.(*dst.SelectorExpr)
@@ -314,7 +317,7 @@ func TestQualifyExternalTypes(t *testing.T) {
 				if !ok || x.Name != "pkg" {
 					t.Errorf("expected X to be pkg, got %v", sel.X)
 				}
-				if sel.Sel.Name != "SomeType" {
+				if sel.Sel.Name != testTypeSomeType {
 					t.Errorf("expected Sel to be SomeType, got %s", sel.Sel.Name)
 				}
 			},
@@ -336,7 +339,7 @@ func TestQualifyExternalTypes(t *testing.T) {
 		},
 		{
 			name:      "star expr qualifies inner type",
-			expr:      &dst.StarExpr{X: &dst.Ident{Name: "SomeType"}},
+			expr:      &dst.StarExpr{X: &dst.Ident{Name: testTypeSomeType}},
 			qualifier: "pkg",
 			check: func(t *testing.T, result dst.Expr) {
 				star, ok := result.(*dst.StarExpr)
@@ -348,14 +351,14 @@ func TestQualifyExternalTypes(t *testing.T) {
 				if !ok {
 					t.Errorf("expected SelectorExpr inside StarExpr, got %T", star.X)
 				}
-				if sel.Sel.Name != "SomeType" {
+				if sel.Sel.Name != testTypeSomeType {
 					t.Errorf("expected SomeType, got %s", sel.Sel.Name)
 				}
 			},
 		},
 		{
 			name:      "array type qualifies element",
-			expr:      &dst.ArrayType{Elt: &dst.Ident{Name: "SomeType"}},
+			expr:      &dst.ArrayType{Elt: &dst.Ident{Name: testTypeSomeType}},
 			qualifier: "pkg",
 			check: func(t *testing.T, result dst.Expr) {
 				arr, ok := result.(*dst.ArrayType)
@@ -367,7 +370,7 @@ func TestQualifyExternalTypes(t *testing.T) {
 				if !ok {
 					t.Errorf("expected SelectorExpr in array element, got %T", arr.Elt)
 				}
-				if sel.Sel.Name != "SomeType" {
+				if sel.Sel.Name != testTypeSomeType {
 					t.Errorf("expected SomeType, got %s", sel.Sel.Name)
 				}
 			},
@@ -401,7 +404,7 @@ func TestQualifyExternalTypes(t *testing.T) {
 		},
 		{
 			name:      "chan type qualifies value",
-			expr:      &dst.ChanType{Dir: dst.SEND | dst.RECV, Value: &dst.Ident{Name: "SomeType"}},
+			expr:      &dst.ChanType{Dir: dst.SEND | dst.RECV, Value: &dst.Ident{Name: testTypeSomeType}},
 			qualifier: "pkg",
 			check: func(t *testing.T, result dst.Expr) {
 				ch, ok := result.(*dst.ChanType)
@@ -413,7 +416,7 @@ func TestQualifyExternalTypes(t *testing.T) {
 				if !ok {
 					t.Errorf("expected SelectorExpr for channel value, got %T", ch.Value)
 				}
-				if sel.Sel.Name != "SomeType" {
+				if sel.Sel.Name != testTypeSomeType {
 					t.Errorf("expected SomeType, got %s", sel.Sel.Name)
 				}
 			},

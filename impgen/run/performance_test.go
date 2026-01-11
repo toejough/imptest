@@ -25,7 +25,7 @@ func BenchmarkCallableGeneration(b *testing.B) {
 	// Warm up the package loader cache
 	_, _, _, err := loader.Load(
 		scenarioDir,
-	) //nolint:dogsled // Only checking for error during warmup
+	)
 	if err != nil {
 		b.Fatalf("failed to load package: %v", err)
 	}
@@ -36,7 +36,7 @@ func BenchmarkCallableGeneration(b *testing.B) {
 		// Simulate the generation by calling Run with the PerformOps callable
 		args := []string{"impgen", "PerformOps"}
 		getEnv := func(key string) string {
-			if key == "GOPACKAGE" {
+			if key == goPackageEnvVar {
 				return "basic"
 			}
 
@@ -72,7 +72,7 @@ func BenchmarkInterfaceGeneration(b *testing.B) {
 	// Warm up the package loader cache
 	_, _, _, err := loader.Load(
 		scenarioDir,
-	) //nolint:dogsled // Only checking for error during warmup
+	)
 	if err != nil {
 		b.Fatalf("failed to load package: %v", err)
 	}
@@ -83,7 +83,7 @@ func BenchmarkInterfaceGeneration(b *testing.B) {
 		// Simulate the generation by calling Run with the Ops interface
 		args := []string{"impgen", "Ops"}
 		getEnv := func(key string) string {
-			if key == "GOPACKAGE" {
+			if key == goPackageEnvVar {
 				return "basic"
 			}
 

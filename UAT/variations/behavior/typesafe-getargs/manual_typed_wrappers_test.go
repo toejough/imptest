@@ -6,6 +6,8 @@ import (
 	typesafeargs "github.com/toejough/imptest/UAT/variations/behavior/typesafe-getargs"
 )
 
+const responseTypePanic = "panic"
+
 // CalculatorAddArgs holds typed arguments for Add method
 type CalculatorAddArgs struct {
 	A int
@@ -87,7 +89,7 @@ func (impl *mockCalculatorImpl) Add(a, b int) int {
 	impl.handle.Controller.CallChan <- call
 
 	resp := <-call.ResponseChan
-	if resp.Type == "panic" {
+	if resp.Type == responseTypePanic {
 		panic(resp.PanicValue)
 	}
 
@@ -111,7 +113,7 @@ func (impl *mockCalculatorImpl) Multiply(x, y int) int {
 	impl.handle.Controller.CallChan <- call
 
 	resp := <-call.ResponseChan
-	if resp.Type == "panic" {
+	if resp.Type == responseTypePanic {
 		panic(resp.PanicValue)
 	}
 
@@ -135,7 +137,7 @@ func (impl *mockCalculatorImpl) Store(key string, value any) error {
 	impl.handle.Controller.CallChan <- call
 
 	resp := <-call.ResponseChan
-	if resp.Type == "panic" {
+	if resp.Type == responseTypePanic {
 		panic(resp.PanicValue)
 	}
 
