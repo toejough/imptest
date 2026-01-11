@@ -266,8 +266,8 @@ func DeleteDeadcode() error {
 		file := fileParts[0]
 		funcName := parts[1]
 
-		// Skip generated files
-		if strings.Contains(file, "generated_") || strings.HasSuffix(file, ".qtpl.go") {
+		// Skip generated files and test files
+		if strings.Contains(file, "generated_") || strings.HasSuffix(file, ".qtpl.go") || strings.HasSuffix(file, "_test.go") {
 			continue
 		}
 
@@ -669,7 +669,12 @@ func TodoCheck() error {
 func Watch(ctx context.Context) error {
 	fmt.Println("Watching...")
 
-	return file.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, file.WatchOptions{}, func(_ file.ChangeSet) error {
+	return file.Watch(ctx, []string{"**/*.go", "**/*.fish", "**/*.toml"}, file.WatchOptions{}, func(changes file.ChangeSet) error {
+		// Filter out generated files and coverage output to avoid infinite loops
+		if !hasRelevantChanges(changes) {
+			return nil
+		}
+
 		fmt.Println("Change detected...")
 
 		targ.ResetDeps() // Clear execution cache so targets run again
@@ -1381,6 +1386,27 @@ func globs(dir string, ext []string) ([]string, error) {
 	})
 
 	return files, err
+}
+
+// hasRelevantChanges returns true if the changeset contains files we care about.
+// Filters out generated files and build artifacts that Check() itself creates.
+func hasRelevantChanges(changes file.ChangeSet) bool {
+	allFiles := append(append(changes.Added, changes.Removed...), changes.Modified...)
+
+	for _, f := range allFiles {
+		// Skip generated test files
+		if strings.Contains(f, "generated_") {
+			continue
+		}
+		// Skip coverage output
+		if strings.HasSuffix(f, "coverage.out") {
+			continue
+		}
+		// Found a relevant change
+		return true
+	}
+
+	return false
 }
 
 func hashFile(path string) (string, error) {
