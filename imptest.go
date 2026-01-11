@@ -23,9 +23,6 @@ func NewCallableController[T any](t TestReporter) *CallableController[T] {
 type Controller[T Call] = core.Controller[T]
 
 // NewController creates a new controller with the default real timer.
-func NewController[T Call](t TestReporter) *Controller[T] {
-	return core.NewController[T](t)
-}
 
 // DependencyArgs provides access to the actual arguments that were passed to the dependency.
 type DependencyArgs = core.DependencyArgs

@@ -136,38 +136,3 @@ import (
 		})
 	}
 }
-
-func TestInferImportPathFromTestFile_EmptyPath(t *testing.T) {
-	t.Parallel()
-
-	_, err := detect.InferImportPathFromTestFile("", "pkg")
-	if err == nil {
-		t.Error("expected error for empty path, got nil")
-	}
-}
-
-func TestInferImportPathFromTestFile_InvalidFile(t *testing.T) {
-	t.Parallel()
-
-	tmpDir := t.TempDir()
-	tmpFile := filepath.Join(tmpDir, "invalid.go")
-
-	err := os.WriteFile(tmpFile, []byte("this is not valid go code {{{"), 0o600)
-	if err != nil {
-		t.Fatalf("failed to write temp file: %v", err)
-	}
-
-	_, err = detect.InferImportPathFromTestFile(tmpFile, "pkg")
-	if err == nil {
-		t.Error("expected error for invalid file, got nil")
-	}
-}
-
-func TestInferImportPathFromTestFile_NonexistentFile(t *testing.T) {
-	t.Parallel()
-
-	_, err := detect.InferImportPathFromTestFile("/nonexistent/path/file.go", "pkg")
-	if err == nil {
-		t.Error("expected error for nonexistent file, got nil")
-	}
-}

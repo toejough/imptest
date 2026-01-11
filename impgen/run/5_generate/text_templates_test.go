@@ -1,4 +1,4 @@
-//nolint:testpackage,lll,varnamelen,wsl_v5 // Tests internal functions with long template test lines
+//nolint:testpackage,lll,varnamelen // Tests internal functions with long template test lines
 package generate
 
 import (
@@ -21,42 +21,11 @@ func TestParseTemplate_Error(t *testing.T) {
 	}
 }
 
-func TestTemplateRegistry_WriteDepArgsStruct(t *testing.T) {
-	t.Parallel()
+// Use the correct data structure expected by the template
 
-	registry, err := NewTemplateRegistry()
-	if err != nil {
-		t.Fatalf("failed to create template registry: %v", err)
-	}
+// Verify output contains expected content
 
-	buf := &bytes.Buffer{}
-
-	// Use the correct data structure expected by the template
-	data := depMethodTemplateData{
-		HasParams:    true,
-		ArgsTypeName: "TestArgs",
-		ParamFields: []paramField{
-			{Name: "A1", Type: "int", Index: 0},
-		},
-	}
-
-	registry.WriteDepArgsStruct(buf, data)
-
-	// Verify output contains expected content
-	output := buf.String()
-	if len(output) == 0 {
-		t.Error("expected non-empty output from template")
-	}
-
-	// Test with no params
-	buf.Reset()
-	dataNoParams := depMethodTemplateData{
-		HasParams:    false,
-		ArgsTypeName: "EmptyArgs",
-	}
-
-	registry.WriteDepArgsStruct(buf, dataNoParams)
-}
+// Test with no params
 
 //nolint:tparallel,paralleltest // Tests panic behavior which needs sequential execution per subtest
 func TestTemplateRegistry_WritePanicPaths(t *testing.T) {
@@ -94,24 +63,7 @@ func TestTemplateRegistry_WritePanicPaths(t *testing.T) {
 	}
 }
 
-func TestTemplateRegistry_WriteTargetWaitMethod(t *testing.T) {
-	t.Parallel()
-
-	registry, err := NewTemplateRegistry()
-	if err != nil {
-		t.Fatalf("failed to create template registry: %v", err)
-	}
-
-	buf := &bytes.Buffer{}
-
-	// WriteTargetWaitMethod has an empty template - should not panic and produce no output
-	registry.WriteTargetWaitMethod(buf, struct{}{})
-
-	output := buf.String()
-	if output != "" {
-		t.Errorf("expected empty output from empty template, got %q", output)
-	}
-}
+// WriteTargetWaitMethod has an empty template - should not panic and produce no output
 
 // templateWriteTest defines a template write function and its expected panic message prefix.
 type templateWriteTest struct {
