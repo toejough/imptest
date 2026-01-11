@@ -1,3 +1,5 @@
+// Package structlit demonstrates mocking interfaces and functions with anonymous
+// struct literal parameters and return types.
 package structlit
 
 import "errors"
@@ -20,7 +22,7 @@ type ConfigManager struct{}
 
 // Load returns a struct literal containing configuration data.
 // Struct literal returns avoid creating named types for simple data structures.
-func (c ConfigManager) Load(path string) struct {
+func (c ConfigManager) Load(_ string) struct {
 	Host string
 	Port int
 	TLS  bool

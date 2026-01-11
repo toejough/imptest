@@ -1,3 +1,5 @@
+// Package noncomparable demonstrates mocking interfaces with non-comparable
+// parameter types like slices and maps.
 package noncomparable
 
 // DataProcessor handles types that don't support the '==' operator (slices and maps).

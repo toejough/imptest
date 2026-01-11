@@ -1,3 +1,5 @@
+// Package named demonstrates mocking interfaces and functions with named
+// parameters and return values.
 package named
 
 import (

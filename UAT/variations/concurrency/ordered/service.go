@@ -1,3 +1,4 @@
+// Package orderedvsmode demonstrates ordered vs eventually call matching modes.
 package orderedvsmode
 
 // Service demonstrates ordered vs eventually call matching modes.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega" //nolint:revive // Dot import intentional for Gomega matcher DSL
 
 	"github.com/toejough/imptest"
 	matching "github.com/toejough/imptest/UAT/variations/behavior/matching"

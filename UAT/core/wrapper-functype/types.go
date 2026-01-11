@@ -1,3 +1,4 @@
+// Package functype demonstrates wrapping named function types for testing.
 package functype
 
 // WalkFunc is a function type for walking directory entries.

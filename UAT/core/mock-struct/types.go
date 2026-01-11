@@ -1,3 +1,5 @@
+// Package mockstruct demonstrates mocking a struct type by wrapping its methods
+// into an interface that can be mocked.
 package mockstruct
 
 import "errors"

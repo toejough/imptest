@@ -1,3 +1,5 @@
+// Package interfaceliteral demonstrates mocking interfaces that use anonymous
+// interface literal types in method signatures.
 package interfaceliteral
 
 // DataProcessor demonstrates interface literals in method signatures.

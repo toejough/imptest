@@ -1,3 +1,4 @@
+// Package load provides package loading functionality using DST parsing.
 package load
 
 import (

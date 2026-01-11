@@ -1,3 +1,5 @@
+// Package testpkgimport demonstrates resolving unqualified interface names
+// from test packages to their non-test package equivalents.
 package testpkgimport
 
 // Service is an interface in the non-test package.

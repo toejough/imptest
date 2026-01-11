@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	. "github.com/toejough/imptest/UAT/variations/package/dot-imports/helpers"
+	. "github.com/toejough/imptest/UAT/variations/package/dot-imports/helpers" //nolint:revive // Dot import intentional for testing dot-import support
 )
 
 //go:generate impgen Storage --dependency

@@ -1,3 +1,4 @@
+// Package callable demonstrates wrapping functions and struct methods for testing.
 package callable
 
 import "fmt"

@@ -1,3 +1,4 @@
+// Package typesafeargs demonstrates type-safe GetArgs() for dependency mocks.
 package typesafeargs
 
 // Calculator demonstrates type-safe GetArgs() for dependency mocks.

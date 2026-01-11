@@ -1,3 +1,4 @@
+// Package basic demonstrates the core mocking features of imptest.
 package basic
 
 // Ops demonstrates the core mocking features of imptest.

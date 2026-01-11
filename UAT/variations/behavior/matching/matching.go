@@ -1,3 +1,5 @@
+// Package matching demonstrates mocking interfaces with complex struct parameters
+// and using matchers for partial field validation.
 package matching
 
 // ComplexService is an interface taking a complex struct.

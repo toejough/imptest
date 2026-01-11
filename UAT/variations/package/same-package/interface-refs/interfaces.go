@@ -1,3 +1,5 @@
+// Package samepackage demonstrates interfaces that reference other interfaces
+// from the same package in their method signatures.
 package samepackage
 
 // DataProcessor processes data from sources and sends to sinks.

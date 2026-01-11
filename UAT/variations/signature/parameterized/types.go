@@ -1,3 +1,5 @@
+// Package parameterized demonstrates mocking interfaces that use instantiated
+// generic types like Container[string] in method signatures.
 package parameterized
 
 // Container is a generic container type.

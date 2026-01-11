@@ -1,3 +1,4 @@
+// Package safety demonstrates testing code that handles panics from dependencies.
 package safety
 
 // CriticalDependency represents a service that might crash.

@@ -1,3 +1,4 @@
+// Package concurrency demonstrates testing code that calls dependencies concurrently.
 package concurrency
 
 import (
