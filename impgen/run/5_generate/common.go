@@ -434,16 +434,16 @@ func (w *typeExprWalker[T]) walkIndexListExpr(typeExpr *dst.IndexListExpr) T {
 }
 
 // walkIndexType handles generic type indexing (IndexExpr and IndexListExpr).
-// The caller guarantees expr is one of these types, so no default case is needed.
 func (w *typeExprWalker[T]) walkIndexType(expr dst.Expr) T {
-	if indexExpr, ok := expr.(*dst.IndexExpr); ok {
-		return w.combine(w.walk(indexExpr.X), w.walk(indexExpr.Index))
+	switch typed := expr.(type) {
+	case *dst.IndexExpr:
+		return w.combine(w.walk(typed.X), w.walk(typed.Index))
+	case *dst.IndexListExpr:
+		return w.walkIndexListExpr(typed)
+	default:
+		// Should never happen - caller guarantees expr is IndexExpr or IndexListExpr
+		return w.zero
 	}
-
-	// Must be *dst.IndexListExpr since caller already type-checked
-	return w.walkIndexListExpr(
-		expr.(*dst.IndexListExpr),
-	) //nolint:forcetypeassert // Checked by caller
 }
 
 // walkMapType handles map type traversal.
