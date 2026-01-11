@@ -39,29 +39,29 @@ func TestTemplateRegistry_WritePanicPaths(t *testing.T) {
 		t.Fatalf("failed to create template registry: %v", err)
 	}
 
-	for _, tc := range allTemplateWriteTests() {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, testCase := range allTemplateWriteTests() {
+		t.Run(testCase.name, func(t *testing.T) {
 			buf := &bytes.Buffer{}
 
 			defer func() {
 				recovered := recover()
 				if recovered == nil {
-					t.Errorf("%s: expected panic for invalid template data", tc.name)
+					t.Errorf("%s: expected panic for invalid template data", testCase.name)
 					return
 				}
 
 				msg, isString := recovered.(string)
 				if !isString {
-					t.Errorf("%s: expected string panic, got %T", tc.name, recovered)
+					t.Errorf("%s: expected string panic, got %T", testCase.name, recovered)
 					return
 				}
 
-				if !strings.Contains(msg, tc.panicMsg) {
-					t.Errorf("%s: unexpected panic message: %s", tc.name, msg)
+				if !strings.Contains(msg, testCase.panicMsg) {
+					t.Errorf("%s: unexpected panic message: %s", testCase.name, msg)
 				}
 			}()
 
-			tc.writeFunc(registry, buf)
+			testCase.writeFunc(registry, buf)
 		})
 	}
 }
