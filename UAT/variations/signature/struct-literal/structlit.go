@@ -8,6 +8,13 @@ var (
 	ErrProcessFailed = errors.New("process failed")
 )
 
+// Default configuration values.
+const (
+	defaultPort       = 8080
+	defaultMaxRetries = 3
+	defaultTimeout    = 30
+)
+
 // ConfigManager demonstrates a struct with methods using struct literal returns.
 type ConfigManager struct{}
 
@@ -25,7 +32,7 @@ func (c ConfigManager) Load(path string) struct {
 		TLS  bool
 	}{
 		Host: "localhost",
-		Port: 8080,
+		Port: defaultPort,
 		TLS:  false,
 	}
 }
@@ -67,8 +74,8 @@ func GetDefaults() struct {
 		MaxRetries int
 		Timeout    int
 	}{
-		MaxRetries: 3,
-		Timeout:    30,
+		MaxRetries: defaultMaxRetries,
+		Timeout:    defaultTimeout,
 	}
 }
 
