@@ -67,7 +67,7 @@ func Check(ctx context.Context) error {
 	return targ.Deps(
 		func() error { return Tidy(ctx) },           // clean up the module dependencies
 		func() error { return DeleteDeadcode(ctx) }, // no use doing anything else to dead code
-		func() error { return FixImports(ctx) },     // after dead code removal, fix imports to remove unused ones
+		func() error { return Fmt(ctx) },             // after dead code removal, format code including imports
 		func() error { return Modernize(ctx) },      // no use doing anything else to old code patterns
 		func() error { return CheckCoverage(ctx) },  // does our code work?
 		func() error { return CheckNils(ctx) },      // is it nil free?
@@ -319,10 +319,10 @@ func FindRedundantTests() error {
 	return findRedundantTestsWithConfig(config)
 }
 
-// FixImports fixes all imports in the codebase.
-func FixImports(ctx context.Context) error {
-	fmt.Println("Fixing imports...")
-	return sh.RunContext(ctx, "goimports", "-w", ".")
+// Fmt formats the codebase using golangci-lint formatters.
+func Fmt(ctx context.Context) error {
+	fmt.Println("Formatting...")
+	return sh.RunContext(ctx, "golangci-lint", "run", "-c", "dev/golangci-fmt.toml")
 }
 
 // Fuzz runs the fuzz tests.
@@ -368,7 +368,7 @@ func InstallTools() error {
 // Lint lints the codebase.
 func Lint(ctx context.Context) error {
 	fmt.Println("Linting...")
-	return sh.RunContext(ctx, "golangci-lint", "run", "-c", "dev/golangci.toml")
+	return sh.RunContext(ctx, "golangci-lint", "run", "-c", "dev/golangci-lint.toml")
 }
 
 // LintForFail lints the codebase purely to find out whether anything fails.
@@ -377,7 +377,7 @@ func LintForFail() error {
 
 	return sh.Run(
 		"golangci-lint", "run",
-		"-c", "dev/golangci.toml",
+		"-c", "dev/golangci-lint.toml",
 		"--fix=false",
 		"--max-issues-per-linter=1",
 		"--max-same-issues=1",
