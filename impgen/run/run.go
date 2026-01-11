@@ -10,6 +10,7 @@ import (
 
 	"github.com/alexflint/go-arg"
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 	generate "github.com/toejough/imptest/impgen/run/5_generate"
 	output "github.com/toejough/imptest/impgen/run/6_output"
@@ -42,14 +43,23 @@ type FileSystem interface {
 // returns an error if any step fails. On success, it generates a Go source file implementing the specified interface,
 // in the calling test package.
 func Run(
-	args []string, getEnv func(string) string, fileWriter output.Writer, pkgLoader detect.PackageLoader, out io.Writer,
+	args []string,
+	getEnv func(string) string,
+	fileWriter output.Writer,
+	pkgLoader detect.PackageLoader,
+	out io.Writer,
 ) error {
 	info, err := getGeneratorCallInfo(args, getEnv)
 	if err != nil {
 		return err
 	}
 
-	pkgImportPath, err := getInterfacePackagePath(info.InterfaceName, pkgLoader, info.ImportPathFlag, getEnv)
+	pkgImportPath, err := getInterfacePackagePath(
+		info.InterfaceName,
+		pkgLoader,
+		info.ImportPathFlag,
+		getEnv,
+	)
 	if err != nil {
 		return err
 	}
@@ -89,7 +99,9 @@ const (
 
 // unexported variables.
 var (
-	errAmbiguousPackage       = errors.New("package is ambiguous: both stdlib and local package exist")
+	errAmbiguousPackage = errors.New(
+		"package is ambiguous: both stdlib and local package exist",
+	)
 	errGOPACKAGENotSet        = errors.New(goPackageEnvVarName + " environment variable not set")
 	errMutuallyExclusiveFlags = errors.New("--target and --dependency flags are mutually exclusive")
 )
@@ -139,7 +151,13 @@ func generateCode(
 	pkgLoader detect.PackageLoader,
 ) (string, error) {
 	// Auto-detect the symbol type
-	symbol, err := detect.FindSymbol(astFiles, fset, info.LocalInterfaceName, pkgImportPath, pkgLoader)
+	symbol, err := detect.FindSymbol(
+		astFiles,
+		fset,
+		info.LocalInterfaceName,
+		pkgImportPath,
+		pkgLoader,
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to find symbol %s: %w", info.LocalInterfaceName, err)
 	}
@@ -163,7 +181,10 @@ func generateCode(
 // Functions - Private
 
 // getGeneratorCallInfo returns basic information about the current call to the generator.
-func getGeneratorCallInfo(args []string, getEnv func(string) string) (generate.GeneratorInfo, error) {
+func getGeneratorCallInfo(
+	args []string,
+	getEnv func(string) string,
+) (generate.GeneratorInfo, error) {
 	pkgName := getEnv(goPackageEnvVarName)
 	if pkgName == "" {
 		return generate.GeneratorInfo{}, errGOPACKAGENotSet
@@ -291,7 +312,10 @@ func getLocalInterfaceName(interfaceName string) string {
 }
 
 // loadPackage loads the AST for the package at the given path.
-func loadPackage(pkgPath string, pkgLoader detect.PackageLoader) ([]*dst.File, *token.FileSet, error) {
+func loadPackage(
+	pkgPath string,
+	pkgLoader detect.PackageLoader,
+) ([]*dst.File, *token.FileSet, error) {
 	astFiles, fset, _, err := pkgLoader.Load(pkgPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to load package %s: %w", pkgPath, err)
@@ -352,7 +376,14 @@ func routeFunctionTypeGenerator(
 	case generate.NamingModeTarget:
 		return generate.TargetCodeFromFuncType(astFiles, info, fset, pkgPath, pkgLoader, funcType)
 	case generate.NamingModeDependency:
-		return generate.FunctionTypeDependencyCode(astFiles, info, fset, pkgPath, pkgLoader, funcType)
+		return generate.FunctionTypeDependencyCode(
+			astFiles,
+			info,
+			fset,
+			pkgPath,
+			pkgLoader,
+			funcType,
+		)
 	case generate.NamingModeDefault:
 		return "", ErrFunctionModeRequired
 	}
@@ -409,11 +440,32 @@ func routeToGenerator(
 ) (string, error) {
 	switch symbol.Kind {
 	case detect.SymbolFunction:
-		return routeFunctionGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.FuncDecl)
+		return routeFunctionGenerator(
+			astFiles,
+			info,
+			fset,
+			actualPkgPath,
+			pkgLoader,
+			symbol.FuncDecl,
+		)
 	case detect.SymbolFunctionType:
-		return routeFunctionTypeGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.FuncType)
+		return routeFunctionTypeGenerator(
+			astFiles,
+			info,
+			fset,
+			actualPkgPath,
+			pkgLoader,
+			symbol.FuncType,
+		)
 	case detect.SymbolStructType:
-		return routeStructGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.StructType)
+		return routeStructGenerator(
+			astFiles,
+			info,
+			fset,
+			actualPkgPath,
+			pkgLoader,
+			symbol.StructType,
+		)
 	case detect.SymbolInterface:
 		return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.Iface)
 	}

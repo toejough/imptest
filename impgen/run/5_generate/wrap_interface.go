@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -20,7 +21,14 @@ func InterfaceTargetCode(
 	ifaceWithDetails detect.IfaceWithDetails,
 	isStructType bool,
 ) (string, error) {
-	gen, err := newInterfaceTargetGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
+	gen, err := newInterfaceTargetGenerator(
+		astFiles,
+		info,
+		fset,
+		pkgImportPath,
+		pkgLoader,
+		ifaceWithDetails,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -45,7 +53,9 @@ type interfaceTargetGenerator struct {
 }
 
 // buildInterfaceTargetTemplateData constructs the template data for interface target wrapper generation.
-func (gen *interfaceTargetGenerator) buildInterfaceTargetTemplateData(isStructType bool) interfaceTargetTemplateData {
+func (gen *interfaceTargetGenerator) buildInterfaceTargetTemplateData(
+	isStructType bool,
+) interfaceTargetTemplateData {
 	// Determine if we need reflect (for ExpectReturnsEqual with DeepEqual)
 	needsReflect := false
 	_ = forEachInterfaceMethod(
@@ -248,7 +258,8 @@ func (gen *interfaceTargetGenerator) formatQualifiedInterfaceType() string {
 	if gen.qualifier != "" && gen.needsQualifier {
 		qualifierToUse := gen.qualifier
 		// Check if this is a stdlib package that needs aliasing due to a name conflict
-		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
+		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") &&
+			gen.pkgPath == gen.qualifier {
 			qualifierToUse = "_" + gen.qualifier
 		}
 
@@ -291,7 +302,10 @@ func (gen *interfaceTargetGenerator) generate(isStructType bool) (string, error)
 }
 
 // generateWithTemplates generates code using templates instead of direct code generation.
-func (gen *interfaceTargetGenerator) generateWithTemplates(templates *TemplateRegistry, isStructType bool) {
+func (gen *interfaceTargetGenerator) generateWithTemplates(
+	templates *TemplateRegistry,
+	isStructType bool,
+) {
 	data := gen.buildInterfaceTargetTemplateData(isStructType)
 
 	// Generate each section using templates
@@ -341,7 +355,13 @@ func newInterfaceTargetGenerator(
 	}
 
 	// Collect method names
-	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.Iface, astFiles, fset, pkgImportPath, pkgLoader)
+	methodNames, err := interfaceCollectMethodNames(
+		ifaceWithDetails.Iface,
+		astFiles,
+		fset,
+		pkgImportPath,
+		pkgLoader,
+	)
 	if err != nil {
 		return nil, err
 	}

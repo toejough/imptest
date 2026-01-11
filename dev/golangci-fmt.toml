@@ -17,3 +17,9 @@ sections = [
 [formatters.settings.gofumpt]
 # Choose whether to use the extra rules.
 extra-rules = true
+
+# how to handle the issues the formatters find
+[issues]
+# Apply the fixes detected by the linters and formatters (if it's supported by the linter). Default: false
+# if there are easy canonical fixes, just do them
+fix = true

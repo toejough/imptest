@@ -23,7 +23,9 @@ func BenchmarkCallableGeneration(b *testing.B) {
 	}
 
 	// Warm up the package loader cache
-	_, _, _, err := loader.Load(scenarioDir) //nolint:dogsled // Only checking for error during warmup
+	_, _, _, err := loader.Load(
+		scenarioDir,
+	) //nolint:dogsled // Only checking for error during warmup
 	if err != nil {
 		b.Fatalf("failed to load package: %v", err)
 	}
@@ -68,7 +70,9 @@ func BenchmarkInterfaceGeneration(b *testing.B) {
 	}
 
 	// Warm up the package loader cache
-	_, _, _, err := loader.Load(scenarioDir) //nolint:dogsled // Only checking for error during warmup
+	_, _, _, err := loader.Load(
+		scenarioDir,
+	) //nolint:dogsled // Only checking for error during warmup
 	if err != nil {
 		b.Fatalf("failed to load package: %v", err)
 	}

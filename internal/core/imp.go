@@ -92,7 +92,11 @@ func (i *Imp) GetCallEventually(methodName string, validator func([]any) error) 
 // GetCallOrdered waits for a call matching both the method name and argument validator,
 // but fails fast if a non-matching call arrives first. The validator returns nil for
 // matching args, or an error describing why they didn't match.
-func (i *Imp) GetCallOrdered(timeout time.Duration, methodName string, validator func([]any) error) *GenericCall {
+func (i *Imp) GetCallOrdered(
+	timeout time.Duration,
+	methodName string,
+	validator func([]any) error,
+) *GenericCall {
 	combinedValidator := func(call *GenericCall) error {
 		if call.MethodName != methodName {
 			//nolint:err113 // validation error with dynamic context
@@ -118,7 +122,10 @@ func (i *Imp) Helper() {
 
 // RegisterPendingExpectation registers a new pending expectation.
 // Returns the expectation for chaining InjectReturnValues/InjectPanicValue.
-func (i *Imp) RegisterPendingExpectation(methodName string, validator func([]any) error) *PendingExpectation {
+func (i *Imp) RegisterPendingExpectation(
+	methodName string,
+	validator func([]any) error,
+) *PendingExpectation {
 	pending := &PendingExpectation{
 		MethodName:  methodName,
 		Validator:   validator,

@@ -372,7 +372,7 @@ func (pc *PendingCompletion) ExpectReturnsEqual(values ...any) {
 
 // SetCompleted is called when the call completes with a return value or panic.
 // If an expectation is already registered, it checks the expectation.
-func (pc *PendingCompletion) SetCompleted(returnedVal any, panickedVal any) {
+func (pc *PendingCompletion) SetCompleted(returnedVal, panickedVal any) {
 	pc.mu.Lock()
 	pc.completed = true
 	pc.returnedVal = returnedVal
@@ -387,7 +387,7 @@ func (pc *PendingCompletion) SetCompleted(returnedVal any, panickedVal any) {
 }
 
 // checkExpectation verifies the actual values against the expected values.
-func (pc *PendingCompletion) checkExpectation(returnedVal any, panickedVal any) {
+func (pc *PendingCompletion) checkExpectation(returnedVal, panickedVal any) {
 	pc.t.Helper()
 
 	pc.mu.Lock()
@@ -420,7 +420,11 @@ func (pc *PendingCompletion) checkExpectation(returnedVal any, panickedVal any) 
 
 // checkReturnValues uses reflection to compare return values.
 // returnedVal is a struct with Result0, Result1, etc. fields.
-func (pc *PendingCompletion) checkReturnValues(returnedVal any, expectedVals []any, useMatchers bool) {
+func (pc *PendingCompletion) checkReturnValues(
+	returnedVal any,
+	expectedVals []any,
+	useMatchers bool,
+) {
 	pc.t.Helper()
 
 	if returnedVal == nil {

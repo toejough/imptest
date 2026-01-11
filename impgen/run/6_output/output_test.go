@@ -113,7 +113,11 @@ func TestWriteGeneratedCode(t *testing.T) {
 
 			if tt.wantFilename != "" {
 				if _, ok := writer.writtenFiles[tt.wantFilename]; !ok {
-					t.Errorf("expected file %s to be written, got files: %v", tt.wantFilename, writer.writtenFiles)
+					t.Errorf(
+						"expected file %s to be written, got files: %v",
+						tt.wantFilename,
+						writer.writtenFiles,
+					)
 				}
 			}
 		})

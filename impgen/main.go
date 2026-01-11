@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 
 	"github.com/dave/dst"
+
 	"github.com/toejough/imptest/impgen/run"
 	load "github.com/toejough/imptest/impgen/run/2_load"
 )
@@ -70,7 +71,9 @@ type realPackageLoader struct{}
 
 // Load loads a package by import path and returns its DST files and FileSet.
 // Uses the shared load.PackageDST function for direct DST parsing with no type checking.
-func (pl *realPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
+func (pl *realPackageLoader) Load(
+	importPath string,
+) ([]*dst.File, *token.FileSet, *types.Info, error) {
 	files, fset, err := load.PackageDST(importPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to load package %q: %w", importPath, err)

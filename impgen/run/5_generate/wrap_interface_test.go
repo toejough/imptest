@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -42,7 +43,10 @@ func TestInterfaceTargetCode_Error(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "unsupported embedded type") {
-		t.Errorf("InterfaceTargetCode() error = %v, want error containing 'unsupported embedded type'", err)
+		t.Errorf(
+			"InterfaceTargetCode() error = %v, want error containing 'unsupported embedded type'",
+			err,
+		)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -506,7 +507,9 @@ type mockPackageLoader struct {
 	loadFunc func(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error)
 }
 
-func (m *mockPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
+func (m *mockPackageLoader) Load(
+	importPath string,
+) ([]*dst.File, *token.FileSet, *types.Info, error) {
 	if m.loadFunc != nil {
 		return m.loadFunc(importPath)
 	}

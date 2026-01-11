@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -44,7 +45,10 @@ func TestDependencyCode_Error(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "unsupported embedded type") {
-		t.Errorf("DependencyCode() error = %v, want error containing 'unsupported embedded type'", err)
+		t.Errorf(
+			"DependencyCode() error = %v, want error containing 'unsupported embedded type'",
+			err,
+		)
 	}
 }
 
@@ -95,11 +99,19 @@ func TestResolveTestPackageImport(t *testing.T) {
 
 			pkgPath, qualifier := resolveTestPackageImport(tt.loader, tt.pkgName)
 			if pkgPath != tt.wantPkgPath {
-				t.Errorf("resolveTestPackageImport() pkgPath = %v, want %v", pkgPath, tt.wantPkgPath)
+				t.Errorf(
+					"resolveTestPackageImport() pkgPath = %v, want %v",
+					pkgPath,
+					tt.wantPkgPath,
+				)
 			}
 
 			if qualifier != tt.wantQualifier {
-				t.Errorf("resolveTestPackageImport() qualifier = %v, want %v", qualifier, tt.wantQualifier)
+				t.Errorf(
+					"resolveTestPackageImport() qualifier = %v, want %v",
+					qualifier,
+					tt.wantQualifier,
+				)
 			}
 		})
 	}

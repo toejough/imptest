@@ -189,7 +189,12 @@ func (r *TemplateRegistry) WriteInterfaceTargetHeader(buf *bytes.Buffer, data an
 func (r *TemplateRegistry) WriteInterfaceTargetMethodCallHandleStruct(buf *bytes.Buffer, data any) {
 	err := r.interfaceTargetMethodCallHandleStructTmpl.Execute(buf, data)
 	if err != nil {
-		panic(fmt.Sprintf("failed to execute interfaceTargetMethodCallHandleStruct template: %v", err))
+		panic(
+			fmt.Sprintf(
+				"failed to execute interfaceTargetMethodCallHandleStruct template: %v",
+				err,
+			),
+		)
 	}
 }
 
@@ -197,7 +202,9 @@ func (r *TemplateRegistry) WriteInterfaceTargetMethodCallHandleStruct(buf *bytes
 func (r *TemplateRegistry) WriteInterfaceTargetMethodExpectCompletes(buf *bytes.Buffer, data any) {
 	err := r.interfaceTargetMethodExpectCompletesTmpl.Execute(buf, data)
 	if err != nil {
-		panic(fmt.Sprintf("failed to execute interfaceTargetMethodExpectCompletes template: %v", err))
+		panic(
+			fmt.Sprintf("failed to execute interfaceTargetMethodExpectCompletes template: %v", err),
+		)
 	}
 }
 
@@ -381,16 +388,56 @@ func (r *TemplateRegistry) parseInterfaceTargetTemplates() error {
 		content string
 	}{
 		{&r.interfaceTargetHeaderTmpl, "interfaceTargetHeader", tmplInterfaceTargetHeader},
-		{&r.interfaceTargetWrapperStructTmpl, "interfaceTargetWrapperStruct", tmplInterfaceTargetWrapperStruct},
-		{&r.interfaceTargetConstructorTmpl, "interfaceTargetConstructor", tmplInterfaceTargetConstructor},
-		{&r.interfaceTargetMethodWrapperFuncTmpl, "interfaceTargetMethodWrapperFunc", tmplInterfaceTargetMethodWrapperFunc},
-		{&r.interfaceTargetMethodWrapperStructTmpl, "interfaceTargetMethodWrapperStruct", tmplInterfaceTargetMethodWrapperStruct},
-		{&r.interfaceTargetMethodCallHandleStructTmpl, "interfaceTargetMethodCallHandleStruct", tmplInterfaceTargetMethodCallHandleStruct},
-		{&r.interfaceTargetMethodStartTmpl, "interfaceTargetMethodStart", tmplInterfaceTargetMethodStart},
-		{&r.interfaceTargetMethodReturnsTmpl, "interfaceTargetMethodReturns", tmplInterfaceTargetMethodReturns},
-		{&r.interfaceTargetMethodExpectReturnsTmpl, "interfaceTargetMethodExpectReturns", tmplInterfaceTargetMethodExpectReturns},
-		{&r.interfaceTargetMethodExpectCompletesTmpl, "interfaceTargetMethodExpectCompletes", tmplInterfaceTargetMethodExpectCompletes},
-		{&r.interfaceTargetMethodExpectPanicTmpl, "interfaceTargetMethodExpectPanic", tmplInterfaceTargetMethodExpectPanic},
+		{
+			&r.interfaceTargetWrapperStructTmpl,
+			"interfaceTargetWrapperStruct",
+			tmplInterfaceTargetWrapperStruct,
+		},
+		{
+			&r.interfaceTargetConstructorTmpl,
+			"interfaceTargetConstructor",
+			tmplInterfaceTargetConstructor,
+		},
+		{
+			&r.interfaceTargetMethodWrapperFuncTmpl,
+			"interfaceTargetMethodWrapperFunc",
+			tmplInterfaceTargetMethodWrapperFunc,
+		},
+		{
+			&r.interfaceTargetMethodWrapperStructTmpl,
+			"interfaceTargetMethodWrapperStruct",
+			tmplInterfaceTargetMethodWrapperStruct,
+		},
+		{
+			&r.interfaceTargetMethodCallHandleStructTmpl,
+			"interfaceTargetMethodCallHandleStruct",
+			tmplInterfaceTargetMethodCallHandleStruct,
+		},
+		{
+			&r.interfaceTargetMethodStartTmpl,
+			"interfaceTargetMethodStart",
+			tmplInterfaceTargetMethodStart,
+		},
+		{
+			&r.interfaceTargetMethodReturnsTmpl,
+			"interfaceTargetMethodReturns",
+			tmplInterfaceTargetMethodReturns,
+		},
+		{
+			&r.interfaceTargetMethodExpectReturnsTmpl,
+			"interfaceTargetMethodExpectReturns",
+			tmplInterfaceTargetMethodExpectReturns,
+		},
+		{
+			&r.interfaceTargetMethodExpectCompletesTmpl,
+			"interfaceTargetMethodExpectCompletes",
+			tmplInterfaceTargetMethodExpectCompletes,
+		},
+		{
+			&r.interfaceTargetMethodExpectPanicTmpl,
+			"interfaceTargetMethodExpectPanic",
+			tmplInterfaceTargetMethodExpectPanic,
+		},
 	}
 
 	return parseTemplateList(templates)

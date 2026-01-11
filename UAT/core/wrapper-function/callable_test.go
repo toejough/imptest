@@ -130,7 +130,9 @@ func TestCalculatorMultiply(t *testing.T) { //nolint:varnamelen // Standard Go t
 }
 
 // TestCalculatorProcessValuePanic demonstrates testing panic behavior.
-func TestCalculatorProcessValuePanic(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestCalculatorProcessValuePanic(
+	t *testing.T,
+) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	calc := callable.NewCalculator(5)
@@ -143,7 +145,9 @@ func TestCalculatorProcessValuePanic(t *testing.T) { //nolint:varnamelen // Stan
 }
 
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.
-func TestCalculatorProcessValueSuccess(t *testing.T) { //nolint:varnamelen // Standard Go test convention
+func TestCalculatorProcessValueSuccess(
+	t *testing.T,
+) { //nolint:varnamelen // Standard Go test convention
 	t.Parallel()
 
 	calc := callable.NewCalculator(5)

@@ -22,7 +22,8 @@ func TestV2_ManyParams(t *testing.T) {
 	}()
 
 	// Set up expectation with all 10 parameters
-	mock.Method.Process.ExpectCalledWithExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).InjectReturnValues("success")
+	mock.Method.Process.ExpectCalledWithExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
+		InjectReturnValues("success")
 
 	// Verify result
 	result := <-resultChan
@@ -75,8 +76,16 @@ func TestV2_ManyParams_DifferentValues(t *testing.T) {
 
 			// Set up expectation
 			mock.Method.Process.ExpectCalledWithExactly(
-				testCase.params[0], testCase.params[1], testCase.params[2], testCase.params[3], testCase.params[4],
-				testCase.params[5], testCase.params[6], testCase.params[7], testCase.params[8], testCase.params[9],
+				testCase.params[0],
+				testCase.params[1],
+				testCase.params[2],
+				testCase.params[3],
+				testCase.params[4],
+				testCase.params[5],
+				testCase.params[6],
+				testCase.params[7],
+				testCase.params[8],
+				testCase.params[9],
 			).InjectReturnValues(testCase.result)
 
 			// Verify result

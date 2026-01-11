@@ -102,7 +102,11 @@ func PackageDST(importPath string) ([]*dst.File, *token.FileSet, error) {
 	}
 
 	if len(allFiles) == 0 {
-		return nil, nil, fmt.Errorf("%w: failed to parse any .go files in %s", errNoPackagesFound, dir)
+		return nil, nil, fmt.Errorf(
+			"%w: failed to parse any .go files in %s",
+			errNoPackagesFound,
+			dir,
+		)
 	}
 
 	return allFiles, fset, nil
@@ -119,7 +123,8 @@ func PackageDST(importPath string) ([]*dst.File, *token.FileSet, error) {
 //nolint:cyclop // Early returns for different resolution paths
 func ResolveLocalPackagePath(importPath string) string {
 	// Only check for simple package names (no slashes, not ".", not absolute paths)
-	if importPath == "." || strings.HasPrefix(importPath, "/") || strings.Contains(importPath, "/") {
+	if importPath == "." || strings.HasPrefix(importPath, "/") ||
+		strings.Contains(importPath, "/") {
 		return importPath
 	}
 

@@ -97,7 +97,9 @@ func TestStructWrapper_NoGetCallsMethod(t *testing.T) {
 	}
 
 	if _, hasGetCalls := any(wrapper.Method.Increment).(getCaller); hasGetCalls {
-		t.Fatalf("wrapper.Method.Increment has GetCalls() method - this should not exist with call handle pattern")
+		t.Fatalf(
+			"wrapper.Method.Increment has GetCalls() method - this should not exist with call handle pattern",
+		)
 	}
 }
 

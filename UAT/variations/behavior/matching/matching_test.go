@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+
 	"github.com/toejough/imptest"
 	matching "github.com/toejough/imptest/UAT/variations/behavior/matching"
 )

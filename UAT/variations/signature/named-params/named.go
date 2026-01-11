@@ -17,7 +17,7 @@ type Calculator struct{}
 
 // Divide demonstrates named return values in a function.
 // Named returns (quotient, remainder, err) make the API clearer.
-func (c Calculator) Divide(dividend int, divisor int) (quotient int, remainder int, err error) {
+func (c Calculator) Divide(dividend, divisor int) (quotient, remainder int, err error) {
 	if divisor == 0 {
 		return 0, 0, ErrDivisionByZero
 	}

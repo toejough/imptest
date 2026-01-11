@@ -29,5 +29,6 @@ func TestNonComparableArguments(t *testing.T) {
 
 	// Intercept ProcessMap with a map argument.
 	// Requirement: reflect.DeepEqual is used automatically for maps.
-	mock.Method.ProcessMap.ExpectCalledWithExactly(map[string]int{"threshold": 10}).InjectReturnValues(true)
+	mock.Method.ProcessMap.ExpectCalledWithExactly(map[string]int{"threshold": 10}).
+		InjectReturnValues(true)
 }

@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 

@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/dave/dst"
+
 	astutil "github.com/toejough/imptest/impgen/run/0_util"
 	load "github.com/toejough/imptest/impgen/run/2_load"
 )
@@ -137,7 +138,10 @@ func FindImportPath(
 
 // FindSymbol looks for either an interface, struct type, function type, or function/method in the given AST files.
 func FindSymbol(
-	astFiles []*dst.File, fset *token.FileSet, symbolName string, pkgImportPath string, pkgLoader PackageLoader,
+	astFiles []*dst.File,
+	fset *token.FileSet,
+	symbolName, pkgImportPath string,
+	pkgLoader PackageLoader,
 ) (SymbolDetails, error) {
 	// 1. Try finding it as an interface first
 	iface, err := GetMatchingInterfaceFromAST(astFiles, symbolName, pkgImportPath)
@@ -199,7 +203,12 @@ func FindSymbol(
 		}
 	}
 
-	return SymbolDetails{}, fmt.Errorf("%w: %s in package %s", errSymbolNotFound, symbolName, pkgImportPath)
+	return SymbolDetails{}, fmt.Errorf(
+		"%w: %s in package %s",
+		errSymbolNotFound,
+		symbolName,
+		pkgImportPath,
+	)
 }
 
 // GetImportPathFromFiles determines the import path of a package by examining its loaded files.
@@ -256,7 +265,7 @@ func GetImportPathFromFiles(files []*dst.File, fset *token.FileSet, _ string) (s
 
 // GetMatchingInterfaceFromAST extracts the target interface declaration from AST files.
 func GetMatchingInterfaceFromAST(
-	astFiles []*dst.File, interfaceName string, pkgImportPath string,
+	astFiles []*dst.File, interfaceName, pkgImportPath string,
 ) (IfaceWithDetails, error) {
 	var (
 		targetIface   *dst.InterfaceType
@@ -298,15 +307,24 @@ func GetMatchingInterfaceFromAST(
 	}
 
 	if targetIface == nil {
-		return IfaceWithDetails{}, fmt.Errorf("%w: %s in package %s", errInterfaceNotFound, interfaceName, pkgImportPath)
+		return IfaceWithDetails{}, fmt.Errorf(
+			"%w: %s in package %s",
+			errInterfaceNotFound,
+			interfaceName,
+			pkgImportPath,
+		)
 	}
 
-	return IfaceWithDetails{Iface: targetIface, TypeParams: typeParams, SourceImports: sourceImports}, nil
+	return IfaceWithDetails{
+		Iface:         targetIface,
+		TypeParams:    typeParams,
+		SourceImports: sourceImports,
+	}, nil
 }
 
 // InferImportPathFromTestFile parses the given test file and attempts to find
 // the import path for a package with the given name.
-func InferImportPathFromTestFile(goFilePath string, pkgName string) (string, error) {
+func InferImportPathFromTestFile(goFilePath, pkgName string) (string, error) {
 	if goFilePath == "" {
 		return "", errGOFILENotSet
 	}
@@ -347,7 +365,7 @@ func IsStdlibPackage(pkgName string) bool {
 }
 
 // PackageAmbiguity checks if a package name is ambiguous.
-func PackageAmbiguity(pkgName string) (hasStdlib bool, hasLocal bool, localPath string) {
+func PackageAmbiguity(pkgName string) (hasStdlib, hasLocal bool, localPath string) {
 	hasStdlib = IsStdlibPackage(pkgName)
 	localPath = load.ResolveLocalPackagePath(pkgName)
 	hasLocal = localPath != pkgName
@@ -509,7 +527,7 @@ func findEmbeddedStructTypes(astFiles []*dst.File, structName string) []string {
 
 // findFunctionInAST looks for a function declaration in the given AST files.
 func findFunctionInAST(
-	astFiles []*dst.File, fset *token.FileSet, funcName string, pkgImportPath string,
+	astFiles []*dst.File, fset *token.FileSet, funcName, pkgImportPath string,
 ) (*dst.FuncDecl, error) {
 	parts := strings.Split(funcName, ".")
 	methodName := parts[len(parts)-1]
@@ -554,7 +572,7 @@ func findFunctionInAST(
 
 // findFunctionTypeInAST extracts the target function type declaration from AST files.
 func findFunctionTypeInAST(
-	astFiles []*dst.File, typeName string, pkgImportPath string,
+	astFiles []*dst.File, typeName, pkgImportPath string,
 ) (FuncTypeWithDetails, error) {
 	var (
 		targetFuncType *dst.FuncType
@@ -595,7 +613,11 @@ func findFunctionTypeInAST(
 
 	if targetFuncType == nil {
 		//nolint:err113 // Dynamic error message required for user-facing parse errors
-		return FuncTypeWithDetails{}, fmt.Errorf("function type not found: %s in package %s", typeName, pkgImportPath)
+		return FuncTypeWithDetails{}, fmt.Errorf(
+			"function type not found: %s in package %s",
+			typeName,
+			pkgImportPath,
+		)
 	}
 
 	return FuncTypeWithDetails{
@@ -607,7 +629,7 @@ func findFunctionTypeInAST(
 
 // findStructTypeInAST extracts the target struct type declaration from AST files.
 func findStructTypeInAST(
-	astFiles []*dst.File, typeName string, pkgImportPath string,
+	astFiles []*dst.File, typeName, pkgImportPath string,
 ) (StructWithDetails, error) {
 	var (
 		targetStructType *dst.StructType
@@ -653,7 +675,11 @@ func findStructTypeInAST(
 
 	if targetStructType == nil {
 		//nolint:err113 // Dynamic error message required for user-facing parse errors
-		return StructWithDetails{}, fmt.Errorf("struct type not found: %s in package %s", typeName, pkgImportPath)
+		return StructWithDetails{}, fmt.Errorf(
+			"struct type not found: %s in package %s",
+			typeName,
+			pkgImportPath,
+		)
 	}
 
 	return StructWithDetails{

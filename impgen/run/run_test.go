@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 	generate "github.com/toejough/imptest/impgen/run/5_generate"
 )

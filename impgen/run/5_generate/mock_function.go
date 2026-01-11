@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -183,14 +184,18 @@ func (gen *functionDependencyGenerator) collectAdditionalImports() []importInfo 
 	// Collect external types from parameters
 	if gen.funcDecl.Type.Params != nil {
 		for _, field := range gen.funcDecl.Type.Params.List {
-			imports = append(imports, gen.collectImportsFromExpr(field.Type, sourceImports, seenPaths)...)
+			imports = append(
+				imports,
+				gen.collectImportsFromExpr(field.Type, sourceImports, seenPaths)...)
 		}
 	}
 
 	// Collect external types from results
 	if gen.funcDecl.Type.Results != nil {
 		for _, field := range gen.funcDecl.Type.Results.List {
-			imports = append(imports, gen.collectImportsFromExpr(field.Type, sourceImports, seenPaths)...)
+			imports = append(
+				imports,
+				gen.collectImportsFromExpr(field.Type, sourceImports, seenPaths)...)
 		}
 	}
 
@@ -219,7 +224,8 @@ func (gen *functionDependencyGenerator) collectImportFromSelector(
 		}
 
 		// Match by alias or by path suffix
-		if (alias != "" && alias == pkgName) || strings.HasSuffix(path, "/"+pkgName) || path == pkgName {
+		if (alias != "" && alias == pkgName) || strings.HasSuffix(path, "/"+pkgName) ||
+			path == pkgName {
 			if !seenPaths[path] {
 				seenPaths[path] = true
 				return []importInfo{{Alias: pkgName, Path: path}}

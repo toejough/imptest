@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -297,7 +298,10 @@ func (gen *targetGenerator) hasMultipleResults() bool {
 }
 
 // writeFunctionParamsToBuilder writes function parameters to a string builder.
-func (gen *targetGenerator) writeFunctionParamsToBuilder(builder *strings.Builder, params *dst.FieldList) {
+func (gen *targetGenerator) writeFunctionParamsToBuilder(
+	builder *strings.Builder,
+	params *dst.FieldList,
+) {
 	if params == nil {
 		return
 	}

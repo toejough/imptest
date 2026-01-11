@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -361,7 +362,14 @@ func forEachInterfaceMethod(
 	callback func(methodName string, ftype *dst.FuncType),
 ) error {
 	for _, field := range iface.Methods.List {
-		err := interfaceProcessFieldMethods(field, astFiles, fset, pkgImportPath, pkgLoader, callback)
+		err := interfaceProcessFieldMethods(
+			field,
+			astFiles,
+			fset,
+			pkgImportPath,
+			pkgLoader,
+			callback,
+		)
 		if err != nil {
 			return err
 		}
@@ -469,7 +477,12 @@ func interfaceExpandEmbedded(
 
 	// Recursively process the embedded interface's methods
 	return forEachInterfaceMethod(
-		embeddedInterfaceWithDetails.Iface, embeddedAstFiles, embeddedFset, embeddedPkgPath, pkgLoader, callback,
+		embeddedInterfaceWithDetails.Iface,
+		embeddedAstFiles,
+		embeddedFset,
+		embeddedPkgPath,
+		pkgLoader,
+		callback,
 	)
 }
 
@@ -484,7 +497,14 @@ func interfaceProcessFieldMethods(
 ) error {
 	// Handle embedded interfaces (they have no names)
 	if !hasFieldNames(field) {
-		return interfaceExpandEmbedded(field.Type, astFiles, fset, pkgImportPath, pkgLoader, callback)
+		return interfaceExpandEmbedded(
+			field.Type,
+			astFiles,
+			fset,
+			pkgImportPath,
+			pkgLoader,
+			callback,
+		)
 	}
 
 	// Skip non-function types (shouldn't happen in a valid interface, but be safe)
@@ -503,7 +523,10 @@ func interfaceProcessFieldMethods(
 
 // resolvePackageInfo resolves the package path and qualifier for an interface.
 // Handles special case of test packages needing to import the non-test version.
-func resolvePackageInfo(info GeneratorInfo, pkgLoader detect.PackageLoader) (pkgPath, qualifier string, err error) {
+func resolvePackageInfo(
+	info GeneratorInfo,
+	pkgLoader detect.PackageLoader,
+) (pkgPath, qualifier string, err error) {
 	pkgPath, qualifier, err = GetPackageInfo(
 		info.InterfaceName,
 		pkgLoader,
@@ -532,7 +555,10 @@ func resolvePackageInfo(info GeneratorInfo, pkgLoader detect.PackageLoader) (pkg
 }
 
 // resolveTestPackageImport resolves the import path for the non-test version of a test package.
-func resolveTestPackageImport(pkgLoader detect.PackageLoader, pkgName string) (pkgPath, qualifier string) {
+func resolveTestPackageImport(
+	pkgLoader detect.PackageLoader,
+	pkgName string,
+) (pkgPath, qualifier string) {
 	// Strip _test suffix to get the base package name
 	basePkgName := strings.TrimSuffix(pkgName, "_test")
 

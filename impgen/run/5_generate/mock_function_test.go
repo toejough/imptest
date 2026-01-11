@@ -172,14 +172,26 @@ func TestResolveFunctionPackageInfo(t *testing.T) {
 			t.Parallel()
 
 			// Pass nil for pkgLoader since these test cases don't use it
-			pkgPath, qualifier := resolveFunctionPackageInfo(testCase.info, testCase.pkgImportPath, nil)
+			pkgPath, qualifier := resolveFunctionPackageInfo(
+				testCase.info,
+				testCase.pkgImportPath,
+				nil,
+			)
 
 			if pkgPath != testCase.wantPkgPath {
-				t.Errorf("resolveFunctionPackageInfo() pkgPath = %v, want %v", pkgPath, testCase.wantPkgPath)
+				t.Errorf(
+					"resolveFunctionPackageInfo() pkgPath = %v, want %v",
+					pkgPath,
+					testCase.wantPkgPath,
+				)
 			}
 
 			if qualifier != testCase.wantQualifier {
-				t.Errorf("resolveFunctionPackageInfo() qualifier = %v, want %v", qualifier, testCase.wantQualifier)
+				t.Errorf(
+					"resolveFunctionPackageInfo() qualifier = %v, want %v",
+					qualifier,
+					testCase.wantQualifier,
+				)
 			}
 		})
 	}

@@ -200,7 +200,8 @@ func stringifyInterfaceType(interfaceType *dst.InterfaceType) string {
 // preserving all field information including names, types, and tags.
 func stringifyStructType(structType *dst.StructType) string {
 	// Handle nil/empty cases
-	if structType.Fields == nil || structType.Fields.List == nil || len(structType.Fields.List) == 0 {
+	if structType.Fields == nil || structType.Fields.List == nil ||
+		len(structType.Fields.List) == 0 {
 		return "struct{}"
 	}
 

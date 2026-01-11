@@ -136,7 +136,9 @@ func TestInterfaceWrapper_NoGetCallsMethod(t *testing.T) {
 	}
 
 	if _, hasGetCalls := any(wrapper.Method.Add).(getCaller); hasGetCalls {
-		t.Fatalf("wrapper.Method.Add has GetCalls() method - this should not exist with call handle pattern")
+		t.Fatalf(
+			"wrapper.Method.Add has GetCalls() method - this should not exist with call handle pattern",
+		)
 	}
 }
 

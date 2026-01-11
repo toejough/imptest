@@ -45,7 +45,12 @@ func TestExtractPackageName(t *testing.T) {
 
 			got := detect.ExtractPackageName(testCase.qualifiedName)
 			if got != testCase.want {
-				t.Errorf("ExtractPackageName(%q) = %q, want %q", testCase.qualifiedName, got, testCase.want)
+				t.Errorf(
+					"ExtractPackageName(%q) = %q, want %q",
+					testCase.qualifiedName,
+					got,
+					testCase.want,
+				)
 			}
 		})
 	}
@@ -126,7 +131,11 @@ import (
 
 			got, err := detect.InferImportPathFromTestFile(tmpFile, testCase.pkgName)
 			if (err != nil) != testCase.wantErr {
-				t.Errorf("InferImportPathFromTestFile() error = %v, wantErr %v", err, testCase.wantErr)
+				t.Errorf(
+					"InferImportPathFromTestFile() error = %v, wantErr %v",
+					err,
+					testCase.wantErr,
+				)
 				return
 			}
 

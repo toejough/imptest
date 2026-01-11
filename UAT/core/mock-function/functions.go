@@ -54,7 +54,11 @@ func ProcessOrder(ctx context.Context, orderID int) (*Order, error) {
 
 // TransformData processes data with complex type signatures.
 // This tests collection of imports from complex types (maps, slices, funcs).
-func TransformData(items []*Order, lookup map[string]*Order, processor func(*Order) error) (*Order, error) {
+func TransformData(
+	items []*Order,
+	lookup map[string]*Order,
+	processor func(*Order) error,
+) (*Order, error) {
 	// In real code, this would transform the data
 	// Using the parameters to avoid unused variable warnings
 	if len(items) == 0 && lookup == nil && processor == nil {

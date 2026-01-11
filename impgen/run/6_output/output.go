@@ -16,7 +16,7 @@ type Writer interface {
 
 // WriteGeneratedCode writes the generated code to generated_<impName>.go.
 func WriteGeneratedCode(
-	code string, impName string, pkgName string, getEnv func(string) string, fileWriter Writer, out io.Writer,
+	code, impName, pkgName string, getEnv func(string) string, fileWriter Writer, out io.Writer,
 ) error {
 	const generatedFilePermissions = 0o600
 

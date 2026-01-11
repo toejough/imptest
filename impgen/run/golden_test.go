@@ -15,6 +15,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+
 	"github.com/toejough/imptest/impgen/run"
 	cache "github.com/toejough/imptest/impgen/run/1_cache"
 )
@@ -90,7 +91,9 @@ type testPackageLoader struct {
 
 // Load loads a package by import path and returns its DST files and FileSet.
 // Uses in-memory caching to avoid re-parsing the same packages across test cases.
-func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error) {
+func (pl *testPackageLoader) Load(
+	importPath string,
+) ([]*dst.File, *token.FileSet, *types.Info, error) {
 	// Use WorkDir if set, otherwise fall back to current directory
 	workDir := pl.WorkDir
 	if workDir == "" {
@@ -114,7 +117,12 @@ func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSe
 	// Cache miss - load package from the specified working directory
 	files, fset, err := pl.loadPackageFromDir(importPath, workDir)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to load package %q from %q: %w", importPath, workDir, err)
+		return nil, nil, nil, fmt.Errorf(
+			"failed to load package %q from %q: %w",
+			importPath,
+			workDir,
+			err,
+		)
 	}
 
 	// Store in cache
@@ -132,7 +140,9 @@ func (pl *testPackageLoader) Load(importPath string) ([]*dst.File, *token.FileSe
 // This is similar to run.LoadPackageDST but works from an explicit directory.
 //
 //nolint:cyclop,funlen // Package loading mirrors production code structure
-func (pl *testPackageLoader) loadPackageFromDir(importPath, workDir string) ([]*dst.File, *token.FileSet, error) {
+func (pl *testPackageLoader) loadPackageFromDir(
+	importPath, workDir string,
+) ([]*dst.File, *token.FileSet, error) {
 	// Resolve import path to directory
 	var dir string
 
@@ -219,7 +229,8 @@ func (pl *testPackageLoader) loadPackageFromDir(importPath, workDir string) ([]*
 // but works from an explicit directory instead of using os.Getwd().
 func (pl *testPackageLoader) resolveLocalPackageFromDir(importPath, workDir string) string {
 	// Only check for simple package names (no slashes, not ".", not absolute paths)
-	if importPath == "." || strings.HasPrefix(importPath, "/") || strings.Contains(importPath, "/") {
+	if importPath == "." || strings.HasPrefix(importPath, "/") ||
+		strings.Contains(importPath, "/") {
 		return importPath
 	}
 

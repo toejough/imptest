@@ -40,7 +40,8 @@ func TestMockFunction_ComplexTypes(t *testing.T) {
 		resultChan <- result
 	}()
 
-	mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any(), imptest.Any()).InjectReturnValues(order, nil)
+	mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any(), imptest.Any()).
+		InjectReturnValues(order, nil)
 
 	result := <-resultChan
 	if result != order {
@@ -200,7 +201,8 @@ func TestMockFunction_WithMatchers(t *testing.T) {
 	}()
 
 	// Use matchers instead of exact values
-	mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any()).InjectReturnValues(expectedOrder, nil)
+	mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any()).
+		InjectReturnValues(expectedOrder, nil)
 
 	order := <-resultChan
 	if order.ID != expectedOrder.ID {

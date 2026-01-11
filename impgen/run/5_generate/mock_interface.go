@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
@@ -19,7 +20,14 @@ func DependencyCode(
 	pkgLoader detect.PackageLoader,
 	ifaceWithDetails detect.IfaceWithDetails,
 ) (string, error) {
-	gen, err := newDependencyGenerator(astFiles, info, fset, pkgImportPath, pkgLoader, ifaceWithDetails)
+	gen, err := newDependencyGenerator(
+		astFiles,
+		info,
+		fset,
+		pkgImportPath,
+		pkgLoader,
+		ifaceWithDetails,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +224,8 @@ func (gen *dependencyGenerator) formatQualifiedInterfaceType() string {
 	if gen.qualifier != "" && gen.needsQualifier {
 		qualifierToUse := gen.qualifier
 		// Check if this is a stdlib package that needs aliasing due to a name conflict
-		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") && gen.pkgPath == gen.qualifier {
+		if gen.pkgPath != "" && !strings.Contains(gen.pkgPath, "/") &&
+			gen.pkgPath == gen.qualifier {
 			qualifierToUse = "_" + gen.qualifier
 		}
 
@@ -238,7 +247,8 @@ func (gen *dependencyGenerator) generate() (string, error) {
 
 	// If we have an interface from an external package, we need the qualifier
 	// Exception: struct types generate a synthetic interface, so they don't need the package import
-	if gen.interfaceName != "" && gen.qualifier != "" && gen.pkgPath != "" && !gen.identifiedInterface.IsStructType {
+	if gen.interfaceName != "" && gen.qualifier != "" && gen.pkgPath != "" &&
+		!gen.identifiedInterface.IsStructType {
 		gen.needsQualifier = true
 	}
 
@@ -360,7 +370,13 @@ func newDependencyGenerator(
 	}
 
 	// Collect method names
-	methodNames, err := interfaceCollectMethodNames(ifaceWithDetails.Iface, astFiles, fset, pkgImportPath, pkgLoader)
+	methodNames, err := interfaceCollectMethodNames(
+		ifaceWithDetails.Iface,
+		astFiles,
+		fset,
+		pkgImportPath,
+		pkgLoader,
+	)
 	if err != nil {
 		return nil, err
 	}

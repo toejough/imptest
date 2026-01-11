@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/dave/dst"
+
 	astutil "github.com/toejough/imptest/impgen/run/0_util"
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
@@ -440,7 +441,9 @@ func (w *typeExprWalker[T]) walkIndexType(expr dst.Expr) T {
 	}
 
 	// Must be *dst.IndexListExpr since caller already type-checked
-	return w.walkIndexListExpr(expr.(*dst.IndexListExpr)) //nolint:forcetypeassert // Checked by caller
+	return w.walkIndexListExpr(
+		expr.(*dst.IndexListExpr),
+	) //nolint:forcetypeassert // Checked by caller
 }
 
 // walkMapType handles map type traversal.
@@ -1155,7 +1158,8 @@ func resolveAliasForImport(pkgAlias, path string, sourcePackageNames map[string]
 		return pkgAlias
 	}
 
-	if existingPath, exists := sourcePackageNames[pkgAlias]; exists && !detect.IsStdlibPackage(existingPath) {
+	if existingPath, exists := sourcePackageNames[pkgAlias]; exists &&
+		!detect.IsStdlibPackage(existingPath) {
 		return "_" + pkgAlias
 	}
 
@@ -1248,7 +1252,11 @@ func sortedImportSlice(imports map[string]importInfo) []importInfo {
 // stringifyStructType delegates to astutil.StringifyExpr.
 
 // typeWithQualifierFunc handles function types.
-func typeWithQualifierFunc(_ *token.FileSet, funcType *dst.FuncType, typeFormatter func(dst.Expr) string) string {
+func typeWithQualifierFunc(
+	_ *token.FileSet,
+	funcType *dst.FuncType,
+	typeFormatter func(dst.Expr) string,
+) string {
 	var buf strings.Builder
 	buf.WriteString("func")
 
