@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests internal functions
 package generate
 
 import (
@@ -128,22 +129,22 @@ func TestInterfaceTargetGenerator_formatQualifiedInterfaceType(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			gen := &interfaceTargetGenerator{
-				interfaceName: tt.interfaceName,
+				interfaceName: testCase.interfaceName,
 				baseGenerator: baseGenerator{
-					qualifier:      tt.qualifier,
-					pkgPath:        tt.pkgPath,
-					needsQualifier: tt.needsQualifier,
+					qualifier:      testCase.qualifier,
+					pkgPath:        testCase.pkgPath,
+					needsQualifier: testCase.needsQualifier,
 				},
 			}
 
 			got := gen.formatQualifiedInterfaceType()
-			if got != tt.want {
-				t.Errorf("formatQualifiedInterfaceType() = %q, want %q", got, tt.want)
+			if got != testCase.want {
+				t.Errorf("formatQualifiedInterfaceType() = %q, want %q", got, testCase.want)
 			}
 		})
 	}

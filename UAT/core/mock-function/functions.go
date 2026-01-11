@@ -8,6 +8,14 @@ import (
 	"fmt"
 )
 
+// init prevents deadcode from removing the package-level functions.
+// In real code, these functions would be called from production code.
+//
+//nolint:gochecknoinits // Required to prevent deadcode elimination in UAT
+func init() {
+	_ = []any{ProcessOrder, ValidateInput, FormatPrice, Notify, TransformData}
+}
+
 // Exported variables.
 var (
 	ErrInputEmpty    = errors.New("input cannot be empty")
@@ -48,9 +56,12 @@ func ProcessOrder(ctx context.Context, orderID int) (*Order, error) {
 // This tests collection of imports from complex types (maps, slices, funcs).
 func TransformData(items []*Order, lookup map[string]*Order, processor func(*Order) error) (*Order, error) {
 	// In real code, this would transform the data
-	_, _, _ = items, lookup, processor
+	// Using the parameters to avoid unused variable warnings
+	if len(items) == 0 && lookup == nil && processor == nil {
+		return nil, ErrInputEmpty
+	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil // Stub function returns nil values
 }
 
 // ValidateInput is a simple validation function.
@@ -61,12 +72,4 @@ func ValidateInput(input string) error {
 	}
 
 	return nil
-}
-
-// init prevents deadcode from removing the package-level functions.
-// In real code, these functions would be called from production code.
-//
-//nolint:gochecknoinits // Required to prevent deadcode elimination in UAT
-func init() {
-	_ = []any{ProcessOrder, ValidateInput, FormatPrice, Notify, TransformData}
 }

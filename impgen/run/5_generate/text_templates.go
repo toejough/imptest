@@ -62,7 +62,8 @@ func NewTemplateRegistry() (*TemplateRegistry, error) {
 	}
 
 	for _, parse := range parsers {
-		if err := parse(); err != nil {
+		err := parse()
+		if err != nil {
 			return nil, err
 		}
 	}

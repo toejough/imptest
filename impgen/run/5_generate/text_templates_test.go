@@ -1,3 +1,4 @@
+//nolint:testpackage,lll,varnamelen,wsl_v5 // Tests internal functions with long template test lines
 package generate
 
 import (
@@ -57,7 +58,7 @@ func TestTemplateRegistry_WriteDepArgsStruct(t *testing.T) {
 	registry.WriteDepArgsStruct(buf, dataNoParams)
 }
 
-//nolint:tparallel // Tests panic behavior which needs sequential execution per subtest
+//nolint:tparallel,paralleltest // Tests panic behavior which needs sequential execution per subtest
 func TestTemplateRegistry_WritePanicPaths(t *testing.T) {
 	t.Parallel()
 
@@ -67,20 +68,19 @@ func TestTemplateRegistry_WritePanicPaths(t *testing.T) {
 	}
 
 	for _, tc := range allTemplateWriteTests() {
-
 		t.Run(tc.name, func(t *testing.T) {
 			buf := &bytes.Buffer{}
 
 			defer func() {
-				r := recover()
-				if r == nil {
+				recovered := recover()
+				if recovered == nil {
 					t.Errorf("%s: expected panic for invalid template data", tc.name)
 					return
 				}
 
-				msg, ok := r.(string)
-				if !ok {
-					t.Errorf("%s: expected string panic, got %T", tc.name, r)
+				msg, isString := recovered.(string)
+				if !isString {
+					t.Errorf("%s: expected string panic, got %T", tc.name, recovered)
 					return
 				}
 

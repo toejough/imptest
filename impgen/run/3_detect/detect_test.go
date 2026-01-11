@@ -1,3 +1,4 @@
+//nolint:funlen // Test file
 package detect_test
 
 import (
@@ -38,13 +39,13 @@ func TestExtractPackageName(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := detect.ExtractPackageName(tt.qualifiedName)
-			if got != tt.want {
-				t.Errorf("ExtractPackageName(%q) = %q, want %q", tt.qualifiedName, got, tt.want)
+			got := detect.ExtractPackageName(testCase.qualifiedName)
+			if got != testCase.want {
+				t.Errorf("ExtractPackageName(%q) = %q, want %q", testCase.qualifiedName, got, testCase.want)
 			}
 		})
 	}
@@ -110,27 +111,27 @@ import (
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			// Create temp file with test content
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test_file.go")
 
-			err := os.WriteFile(tmpFile, []byte(tt.fileContent), 0o600)
+			err := os.WriteFile(tmpFile, []byte(testCase.fileContent), 0o600)
 			if err != nil {
 				t.Fatalf("failed to write temp file: %v", err)
 			}
 
-			got, err := detect.InferImportPathFromTestFile(tmpFile, tt.pkgName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("InferImportPathFromTestFile() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := detect.InferImportPathFromTestFile(tmpFile, testCase.pkgName)
+			if (err != nil) != testCase.wantErr {
+				t.Errorf("InferImportPathFromTestFile() error = %v, wantErr %v", err, testCase.wantErr)
 				return
 			}
 
-			if got != tt.want {
-				t.Errorf("InferImportPathFromTestFile() = %v, want %v", got, tt.want)
+			if got != testCase.want {
+				t.Errorf("InferImportPathFromTestFile() = %v, want %v", got, testCase.want)
 			}
 		})
 	}

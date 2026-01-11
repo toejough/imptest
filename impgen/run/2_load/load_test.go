@@ -1,3 +1,4 @@
+//nolint:paralleltest // Tests use t.Chdir which is incompatible with t.Parallel
 package load_test
 
 import (
@@ -9,31 +10,18 @@ import (
 )
 
 func TestPackageDST_CurrentDirectory(t *testing.T) {
-	// Not parallel - uses working directory
-
 	// Create a temp directory with a Go file
 	tmpDir := t.TempDir()
 
 	goFile := filepath.Join(tmpDir, "pkg.go")
+
 	err := os.WriteFile(goFile, []byte("package mypkg\n\nfunc Hello() {}\n"), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write go file: %v", err)
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	// Test loading current directory
 	files, fset, err := load.PackageDST(".")
@@ -51,32 +39,19 @@ func TestPackageDST_CurrentDirectory(t *testing.T) {
 }
 
 func TestPackageDST_EmptyDirectory(t *testing.T) {
-	// Not parallel - changes working directory
-
 	// Create a temp directory with no Go files
 	tmpDir := t.TempDir()
 
 	// Create a txt file (not .go)
 	txtFile := filepath.Join(tmpDir, "readme.txt")
+
 	err := os.WriteFile(txtFile, []byte("not a go file\n"), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write txt file: %v", err)
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	// Test loading current directory with no .go files
 	_, _, err = load.PackageDST(".")
@@ -86,8 +61,6 @@ func TestPackageDST_EmptyDirectory(t *testing.T) {
 }
 
 func TestPackageDST_ExcludesTestFilesForExternalPackages(t *testing.T) {
-	// Not parallel - changes working directory
-
 	// Create a temp directory with both regular and test Go files
 	tmpDir := t.TempDir()
 	subPkgDir := filepath.Join(tmpDir, "extpkg")
@@ -99,6 +72,7 @@ func TestPackageDST_ExcludesTestFilesForExternalPackages(t *testing.T) {
 
 	// Create a regular Go file
 	regularFile := filepath.Join(subPkgDir, "ext.go")
+
 	err = os.WriteFile(regularFile, []byte("package extpkg\n\nfunc ExtFunc() {}\n"), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write regular go file: %v", err)
@@ -106,25 +80,15 @@ func TestPackageDST_ExcludesTestFilesForExternalPackages(t *testing.T) {
 
 	// Create a test file
 	testFile := filepath.Join(subPkgDir, "ext_test.go")
-	err = os.WriteFile(testFile, []byte("package extpkg\n\nimport \"testing\"\n\nfunc TestExtFunc(t *testing.T) {}\n"), 0o600)
+	testContent := "package extpkg\n\nimport \"testing\"\n\nfunc TestExtFunc(t *testing.T) {}\n"
+
+	err = os.WriteFile(testFile, []byte(testContent), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write test go file: %v", err)
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	// Load as a subdirectory package (not ".") - should exclude test files
 	files, _, err := load.PackageDST("extpkg")
@@ -139,8 +103,6 @@ func TestPackageDST_ExcludesTestFilesForExternalPackages(t *testing.T) {
 }
 
 func TestPackageDST_LocalSubdirPackage(t *testing.T) {
-	// Not parallel - changes working directory
-
 	// Create a temp directory with a subdirectory containing Go files
 	tmpDir := t.TempDir()
 	subPkgDir := filepath.Join(tmpDir, "subpkg")
@@ -151,25 +113,14 @@ func TestPackageDST_LocalSubdirPackage(t *testing.T) {
 	}
 
 	goFile := filepath.Join(subPkgDir, "sub.go")
+
 	err = os.WriteFile(goFile, []byte("package subpkg\n\nfunc SubFunc() {}\n"), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write go file: %v", err)
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	// Test loading local subdirectory package (shadows any stdlib package with same name)
 	files, fset, err := load.PackageDST("subpkg")
@@ -187,13 +138,12 @@ func TestPackageDST_LocalSubdirPackage(t *testing.T) {
 }
 
 func TestPackageDST_MixedParseableAndUnparseable(t *testing.T) {
-	// Not parallel - changes working directory
-
 	// Create a temp directory with both parseable and unparseable Go files
 	tmpDir := t.TempDir()
 
 	// Create a valid Go file
 	goodGoFile := filepath.Join(tmpDir, "good.go")
+
 	err := os.WriteFile(goodGoFile, []byte("package mixed\n\nfunc GoodFunc() {}\n"), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write good go file: %v", err)
@@ -201,25 +151,14 @@ func TestPackageDST_MixedParseableAndUnparseable(t *testing.T) {
 
 	// Create an invalid Go file
 	badGoFile := filepath.Join(tmpDir, "bad.go")
+
 	err = os.WriteFile(badGoFile, []byte("package mixed\n\nfunc incomplete(\n"), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write bad go file: %v", err)
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	// Test loading directory with mixed files - should succeed with parseable files
 	files, fset, err := load.PackageDST(".")
@@ -265,32 +204,19 @@ func TestPackageDST_StdlibPackage(t *testing.T) {
 }
 
 func TestPackageDST_UnparseableFile(t *testing.T) {
-	// Not parallel - changes working directory
-
 	// Create a temp directory with an unparseable Go file
 	tmpDir := t.TempDir()
 
 	// Create an invalid Go file
 	badGoFile := filepath.Join(tmpDir, "bad.go")
+
 	err := os.WriteFile(badGoFile, []byte("package broken\n\nfunc incomplete(\n"), 0o600)
 	if err != nil {
 		t.Fatalf("failed to write bad go file: %v", err)
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	// Test loading directory with only unparseable files should error
 	_, _, err = load.PackageDST(".")
@@ -330,26 +256,24 @@ func TestResolveLocalPackagePath(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			if tt.setup != nil {
-				tt.setup(t)
+			if testCase.setup != nil {
+				testCase.setup(t)
 			}
 
-			result := load.ResolveLocalPackagePath(tt.importPath)
+			result := load.ResolveLocalPackagePath(testCase.importPath)
 
-			if tt.wantSame && result != tt.importPath {
-				t.Errorf("expected %q to remain unchanged, got %q", tt.importPath, result)
+			if testCase.wantSame && result != testCase.importPath {
+				t.Errorf("expected %q to remain unchanged, got %q", testCase.importPath, result)
 			}
 		})
 	}
 }
 
 func TestResolveLocalPackagePath_DirWithoutGoFiles(t *testing.T) {
-	// Not parallel - changes working directory
-
 	// Create a temp directory with a subdirectory containing NO .go files
 	tmpDir := t.TempDir()
 	pkgDir := filepath.Join(tmpDir, "emptydir")
@@ -368,19 +292,7 @@ func TestResolveLocalPackagePath_DirWithoutGoFiles(t *testing.T) {
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	// Should return original since no .go files
 	result := load.ResolveLocalPackagePath("emptydir")
@@ -390,8 +302,6 @@ func TestResolveLocalPackagePath_DirWithoutGoFiles(t *testing.T) {
 }
 
 func TestResolveLocalPackagePath_LocalDir(t *testing.T) {
-	// Not parallel - changes working directory
-
 	// Create a temp directory with a subdirectory containing a .go file
 	tmpDir := t.TempDir()
 	pkgDir := filepath.Join(tmpDir, "mypkg")
@@ -410,19 +320,7 @@ func TestResolveLocalPackagePath_LocalDir(t *testing.T) {
 	}
 
 	// Change to temp directory
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get cwd: %v", err)
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(origDir)
-	})
+	t.Chdir(tmpDir)
 
 	result := load.ResolveLocalPackagePath("mypkg")
 

@@ -1,3 +1,4 @@
+//nolint:testpackage,thelper,varnamelen,wsl_v5,funlen,gocognit,gocyclo,cyclop,maintidx // Tests internals
 package generate
 
 import (

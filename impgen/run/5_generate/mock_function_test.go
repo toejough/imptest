@@ -1,3 +1,4 @@
+//nolint:testpackage,funlen // Tests internal functions
 package generate
 
 import (
@@ -100,17 +101,17 @@ func TestCollectImportFromSelector(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			// Make a copy of seenPaths for each test
 			seenPaths := make(map[string]bool)
-			maps.Copy(seenPaths, tt.seenPaths)
+			maps.Copy(seenPaths, testCase.seenPaths)
 
-			result := gen.collectImportFromSelector(tt.sel, tt.imports, seenPaths)
+			result := gen.collectImportFromSelector(testCase.sel, testCase.imports, seenPaths)
 
-			if tt.wantNilRet {
+			if testCase.wantNilRet {
 				if result != nil {
 					t.Errorf("expected nil, got %v", result)
 				}
@@ -118,17 +119,17 @@ func TestCollectImportFromSelector(t *testing.T) {
 				return
 			}
 
-			if len(result) != tt.wantLen {
-				t.Errorf("expected %d results, got %d", tt.wantLen, len(result))
+			if len(result) != testCase.wantLen {
+				t.Errorf("expected %d results, got %d", testCase.wantLen, len(result))
 				return
 			}
 
-			if tt.wantLen > 0 && result[0].Path != tt.wantPath {
-				t.Errorf("expected path %s, got %s", tt.wantPath, result[0].Path)
+			if testCase.wantLen > 0 && result[0].Path != testCase.wantPath {
+				t.Errorf("expected path %s, got %s", testCase.wantPath, result[0].Path)
 			}
 
-			if tt.wantSeenK != "" && !seenPaths[tt.wantSeenK] {
-				t.Errorf("expected %s to be in seenPaths", tt.wantSeenK)
+			if testCase.wantSeenK != "" && !seenPaths[testCase.wantSeenK] {
+				t.Errorf("expected %s to be in seenPaths", testCase.wantSeenK)
 			}
 		})
 	}
@@ -166,19 +167,19 @@ func TestResolveFunctionPackageInfo(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			// Pass nil for pkgLoader since these test cases don't use it
-			pkgPath, qualifier := resolveFunctionPackageInfo(tt.info, tt.pkgImportPath, nil)
+			pkgPath, qualifier := resolveFunctionPackageInfo(testCase.info, testCase.pkgImportPath, nil)
 
-			if pkgPath != tt.wantPkgPath {
-				t.Errorf("resolveFunctionPackageInfo() pkgPath = %v, want %v", pkgPath, tt.wantPkgPath)
+			if pkgPath != testCase.wantPkgPath {
+				t.Errorf("resolveFunctionPackageInfo() pkgPath = %v, want %v", pkgPath, testCase.wantPkgPath)
 			}
 
-			if qualifier != tt.wantQualifier {
-				t.Errorf("resolveFunctionPackageInfo() qualifier = %v, want %v", qualifier, tt.wantQualifier)
+			if qualifier != testCase.wantQualifier {
+				t.Errorf("resolveFunctionPackageInfo() qualifier = %v, want %v", qualifier, testCase.wantQualifier)
 			}
 		})
 	}

@@ -46,8 +46,8 @@ github.com/sergi/go-diff v1.2.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNX
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
-github.com/toejough/go-reorder v0.0.0-20260109213904-711165b88b82 h1:DqHtGufvmZ6YnzYBdlJKdsg7nvsm8/Mu+32I7Jt+L9E=
-github.com/toejough/go-reorder v0.0.0-20260109213904-711165b88b82/go.mod h1:RPG0RKzyzlpkYcX8YNsX4QpOJzt87lGdeRFA1NoOwFk=
+github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc h1:ngRqitI5flfDOX6bgcjJuefhGiEhnhgnFK4woRlZU7c=
+github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc/go.mod h1:RPG0RKzyzlpkYcX8YNsX4QpOJzt87lGdeRFA1NoOwFk=
 github.com/toejough/targ v0.0.0-20260110150223-6880d0bb721c h1:KEm1VQZQTtbED+UyR3REVVnfszvinQ28rFxdIi3DZjo=
 github.com/toejough/targ v0.0.0-20260110150223-6880d0bb721c/go.mod h1:7ArqnI7QqyXqdvgBRzCqmYVNfkWH+xCw1C6tjHJxN+w=
 go.uber.org/automaxprocs v1.6.0 h1:O3y2/QNTOdbF+e/dpXNNW7Rx2hZ4sTIPyybbxyNqTUs=

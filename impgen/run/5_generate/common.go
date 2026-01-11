@@ -440,7 +440,7 @@ func (w *typeExprWalker[T]) walkIndexType(expr dst.Expr) T {
 	}
 
 	// Must be *dst.IndexListExpr since caller already type-checked
-	return w.walkIndexListExpr(expr.(*dst.IndexListExpr))
+	return w.walkIndexListExpr(expr.(*dst.IndexListExpr)) //nolint:forcetypeassert // Checked by caller
 }
 
 // walkMapType handles map type traversal.

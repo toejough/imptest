@@ -1,3 +1,4 @@
+//nolint:testpackage // Tests internal functions
 package run
 
 import (
@@ -59,13 +60,13 @@ func TestDetermineGeneratedTypeName(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := determineGeneratedTypeName(tt.mode, tt.interfaceName)
-			if got != tt.want {
-				t.Errorf("determineGeneratedTypeName() = %v, want %v", got, tt.want)
+			got := determineGeneratedTypeName(testCase.mode, testCase.interfaceName)
+			if got != testCase.want {
+				t.Errorf("determineGeneratedTypeName() = %v, want %v", got, testCase.want)
 			}
 		})
 	}

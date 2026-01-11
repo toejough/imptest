@@ -8,7 +8,7 @@ require (
 	github.com/dave/dst v0.27.3
 	github.com/gtramontina/ooze v0.2.0
 	github.com/onsi/gomega v1.38.3
-	github.com/toejough/go-reorder v0.0.0-20260109213904-711165b88b82
+	github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc
 	github.com/toejough/targ v0.0.0-20260110150223-6880d0bb721c
 )
 

@@ -1,3 +1,4 @@
+//nolint:testpackage,funlen,varnamelen // Tests internal functions
 package output
 
 import (

@@ -23,6 +23,7 @@ func DependencyCode(
 	if err != nil {
 		return "", err
 	}
+
 	return gen.generate()
 }
 

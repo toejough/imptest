@@ -1,3 +1,4 @@
+//nolint:testpackage,funlen // Tests internal functions
 package generate
 
 import (
@@ -69,20 +70,20 @@ func TestTargetGenerator_hasMultipleResults(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
 			gen := &targetGenerator{
 				funcDecl: &dst.FuncDecl{
 					Type: &dst.FuncType{
-						Results: tt.results,
+						Results: testCase.results,
 					},
 				},
 			}
 
-			if got := gen.hasMultipleResults(); got != tt.expected {
-				t.Errorf("hasMultipleResults() = %v, want %v", got, tt.expected)
+			if got := gen.hasMultipleResults(); got != testCase.expected {
+				t.Errorf("hasMultipleResults() = %v, want %v", got, testCase.expected)
 			}
 		})
 	}
