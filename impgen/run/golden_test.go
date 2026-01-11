@@ -60,6 +60,8 @@ func TestUATConsistency(t *testing.T) {
 }
 
 // unexported variables.
+//
+//nolint:gochecknoglobals // Test performance cache shared across test cases
 var (
 	packageCache   = make(map[string]cachedPackage)
 	packageCacheMu sync.RWMutex
