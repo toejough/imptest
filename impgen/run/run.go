@@ -11,6 +11,7 @@ import (
 	"github.com/alexflint/go-arg"
 	"github.com/dave/dst"
 
+	load "github.com/toejough/imptest/impgen/run/2_load"
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 	generate "github.com/toejough/imptest/impgen/run/5_generate"
 	output "github.com/toejough/imptest/impgen/run/6_output"
@@ -270,7 +271,10 @@ func getInterfacePackagePath(
 	}
 
 	// Tier 3: Ambiguity detection
-	hasStdlib, hasLocal, localPath := detect.PackageAmbiguity(pkgName)
+	hasStdlib := detect.IsStdlibPackage(pkgName)
+	localPath := load.ResolveLocalPackagePath(pkgName)
+
+	hasLocal := localPath != pkgName
 	if hasStdlib && hasLocal {
 		return "", fmt.Errorf(
 			"%w: %q\n"+

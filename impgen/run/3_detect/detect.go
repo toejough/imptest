@@ -16,7 +16,6 @@ import (
 	"github.com/dave/dst"
 
 	astutil "github.com/toejough/imptest/impgen/run/0_util"
-	load "github.com/toejough/imptest/impgen/run/2_load"
 )
 
 // SymbolType identifies the kind of symbol found.
@@ -362,15 +361,6 @@ func IsStdlibPackage(pkgName string) bool {
 	}
 
 	return false
-}
-
-// PackageAmbiguity checks if a package name is ambiguous.
-func PackageAmbiguity(pkgName string) (hasStdlib, hasLocal bool, localPath string) {
-	hasStdlib = IsStdlibPackage(pkgName)
-	localPath = load.ResolveLocalPackagePath(pkgName)
-	hasLocal = localPath != pkgName
-
-	return hasStdlib, hasLocal, localPath
 }
 
 // unexported constants.
