@@ -744,37 +744,6 @@ type lineAndCoverage struct {
 	coverage float64
 }
 
-type position struct {
-	line int
-	col  int
-}
-
-func (p position) compare(other position) int {
-	if p.line < other.line {
-		return -1
-	}
-
-	if p.line > other.line {
-		return 1
-	}
-
-	if p.col < other.col {
-		return -1
-	}
-
-	if p.col > other.col {
-		return 1
-	}
-
-	return 0
-}
-
-type segment struct {
-	start position
-	end   position
-	count int
-}
-
 // testInfo holds a test function name with its package.
 type testInfo struct {
 	pkg  string
@@ -1214,6 +1183,7 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 	}
 
 	fmt.Printf("  Target: %d functions at %.0f%%+ (with all tests)\n", len(targetFuncs), config.CoverageThreshold)
+
 	os.Remove(totalCoverageFile)
 
 	// Step 5: Greedy addition starting from 0 coverage
@@ -1230,8 +1200,15 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 
 	var keptTests []testResult
 	keptTestFiles := []string{}
-	remainingGaps := make(map[string]bool)
 
+	// Track current coverage level for each target function (starts at 0)
+	currentCoverage := make(map[string]float64)
+	for fn := range targetFuncs {
+		currentCoverage[fn] = 0
+	}
+
+	// Track which functions still need coverage (below threshold)
+	remainingGaps := make(map[string]bool)
 	for fn := range targetFuncs {
 		remainingGaps[fn] = true
 	}
@@ -1242,7 +1219,8 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 	currentMergedFile := ""
 
 	// Helper to evaluate a single test candidate
-	evalCandidate := func(test testInfo, mergedSoFar string, gaps map[string]bool) []string {
+	// Returns list of functions where this test improves coverage (for functions still below threshold)
+	evalCandidate := func(test testInfo, mergedSoFar string, gaps map[string]bool, currCov map[string]float64) []string {
 		qName := test.qualifiedName()
 		coverFile := testCoverageFiles[qName]
 
@@ -1250,7 +1228,7 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 			return nil
 		}
 
-		var gapsFilled []string
+		var improvements []string
 
 		if mergedSoFar == "" {
 			// First test - check its coverage directly
@@ -1260,8 +1238,9 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 			}
 
 			for fn := range gaps {
-				if testCov[fn] >= config.CoverageThreshold {
-					gapsFilled = append(gapsFilled, fn)
+				// Count as improvement if this test provides any coverage for an unfilled gap
+				if testCov[fn] > currCov[fn] {
+					improvements = append(improvements, fn)
 				}
 			}
 		} else {
@@ -1281,13 +1260,14 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 			}
 
 			for fn := range gaps {
-				if mergedCov[fn] >= config.CoverageThreshold {
-					gapsFilled = append(gapsFilled, fn)
+				// Count as improvement if merged coverage is better than current
+				if mergedCov[fn] > currCov[fn] {
+					improvements = append(improvements, fn)
 				}
 			}
 		}
 
-		return gapsFilled
+		return improvements
 	}
 
 	// Helper to find best test from a pool (parallelized)
@@ -1307,15 +1287,19 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 
 		// Copy current state for parallel evaluation
 		gapsCopy := make(map[string]bool)
-
 		for fn := range remainingGaps {
 			gapsCopy[fn] = true
 		}
 
+		covCopy := make(map[string]float64)
+		for fn, cov := range currentCoverage {
+			covCopy[fn] = cov
+		}
+
 		// Evaluate candidates in parallel
 		type result struct {
-			test       testInfo
-			gapsFilled []string
+			test         testInfo
+			improvements []string
 		}
 
 		results := make([]result, len(candidates))
@@ -1331,25 +1315,25 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
-				filled := evalCandidate(t, currentMergedFile, gapsCopy)
-				results[idx] = result{test: t, gapsFilled: filled}
+				improved := evalCandidate(t, currentMergedFile, gapsCopy, covCopy)
+				results[idx] = result{test: t, improvements: improved}
 			}(i, test)
 		}
 
 		wg.Wait()
 
-		// Find best result
+		// Find best result (most improvements)
 		var bestTest testInfo
-		var bestGapsFilled []string
+		var bestImprovements []string
 
 		for _, r := range results {
-			if len(r.gapsFilled) > len(bestGapsFilled) {
+			if len(r.improvements) > len(bestImprovements) {
 				bestTest = r.test
-				bestGapsFilled = r.gapsFilled
+				bestImprovements = r.improvements
 			}
 		}
 
-		return bestTest, bestGapsFilled
+		return bestTest, bestImprovements
 	}
 
 	// Keep adding tests until no gaps remain
@@ -1402,9 +1386,21 @@ func findRedundantTestsWithConfig(config RedundancyConfig) error {
 
 		currentMergedFile = newMergedFile
 
-		// Remove filled gaps
-		for _, fn := range bestGapsFilled {
-			delete(remainingGaps, fn)
+		// Update current coverage levels from new merged file
+		newCoverage, err := getAllFunctionsCoverage(newMergedFile)
+		if err == nil {
+			for fn := range targetFuncs {
+				if newCov, ok := newCoverage[fn]; ok {
+					currentCoverage[fn] = newCov
+				}
+			}
+		}
+
+		// Remove gaps only when they reach threshold
+		for fn := range remainingGaps {
+			if currentCoverage[fn] >= config.CoverageThreshold {
+				delete(remainingGaps, fn)
+			}
 		}
 	}
 
@@ -1881,38 +1877,26 @@ func mergeCoverageBlocksFile(filename string) error {
 		}
 	}
 
-	// For each file, split overlapping blocks into non-overlapping segments
-	fileBlocks := make(map[string][]coverageBlock)
-
-	for _, block := range blocks {
-		fileBlocks[block.file] = append(fileBlocks[block.file], block)
-	}
-
-	var finalBlocks []coverageBlock
-
-	for _, blks := range fileBlocks {
-		segments := splitBlocksIntoSegments(blks)
-		finalBlocks = append(finalBlocks, segments...)
-	}
-
-	// Rebuild coverage file
+	// Rebuild coverage file with deduplicated blocks
+	// Note: We don't split overlapping blocks - go tool cover handles them correctly.
+	// We only deduplicate identical blocks (same start/end positions) by summing counts.
 	var merged []string
 	merged = append(merged, mode)
 
 	// Sort for deterministic output
-	sort.Slice(finalBlocks, func(i, j int) bool {
-		if finalBlocks[i].file != finalBlocks[j].file {
-			return finalBlocks[i].file < finalBlocks[j].file
+	sort.Slice(blocks, func(i, j int) bool {
+		if blocks[i].file != blocks[j].file {
+			return blocks[i].file < blocks[j].file
 		}
 
-		if finalBlocks[i].startLine != finalBlocks[j].startLine {
-			return finalBlocks[i].startLine < finalBlocks[j].startLine
+		if blocks[i].startLine != blocks[j].startLine {
+			return blocks[i].startLine < blocks[j].startLine
 		}
 
-		return finalBlocks[i].startCol < finalBlocks[j].startCol
+		return blocks[i].startCol < blocks[j].startCol
 	})
 
-	for _, block := range finalBlocks {
+	for _, block := range blocks {
 		blockID := fmt.Sprintf("%s:%d.%d,%d.%d",
 			block.file, block.startLine, block.startCol, block.endLine, block.endCol)
 		merged = append(merged, fmt.Sprintf("%s %d %d", blockID, block.statements, block.count))
@@ -2082,79 +2066,4 @@ func sanitize(s string) string {
 	)
 
 	return replacer.Replace(s)
-}
-
-// splitBlocksIntoSegments splits overlapping blocks into non-overlapping segments,
-// summing counts for each segment from all blocks that cover it.
-func splitBlocksIntoSegments(blocks []coverageBlock) []coverageBlock {
-	if len(blocks) == 0 {
-		return nil
-	}
-
-	// Collect all unique boundary positions
-	boundarySet := make(map[position]bool)
-
-	for _, block := range blocks {
-		boundarySet[position{block.startLine, block.startCol}] = true
-		boundarySet[position{block.endLine, block.endCol}] = true
-	}
-
-	// Convert to sorted slice
-	var boundaries []position
-
-	for pos := range boundarySet {
-		boundaries = append(boundaries, pos)
-	}
-
-	sort.Slice(boundaries, func(i, j int) bool {
-		return boundaries[i].compare(boundaries[j]) < 0
-	})
-
-	// Create segments between consecutive boundaries
-	var segments []segment
-
-	for i := 0; i < len(boundaries)-1; i++ {
-		seg := segment{
-			start: boundaries[i],
-			end:   boundaries[i+1],
-			count: 0,
-		}
-
-		// Sum counts from all blocks that cover this segment
-		for _, block := range blocks {
-			blockStart := position{block.startLine, block.startCol}
-			blockEnd := position{block.endLine, block.endCol}
-
-			// Check if block covers this segment
-			// Segment is covered if: blockStart <= segStart AND segEnd <= blockEnd
-			if blockStart.compare(seg.start) <= 0 && seg.end.compare(blockEnd) <= 0 {
-				seg.count += block.count
-			}
-		}
-
-		// Only keep segments with non-zero count
-		if seg.count > 0 {
-			segments = append(segments, seg)
-		}
-	}
-
-	// Convert segments back to coverageBlocks
-	// We need to estimate the number of statements in each segment
-	var result []coverageBlock
-
-	for _, seg := range segments {
-		// For simplicity, use 1 statement per segment
-		// The actual number doesn't affect coverage percentage calculations
-		result = append(result, coverageBlock{
-			file:       blocks[0].file, // All blocks in input have same file
-			startLine:  seg.start.line,
-			startCol:   seg.start.col,
-			endLine:    seg.end.line,
-			endCol:     seg.end.col,
-			statements: 1,
-			count:      seg.count,
-		})
-	}
-
-	return result
 }
