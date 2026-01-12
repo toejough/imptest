@@ -8,21 +8,19 @@ import (
 	"testing"
 )
 
-func TestParseTemplate_Error(t *testing.T) {
+func TestParseTemplate_Panic(t *testing.T) {
 	t.Parallel()
 
 	// Test with invalid template syntax - unclosed action
-	_, err := parseTemplate("test", "{{.Invalid")
-	if err == nil {
-		t.Error("parseTemplate() expected error for invalid template, got nil")
-	}
+	// parseTemplate uses template.Must() which panics on error
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("parseTemplate() expected panic for invalid template, got nil")
+		}
+	}()
 
-	if !strings.Contains(err.Error(), "failed to parse test template") {
-		t.Errorf(
-			"parseTemplate() error = %v, want error containing 'failed to parse test template'",
-			err,
-		)
-	}
+	parseTemplate("test", "{{.Invalid")
 }
 
 // Use the correct data structure expected by the template
@@ -35,10 +33,7 @@ func TestParseTemplate_Error(t *testing.T) {
 func TestTemplateRegistry_WritePanicPaths(t *testing.T) {
 	t.Parallel()
 
-	registry, err := NewTemplateRegistry()
-	if err != nil {
-		t.Fatalf("failed to create template registry: %v", err)
-	}
+	registry := NewTemplateRegistry()
 
 	for _, testCase := range allTemplateWriteTests() {
 		t.Run(testCase.name, func(t *testing.T) {

@@ -284,11 +284,8 @@ func (gen *interfaceTargetGenerator) generate(isStructType bool) (string, error)
 		gen.needsQualifier = true
 	}
 
-	// Initialize template registry
-	templates, err := NewTemplateRegistry()
-	if err != nil {
-		return "", fmt.Errorf("failed to initialize template registry: %w", err)
-	}
+	// Get the global template registry (initialized at package load time)
+	templates := NewTemplateRegistry()
 
 	// Generate using templates - pass isStructType from parameter
 	gen.generateWithTemplates(templates, isStructType)

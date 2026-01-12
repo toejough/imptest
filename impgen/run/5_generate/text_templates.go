@@ -49,26 +49,16 @@ type TemplateRegistry struct {
 }
 
 // NewTemplateRegistry creates and initializes a new template registry with all templates parsed.
-func NewTemplateRegistry() (*TemplateRegistry, error) {
+// Templates are hardcoded constants, so parsing cannot fail at runtime.
+func NewTemplateRegistry() *TemplateRegistry {
 	registry := &TemplateRegistry{}
 
-	// All parse functions use embedded constant templates that are known valid,
-	// so errors should never occur. The error handling is purely defensive.
-	parsers := []func() error{
-		registry.parseDependencyTemplates,
-		registry.parseTargetTemplates,
-		registry.parseInterfaceTargetTemplates,
-		registry.parseFunctionDependencyTemplates,
-	}
+	registry.parseDependencyTemplates()
+	registry.parseTargetTemplates()
+	registry.parseInterfaceTargetTemplates()
+	registry.parseFunctionDependencyTemplates()
 
-	for _, parse := range parsers {
-		err := parse()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return registry, nil
+	return registry
 }
 
 // WriteDepArgsStruct writes the dependency args struct.
@@ -343,7 +333,7 @@ func (r *TemplateRegistry) WriteTargetWrapperStruct(buf *bytes.Buffer, data any)
 }
 
 // parseDependencyTemplates parses all dependency mock templates.
-func (r *TemplateRegistry) parseDependencyTemplates() error {
+func (r *TemplateRegistry) parseDependencyTemplates() {
 	templates := []struct {
 		target  **template.Template
 		name    string
@@ -360,11 +350,11 @@ func (r *TemplateRegistry) parseDependencyTemplates() error {
 		{&r.depMethodWrapperTmpl, "depMethodWrapper", tmplDepMethodWrapper},
 	}
 
-	return parseTemplateList(templates)
+	parseTemplateList(templates)
 }
 
 // parseFunctionDependencyTemplates parses all function dependency mock templates.
-func (r *TemplateRegistry) parseFunctionDependencyTemplates() error {
+func (r *TemplateRegistry) parseFunctionDependencyTemplates() {
 	templates := []struct {
 		target  **template.Template
 		name    string
@@ -375,13 +365,11 @@ func (r *TemplateRegistry) parseFunctionDependencyTemplates() error {
 		{&r.funcDepMethodWrapperTmpl, "funcDepMethodWrapper", tmplFuncDepMethodWrapper},
 	}
 
-	return parseTemplateList(templates)
+	parseTemplateList(templates)
 }
 
 // parseInterfaceTargetTemplates parses all interface target wrapper templates.
-//
-
-func (r *TemplateRegistry) parseInterfaceTargetTemplates() error {
+func (r *TemplateRegistry) parseInterfaceTargetTemplates() {
 	templates := []struct {
 		target  **template.Template
 		name    string
@@ -440,11 +428,11 @@ func (r *TemplateRegistry) parseInterfaceTargetTemplates() error {
 		},
 	}
 
-	return parseTemplateList(templates)
+	parseTemplateList(templates)
 }
 
 // parseTargetTemplates parses all target wrapper templates.
-func (r *TemplateRegistry) parseTargetTemplates() error {
+func (r *TemplateRegistry) parseTargetTemplates() {
 	templates := []struct {
 		target  **template.Template
 		name    string
@@ -462,35 +450,25 @@ func (r *TemplateRegistry) parseTargetTemplates() error {
 		{&r.targetReturnsStructTmpl, "targetReturnsStruct", tmplTargetReturnsStruct},
 	}
 
-	return parseTemplateList(templates)
+	parseTemplateList(templates)
 }
 
-// parseTemplate is a helper function that parses a template with consistent error handling.
-// Returns the parsed template or an error with a descriptive message.
-func parseTemplate(name, content string) (*template.Template, error) {
-	tmpl, err := template.New(name).Parse(content)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse %s template: %w", name, err)
-	}
-
-	return tmpl, nil
+// parseTemplate is a helper function that parses a template using template.Must().
+// Templates are hardcoded constants, so parsing cannot fail at runtime.
+// Panics if the template is invalid (programming error, caught at startup).
+func parseTemplate(name, content string) *template.Template {
+	return template.Must(template.New(name).Parse(content))
 }
 
 // parseTemplateList parses a list of templates and assigns them to their targets.
+// Uses template.Must() internally, so panics on invalid templates.
 func parseTemplateList(templates []struct {
 	target  **template.Template
 	name    string
 	content string
 },
-) error {
+) {
 	for _, def := range templates {
-		tmpl, err := parseTemplate(def.name, def.content)
-		if err != nil {
-			return err
-		}
-
-		*def.target = tmpl
+		*def.target = parseTemplate(def.name, def.content)
 	}
-
-	return nil
 }

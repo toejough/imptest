@@ -244,7 +244,9 @@ func TestRouteFunctionGenerator_DefaultModeError(t *testing.T) {
 		Mode: generate.NamingModeDefault,
 	}
 
-	_, err := routeFunctionGenerator(nil, info, nil, "", nil, nil)
+	// Pass stub values to satisfy nil checks, even though they won't be used
+	// because the function returns an error before accessing them.
+	_, err := routeFunctionGenerator(nil, info, nil, "", &mockPkgLoader{}, &dst.FuncDecl{})
 	if !errors.Is(err, ErrFunctionModeRequired) {
 		t.Errorf("expected ErrFunctionModeRequired, got %v", err)
 	}
@@ -257,7 +259,14 @@ func TestRouteFunctionTypeGenerator_DefaultModeError(t *testing.T) {
 		Mode: generate.NamingModeDefault,
 	}
 
-	_, err := routeFunctionTypeGenerator(nil, info, nil, "", nil, detect.FuncTypeWithDetails{})
+	_, err := routeFunctionTypeGenerator(
+		nil,
+		info,
+		nil,
+		"",
+		&mockPkgLoader{},
+		detect.FuncTypeWithDetails{},
+	)
 	if !errors.Is(err, ErrFunctionModeRequired) {
 		t.Errorf("expected ErrFunctionModeRequired, got %v", err)
 	}
@@ -270,7 +279,14 @@ func TestRouteInterfaceGenerator_DefaultModeError(t *testing.T) {
 		Mode: generate.NamingModeDefault,
 	}
 
-	_, err := routeInterfaceGenerator(nil, info, nil, "", nil, detect.IfaceWithDetails{})
+	_, err := routeInterfaceGenerator(
+		nil,
+		info,
+		nil,
+		"",
+		&mockPkgLoader{},
+		detect.IfaceWithDetails{},
+	)
 	if !errors.Is(err, ErrInterfaceModeRequired) {
 		t.Errorf("expected ErrInterfaceModeRequired, got %v", err)
 	}
@@ -283,7 +299,7 @@ func TestRouteStructGenerator_DefaultModeError(t *testing.T) {
 		Mode: generate.NamingModeDefault,
 	}
 
-	_, err := routeStructGenerator(nil, info, nil, "", nil, detect.StructWithDetails{})
+	_, err := routeStructGenerator(nil, info, nil, "", &mockPkgLoader{}, detect.StructWithDetails{})
 	if !errors.Is(err, ErrFunctionModeRequired) {
 		t.Errorf("expected ErrFunctionModeRequired, got %v", err)
 	}
@@ -351,7 +367,15 @@ func TestRun_GOPACKAGENotSet(t *testing.T) {
 	// Test that Run returns error when GOPACKAGE is not set
 	getEnv := func(_ string) string { return "" }
 
-	err := Run([]string{"-target", "SomeInterface"}, getEnv, nil, nil, io.Discard)
+	// Pass stub values to satisfy nil checks, even though they won't be used
+	// because the function returns an error before accessing them.
+	err := Run(
+		[]string{"-target", "SomeInterface"},
+		getEnv,
+		&mockCachingFileSystem{},
+		&mockPkgLoader{},
+		io.Discard,
+	)
 	if !errors.Is(err, errGOPACKAGENotSet) {
 		t.Errorf("Run() error = %v, want %v", err, errGOPACKAGENotSet)
 	}

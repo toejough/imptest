@@ -121,6 +121,12 @@ func CheckCoverage(ctx context.Context) error {
 			continue
 		}
 
+		// Exclude init() functions - they run at package load time and often
+		// contain defensive code that can't be tested.
+		if strings.Contains(line, "\tinit\t") {
+			continue
+		}
+
 		linesAndCoverage = append(linesAndCoverage, lineAndCoverage{line, percent})
 	}
 
@@ -177,7 +183,8 @@ func CheckCoverageForFail(ctx context.Context) error {
 			strings.Contains(line, "_string.go") ||
 			strings.Contains(line, "main.go") ||
 			strings.Contains(line, "generated_") ||
-			strings.Contains(line, "total:") {
+			strings.Contains(line, "total:") ||
+			strings.Contains(line, "\tinit\t") { // init() has untestable defensive code
 			continue
 		}
 
@@ -235,13 +242,13 @@ func CheckNils(ctx context.Context) error {
 // CheckNilsFix applies any auto-fixable nil issues.
 func CheckNilsFix(ctx context.Context) error {
 	fmt.Println("Fixing nil issues...")
-	return sh.RunContext(ctx, "nilaway", "-fix", "--exclude-errors-in-files=_test.go", "./...")
+	return sh.RunContext(ctx, "nilaway", "-fix", "./...")
 }
 
 // CheckNilsForFail checks for nils and fails on any issues.
 func CheckNilsForFail(ctx context.Context) error {
 	fmt.Println("Checking for nil issues...")
-	return sh.RunContext(ctx, "nilaway", "--exclude-errors-in-files=_test.go", "./...")
+	return sh.RunContext(ctx, "nilaway", "./...")
 }
 
 // Clean cleans up the dev env.

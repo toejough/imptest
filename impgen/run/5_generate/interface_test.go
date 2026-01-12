@@ -39,7 +39,9 @@ func TestDependencyCode_Error(t *testing.T) {
 		Iface: iface,
 	}
 
-	_, err := DependencyCode(nil, info, token.NewFileSet(), ".", nil, ifaceWithDetails)
+	// Pass stub pkgLoader to satisfy nil checks, even though it won't be used
+	// because the function returns an error before accessing it.
+	_, err := DependencyCode(nil, info, token.NewFileSet(), ".", &mockPkgLoader{}, ifaceWithDetails)
 	if err == nil {
 		t.Error("DependencyCode() expected error for unsupported embedded type, got nil")
 	}

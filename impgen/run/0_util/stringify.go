@@ -121,7 +121,7 @@ func stringifyFuncType(funcType *dst.FuncType) string {
 			buf.WriteString("(")
 			buf.WriteString(strings.Join(resultParts, ", "))
 			buf.WriteString(")")
-		} else {
+		} else if len(resultParts) == 1 {
 			buf.WriteString(resultParts[0])
 		}
 	}
@@ -177,7 +177,7 @@ func stringifyInterfaceType(interfaceType *dst.InterfaceType) string {
 					buf.WriteString("(")
 					buf.WriteString(strings.Join(resultParts, ", "))
 					buf.WriteString(")")
-				} else {
+				} else if len(resultParts) == 1 {
 					buf.WriteString(resultParts[0])
 				}
 			}

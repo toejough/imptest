@@ -250,8 +250,8 @@ func (gen *targetGenerator) generate() (string, error) {
 	// Pre-scan to determine what imports are needed
 	gen.checkIfQualifierNeeded(gen.funcDecl.Type)
 
-	// Initialize template registry (can't fail with valid hardcoded templates)
-	templates, _ := NewTemplateRegistry()
+	// Get the global template registry (initialized at package load time)
+	templates := NewTemplateRegistry()
 
 	// Generate using templates
 	gen.generateWithTemplates(templates)
