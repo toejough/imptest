@@ -154,7 +154,7 @@ func CheckCoverage(ctx context.Context) error {
 
 // CheckCoverageForFail checks coverage from existing coverage.out (doesn't run tests).
 // Must be run after TestForFail which generates coverage.out.
-func CheckCoverageForFail() error {
+func CheckCoverageForFail(ctx context.Context) error {
 	fmt.Println("Checking coverage...")
 
 	// Merge duplicate coverage blocks from cross-package testing
@@ -162,7 +162,7 @@ func CheckCoverageForFail() error {
 		return fmt.Errorf("failed to merge coverage blocks: %w", err)
 	}
 
-	out, err := output(context.Background(), "go", "tool", "cover", "-func=coverage.out")
+	out, err := sh.OutputContext(ctx, "go", "tool", "cover", "-func=coverage.out")
 	if err != nil {
 		return err
 	}
@@ -172,19 +172,23 @@ func CheckCoverageForFail() error {
 	var minLine string
 
 	for _, line := range lines {
-		percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
-
-		percent, err := strconv.ParseFloat(percentString, 64)
-		if err != nil {
-			return err
-		}
-
-		// Skip files we don't care about
-		if strings.Contains(line, "_string.go") ||
+		// Skip empty lines and files we don't care about
+		if line == "" ||
+			strings.Contains(line, "_string.go") ||
 			strings.Contains(line, "main.go") ||
 			strings.Contains(line, "generated_") ||
 			strings.Contains(line, "total:") {
 			continue
+		}
+
+		percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
+		if percentString == "" {
+			continue
+		}
+
+		percent, err := strconv.ParseFloat(percentString, 64)
+		if err != nil {
+			return err
 		}
 
 		if percent < minCoverage {
@@ -204,7 +208,7 @@ func CheckCoverageForFail() error {
 }
 
 // CheckForFail runs all checks on the code for determining whether any fail.
-func CheckForFail() error {
+func CheckForFail(ctx context.Context) error {
 	fmt.Println("Checking...")
 
 	return targ.Deps(
@@ -212,9 +216,10 @@ func CheckForFail() error {
 		LintFast,
 		LintForFail,
 		Deadcode,
-		func() error { return targ.Deps(TestForFail, CheckCoverageForFail) },
+		func() error { return targ.Deps(TestForFail, CheckCoverageForFail, targ.WithContext(ctx)) },
 		CheckNilsForFail,
 		targ.Parallel(),
+		targ.WithContext(ctx),
 	)
 }
 
@@ -249,7 +254,7 @@ func Clean() {
 func Deadcode(ctx context.Context) error {
 	fmt.Println("Checking for dead code...")
 
-	out, err := output(ctx, "deadcode", "-test", "./...")
+	out, err := sh.OutputContext(ctx, "deadcode", "-test", "./...")
 	if err != nil {
 		return err
 	}
@@ -432,10 +437,10 @@ func Lint(ctx context.Context) error {
 }
 
 // LintFast runs only fast linters for quick fail-fast checks.
-func LintFast() error {
+func LintFast(ctx context.Context) error {
 	fmt.Println("Running fast linters...")
 
-	return sh.Run(
+	return sh.RunContext(ctx,
 		"golangci-lint", "run",
 		"-c", "dev/golangci-fast.toml",
 		"--allow-parallel-runners",
@@ -443,10 +448,10 @@ func LintFast() error {
 }
 
 // LintForFail lints the codebase purely to find out whether anything fails.
-func LintForFail() error {
+func LintForFail(ctx context.Context) error {
 	fmt.Println("Linting to check for overall pass/fail...")
 
-	return sh.Run(
+	return sh.RunContext(ctx,
 		"golangci-lint", "run",
 		"-c", "dev/golangci-lint.toml",
 		"--fix=false",
@@ -551,7 +556,8 @@ func ReorderDecls(ctx context.Context) error {
 }
 
 // ReorderDeclsCheck checks which files need reordering without modifying them.
-func ReorderDeclsCheck() error {
+func ReorderDeclsCheck(ctx context.Context) error {
+	_ = ctx // Reserved for future cancellation support
 	fmt.Println("Checking declaration order...")
 
 	files, err := globs(".", []string{".go"})
@@ -713,14 +719,14 @@ func Test(ctx context.Context) error {
 
 // TestForFail runs the unit tests purely to find out whether any fail.
 // Also generates coverage.out for CheckCoverageForFail.
-func TestForFail() error {
+func TestForFail(ctx context.Context) error {
 	fmt.Println("Running unit tests for overall pass/fail...")
 
 	if err := targ.Deps(Generate); err != nil {
 		return err
 	}
 
-	return sh.Run(
+	return sh.RunContext(ctx,
 		"go",
 		"test",
 		"-buildvcs=false",
