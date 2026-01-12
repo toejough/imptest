@@ -28,7 +28,7 @@ func TestPackageDST_ExcludesTestFilesForExternalPackages(t *testing.T) {
 	tmpDir := t.TempDir()
 	subPkgDir := filepath.Join(tmpDir, "extpkg")
 
-	err := os.Mkdir(subPkgDir, 0o755)
+	err := os.Mkdir(subPkgDir, 0o750)
 	if err != nil {
 		t.Fatalf("failed to create extpkg dir: %v", err)
 	}

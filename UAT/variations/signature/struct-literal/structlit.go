@@ -10,13 +10,6 @@ var (
 	ErrProcessFailed = errors.New("process failed")
 )
 
-// Default configuration values.
-const (
-	defaultPort       = 8080
-	defaultMaxRetries = 3
-	defaultTimeout    = 30
-)
-
 // ConfigManager demonstrates a struct with methods using struct literal returns.
 type ConfigManager struct{}
 
@@ -98,3 +91,10 @@ func ValidateRequest(req struct {
 
 	return nil
 }
+
+// unexported constants.
+const (
+	defaultMaxRetries = 3
+	defaultPort       = 8080
+	defaultTimeout    = 30
+)

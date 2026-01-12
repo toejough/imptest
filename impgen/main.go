@@ -48,7 +48,7 @@ func (fs *realFileSystem) Glob(pattern string) ([]string, error) {
 
 // ReadFile reads the file named by name and returns the contents.
 func (fs *realFileSystem) ReadFile(name string) ([]byte, error) {
-	data, err := os.ReadFile(name)
+	data, err := os.ReadFile(name) //nolint:gosec // G304: path from trusted caller
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", name, err)
 	}

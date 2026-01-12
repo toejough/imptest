@@ -1,4 +1,4 @@
-package timeconflict
+package timeconflict_test
 
 import (
 	"testing"

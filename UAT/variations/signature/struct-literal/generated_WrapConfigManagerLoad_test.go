@@ -138,7 +138,7 @@ type WrapConfigManagerLoadWrapperMethod struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapConfigManagerLoadWrapperMethod) Start(path string) *WrapConfigManagerLoadCallHandle {
+func (m *WrapConfigManagerLoadWrapperMethod) Start(arg1 string) *WrapConfigManagerLoadCallHandle {
 	handle := &WrapConfigManagerLoadCallHandle{
 		CallableController: _imptest.NewCallableController[WrapConfigManagerLoadReturnsReturn](m.t),
 		controller:         m.controller,
@@ -150,7 +150,7 @@ func (m *WrapConfigManagerLoadWrapperMethod) Start(path string) *WrapConfigManag
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(path)
+		ret0 := m.callable(arg1)
 		handle.ReturnChan <- WrapConfigManagerLoadReturnsReturn{Result0: ret0}
 	}()
 	return handle

@@ -12,9 +12,6 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// Test fixture type names.
-const testTypeSomeType = "SomeType"
-
 func TestExtractFields(t *testing.T) {
 	t.Parallel()
 
@@ -80,6 +77,24 @@ func TestExtractFields(t *testing.T) {
 				t.Errorf("extractFields()[0].Name = %v, want %v", result[0].Name, tt.wantName)
 			}
 		})
+	}
+}
+
+// TestFieldParamNames_BlankIdentifier tests that blank identifiers get synthetic names.
+func TestFieldParamNames_BlankIdentifier(t *testing.T) {
+	t.Parallel()
+
+	// Test with blank identifier
+	field := &dst.Field{
+		Names: []*dst.Ident{{Name: "_"}},
+		Type:  &dst.Ident{Name: "string"},
+	}
+	names := fieldParamNames(field, 0)
+	if len(names) != 1 {
+		t.Fatalf("expected 1 name, got %d", len(names))
+	}
+	if names[0] != "arg1" {
+		t.Errorf("expected arg1 for blank identifier, got %s", names[0])
 	}
 }
 
@@ -403,8 +418,11 @@ func TestQualifyExternalTypes(t *testing.T) {
 			},
 		},
 		{
-			name:      "chan type qualifies value",
-			expr:      &dst.ChanType{Dir: dst.SEND | dst.RECV, Value: &dst.Ident{Name: testTypeSomeType}},
+			name: "chan type qualifies value",
+			expr: &dst.ChanType{
+				Dir:   dst.SEND | dst.RECV,
+				Value: &dst.Ident{Name: testTypeSomeType},
+			},
 			qualifier: "pkg",
 			check: func(t *testing.T, result dst.Expr) {
 				ch, ok := result.(*dst.ChanType)
@@ -504,6 +522,31 @@ func TestQualifyExternalTypes(t *testing.T) {
 		})
 	}
 }
+
+// TestWalkIndexType_DefaultCase tests the defensive default case in walkIndexType.
+func TestWalkIndexType_DefaultCase(t *testing.T) {
+	t.Parallel()
+
+	// Create a walker with simple identity functions
+	walker := &typeExprWalker[dst.Expr]{
+		visitIdent:    func(e *dst.Ident) dst.Expr { return e },
+		visitSelector: func(e *dst.SelectorExpr) dst.Expr { return e },
+		combine:       func(a, _ dst.Expr) dst.Expr { return a },
+		zero:          nil,
+	}
+
+	// Call walkIndexType with an expression that's neither IndexExpr nor IndexListExpr
+	// This tests the "should never happen" default case
+	result := walker.walkIndexType(&dst.Ident{Name: "unexpected"})
+	if result != nil {
+		t.Errorf("expected nil (zero value) for unexpected type, got %v", result)
+	}
+}
+
+// unexported constants.
+const (
+	testTypeSomeType = "SomeType"
+)
 
 // mockPackageLoader is a test mock for detect.PackageLoader.
 type mockPackageLoader struct {

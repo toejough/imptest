@@ -298,6 +298,7 @@ func (gen *targetGenerator) hasMultipleResults() bool {
 }
 
 // writeFunctionParamsToBuilder writes function parameters to a string builder.
+// Blank identifiers are replaced with synthetic names like "arg1".
 func (gen *targetGenerator) writeFunctionParamsToBuilder(
 	builder *strings.Builder,
 	params *dst.FieldList,
@@ -311,27 +312,17 @@ func (gen *targetGenerator) writeFunctionParamsToBuilder(
 
 	for _, field := range params.List {
 		fieldType := gen.typeWithQualifier(field.Type)
+		names := getFieldParamNames(field, argCounter)
 
-		if len(field.Names) > 0 {
-			for _, name := range field.Names {
-				if !first {
-					builder.WriteString(", ")
-				}
-
-				first = false
-
-				builder.WriteString(name.Name)
-				builder.WriteString(" ")
-				builder.WriteString(fieldType)
-			}
-		} else {
+		for _, name := range names {
 			if !first {
 				builder.WriteString(", ")
 			}
 
 			first = false
 
-			fmt.Fprintf(builder, "arg%d ", argCounter)
+			builder.WriteString(name)
+			builder.WriteString(" ")
 			builder.WriteString(fieldType)
 
 			argCounter++
@@ -340,6 +331,7 @@ func (gen *targetGenerator) writeFunctionParamsToBuilder(
 }
 
 // extractParamNames extracts parameter names from a function type.
+// For blank identifiers or unnamed parameters, generates synthetic names like "arg1".
 func extractParamNames(funcType *dst.FuncType) []string {
 	var names []string
 
@@ -352,11 +344,37 @@ func extractParamNames(funcType *dst.FuncType) []string {
 	for _, field := range funcType.Params.List {
 		if len(field.Names) > 0 {
 			for _, name := range field.Names {
-				names = append(names, name.Name)
+				// Blank identifier can't be used as a value, generate synthetic name
+				if name.Name == "_" {
+					names = append(names, fmt.Sprintf("arg%d", argCounter))
+				} else {
+					names = append(names, name.Name)
+				}
+
+				argCounter++
 			}
 		} else {
 			names = append(names, fmt.Sprintf("arg%d", argCounter))
 			argCounter++
+		}
+	}
+
+	return names
+}
+
+// getFieldParamNames returns parameter names for a field, generating synthetic names for blank identifiers.
+func getFieldParamNames(field *dst.Field, startIndex int) []string {
+	if len(field.Names) == 0 {
+		return []string{fmt.Sprintf("arg%d", startIndex)}
+	}
+
+	names := make([]string, len(field.Names))
+
+	for i, name := range field.Names {
+		if name.Name == "_" {
+			names[i] = fmt.Sprintf("arg%d", startIndex+i)
+		} else {
+			names[i] = name.Name
 		}
 	}
 

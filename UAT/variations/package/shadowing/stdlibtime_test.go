@@ -1,11 +1,11 @@
-package timeconflict
+package timeconflict_test
 
 import (
 	"testing"
 	"time"
 )
 
-//go:generate impgen timeconflict.Scheduler --dependency
+//go:generate impgen Scheduler --dependency
 
 func TestStdlibTimeTypes(t *testing.T) {
 	t.Parallel()

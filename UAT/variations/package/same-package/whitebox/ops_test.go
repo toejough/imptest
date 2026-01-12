@@ -1,4 +1,5 @@
-package whitebox // NOT package whitebox_test - this is whitebox testing!
+//nolint:testpackage // Intentional whitebox testing of unexported methods
+package whitebox
 
 import "testing"
 

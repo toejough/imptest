@@ -14,6 +14,14 @@ import (
 	generate "github.com/toejough/imptest/impgen/run/5_generate"
 )
 
+func TestCliArgsRun(t *testing.T) {
+	t.Parallel()
+
+	// Test that cliArgs.Run() exists (required by targ but intentionally empty)
+	args := &cliArgs{}
+	args.Run() // Should not panic
+}
+
 func TestDetermineGeneratedTypeName(t *testing.T) {
 	t.Parallel()
 

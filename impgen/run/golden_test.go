@@ -20,8 +20,6 @@ import (
 	cache "github.com/toejough/imptest/impgen/run/1_cache"
 )
 
-const goPackageEnvVar = "GOPACKAGE"
-
 // TestUATConsistency ensures that the generated files in the UAT directory
 // are exactly what the current generator code produces.
 func TestUATConsistency(t *testing.T) {
@@ -59,11 +57,18 @@ func TestUATConsistency(t *testing.T) {
 	}
 }
 
+// unexported constants.
+const (
+	goPackageEnvVar = "GOPACKAGE"
+)
+
 // unexported variables.
-//
-//nolint:gochecknoglobals // Test performance cache shared across test cases
 var (
-	packageCache   = make(map[string]cachedPackage)
+	//nolint:gochecknoglobals // Test cache for parallel execution
+	packageCache = make(
+		map[string]cachedPackage,
+	)
+	//nolint:gochecknoglobals // Mutex for packageCache
 	packageCacheMu sync.RWMutex
 )
 
@@ -76,13 +81,17 @@ type cachedPackage struct {
 // realCacheFS implements cache.FileSystem for production use in tests.
 type realCacheFS struct{}
 
-func (realCacheFS) Create(path string) (io.WriteCloser, error) { return os.Create(path) }
+func (realCacheFS) Create(path string) (io.WriteCloser, error) {
+	return os.Create(path) //nolint:gosec // G304: test infrastructure path
+}
 
 func (realCacheFS) Getwd() (string, error) { return os.Getwd() }
 
 func (realCacheFS) MkdirAll(path string, perm os.FileMode) error { return os.MkdirAll(path, perm) }
 
-func (realCacheFS) Open(path string) (io.ReadCloser, error) { return os.Open(path) }
+func (realCacheFS) Open(path string) (io.ReadCloser, error) {
+	return os.Open(path) //nolint:gosec // G304: test infrastructure path
+}
 
 func (realCacheFS) Stat(path string) (os.FileInfo, error) { return os.Stat(path) }
 
@@ -297,7 +306,7 @@ func (v *verifyingFileSystem) Glob(pattern string) ([]string, error) {
 func (v *verifyingFileSystem) ReadFile(name string) ([]byte, error) {
 	path := filepath.Join(v.baseDir, name)
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G304: test infrastructure path
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
 	}
@@ -308,7 +317,7 @@ func (v *verifyingFileSystem) ReadFile(name string) ([]byte, error) {
 func (v *verifyingFileSystem) WriteFile(name string, data []byte, _ os.FileMode) error {
 	path := filepath.Join(v.baseDir, name)
 	// Read the actual committed file from the UAT directory
-	expectedData, err := os.ReadFile(path)
+	expectedData, err := os.ReadFile(path) //nolint:gosec // G304: test infrastructure path
 	if err != nil {
 		return fmt.Errorf("failed to read expected file %s: %w", path, err)
 	}

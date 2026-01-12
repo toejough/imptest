@@ -407,36 +407,6 @@ func interfaceCollectMethodNames(
 	return methodNames, nil
 }
 
-// resolveEmbeddedType extracts the interface name and package path from an embedded type expression.
-func resolveEmbeddedType(
-	embeddedType dst.Expr,
-	astFiles []*dst.File,
-	pkgImportPath string,
-	pkgLoader detect.PackageLoader,
-) (name, pkgPath string, err error) {
-	switch typ := embeddedType.(type) {
-	case *dst.Ident:
-		return typ.Name, pkgImportPath, nil
-	case *dst.SelectorExpr:
-		pkgIdent, ok := typ.X.(*dst.Ident)
-		if !ok {
-			return "", "", fmt.Errorf("%w: %T", errUnsupportedEmbeddedType, typ.X)
-		}
-
-		importPath, err := detect.FindImportPath(astFiles, pkgIdent.Name, pkgLoader)
-		if err != nil {
-			return "", "", fmt.Errorf(
-				"failed to find import path for embedded interface %s.%s: %w",
-				pkgIdent.Name, typ.Sel.Name, err,
-			)
-		}
-
-		return typ.Sel.Name, importPath, nil
-	default:
-		return "", "", fmt.Errorf("%w: %T", errUnsupportedEmbeddedType, embeddedType)
-	}
-}
-
 // interfaceExpandEmbedded expands an embedded interface by loading its definition and recursively processing methods.
 func interfaceExpandEmbedded(
 	embeddedType dst.Expr,
@@ -446,7 +416,12 @@ func interfaceExpandEmbedded(
 	pkgLoader detect.PackageLoader,
 	callback func(methodName string, ftype *dst.FuncType),
 ) error {
-	embeddedName, embeddedPkgPath, err := resolveEmbeddedType(embeddedType, astFiles, pkgImportPath, pkgLoader)
+	embeddedName, embeddedPkgPath, err := resolveEmbeddedType(
+		embeddedType,
+		astFiles,
+		pkgImportPath,
+		pkgLoader,
+	)
 	if err != nil {
 		return err
 	}
@@ -456,12 +431,20 @@ func interfaceExpandEmbedded(
 	if embeddedPkgPath != pkgImportPath {
 		embeddedAstFiles, embeddedFset, _, err = pkgLoader.Load(embeddedPkgPath)
 		if err != nil {
-			return fmt.Errorf("failed to load external embedded interface package %s: %w", embeddedPkgPath, err)
+			return fmt.Errorf(
+				"failed to load external embedded interface package %s: %w",
+				embeddedPkgPath,
+				err,
+			)
 		}
 	}
 
 	// Find and recursively process the embedded interface
-	embeddedIface, err := detect.GetMatchingInterfaceFromAST(embeddedAstFiles, embeddedName, embeddedPkgPath)
+	embeddedIface, err := detect.GetMatchingInterfaceFromAST(
+		embeddedAstFiles,
+		embeddedName,
+		embeddedPkgPath,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to find embedded interface %s: %w", embeddedName, err)
 	}
@@ -504,6 +487,36 @@ func interfaceProcessFieldMethods(
 	}
 
 	return nil
+}
+
+// resolveEmbeddedType extracts the interface name and package path from an embedded type expression.
+func resolveEmbeddedType(
+	embeddedType dst.Expr,
+	astFiles []*dst.File,
+	pkgImportPath string,
+	pkgLoader detect.PackageLoader,
+) (name, pkgPath string, err error) {
+	switch typ := embeddedType.(type) {
+	case *dst.Ident:
+		return typ.Name, pkgImportPath, nil
+	case *dst.SelectorExpr:
+		pkgIdent, ok := typ.X.(*dst.Ident)
+		if !ok {
+			return "", "", fmt.Errorf("%w: %T", errUnsupportedEmbeddedType, typ.X)
+		}
+
+		importPath, err := detect.FindImportPath(astFiles, pkgIdent.Name, pkgLoader)
+		if err != nil {
+			return "", "", fmt.Errorf(
+				"failed to find import path for embedded interface %s.%s: %w",
+				pkgIdent.Name, typ.Sel.Name, err,
+			)
+		}
+
+		return typ.Sel.Name, importPath, nil
+	default:
+		return "", "", fmt.Errorf("%w: %T", errUnsupportedEmbeddedType, embeddedType)
+	}
 }
 
 // resolvePackageInfo resolves the package path and qualifier for an interface.

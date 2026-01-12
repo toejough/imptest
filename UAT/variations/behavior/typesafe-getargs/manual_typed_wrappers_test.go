@@ -6,8 +6,6 @@ import (
 	typesafeargs "github.com/toejough/imptest/UAT/variations/behavior/typesafe-getargs"
 )
 
-const responseTypePanic = "panic"
-
 // CalculatorAddArgs holds typed arguments for Add method
 type CalculatorAddArgs struct {
 	A int
@@ -75,6 +73,11 @@ func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMockHa
 
 	return handle
 }
+
+// unexported constants.
+const (
+	responseTypePanic = "panic"
+)
 
 type mockCalculatorImpl struct {
 	handle *TypesafeCalculatorMockHandle

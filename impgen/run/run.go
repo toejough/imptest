@@ -119,7 +119,7 @@ type cliArgs struct {
 }
 
 // Run is required by targ but not used - parsing only.
-func (c *cliArgs) Run() {}
+func (c *cliArgs) Run() { _ = c }
 
 // determineGeneratedTypeName generates the type name based on the naming mode and interface name.
 func determineGeneratedTypeName(mode generate.NamingMode, localInterfaceName string) string {

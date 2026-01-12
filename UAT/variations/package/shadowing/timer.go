@@ -6,7 +6,7 @@ import "github.com/toejough/imptest/UAT/variations/package/shadowing/time"
 // UseTimer demonstrates using an interface with a shadowed time package.
 // This function will be tested with an imptest-generated mock.
 func UseTimer(t time.Timer) int {
-	_ = t.Wait(100)
+	_ = t.Wait(100) //nolint:mnd // UAT fixture data
 
 	return t.GetElapsed()
 }

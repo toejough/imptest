@@ -4,7 +4,6 @@ go 1.25.5
 
 require (
 	github.com/akedrou/textdiff v0.1.0
-	github.com/alexflint/go-arg v1.6.0
 	github.com/dave/dst v0.27.3
 	github.com/gtramontina/ooze v0.2.0
 	github.com/onsi/gomega v1.38.3
@@ -14,7 +13,6 @@ require (
 
 require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.9.2 // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect

@@ -815,12 +815,17 @@ func extractPkgNameFromPath(importPath string) string {
 
 // fieldParamNames returns the parameter names for a field.
 // For named parameters, returns the names from the AST.
-// For unnamed parameters, generates a name like "arg1".
+// For unnamed parameters or blank identifiers, generates a name like "arg1".
 func fieldParamNames(field *dst.Field, currentIndex int) []string {
 	if len(field.Names) > 0 {
 		names := make([]string, len(field.Names))
 		for i, name := range field.Names {
-			names[i] = name.Name
+			// Blank identifier can't be used as a value, generate synthetic name
+			if name.Name == "_" {
+				names[i] = fmt.Sprintf("arg%d", currentIndex+i+1)
+			} else {
+				names[i] = name.Name
+			}
 		}
 
 		return names
