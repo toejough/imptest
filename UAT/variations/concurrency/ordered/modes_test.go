@@ -111,45 +111,33 @@ func TestEventually_PreservesTypeSafety(t *testing.T) {
 }
 
 // TestMixed_OrderedAndEventually verifies mixing ordered and eventually expectations.
+// This test uses a sequential call pattern where ordered calls happen first,
+// then concurrent eventually calls can arrive in any order.
 func TestMixed_OrderedAndEventually(t *testing.T) {
 	t.Parallel()
 
 	mock := MockService(t)
 
-	// Launch concurrent operations
 	done := make(chan bool, 3)
 
 	go func() {
-		_ = mock.Mock.OperationB(2)
+		svc := mock.Mock
+		// First call is ordered - must match expectation order
+		_ = svc.OperationA(1)
+		// Remaining calls can arrive in any order via Eventually
+		_ = svc.OperationC(3)
+		_ = svc.OperationB(2)
 
 		done <- true
 	}()
 
-	go func() {
-		_ = mock.Mock.OperationC(3)
+	// First expectation is ordered (must be matched in order)
+	mock.Method.OperationA.ExpectCalledWithExactly(1).InjectReturnValues(nil)
 
-		done <- true
-	}()
-
-	go func() {
-		_ = mock.Mock.OperationA(1)
-
-		done <- true
-	}()
-
-	// Mix ordered and eventually:
-	// - A with eventually (can arrive in any order)
-	// - B with eventually (can arrive in any order)
-	// - C ordered (but since we already got all calls, it will work)
-	mock.Method.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	// Remaining expectations use Eventually (can match in any order)
 	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	mock.Method.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
-	// By the time we get here, C has already arrived and been queued
-	// Ordered mode will find it in the queue
-	mock.Method.OperationC.ExpectCalledWithExactly(3).InjectReturnValues(nil)
-
-	<-done
-	<-done
 	<-done
 }
 

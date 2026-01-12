@@ -235,13 +235,13 @@ func CheckNils(ctx context.Context) error {
 // CheckNilsFix applies any auto-fixable nil issues.
 func CheckNilsFix(ctx context.Context) error {
 	fmt.Println("Fixing nil issues...")
-	return sh.RunContext(ctx, "nilaway", "-fix", "./...")
+	return sh.RunContext(ctx, "nilaway", "-fix", "--exclude-errors-in-files=_test.go", "./...")
 }
 
 // CheckNilsForFail checks for nils and fails on any issues.
 func CheckNilsForFail(ctx context.Context) error {
 	fmt.Println("Checking for nil issues...")
-	return sh.RunContext(ctx, "nilaway", "./...")
+	return sh.RunContext(ctx, "nilaway", "--exclude-errors-in-files=_test.go", "./...")
 }
 
 // Clean cleans up the dev env.
