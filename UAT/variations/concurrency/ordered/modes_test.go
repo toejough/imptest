@@ -118,8 +118,6 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 
 	mock := MockService(t)
 
-	done := make(chan bool, 3)
-
 	go func() {
 		svc := mock.Mock
 		// First call is ordered - must match expectation order
@@ -127,8 +125,6 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 		// Remaining calls can arrive in any order via Eventually
 		_ = svc.OperationC(3)
 		_ = svc.OperationB(2)
-
-		done <- true
 	}()
 
 	// First expectation is ordered (must be matched in order)
@@ -138,7 +134,8 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
 	mock.Method.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
-	<-done
+	// Wait for all Eventually expectations to be satisfied
+	mock.Controller.Wait()
 }
 
 //go:generate impgen orderedvsmode.Service --dependency

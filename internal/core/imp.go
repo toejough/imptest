@@ -122,6 +122,8 @@ func (i *Imp) Helper() {
 
 // RegisterPendingExpectation registers a new pending expectation.
 // Returns the expectation for chaining InjectReturnValues/InjectPanicValue.
+// Also scans the queue for an existing match (in case the call arrived before
+// the expectation was registered).
 func (i *Imp) RegisterPendingExpectation(
 	methodName string,
 	validator func([]any) error,
@@ -136,6 +138,25 @@ func (i *Imp) RegisterPendingExpectation(
 	i.pendingMu.Lock()
 	i.pendingExpectations = append(i.pendingExpectations, pending)
 	i.pendingMu.Unlock()
+
+	// Check the queue for an existing match (call arrived before expectation)
+	i.mu.Lock()
+
+	for idx, call := range i.callQueue {
+		if call.MethodName == methodName && validator(call.Args) == nil {
+			// Found a match - remove from queue and match the expectation
+			i.callQueue = append(
+				i.callQueue[:idx],
+				i.callQueue[idx+1:]...,
+			)
+			i.mu.Unlock()
+			pending.setMatched(call.ResponseChan, call.Args)
+
+			return pending
+		}
+	}
+
+	i.mu.Unlock()
 
 	return pending
 }
