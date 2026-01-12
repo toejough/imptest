@@ -185,6 +185,101 @@ err := callback("/test/file.txt", mockDirEntry{name: "file.txt"}, nil)
 call.InjectReturnValues(nil)
 ```
 
+## Channel Patterns
+
+When your code communicates via channels, imptest gives you full control. The key insight: channels are just values—you can inject them as return values or access them from arguments.
+
+### Returning a Test-Controlled Channel
+
+When a dependency returns a channel, inject one you control:
+
+```go
+// Interface: type EventSource interface { Events() <-chan Event }
+
+func Test_ChannelReturn(t *testing.T) {
+    h := MockEventSource(t)
+    wrapper := WrapProcessEvents(t, ProcessEvents).Start(h.Mock)
+
+    // Create a channel the test controls
+    eventChan := make(chan Event)
+
+    // Inject it as the return value
+    h.Method.Events.ExpectCalled().InjectReturnValues(eventChan)
+
+    // Send events when you want
+    eventChan <- Event{Type: "start"}
+    eventChan <- Event{Type: "data", Payload: "hello"}
+    close(eventChan) // Signal completion
+
+    wrapper.ExpectReturnsEqual(2, nil) // Processed 2 events
+}
+```
+
+### Accessing Channel Arguments
+
+When the function under test passes a channel to a dependency, access it via `GetArgs()`:
+
+```go
+// Interface: type Worker interface { StartJob(id int, results chan<- Result) error }
+
+func Test_ChannelArg(t *testing.T) {
+    h := MockWorker(t)
+
+    go func() {
+        results := make(chan Result, 1)
+        h.Mock.StartJob(42, results)
+        // Function blocks waiting for result
+        r := <-results
+        fmt.Println(r.Status)
+    }()
+
+    // Capture the call and access the channel argument
+    call := h.Method.StartJob.ExpectCalledWithMatches(Equal(42), imptest.Any())
+    resultsChan := call.GetArgs().Results
+
+    // Send a result on the captured channel
+    resultsChan <- Result{Status: "done"}
+
+    call.InjectReturnValues(nil)
+}
+```
+
+### Bidirectional Channel Communication
+
+For request/response patterns over channels:
+
+```go
+// Interface: type RPC interface { Call(req <-chan Request, resp chan<- Response) }
+
+func Test_Bidirectional(t *testing.T) {
+    h := MockRPC(t)
+
+    // Channels the function under test will create
+    go func() {
+        reqChan := make(chan Request)
+        respChan := make(chan Response)
+        go h.Mock.Call(reqChan, respChan)
+        reqChan <- Request{ID: 1, Data: "ping"}
+        resp := <-respChan
+        // ... use resp
+    }()
+
+    call := h.Method.Call.Eventually.ExpectCalled()
+
+    // Access both channels from args
+    args := call.GetArgs()
+
+    // Read from request channel, write to response channel
+    req := <-args.Req
+    args.Resp <- Response{ID: req.ID, Data: "pong"}
+
+    call.InjectReturnValues()
+    h.Controller.Wait()
+}
+```
+
+The pattern is consistent: channels are values. Inject them as returns, access them from args, then send/receive as your test requires.
+
 ## Installation
 
 Install the library with:
