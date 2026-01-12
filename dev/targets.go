@@ -218,15 +218,24 @@ func CheckForFail() error {
 	)
 }
 
-// CheckNils checks for nils and fixes what it can.
+// CheckNils checks for nils: applies fixes, then validates.
 func CheckNils(ctx context.Context) error {
-	fmt.Println("Running check for nils...")
+	return targ.Deps(
+		CheckNilsFix,
+		CheckNilsForFail,
+		targ.WithContext(ctx),
+	)
+}
+
+// CheckNilsFix applies any auto-fixable nil issues.
+func CheckNilsFix(ctx context.Context) error {
+	fmt.Println("Fixing nil issues...")
 	return sh.RunContext(ctx, "nilaway", "-fix", "./...")
 }
 
-// CheckNilsForFail checks for nils, just for failure.
+// CheckNilsForFail checks for nils and fails on any issues.
 func CheckNilsForFail(ctx context.Context) error {
-	fmt.Println("Running check for nils...")
+	fmt.Println("Checking for nil issues...")
 	return sh.RunContext(ctx, "nilaway", "./...")
 }
 
