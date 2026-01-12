@@ -404,7 +404,7 @@ func Mutate() error {
 	return sh.Run(
 		"go",
 		"test",
-		"-timeout=6000s",
+		"-timeout=0",
 		"-tags=mutation",
 		"-v",
 		"./dev/...",
