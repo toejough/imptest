@@ -152,18 +152,69 @@ func CheckCoverage(ctx context.Context) error {
 	return nil
 }
 
+// CheckCoverageForFail checks coverage from existing coverage.out (doesn't run tests).
+// Must be run after TestForFail which generates coverage.out.
+func CheckCoverageForFail() error {
+	fmt.Println("Checking coverage...")
+
+	// Merge duplicate coverage blocks from cross-package testing
+	if err := mergeCoverageBlocks("coverage.out"); err != nil {
+		return fmt.Errorf("failed to merge coverage blocks: %w", err)
+	}
+
+	out, err := output(context.Background(), "go", "tool", "cover", "-func=coverage.out")
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(out, "\n")
+	var minCoverage float64 = 100
+	var minLine string
+
+	for _, line := range lines {
+		percentString := regexp.MustCompile(`\d+\.\d`).FindString(line)
+
+		percent, err := strconv.ParseFloat(percentString, 64)
+		if err != nil {
+			return err
+		}
+
+		// Skip files we don't care about
+		if strings.Contains(line, "_string.go") ||
+			strings.Contains(line, "main.go") ||
+			strings.Contains(line, "generated_") ||
+			strings.Contains(line, "total:") {
+			continue
+		}
+
+		if percent < minCoverage {
+			minCoverage = percent
+			minLine = line
+		}
+	}
+
+	threshold := 80.0
+	if minCoverage < threshold {
+		return fmt.Errorf("function coverage was less than the limit of %.1f:\n  %s", threshold, minLine)
+	}
+
+	fmt.Printf("Coverage OK (min: %.1f%%)\n", minCoverage)
+
+	return nil
+}
+
 // CheckForFail runs all checks on the code for determining whether any fail.
 func CheckForFail() error {
 	fmt.Println("Checking...")
 
-	// Checks from fastest to slowest
 	return targ.Deps(
 		ReorderDeclsCheck,
+		LintFast,
 		LintForFail,
 		Deadcode,
-		TestForFail,
+		func() error { return targ.Deps(TestForFail, CheckCoverageForFail) },
 		CheckNilsForFail,
-		CheckCoverage,
+		targ.Parallel(),
 	)
 }
 
@@ -369,6 +420,17 @@ func InstallTools() error {
 func Lint(ctx context.Context) error {
 	fmt.Println("Linting...")
 	return sh.RunContext(ctx, "golangci-lint", "run", "-c", "dev/golangci-lint.toml")
+}
+
+// LintFast runs only fast linters for quick fail-fast checks.
+func LintFast() error {
+	fmt.Println("Running fast linters...")
+
+	return sh.Run(
+		"golangci-lint", "run",
+		"-c", "dev/golangci-fast.toml",
+		"--allow-parallel-runners",
+	)
 }
 
 // LintForFail lints the codebase purely to find out whether anything fails.
@@ -641,6 +703,7 @@ func Test(ctx context.Context) error {
 }
 
 // TestForFail runs the unit tests purely to find out whether any fail.
+// Also generates coverage.out for CheckCoverageForFail.
 func TestForFail() error {
 	fmt.Println("Running unit tests for overall pass/fail...")
 
@@ -652,7 +715,9 @@ func TestForFail() error {
 		"go",
 		"test",
 		"-buildvcs=false",
-		"-timeout=10s",
+		"-timeout=30s",
+		"-coverprofile=coverage.out",
+		"-coverpkg=./impgen/...,./imptest/...",
 		"./...",
 		"-failfast",
 	)
