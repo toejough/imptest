@@ -429,6 +429,10 @@ func verifyUATFile(
 			return testCase.sourceFile
 		}
 
+		if key == "IMPGEN_NO_CACHE" {
+			return "1" // Disable caching so golden tests exercise full code generation
+		}
+
 		return ""
 	}
 

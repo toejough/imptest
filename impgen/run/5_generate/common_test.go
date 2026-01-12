@@ -523,6 +523,77 @@ func TestQualifyExternalTypes(t *testing.T) {
 	}
 }
 
+func TestResultDataBuilder_Build(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		resultTypes    []string
+		varPrefix      string
+		wantHasResults bool
+		wantWaitMethod string
+		wantFieldCount int
+	}{
+		{
+			name:           "no results",
+			resultTypes:    nil,
+			varPrefix:      "r",
+			wantHasResults: false,
+			wantWaitMethod: "WaitForCompletion",
+			wantFieldCount: 0,
+		},
+		{
+			name:           "empty results",
+			resultTypes:    []string{},
+			varPrefix:      "r",
+			wantHasResults: false,
+			wantWaitMethod: "WaitForCompletion",
+			wantFieldCount: 0,
+		},
+		{
+			name:           "single result",
+			resultTypes:    []string{"int"},
+			varPrefix:      "r",
+			wantHasResults: true,
+			wantWaitMethod: "WaitForResponse",
+			wantFieldCount: 1,
+		},
+		{
+			name:           "multiple results",
+			resultTypes:    []string{"string", "error"},
+			varPrefix:      "ret",
+			wantHasResults: true,
+			wantWaitMethod: "WaitForResponse",
+			wantFieldCount: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			builder := &ResultDataBuilder{
+				ResultTypes: tt.resultTypes,
+				VarPrefix:   tt.varPrefix,
+			}
+			result := builder.Build()
+
+			if result.HasResults != tt.wantHasResults {
+				t.Errorf("HasResults = %v, want %v", result.HasResults, tt.wantHasResults)
+			}
+			if result.WaitMethodName != tt.wantWaitMethod {
+				t.Errorf("WaitMethodName = %v, want %v", result.WaitMethodName, tt.wantWaitMethod)
+			}
+			if len(result.Fields) != tt.wantFieldCount {
+				t.Errorf("len(Fields) = %v, want %v", len(result.Fields), tt.wantFieldCount)
+			}
+			if len(result.Checks) != tt.wantFieldCount {
+				t.Errorf("len(Checks) = %v, want %v", len(result.Checks), tt.wantFieldCount)
+			}
+		})
+	}
+}
+
 // TestWalkIndexType_DefaultCase tests the defensive default case in walkIndexType.
 func TestWalkIndexType_DefaultCase(t *testing.T) {
 	t.Parallel()
