@@ -24,7 +24,7 @@ allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest', 'github
 
 [linters.settings.depguard.rules.test]
 files = ['$test']
-allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest', 'github.com/onsi/gomega']
+allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest', 'github.com/onsi/gomega', 'pgregory.net/rapid']
 
 [linters.settings.nlreturn]
 block-size = 2
@@ -33,7 +33,7 @@ block-size = 2
 # ignore-decls should work for conventional declarations like 't *testing.T' but doesn't
 # See: https://github.com/blizzy78/varnamelen/issues/5
 # Using ignore-names as workaround
-ignore-names = ['t', 'b']
+ignore-names = ['t', 'b', 'rt', 'a']
 
 [linters.settings.unused]
 field-writes-are-uses = false

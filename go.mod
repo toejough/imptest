@@ -9,6 +9,7 @@ require (
 	github.com/onsi/gomega v1.38.3
 	github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc
 	github.com/toejough/targ v0.0.0-20260112163109-8a097505588a
+	pgregory.net/rapid v1.2.0
 )
 
 require (
