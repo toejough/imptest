@@ -406,8 +406,8 @@ func Mutate() error {
 		"test",
 		"-timeout=6000s",
 		"-tags=mutation",
-		"-ooze.v",
-		"./...",
+		"-v",
+		"./dev/...",
 		"-run=TestMutation",
 	)
 }

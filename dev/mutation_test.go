@@ -1,6 +1,6 @@
 //go:build mutation
 
-package imptest
+package dev
 
 import (
 	"testing"
@@ -11,11 +11,11 @@ import (
 func TestMutation(t *testing.T) {
 	ooze.Release(
 		t,
-		ooze.WithTestCommand("mage checkForFail"),
+		ooze.WithTestCommand("go test -buildvcs=false ./..."),
 		ooze.Parallel(),
-		ooze.IgnoreSourceFiles("^magefiles.*|.*_string.go|generated_.*|.*_test.go"),
+		ooze.IgnoreSourceFiles("^dev/.*|.*_string.go|generated_.*|.*_test.go"),
 		ooze.WithMinimumThreshold(1.00),
-		ooze.WithRepositoryRoot("."),
+		ooze.WithRepositoryRoot(".."),
 		ooze.ForceColors(),
 	)
 }
