@@ -11,7 +11,7 @@ import (
 func TestMutation(t *testing.T) {
 	ooze.Release(
 		t,
-		ooze.WithTestCommand("go test -buildvcs=false ./..."),
+		ooze.WithTestCommand("targ check-for-fail"),
 		ooze.Parallel(),
 		ooze.IgnoreSourceFiles("^dev/.*|.*_string.go|generated_.*|.*_test.go"),
 		ooze.WithMinimumThreshold(1.00),

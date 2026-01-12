@@ -397,7 +397,7 @@ func Modernize(ctx context.Context) error {
 func Mutate() error {
 	fmt.Println("Running mutation tests...")
 
-	if err := targ.Deps(TestForFail); err != nil {
+	if err := targ.Deps(CheckForFail); err != nil {
 		return err
 	}
 
@@ -651,6 +651,7 @@ func TestForFail() error {
 	return sh.Run(
 		"go",
 		"test",
+		"-buildvcs=false",
 		"-timeout=10s",
 		"./...",
 		"-failfast",
