@@ -683,7 +683,6 @@ func Test(ctx context.Context) error {
 		return err
 	}
 
-	// Skip TestRaceRegression tests in CI runs
 	// Use -count=1 to disable caching so coverage is regenerated
 	err := sh.RunContext(ctx,
 		"go",
@@ -691,7 +690,6 @@ func Test(ctx context.Context) error {
 		"-timeout=2m",
 		"-race",
 		"-count=1",
-		"-skip=TestRaceRegression",
 		"-coverprofile=coverage.out",
 		"-coverpkg=./impgen/...,./imptest/...",
 		"-cover",
