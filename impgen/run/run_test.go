@@ -81,10 +81,10 @@ func TestDetermineGeneratedTypeName(t *testing.T) {
 	}
 }
 
-func TestGenerateCode_FindSymbolError(t *testing.T) {
+func TestFindSymbol_Error(t *testing.T) {
 	t.Parallel()
 
-	// Test that generateCode returns error when FindSymbol fails
+	// Test that findSymbol returns error when symbol not found
 	info := generate.GeneratorInfo{
 		LocalInterfaceName: "NonExistentSymbol",
 		PkgName:            "testpkg",
@@ -96,9 +96,9 @@ func TestGenerateCode_FindSymbolError(t *testing.T) {
 		fset:  token.NewFileSet(),
 	}
 
-	_, err := generateCode(info, []*dst.File{}, token.NewFileSet(), ".", loader)
+	_, err := findSymbol(info, []*dst.File{}, token.NewFileSet(), ".", loader)
 	if err == nil {
-		t.Error("generateCode() expected error, got nil")
+		t.Error("findSymbol() expected error, got nil")
 	}
 }
 

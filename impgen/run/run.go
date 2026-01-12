@@ -2,15 +2,20 @@
 package run
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"go/token"
 	"io"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/dave/dst"
 	"github.com/toejough/targ"
 
+	astutil "github.com/toejough/imptest/impgen/run/0_util"
 	load "github.com/toejough/imptest/impgen/run/2_load"
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 	generate "github.com/toejough/imptest/impgen/run/5_generate"
@@ -43,13 +48,23 @@ type FileSystem interface {
 // interface for file operations, a PackageLoader for package operations, and an io.Writer for output messages. It
 // returns an error if any step fails. On success, it generates a Go source file implementing the specified interface,
 // in the calling test package.
+//
+//nolint:cyclop,funlen // Main orchestration function with timing instrumentation
 func Run(
 	args []string,
 	getEnv func(string) string,
-	fileWriter output.Writer,
+	fileSystem FileSystem,
 	pkgLoader detect.PackageLoader,
 	out io.Writer,
 ) error {
+	timing := os.Getenv("IMPGEN_TIMING") != ""
+
+	var start time.Time
+
+	if timing {
+		start = time.Now()
+	}
+
 	info, err := getGeneratorCallInfo(args, getEnv)
 	if err != nil {
 		return err
@@ -75,19 +90,71 @@ func Run(
 		}
 	}
 
+	if timing {
+		_, _ = fmt.Fprintf(out, "[%s] Args/resolve: %v\n", info.ImpName, time.Since(start))
+		start = time.Now()
+	}
+
 	astFiles, fset, err := loadPackage(pkgImportPath, pkgLoader)
 	if err != nil {
 		return err
 	}
 
-	code, err := generateCode(info, astFiles, fset, pkgImportPath, pkgLoader)
+	if timing {
+		_, _ = fmt.Fprintf(out, "[%s] Load package: %v\n", info.ImpName, time.Since(start))
+		start = time.Now()
+	}
+
+	// Find the symbol to generate code for
+	result, err := findSymbol(info, astFiles, fset, pkgImportPath, pkgLoader)
 	if err != nil {
 		return err
 	}
 
-	err = output.WriteGeneratedCode(code, info.ImpName, info.PkgName, getEnv, fileWriter, out)
+	if timing {
+		_, _ = fmt.Fprintf(out, "[%s] Find symbol: %v\n", info.ImpName, time.Since(start))
+		start = time.Now()
+	}
+
+	// Compute hash and check cache
+	typeHash := computeTypeHash(result.symbol, info, result.fset)
+	outputFile := getOutputFilename(info.ImpName, info.PkgName, getEnv)
+
+	if checkCachedHash(outputFile, typeHash, fileSystem) {
+		if timing {
+			_, _ = fmt.Fprintf(out, "[%s] Cache hit: %v\n", info.ImpName, time.Since(start))
+		}
+
+		_, _ = fmt.Fprintf(out, "%s unchanged (cached).\n", outputFile)
+
+		return nil
+	}
+
+	if timing {
+		_, _ = fmt.Fprintf(out, "[%s] Cache miss: %v\n", info.ImpName, time.Since(start))
+		start = time.Now()
+	}
+
+	code, err := generateCode(info, result, pkgLoader)
+	if err != nil {
+		return err
+	}
+
+	// Add hash to generated code for future cache checks
+	code = addHashToCode(code, typeHash)
+
+	if timing {
+		_, _ = fmt.Fprintf(out, "[%s] Generate code: %v\n", info.ImpName, time.Since(start))
+		start = time.Now()
+	}
+
+	err = output.WriteGeneratedCode(code, info.ImpName, info.PkgName, getEnv, fileSystem, out)
 	if err != nil {
 		return fmt.Errorf("failed to write generated code: %w", err)
+	}
+
+	if timing {
+		_, _ = fmt.Fprintf(out, "[%s] Write output: %v\n", info.ImpName, time.Since(start))
 	}
 
 	return nil
@@ -147,13 +214,21 @@ func determineGeneratedTypeName(mode generate.NamingMode, localInterfaceName str
 	}
 }
 
-func generateCode(
+// symbolResult holds the result of symbol detection for caching purposes.
+type symbolResult struct {
+	symbol   detect.SymbolDetails
+	astFiles []*dst.File
+	fset     *token.FileSet
+	pkgPath  string
+}
+
+func findSymbol(
 	info generate.GeneratorInfo,
 	astFiles []*dst.File,
 	fset *token.FileSet,
 	pkgImportPath string,
 	pkgLoader detect.PackageLoader,
-) (string, error) {
+) (symbolResult, error) {
 	// Auto-detect the symbol type
 	symbol, err := detect.FindSymbol(
 		astFiles,
@@ -163,7 +238,11 @@ func generateCode(
 		pkgLoader,
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to find symbol %s: %w", info.LocalInterfaceName, err)
+		return symbolResult{}, fmt.Errorf(
+			"failed to find symbol %s: %w",
+			info.LocalInterfaceName,
+			err,
+		)
 	}
 
 	// Use the actual package path where the symbol was found
@@ -174,12 +253,32 @@ func generateCode(
 	if actualPkgPath != pkgImportPath {
 		astFiles, fset, _, err = pkgLoader.Load(actualPkgPath)
 		if err != nil {
-			return "", fmt.Errorf("failed to load package %s: %w", actualPkgPath, err)
+			return symbolResult{}, fmt.Errorf("failed to load package %s: %w", actualPkgPath, err)
 		}
 	}
 
+	return symbolResult{
+		symbol:   symbol,
+		astFiles: astFiles,
+		fset:     fset,
+		pkgPath:  actualPkgPath,
+	}, nil
+}
+
+func generateCode(
+	info generate.GeneratorInfo,
+	result symbolResult,
+	pkgLoader detect.PackageLoader,
+) (string, error) {
 	// Route to appropriate generator based on symbol type and mode
-	return routeToGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol)
+	return routeToGenerator(
+		result.astFiles,
+		info,
+		result.fset,
+		result.pkgPath,
+		pkgLoader,
+		result.symbol,
+	)
 }
 
 // Functions - Private
@@ -468,4 +567,168 @@ func routeToGenerator(
 	}
 
 	return routeInterfaceGenerator(astFiles, info, fset, actualPkgPath, pkgLoader, symbol.Iface)
+}
+
+// hashPrefix is the marker used to identify the type hash in generated files.
+const hashPrefix = "// impgen:hash:"
+
+// hashHeaderLines is the max lines to search for the hash comment in generated files.
+const hashHeaderLines = 10
+
+// computeTypeHash computes a hash of the symbol details and generator info.
+// This hash changes when the type definition or generator settings change.
+func computeTypeHash(
+	symbol detect.SymbolDetails,
+	info generate.GeneratorInfo,
+	fset *token.FileSet,
+) string {
+	var builder strings.Builder
+
+	// Include generator settings that affect output
+	fmt.Fprintf(&builder, "mode:%d\n", info.Mode)
+	fmt.Fprintf(&builder, "pkg:%s\n", info.PkgName)
+	fmt.Fprintf(&builder, "imp:%s\n", info.ImpName)
+	fmt.Fprintf(&builder, "kind:%d\n", symbol.Kind)
+	fmt.Fprintf(&builder, "pkgpath:%s\n", symbol.PkgPath)
+
+	// Include type-specific details
+	switch symbol.Kind {
+	case detect.SymbolInterface:
+		serializeInterface(&builder, symbol.Iface, fset)
+	case detect.SymbolFunction:
+		serializeFunc(&builder, symbol.FuncDecl, fset)
+	case detect.SymbolFunctionType:
+		serializeFuncType(&builder, symbol.FuncType, fset)
+	case detect.SymbolStructType:
+		serializeStruct(&builder, symbol.StructType, fset)
+	}
+
+	hash := sha256.Sum256([]byte(builder.String()))
+
+	return hex.EncodeToString(hash[:8]) // Use first 8 bytes (16 hex chars)
+}
+
+// serializeInterface writes a stable string representation of an interface.
+func serializeInterface(
+	builder *strings.Builder,
+	iface detect.IfaceWithDetails,
+	fset *token.FileSet,
+) {
+	if iface.Iface == nil || iface.Iface.Methods == nil {
+		return
+	}
+
+	for _, method := range iface.Iface.Methods.List {
+		for _, name := range method.Names {
+			fmt.Fprintf(builder, "method:%s\n", name.Name)
+		}
+
+		fmt.Fprintf(builder, "type:%s\n", astutil.ExprToString(fset, method.Type))
+	}
+
+	serializeFieldList(builder, "typeparams", iface.TypeParams, fset)
+}
+
+// serializeFunc writes a stable string representation of a function declaration.
+func serializeFunc(builder *strings.Builder, funcDecl *dst.FuncDecl, fset *token.FileSet) {
+	if funcDecl == nil {
+		return
+	}
+
+	fmt.Fprintf(builder, "name:%s\n", funcDecl.Name.Name)
+	fmt.Fprintf(builder, "sig:%s\n", astutil.ExprToString(fset, funcDecl.Type))
+	serializeFieldList(builder, "recv", funcDecl.Recv, fset)
+}
+
+// serializeFuncType writes a stable string representation of a function type.
+func serializeFuncType(
+	builder *strings.Builder,
+	funcType detect.FuncTypeWithDetails,
+	fset *token.FileSet,
+) {
+	fmt.Fprintf(builder, "name:%s\n", funcType.TypeName)
+	fmt.Fprintf(builder, "sig:%s\n", astutil.ExprToString(fset, funcType.FuncType))
+	serializeFieldList(builder, "typeparams", funcType.TypeParams, fset)
+}
+
+// serializeStruct writes a stable string representation of a struct type.
+func serializeStruct(
+	builder *strings.Builder,
+	structType detect.StructWithDetails,
+	fset *token.FileSet,
+) {
+	fmt.Fprintf(builder, "name:%s\n", structType.TypeName)
+	serializeFieldList(builder, "typeparams", structType.TypeParams, fset)
+}
+
+// serializeFieldList writes a field list to the builder for hashing.
+func serializeFieldList(
+	builder *strings.Builder,
+	label string,
+	fields *dst.FieldList,
+	fset *token.FileSet,
+) {
+	if fields == nil || len(fields.List) == 0 {
+		return
+	}
+
+	fmt.Fprintf(builder, "%s:", label)
+
+	for _, field := range fields.List {
+		for _, name := range field.Names {
+			fmt.Fprintf(builder, "%s,", name.Name)
+		}
+
+		fmt.Fprintf(builder, "%s;", astutil.ExprToString(fset, field.Type))
+	}
+
+	builder.WriteString("\n")
+}
+
+// getOutputFilename returns the filename that would be generated.
+func getOutputFilename(impName, pkgName string, getEnv func(string) string) string {
+	filename := "generated_" + impName
+	goFile := getEnv("GOFILE")
+
+	isTestFile := strings.HasSuffix(pkgName, "_test") || strings.HasSuffix(goFile, "_test.go")
+	if isTestFile && !strings.HasSuffix(impName, "_test") {
+		filename = "generated_" + strings.TrimSuffix(impName, ".go") + "_test.go"
+	} else if !strings.HasSuffix(filename, ".go") {
+		filename += ".go"
+	}
+
+	return filename
+}
+
+// checkCachedHash reads the existing generated file and checks if its hash matches.
+func checkCachedHash(filename, expectedHash string, fs FileReader) bool {
+	data, err := fs.ReadFile(filename)
+	if err != nil {
+		return false // File doesn't exist or can't be read
+	}
+
+	// Look for hash line in first few lines
+	lines := strings.SplitN(string(data), "\n", hashHeaderLines)
+	for _, line := range lines {
+		if after, ok := strings.CutPrefix(line, hashPrefix); ok {
+			storedHash := after
+
+			return storedHash == expectedHash
+		}
+	}
+
+	return false // No hash found
+}
+
+// addHashToCode inserts the hash comment after the "DO NOT EDIT" line.
+func addHashToCode(code, hash string) string {
+	const doNotEdit = "// Code generated by impgen. DO NOT EDIT."
+	if idx := strings.Index(code, doNotEdit); idx != -1 {
+		insertPos := idx + len(doNotEdit)
+
+		return code[:insertPos] + "\n" + hashPrefix + hash + code[insertPos:]
+	}
+	// Fallback: prepend hash
+
+	return hashPrefix + hash + "\n" + code
 }

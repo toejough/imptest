@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"go/token"
 	"go/types"
@@ -57,8 +58,14 @@ func (fs *realFileSystem) ReadFile(name string) ([]byte, error) {
 }
 
 // WriteFile writes data to the file named by name.
+// Skips writing if the file already exists with identical content.
 func (fs *realFileSystem) WriteFile(name string, data []byte, perm os.FileMode) error {
-	err := os.WriteFile(name, data, perm)
+	existing, err := os.ReadFile(name) //nolint:gosec // G304: path from trusted caller
+	if err == nil && bytes.Equal(existing, data) {
+		return nil // Content unchanged, skip write
+	}
+
+	err = os.WriteFile(name, data, perm)
 	if err != nil {
 		return fmt.Errorf("failed to write file %s: %w", name, err)
 	}

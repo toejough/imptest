@@ -19,5 +19,9 @@
 .impgen
 bin/
 
+# Build artifacts
+impgen_cached
+dev/generated_*.go
+
 # Claude Code local settings
 .claude/
