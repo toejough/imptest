@@ -57,6 +57,7 @@ func Test_PrintSum(t *testing.T) {
 ```
 
 **What just happened?**
+
 1. A `//go:generate` directive created a type-safe mock (`MockIntOps`) from the interface, providing interactive control
    over dependency behavior
 1. A `//go:generate` directive created a type-safe wrapper (`WrapPrintSum`) for the function under test, enabling return
@@ -98,14 +99,14 @@ func Test_PrintSum_Flexible(t *testing.T) {
 
 ## Key Concepts
 
-| Concept | Description |
-|---------|-------------|
-| **Interface Mocks** | Generate type-safe mocks from any interface with `//go:generate impgen <package.Interface> --dependency` |
-| **Callable Wrappers** | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target` |
-| **Test Handle Pattern** | Mocks return `h` with `h.Mock` (interface), `h.Method` (expectations), `h.Controller` (wait/timeout) |
-| **Two-Step Matching** | Access methods via `h.Method.X`, then specify matching mode (`ExpectCalledWithExactly()` or `ExpectCalledWithMatches()`) |
-| **Type Safety** | `ExpectCalledWithExactly(int, int)` is compile-time checked; `ExpectCalledWithMatches(matcher, matcher)` accepts matchers |
-| **Concurrent Support** | Use `.Eventually` for async expectations, then `h.Controller.Wait()` to block until satisfied |
+| Concept                   | Description                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Interface Mocks**       | Generate type-safe mocks from any interface with `//go:generate impgen <package.Interface> --dependency`                  |
+| **Callable Wrappers**     | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target`                         |
+| **Test Handle Pattern**   | Mocks return `h` with `h.Mock` (interface), `h.Method` (expectations), `h.Controller` (wait/timeout)                      |
+| **Two-Step Matching**     | Access methods via `h.Method.X`, then specify matching mode (`ExpectCalledWithExactly()` or `ExpectCalledWithMatches()`)  |
+| **Type Safety**           | `ExpectCalledWithExactly(int, int)` is compile-time checked; `ExpectCalledWithMatches(matcher, matcher)` accepts matchers |
+| **Concurrent Support**    | Use `.Eventually` for async expectations, then `h.Controller.Wait()` to block until satisfied                             |
 | **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
 
 ## Examples
@@ -310,19 +311,23 @@ go generate ./...
 ## Why imptest?
 
 **Traditional mocking libraries** require you to:
+
 - Write mock implementations by hand, or
 - Configure complex expectations upfront, then run the code
 
 **imptest** lets you:
+
 - Generate mocks automatically from interfaces
 - Control mocks interactively—inject responses as calls happen
 - Choose type-safe exact matching OR flexible gomega-style matchers
 - Test concurrent behavior with timeout-based call matching
 
 ### Comparison Example
+
 Let's test a function that processes user data by calling an external service. Here's how different testing approaches compare:
 
 **The Function Under Test:**
+
 ```go
 func ProcessUser(svc ExternalService, userID int) (string, error) {
     data, err := svc.FetchData(userID)
@@ -360,7 +365,7 @@ func TestProcessUser_Basic(t *testing.T) {
 
 ```go
 
-func TestProcessUser_Testify(t *testing.T) {
+func TestProcessUser_Other(t *testing.T) {
     // ❌ Still need to write mock implementation
     mock := &MockService{
         fetchResult: "test data",
@@ -423,19 +428,17 @@ func TestAdd_Simple(t *testing.T) {
 }
 ```
 
-
 **Key Differences:**
 
-| Feature | Basic Go | others | imptest |
-|---------|----------|---------|---------|
-| **Clean Assertions** | ❌ Verbose | ✅ Yes | ✅ Yes |
-| **Auto-Generated Mocks** | ❌ No | ✅ Yes | ✅ Yes |
-| **Verify Call Order** | ❌ Manual | ❌ Complex | ✅ Easy |
-| **Verify Call Args** | ❌ Manual | ⚠️ Per function | ✅ Per call |
-| **Interactive Control** | ❌ Difficult | ❌ Difficult | ✅ Easy |
-| **Concurrent Testing** | ❌ Difficult | ⚠️ Possible | ✅ Easy |
-| **Return Validation** | ❌ Manual | ✅ Yes | ✅ Yes |
-| **Panic Validation** | ❌ Manual | ❌ Manual | ✅ Yes/Automatic |
-
+| Feature                  | Basic Go     | others          | imptest          |
+| ------------------------ | ------------ | --------------- | ---------------- |
+| **Clean Assertions**     | ❌ Verbose   | ✅ Yes          | ✅ Yes           |
+| **Auto-Generated Mocks** | ❌ No        | ✅ Yes          | ✅ Yes           |
+| **Verify Call Order**    | ❌ Manual    | ❌ Complex      | ✅ Easy          |
+| **Verify Call Args**     | ❌ Manual    | ⚠️ Per function | ✅ Per call      |
+| **Interactive Control**  | ❌ Difficult | ❌ Difficult    | ✅ Easy          |
+| **Concurrent Testing**   | ❌ Difficult | ⚠️ Possible     | ✅ Easy          |
+| **Return Validation**    | ❌ Manual    | ✅ Yes          | ✅ Yes           |
+| **Panic Validation**     | ❌ Manual    | ❌ Manual       | ✅ Yes/Automatic |
 
 **Zero manual mocking. Full control.**
