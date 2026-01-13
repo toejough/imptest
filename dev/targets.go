@@ -398,9 +398,67 @@ func Fmt(ctx context.Context) error {
 }
 
 // Fuzz runs the fuzz tests.
+// Discovers all Fuzz* functions in *_test.go files and runs each for 1000 iterations.
 func Fuzz() error {
 	fmt.Println("Running fuzz tests...")
-	return sh.Run("./dev/fuzz.fish")
+
+	// Find all test files
+	testFiles, err := globs(".", []string{".go"})
+	if err != nil {
+		return fmt.Errorf("failed to find test files: %w", err)
+	}
+
+	// Filter to *_test.go files and find fuzz functions
+	fuzzPattern := regexp.MustCompile(`^func (Fuzz\w+)\(`)
+	type fuzzTest struct {
+		dir  string
+		name string
+	}
+
+	var fuzzTests []fuzzTest
+
+	for _, file := range testFiles {
+		if !strings.HasSuffix(file, "_test.go") {
+			continue
+		}
+
+		content, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+
+		lines := strings.Split(string(content), "\n")
+		for _, line := range lines {
+			matches := fuzzPattern.FindStringSubmatch(line)
+			if matches != nil {
+				fuzzTests = append(fuzzTests, fuzzTest{
+					dir:  "./" + filepath.Dir(file),
+					name: matches[1],
+				})
+			}
+		}
+	}
+
+	if len(fuzzTests) == 0 {
+		fmt.Println("No fuzz tests found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d fuzz tests.\n", len(fuzzTests))
+
+	// Run each fuzz test
+	for _, test := range fuzzTests {
+		fmt.Printf("  Fuzzing %s in %s...\n", test.name, test.dir)
+
+		err := sh.Run("go", "test", test.dir, "-fuzz=^"+test.name+"$", "-fuzztime=1000x")
+		if err != nil {
+			return fmt.Errorf("fuzz test %s failed: %w", test.name, err)
+		}
+	}
+
+	fmt.Println("All fuzz tests passed.")
+
+	return nil
 }
 
 // Generate runs go generate on all packages using the locally-built impgen binary.
