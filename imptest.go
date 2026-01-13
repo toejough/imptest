@@ -8,13 +8,14 @@
 //   - [Any] - matcher that accepts any value
 //   - [Satisfies] - matcher using a custom predicate function
 //   - [TestReporter] - interface for test frameworks (usually *testing.T)
+//   - [NewImp] - create shared coordinator for centralized control of multiple mocks/wrappers
 //
 // # Generated Code API
 //
 // These are used by code generated via `impgen`. Users interact with them
 // indirectly through the generated type-safe wrappers:
 //
-//   - [Imp], [NewImp] - coordinator for dependency mocks
+//   - [Imp] - coordinator for dependency mocks
 //   - [Controller] - manages call queue and synchronization
 //   - [DependencyMethod], [DependencyCall], [DependencyArgs] - mock internals
 //   - [CallableController], [TargetController] - wrapper internals
