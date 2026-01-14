@@ -389,23 +389,6 @@ func (m *mockCachingFileSystem) WriteFile(name string, data []byte, _ os.FileMod
 	return nil
 }
 
-// mockFileReader is a test mock for FileReader.
-type mockFileReader struct {
-	files map[string][]byte
-}
-
-func (m *mockFileReader) Glob(_ string) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockFileReader) ReadFile(name string) ([]byte, error) {
-	if data, ok := m.files[name]; ok {
-		return data, nil
-	}
-
-	return nil, errors.New("file not found")
-}
-
 // mockPkgLoader is a test mock for detect.PackageLoader.
 type mockPkgLoader struct {
 	files []*dst.File

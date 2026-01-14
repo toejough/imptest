@@ -1,4 +1,4 @@
-//nolint:testpackage,varnamelen // Tests internal functions
+//nolint:testpackage // Tests internal functions
 package generate
 
 import (

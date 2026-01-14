@@ -1148,4 +1148,3 @@ func parseCoverageBlock(line string) (coverageBlock, error) {
 		count:      count,
 	}, nil
 }
-
