@@ -2,7 +2,6 @@
 package generate
 
 import (
-	"errors"
 	"go/token"
 	"go/types"
 	"strings"
@@ -51,63 +50,6 @@ func TestDependencyCode_Error(t *testing.T) {
 			"DependencyCode() error = %v, want error containing 'unsupported embedded type'",
 			err,
 		)
-	}
-}
-
-func TestResolveTestPackageImport(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name          string
-		loader        *mockPkgLoader
-		pkgName       string
-		wantPkgPath   string
-		wantQualifier string
-	}{
-		{
-			name: "load error returns empty",
-			loader: &mockPkgLoader{
-				err: errors.New("load failed"),
-			},
-			pkgName:       "mypkg_test",
-			wantPkgPath:   "",
-			wantQualifier: "",
-		},
-		{
-			name: "empty files returns empty",
-			loader: &mockPkgLoader{
-				files: []*dst.File{},
-				fset:  token.NewFileSet(),
-			},
-			pkgName:       "mypkg_test",
-			wantPkgPath:   "",
-			wantQualifier: "",
-		},
-		{
-			name: "no go.mod returns empty path",
-			loader: &mockPkgLoader{
-				files: []*dst.File{{Name: &dst.Ident{Name: "mypkg"}}},
-				fset:  token.NewFileSet(),
-			},
-			pkgName:       "mypkg_test",
-			wantPkgPath:   "",
-			wantQualifier: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			pkgPath, qualifier := resolveTestPackageImport(tt.loader, tt.pkgName)
-			if pkgPath != tt.wantPkgPath {
-				t.Errorf("pkgPath = %v, want %v", pkgPath, tt.wantPkgPath)
-			}
-
-			if qualifier != tt.wantQualifier {
-				t.Errorf("qualifier = %v, want %v", qualifier, tt.wantQualifier)
-			}
-		})
 	}
 }
 

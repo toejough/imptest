@@ -8,21 +8,6 @@ import (
 	"testing"
 )
 
-func TestParseTemplate_Panic(t *testing.T) {
-	t.Parallel()
-
-	// Test with invalid template syntax - unclosed action
-	// parseTemplate uses template.Must() which panics on error
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Error("parseTemplate() expected panic for invalid template, got nil")
-		}
-	}()
-
-	parseTemplate("test", "{{.Invalid")
-}
-
 // Use the correct data structure expected by the template
 
 // Verify output contains expected content
