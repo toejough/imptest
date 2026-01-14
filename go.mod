@@ -9,7 +9,7 @@ require (
 	github.com/onsi/gomega v1.39.0
 	github.com/toejough/go-reorder v0.0.0-20260111001754-6f62a53768cc
 	github.com/toejough/targ v0.0.0-20260114144924-da8ec6cc5aaa
-	github.com/toejough/testredundancy v0.0.0-00010101000000-000000000000
+	github.com/toejough/testredundancy v0.0.0-20260114170741-ed6e4dfdfde5
 	pgregory.net/rapid v1.2.0
 )
 
@@ -29,5 +29,3 @@ require (
 	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/tools v0.40.0 // indirect
 )
-
-replace github.com/toejough/testredundancy => /Users/joe/repos/personal/testredundancy
