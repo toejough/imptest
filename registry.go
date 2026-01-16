@@ -6,19 +6,6 @@ import (
 	"github.com/toejough/imptest/internal/core"
 )
 
-// registry stores Imp instances keyed by TestReporter.
-// This enables multiple mocks/wrappers in the same test to share coordination.
-var (
-	registryMu sync.Mutex
-	registry   = make(map[TestReporter]*Imp)
-)
-
-// cleanupRegistrar is the interface needed for registering cleanup functions.
-// This is satisfied by *testing.T and *testing.B.
-type cleanupRegistrar interface {
-	Cleanup(func())
-}
-
 // GetOrCreateImp returns the Imp for the given test, creating one if needed.
 // Multiple calls with the same TestReporter return the same Imp instance.
 // This enables coordination between mocks and wrappers in the same test.
@@ -55,7 +42,9 @@ func GetOrCreateImp(t TestReporter) *Imp {
 // If no Imp has been created for t yet, Wait returns immediately.
 func Wait(t TestReporter) {
 	registryMu.Lock()
+
 	imp, ok := registry[t]
+
 	registryMu.Unlock()
 
 	if !ok {
@@ -63,4 +52,18 @@ func Wait(t TestReporter) {
 	}
 
 	imp.Wait()
+}
+
+// unexported variables.
+var (
+	//nolint:gochecknoglobals // Package-level registry is intentional for test coordination
+	registry = make(map[TestReporter]*Imp)
+	//nolint:gochecknoglobals // Mutex for registry
+	registryMu sync.Mutex
+)
+
+// cleanupRegistrar is the interface needed for registering cleanup functions.
+// This is satisfied by *testing.T and *testing.B.
+type cleanupRegistrar interface {
+	Cleanup(cleanupFunc func())
 }
