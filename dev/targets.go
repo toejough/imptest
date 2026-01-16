@@ -1,6 +1,6 @@
 //go:build targ
 
-package main
+package dev
 
 import (
 	"bytes"
@@ -28,6 +28,22 @@ import (
 	"github.com/toejough/targ/sh"
 	"github.com/toejough/testredundancy"
 )
+
+// Coverage displays the coverage report.
+type Coverage struct {
+	HTML bool `targ:"flag,desc=Open HTML report in browser"`
+}
+
+func (c *Coverage) Description() string {
+	return "Display coverage report"
+}
+
+func (c *Coverage) Run() error {
+	if c.HTML {
+		return sh.RunV("go", "tool", "cover", "-html=coverage.out")
+	}
+	return sh.RunV("go", "tool", "cover", "-func=coverage.out")
+}
 
 // Build builds the local impgen binary.
 func Build() error {
