@@ -41,7 +41,7 @@ func Test_PrintSum(t *testing.T) {
 
 | Aspect          | Current                                       | Proposed                                 |
 | --------------- | --------------------------------------------- | ---------------------------------------- |
-| Coordination    | `imp := imptest.NewImp(t)` then pass `imp`    | Auto-share via `*testing.T` registry     |
+| Coordination    | `imp := imptest.NewImp(t)` then pass `imp`    | Auto-share via `TestReporter` registry   |
 | Mock creation   | `h := MockIntOps(imp)` returns handle         | `mock, imp := MockIntOps(t)` two returns |
 | Interface usage | `h.Mock`                                      | `mock` (first return)                    |
 | Expectations    | `h.Method.Add.ExpectCalledWith...`            | `imp.Add.ExpectCalledWith...`            |
@@ -50,10 +50,11 @@ func Test_PrintSum(t *testing.T) {
 
 ## Decisions
 
-- **Export `getOrCreateImp`?** - No, keep it internal.
+- **Export `GetOrCreateImp`?** - Yes (changed from original "no"). Generated code needs to call it, and keeping it internal would require awkward workarounds.
 - **Backward compatibility?** - No. Remove `NewImp()` outright. Document the new way.
 - **Generated type names?** - `*IntOpsImp` - fits the style/character of the repo.
 - **Function mocks?** - Yes, `mockFn, imp := MockMyFunc(t)` with `imp.ExpectCalledWith...` directly.
+- **Use `TestReporter` vs `*testing.T`?** - Use `TestReporter` interface for flexibility (supports `*testing.T`, `*testing.B`, and test doubles).
 
 ---
 
@@ -72,32 +73,37 @@ Each phase follows this cycle:
 
 ## Implementation Phases
 
-### Phase 1: Core Library - Registry Infrastructure
+### Phase 1: Core Library - Registry Infrastructure ✅ COMPLETE
 
 **Goal**: Add internal registry keyed by `*testing.T` and public `Wait(t)` function.
 
+**Status**: Complete (commits `ef6cd67`, `32bd5ac`, `317463f`)
+
 **Files to create/modify:**
 
-- New file: `registry.go`
-- Modify: `imptest.go` (remove `NewImp` export)
+- [x] New file: `registry.go` — Created
+- [ ] Modify: `imptest.go` (remove `NewImp` export) — Deferred to Phase 4
 
 **Changes:**
 
-- [ ] Add internal registry: `map[*testing.T]*Imp` with mutex protection
-- [ ] Add `getOrCreateImp(t *testing.T) *Imp` internal function
-- [ ] Add `imptest.Wait(t *testing.T)` public function
-- [ ] Add cleanup hook via `t.Cleanup()` to remove entry when test completes
-- [ ] Remove `NewImp()` from public API
+- [x] Add internal registry: `map[TestReporter]*Imp` with mutex protection
+  - *Deviation*: Used `TestReporter` interface instead of `*testing.T` for flexibility
+- [x] Add `GetOrCreateImp(t TestReporter) *Imp` function
+  - *Deviation*: Exported (not internal) because generated code needs to call it
+- [x] Add `imptest.Wait(t TestReporter)` public function
+- [x] Add cleanup hook via `t.Cleanup()` to remove entry when test completes
+- [ ] Remove `NewImp()` from public API — Deferred to Phase 4
 
 **Tests (using imptest, gomega, rapid):**
 
-- [ ] Registry returns same Imp for same `t`
-- [ ] Registry returns different Imp for different `t`
-- [ ] `Wait(t)` blocks until async expectations satisfied
-- [ ] Cleanup removes entry after test completes
-- [ ] Property: concurrent access to registry is safe
+- [x] Registry returns same Imp for same `t` (`TestGetOrCreateImp_SameT_ReturnsSameImp`)
+- [x] Registry returns different Imp for different `t` (`TestGetOrCreateImp_DifferentT_ReturnsDifferentImp`)
+- [x] `Wait(t)` blocks until async expectations satisfied (`TestWait_BlocksUntilAsyncExpectationsSatisfied`)
+- [x] Cleanup removes entry after test completes (`TestCleanup_RemovesEntryAfterTestCompletes`)
+- [x] Property: concurrent access to registry is safe (`TestGetOrCreateImp_ConcurrentAccess`, `TestGetOrCreateImp_ConcurrentAccess_Rapid`)
+- [x] Additional: `Wait(t)` returns immediately with no expectations (`TestWait_NoExpectations_ReturnsImmediately`)
 
-**Docs**: Update README examples that mention `NewImp()`.
+**Docs**: Deferred to Phase 4 (update all docs together after migration).
 
 ---
 
@@ -116,9 +122,9 @@ Each phase follows this cycle:
   // FROM:
   func MockIntOps(imp *imptest.Imp) *IntOpsHandle
   // TO:
-  func MockIntOps(t *testing.T) (IntOps, *IntOpsImp)
+  func MockIntOps(t imptest.TestReporter) (IntOps, *IntOpsImp)
   ```
-- [ ] Generated function calls internal `getOrCreateImp(t)` (export minimal helper if needed)
+- [ ] Generated function calls `imptest.GetOrCreateImp(t)` (already exported in Phase 1)
 - [ ] First return: mock implementation
 - [ ] Second return: expectation handle (rename from `*IntOpsMethod` to `*IntOpsImp`)
 - [ ] Remove `Handle` struct generation
@@ -149,9 +155,9 @@ Each phase follows this cycle:
   // FROM:
   func WrapPrintSum(imp *imptest.Imp, fn func(...) ...) *PrintSumWrapper
   // TO:
-  func WrapPrintSum(t *testing.T, fn func(...) ...) *PrintSumWrapper
+  func WrapPrintSum(t imptest.TestReporter, fn func(...) ...) *PrintSumWrapper
   ```
-- [ ] Generated function calls internal `getOrCreateImp(t)`
+- [ ] Generated function calls `imptest.GetOrCreateImp(t)`
 
 **Tests:**
 
