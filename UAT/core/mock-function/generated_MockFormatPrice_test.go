@@ -60,7 +60,7 @@ func (m *FormatPriceMockMethod) ExpectCalledWithMatches(matchers ...any) *Format
 
 // MockFormatPrice creates a new FormatPriceMockHandle for testing.
 func MockFormatPrice(t _imptest.TestReporter) *FormatPriceMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &FormatPriceMockHandle{
 		Controller: ctrl,
 		Method:     newFormatPriceMockMethod(_imptest.NewDependencyMethod(ctrl, "FormatPrice")),

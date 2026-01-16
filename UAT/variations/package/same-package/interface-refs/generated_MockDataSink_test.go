@@ -64,7 +64,7 @@ func (m *DataSinkMockPutDataMethod) ExpectCalledWithMatches(matchers ...any) *Da
 
 // MockDataSink creates a new DataSinkMockHandle for testing.
 func MockDataSink(t _imptest.TestReporter) *DataSinkMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &DataSinkMockMethods{
 		PutData: newDataSinkMockPutDataMethod(_imptest.NewDependencyMethod(ctrl, "PutData")),
 	}

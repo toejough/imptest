@@ -64,7 +64,7 @@ func (m *ProcessorMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *P
 
 // MockProcessor creates a new ProcessorMockHandle for testing.
 func MockProcessor(t _imptest.TestReporter) *ProcessorMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &ProcessorMockMethods{
 		Process: newProcessorMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}

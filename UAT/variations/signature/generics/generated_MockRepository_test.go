@@ -107,7 +107,7 @@ func (m *RepositoryMockSaveMethod[T]) ExpectCalledWithMatches(matchers ...any) *
 
 // MockRepository creates a new RepositoryMockHandle for testing.
 func MockRepository[T any](t _imptest.TestReporter) *RepositoryMockHandle[T] {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &RepositoryMockMethods[T]{
 		Save: newRepositoryMockSaveMethod[T](_imptest.NewDependencyMethod(ctrl, "Save")),
 		Get:  newRepositoryMockGetMethod[T](_imptest.NewDependencyMethod(ctrl, "Get")),

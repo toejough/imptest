@@ -175,7 +175,7 @@ func (c *TimedLoggerMockValueCall) InjectReturnValues(result0 int) {
 
 // MockTimedLogger creates a new TimedLoggerMockHandle for testing.
 func MockTimedLogger(t _imptest.TestReporter) *TimedLoggerMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &TimedLoggerMockMethods{
 		Inc:          _imptest.NewDependencyMethod(ctrl, "Inc"),
 		Log:          newTimedLoggerMockLogMethod(_imptest.NewDependencyMethod(ctrl, "Log")),

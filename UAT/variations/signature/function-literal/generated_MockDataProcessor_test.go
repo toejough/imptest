@@ -158,7 +158,7 @@ func (m *DataProcessorMockTransformMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockDataProcessor creates a new DataProcessorMockHandle for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &DataProcessorMockMethods{
 		Transform: newDataProcessorMockTransformMethod(_imptest.NewDependencyMethod(ctrl, "Transform")),
 		Filter:    newDataProcessorMockFilterMethod(_imptest.NewDependencyMethod(ctrl, "Filter")),

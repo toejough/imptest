@@ -109,7 +109,7 @@ func (m *StorageMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *Storag
 
 // MockStorage creates a new StorageMockHandle for testing.
 func MockStorage(t _imptest.TestReporter) *StorageMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &StorageMockMethods{
 		Save: newStorageMockSaveMethod(_imptest.NewDependencyMethod(ctrl, "Save")),
 		Load: newStorageMockLoadMethod(_imptest.NewDependencyMethod(ctrl, "Load")),

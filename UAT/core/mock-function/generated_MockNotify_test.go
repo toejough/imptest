@@ -55,7 +55,7 @@ func (m *NotifyMockMethod) ExpectCalledWithMatches(matchers ...any) *NotifyMockC
 
 // MockNotify creates a new NotifyMockHandle for testing.
 func MockNotify(t _imptest.TestReporter) *NotifyMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &NotifyMockHandle{
 		Controller: ctrl,
 		Method:     newNotifyMockMethod(_imptest.NewDependencyMethod(ctrl, "Notify")),

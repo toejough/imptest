@@ -118,7 +118,7 @@ func (c *DataProcessorMockReturnContainerCall) InjectReturnValues(result0 parame
 
 // MockDataProcessor creates a new DataProcessorMockHandle for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &DataProcessorMockMethods{
 		ProcessContainer: newDataProcessorMockProcessContainerMethod(_imptest.NewDependencyMethod(ctrl, "ProcessContainer")),
 		ProcessPair:      newDataProcessorMockProcessPairMethod(_imptest.NewDependencyMethod(ctrl, "ProcessPair")),

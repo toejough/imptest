@@ -58,7 +58,7 @@ func (m *ValidateInputMockMethod) ExpectCalledWithMatches(matchers ...any) *Vali
 
 // MockValidateInput creates a new ValidateInputMockHandle for testing.
 func MockValidateInput(t _imptest.TestReporter) *ValidateInputMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &ValidateInputMockHandle{
 		Controller: ctrl,
 		Method:     newValidateInputMockMethod(_imptest.NewDependencyMethod(ctrl, "ValidateInput")),

@@ -111,7 +111,7 @@ func (m *FileSystemMockStatMethod) ExpectCalledWithMatches(matchers ...any) *Fil
 
 // MockFileSystem creates a new FileSystemMockHandle for testing.
 func MockFileSystem(t _imptest.TestReporter) *FileSystemMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &FileSystemMockMethods{
 		Stat:   newFileSystemMockStatMethod(_imptest.NewDependencyMethod(ctrl, "Stat")),
 		Create: newFileSystemMockCreateMethod(_imptest.NewDependencyMethod(ctrl, "Create")),

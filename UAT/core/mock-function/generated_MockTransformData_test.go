@@ -63,7 +63,7 @@ func (m *TransformDataMockMethod) ExpectCalledWithMatches(matchers ...any) *Tran
 
 // MockTransformData creates a new TransformDataMockHandle for testing.
 func MockTransformData(t _imptest.TestReporter) *TransformDataMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &TransformDataMockHandle{
 		Controller: ctrl,
 		Method:     newTransformDataMockMethod(_imptest.NewDependencyMethod(ctrl, "TransformData")),

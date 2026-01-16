@@ -107,7 +107,7 @@ type SlowServiceMockMethods struct {
 
 // MockSlowService creates a new SlowServiceMockHandle for testing.
 func MockSlowService(t _imptest.TestReporter) *SlowServiceMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &SlowServiceMockMethods{
 		DoA: newSlowServiceMockDoAMethod(_imptest.NewDependencyMethod(ctrl, "DoA")),
 		DoB: newSlowServiceMockDoBMethod(_imptest.NewDependencyMethod(ctrl, "DoB")),

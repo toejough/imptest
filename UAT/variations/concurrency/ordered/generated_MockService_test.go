@@ -150,7 +150,7 @@ func (m *ServiceMockOperationCMethod) ExpectCalledWithMatches(matchers ...any) *
 
 // MockService creates a new ServiceMockHandle for testing.
 func MockService(t _imptest.TestReporter) *ServiceMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &ServiceMockMethods{
 		OperationA: newServiceMockOperationAMethod(_imptest.NewDependencyMethod(ctrl, "OperationA")),
 		OperationB: newServiceMockOperationBMethod(_imptest.NewDependencyMethod(ctrl, "OperationB")),

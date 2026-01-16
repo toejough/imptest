@@ -30,7 +30,7 @@ func (c *{{.CallTypeName}}{{.TypeParamsUse}}) InjectReturnValues({{.TypedReturnP
 `
 	tmplDepConstructor = `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
 func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
-	ctrl := {{.PkgImptest}}.NewImp(t)
+	ctrl := {{.PkgImptest}}.GetOrCreateImp(t)
 	methods := &{{.MockTypeName}}Methods{{.TypeParamsUse}}{
 {{range .Methods}}{{if .HasParams}}		{{.MethodName}}: new{{.MethodTypeName}}{{$.TypeParamsUse}}({{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}")),
 {{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}"),
@@ -144,7 +144,7 @@ type {{.MockTypeName}}Methods{{.TypeParamsDecl}} struct {
 `
 	tmplFuncDepConstructor = `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
 func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
-	ctrl := {{.PkgImptest}}.NewImp(t)
+	ctrl := {{.PkgImptest}}.GetOrCreateImp(t)
 	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
 		Controller: ctrl,
 {{if .Method.HasParams}}		Method: new{{.Method.MethodTypeName}}{{.TypeParamsUse}}({{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}")),

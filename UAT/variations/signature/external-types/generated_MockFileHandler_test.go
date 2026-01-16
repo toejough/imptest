@@ -154,7 +154,7 @@ func (m *FileHandlerMockStatsMethod) ExpectCalledWithMatches(matchers ...any) *F
 
 // MockFileHandler creates a new FileHandlerMockHandle for testing.
 func MockFileHandler(t _imptest.TestReporter) *FileHandlerMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &FileHandlerMockMethods{
 		ReadAll:  newFileHandlerMockReadAllMethod(_imptest.NewDependencyMethod(ctrl, "ReadAll")),
 		OpenFile: newFileHandlerMockOpenFileMethod(_imptest.NewDependencyMethod(ctrl, "OpenFile")),

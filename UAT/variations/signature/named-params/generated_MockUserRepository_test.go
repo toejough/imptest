@@ -200,7 +200,7 @@ func (m *UserRepositoryMockSaveUserMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockUserRepository creates a new UserRepositoryMockHandle for testing.
 func MockUserRepository(t _imptest.TestReporter) *UserRepositoryMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &UserRepositoryMockMethods{
 		GetUser:    newUserRepositoryMockGetUserMethod(_imptest.NewDependencyMethod(ctrl, "GetUser")),
 		SaveUser:   newUserRepositoryMockSaveUserMethod(_imptest.NewDependencyMethod(ctrl, "SaveUser")),

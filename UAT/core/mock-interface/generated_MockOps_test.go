@@ -209,7 +209,7 @@ func (m *OpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockSt
 
 // MockOps creates a new OpsMockHandle for testing.
 func MockOps(t _imptest.TestReporter) *OpsMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &OpsMockMethods{
 		Add:    newOpsMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add")),
 		Store:  newOpsMockStoreMethod(_imptest.NewDependencyMethod(ctrl, "Store")),

@@ -82,7 +82,7 @@ func (m *ManyParamsMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *
 
 // MockManyParams creates a new ManyParamsMockHandle for testing.
 func MockManyParams(t _imptest.TestReporter) *ManyParamsMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &ManyParamsMockMethods{
 		Process: newManyParamsMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}

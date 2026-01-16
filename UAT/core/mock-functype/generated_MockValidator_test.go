@@ -58,7 +58,7 @@ func (m *ValidatorMockMethod) ExpectCalledWithMatches(matchers ...any) *Validato
 
 // MockValidator creates a new ValidatorMockHandle for testing.
 func MockValidator(t _imptest.TestReporter) *ValidatorMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &ValidatorMockHandle{
 		Controller: ctrl,
 		Method:     newValidatorMockMethod(_imptest.NewDependencyMethod(ctrl, "Validator")),

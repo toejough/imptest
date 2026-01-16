@@ -65,7 +65,7 @@ func (m *HTTPMiddlewareMockWrapMethod) ExpectCalledWithMatches(matchers ...any) 
 
 // MockHTTPMiddleware creates a new HTTPMiddlewareMockHandle for testing.
 func MockHTTPMiddleware(t _imptest.TestReporter) *HTTPMiddlewareMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &HTTPMiddlewareMockMethods{
 		Wrap: newHTTPMiddlewareMockWrapMethod(_imptest.NewDependencyMethod(ctrl, "Wrap")),
 	}

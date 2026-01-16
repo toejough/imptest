@@ -43,7 +43,7 @@ func Test_PrintSum(t *testing.T) {
     t.Parallel()
 
     // Create a shared controller - coordinates all mocks and wrappers
-    imp := imptest.NewImp(t)
+    imp := imptest.GetOrCreateImp(t)
 
     // Create the dependency mock (returns test handle with Mock, Method, Controller)
     h := MockIntOps(imp)
@@ -82,7 +82,7 @@ import "github.com/toejough/imptest"
 func Test_PrintSum_Flexible(t *testing.T) {
     t.Parallel()
 
-    imp := imptest.NewImp(t)
+    imp := imptest.GetOrCreateImp(t)
     h := MockIntOps(imp)
     wrapper := WrapPrintSum(imp, run.PrintSum).Start(10, 32, h.Mock)
 
@@ -139,7 +139,7 @@ func Test_Concurrent(t *testing.T) {
 
 ```go
 func Test_PrintSum_Panic(t *testing.T) {
-    imp := imptest.NewImp(t)
+    imp := imptest.GetOrCreateImp(t)
     h := MockIntOps(imp)
     wrapper := WrapPrintSum(imp, run.PrintSum).Start(10, 32, h.Mock)
 
@@ -205,7 +205,7 @@ When a dependency returns a channel, inject one you control:
 // Interface: type EventSource interface { Events() <-chan Event }
 
 func Test_ChannelReturn(t *testing.T) {
-    imp := imptest.NewImp(t)
+    imp := imptest.GetOrCreateImp(t)
     h := MockEventSource(imp)
     wrapper := WrapProcessEvents(imp, ProcessEvents).Start(h.Mock)
 
@@ -402,7 +402,7 @@ func TestProcessUser_Imptest(t *testing.T) {
     t.Parallel()
 
     // ✅ Shared controller coordinates mocks and wrappers
-    imp := imptest.NewImp(t)
+    imp := imptest.GetOrCreateImp(t)
 
     // ✅ Generated mock, no manual implementation
     h := MockExternalService(imp)

@@ -32,7 +32,7 @@ type DataSourceMockMethods struct {
 
 // MockDataSource creates a new DataSourceMockHandle for testing.
 func MockDataSource(t _imptest.TestReporter) *DataSourceMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &DataSourceMockMethods{
 		GetData: _imptest.NewDependencyMethod(ctrl, "GetData"),
 	}

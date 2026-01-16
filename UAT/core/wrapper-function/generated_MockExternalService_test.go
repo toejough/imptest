@@ -107,7 +107,7 @@ func (m *ExternalServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockExternalService creates a new ExternalServiceMockHandle for testing.
 func MockExternalService(t _imptest.TestReporter) *ExternalServiceMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &ExternalServiceMockMethods{
 		FetchData: newExternalServiceMockFetchDataMethod(_imptest.NewDependencyMethod(ctrl, "FetchData")),
 		Process:   newExternalServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),

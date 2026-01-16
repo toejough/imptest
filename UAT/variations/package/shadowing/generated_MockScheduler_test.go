@@ -166,7 +166,7 @@ func (m *SchedulerMockScheduleAtMethod) ExpectCalledWithMatches(matchers ...any)
 
 // MockScheduler creates a new SchedulerMockHandle for testing.
 func MockScheduler(t _imptest.TestReporter) *SchedulerMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &SchedulerMockMethods{
 		ScheduleAt:  newSchedulerMockScheduleAtMethod(_imptest.NewDependencyMethod(ctrl, "ScheduleAt")),
 		Delay:       newSchedulerMockDelayMethod(_imptest.NewDependencyMethod(ctrl, "Delay")),

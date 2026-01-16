@@ -26,7 +26,7 @@ type CounterIncMockHandle struct {
 
 // MockCounterInc creates a new CounterIncMockHandle for testing.
 func MockCounterInc(t _imptest.TestReporter) *CounterIncMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &CounterIncMockHandle{
 		Controller: ctrl,
 		Method:     _imptest.NewDependencyMethod(ctrl, "Counter.Inc"),

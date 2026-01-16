@@ -107,7 +107,7 @@ func (m *DataProcessorMockProcessSliceMethod) ExpectCalledWithMatches(matchers .
 
 // MockDataProcessor creates a new DataProcessorMockHandle for testing.
 func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &DataProcessorMockMethods{
 		ProcessSlice: newDataProcessorMockProcessSliceMethod(_imptest.NewDependencyMethod(ctrl, "ProcessSlice")),
 		ProcessMap:   newDataProcessorMockProcessMapMethod(_imptest.NewDependencyMethod(ctrl, "ProcessMap")),

@@ -8,7 +8,8 @@
 //   - [Any] - matcher that accepts any value
 //   - [Satisfies] - matcher using a custom predicate function
 //   - [TestReporter] - interface for test frameworks (usually *testing.T)
-//   - [NewImp] - create shared coordinator for centralized control of multiple mocks/wrappers
+//   - [GetOrCreateImp] - get/create shared coordinator for a test (used by generated code)
+//   - [Wait] - block until all async expectations for a test are satisfied
 //
 // # Generated Code API
 //
@@ -68,13 +69,6 @@ type GenericResponse = core.GenericResponse
 
 // Imp is the central coordinator for dependency mocking.
 type Imp = core.Imp
-
-// Functions re-exported from internal/core.
-
-// NewImp creates a new Imp coordinator.
-func NewImp(t TestReporter) *Imp {
-	return core.NewImp(t)
-}
 
 // Matcher defines the interface for flexible value matching.
 type Matcher = core.Matcher

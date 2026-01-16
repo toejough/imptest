@@ -106,7 +106,7 @@ func (m *OpsMockinternalMethodMethod) ExpectCalledWithMatches(matchers ...any) *
 
 // MockOps creates a new OpsMockHandle for testing.
 func MockOps(t _imptest.TestReporter) *OpsMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &OpsMockMethods{
 		internalMethod: newOpsMockinternalMethodMethod(_imptest.NewDependencyMethod(ctrl, "internalMethod")),
 		PublicMethod:   newOpsMockPublicMethodMethod(_imptest.NewDependencyMethod(ctrl, "PublicMethod")),

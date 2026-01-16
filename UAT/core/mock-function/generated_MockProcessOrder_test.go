@@ -62,7 +62,7 @@ func (m *ProcessOrderMockMethod) ExpectCalledWithMatches(matchers ...any) *Proce
 
 // MockProcessOrder creates a new ProcessOrderMockHandle for testing.
 func MockProcessOrder(t _imptest.TestReporter) *ProcessOrderMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &ProcessOrderMockHandle{
 		Controller: ctrl,
 		Method:     newProcessOrderMockMethod(_imptest.NewDependencyMethod(ctrl, "ProcessOrder")),

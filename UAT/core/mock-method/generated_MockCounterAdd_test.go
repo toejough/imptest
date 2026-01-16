@@ -58,7 +58,7 @@ func (m *CounterAddMockMethod) ExpectCalledWithMatches(matchers ...any) *Counter
 
 // MockCounterAdd creates a new CounterAddMockHandle for testing.
 func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	h := &CounterAddMockHandle{
 		Controller: ctrl,
 		Method:     newCounterAddMockMethod(_imptest.NewDependencyMethod(ctrl, "Counter.Add")),

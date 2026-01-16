@@ -112,7 +112,7 @@ func (m *TreeWalkerMockWalkWithNamedTypeMethod) ExpectCalledWithMatches(matchers
 
 // MockTreeWalker creates a new TreeWalkerMockHandle for testing.
 func MockTreeWalker(t _imptest.TestReporter) *TreeWalkerMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &TreeWalkerMockMethods{
 		Walk:              newTreeWalkerMockWalkMethod(_imptest.NewDependencyMethod(ctrl, "Walk")),
 		WalkWithNamedType: newTreeWalkerMockWalkWithNamedTypeMethod(_imptest.NewDependencyMethod(ctrl, "WalkWithNamedType")),

@@ -22,7 +22,7 @@ type CriticalDependencyMockMethods struct {
 
 // MockCriticalDependency creates a new CriticalDependencyMockHandle for testing.
 func MockCriticalDependency(t _imptest.TestReporter) *CriticalDependencyMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &CriticalDependencyMockMethods{
 		DoWork: _imptest.NewDependencyMethod(ctrl, "DoWork"),
 	}

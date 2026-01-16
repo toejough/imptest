@@ -64,7 +64,7 @@ func (m *ComplexServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...an
 
 // MockComplexService creates a new ComplexServiceMockHandle for testing.
 func MockComplexService(t _imptest.TestReporter) *ComplexServiceMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &ComplexServiceMockMethods{
 		Process: newComplexServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}

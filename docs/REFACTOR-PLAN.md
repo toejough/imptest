@@ -82,7 +82,7 @@ Each phase follows this cycle:
 **Files to create/modify:**
 
 - [x] New file: `registry.go` — Created
-- [ ] Modify: `imptest.go` (remove `NewImp` export) — Deferred to Phase 4
+- [x] Modify: `imptest.go` (remove `NewImp` export) — Done
 
 **Changes:**
 
@@ -92,7 +92,7 @@ Each phase follows this cycle:
   - *Deviation*: Exported (not internal) because generated code needs to call it
 - [x] Add `imptest.Wait(t TestReporter)` public function
 - [x] Add cleanup hook via `t.Cleanup()` to remove entry when test completes
-- [ ] Remove `NewImp()` from public API — Deferred to Phase 4
+- [x] Remove `NewImp()` from public API
 
 **Tests (using imptest, gomega, rapid):**
 
@@ -103,7 +103,7 @@ Each phase follows this cycle:
 - [x] Property: concurrent access to registry is safe (`TestGetOrCreateImp_ConcurrentAccess`, `TestGetOrCreateImp_ConcurrentAccess_Rapid`)
 - [x] Additional: `Wait(t)` returns immediately with no expectations (`TestWait_NoExpectations_ReturnsImmediately`)
 
-**Docs**: Deferred to Phase 4 (update all docs together after migration).
+**Docs**: Updated README.md examples to use `GetOrCreateImp(t)` instead of `NewImp(t)`.
 
 ---
 

@@ -209,7 +209,7 @@ func (m *CustomOpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *Cus
 
 // MockCustomOps creates a new CustomOpsMockHandle for testing.
 func MockCustomOps(t _imptest.TestReporter) *CustomOpsMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &CustomOpsMockMethods{
 		Add:    newCustomOpsMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add")),
 		Store:  newCustomOpsMockStoreMethod(_imptest.NewDependencyMethod(ctrl, "Store")),

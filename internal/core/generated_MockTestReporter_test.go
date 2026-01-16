@@ -66,7 +66,7 @@ type TestReporterMockMethods struct {
 
 // MockTestReporter creates a new TestReporterMockHandle for testing.
 func MockTestReporter(t _imptest.TestReporter) *TestReporterMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &TestReporterMockMethods{
 		Helper: _imptest.NewDependencyMethod(ctrl, "Helper"),
 		Fatalf: newTestReporterMockFatalfMethod(_imptest.NewDependencyMethod(ctrl, "Fatalf")),

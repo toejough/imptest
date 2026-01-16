@@ -75,7 +75,7 @@ func (m *TimerMockWaitMethod) ExpectCalledWithMatches(matchers ...any) *TimerMoc
 
 // MockTimer creates a new TimerMockHandle for testing.
 func MockTimer(t _imptest.TestReporter) *TimerMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &TimerMockMethods{
 		Wait:       newTimerMockWaitMethod(_imptest.NewDependencyMethod(ctrl, "Wait")),
 		GetElapsed: _imptest.NewDependencyMethod(ctrl, "GetElapsed"),

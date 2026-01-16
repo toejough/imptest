@@ -75,7 +75,7 @@ func (m *ReadCloserMockReadMethod) ExpectCalledWithMatches(matchers ...any) *Rea
 
 // MockReadCloser creates a new ReadCloserMockHandle for testing.
 func MockReadCloser(t _imptest.TestReporter) *ReadCloserMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &ReadCloserMockMethods{
 		Read:  newReadCloserMockReadMethod(_imptest.NewDependencyMethod(ctrl, "Read")),
 		Close: _imptest.NewDependencyMethod(ctrl, "Close"),

@@ -128,7 +128,7 @@ func (m *CalculatorMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *Ca
 
 // MockCalculator creates a new CalculatorMockHandle for testing.
 func MockCalculator(t _imptest.TestReporter) *CalculatorMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &CalculatorMockMethods{
 		Add:   newCalculatorMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add")),
 		Get:   _imptest.NewDependencyMethod(ctrl, "Get"),

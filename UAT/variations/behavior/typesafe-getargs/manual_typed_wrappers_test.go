@@ -59,7 +59,7 @@ type TypesafeCalculatorMockMethods struct {
 }
 
 func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMockHandle {
-	ctrl := imptest.NewImp(t)
+	ctrl := imptest.GetOrCreateImp(t)
 	methods := &TypesafeCalculatorMockMethods{
 		Add:      newCalculatorAddMethod(imptest.NewDependencyMethod(ctrl, "Add")),
 		Multiply: imptest.NewDependencyMethod(ctrl, "Multiply"),

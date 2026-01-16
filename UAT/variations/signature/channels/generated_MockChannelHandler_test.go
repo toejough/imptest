@@ -161,7 +161,7 @@ func (m *ChannelHandlerMockSendOnlyMethod) ExpectCalledWithMatches(matchers ...a
 
 // MockChannelHandler creates a new ChannelHandlerMockHandle for testing.
 func MockChannelHandler(t _imptest.TestReporter) *ChannelHandlerMockHandle {
-	ctrl := _imptest.NewImp(t)
+	ctrl := _imptest.GetOrCreateImp(t)
 	methods := &ChannelHandlerMockMethods{
 		SendOnly:      newChannelHandlerMockSendOnlyMethod(_imptest.NewDependencyMethod(ctrl, "SendOnly")),
 		ReceiveOnly:   newChannelHandlerMockReceiveOnlyMethod(_imptest.NewDependencyMethod(ctrl, "ReceiveOnly")),
