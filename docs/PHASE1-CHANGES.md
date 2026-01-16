@@ -15,6 +15,8 @@ Added a package-level registry that maps `*testing.T` to `*Imp`, enabling:
 | `ef6cd67` | RED | Tests for registry infrastructure (fail: not implemented) |
 | `32bd5ac` | GREEN | Implement registry and Wait(t) |
 | `317463f` | REFACTOR | Fix lint issues and test parallelism |
+| `ea2d848` | DOCS | Update plan with Phase 1 status and deviations |
+| `6e9fc5e` | REFACTOR | Remove NewImp export, update templates and docs |
 
 ---
 
@@ -357,3 +359,121 @@ imptest.Wait(t)
 ```
 
 These will be used by the generated mock/wrapper code in Phase 2 and Phase 3 to automatically coordinate via the test's `*testing.T`.
+
+---
+
+## Commit 4: Documentation Update
+
+**Commit:** `ea2d848` - `docs(plan): update Phase 1 status and record deviations`
+
+Updated `REFACTOR-PLAN.md` to record:
+- Phase 1 completion status with commit references
+- Deviations from original plan (exported `GetOrCreateImp`, used `TestReporter` interface)
+- Updated Decisions section with rationale
+
+---
+
+## Commit 5: Remove NewImp Export
+
+**Commit:** `6e9fc5e` - `refactor(api): remove NewImp, use GetOrCreateImp everywhere`
+
+### Changes to `/imptest.go`
+
+**Remove NewImp export:**
+
+```diff
+-// NewImp creates a new Imp coordinator.
+-func NewImp(t TestReporter) *Imp {
+-	return core.NewImp(t)
+-}
+```
+
+**Update doc comment:**
+
+```diff
+ // # User API
+ //
+ // These are meant to be used directly in test code:
+ //
+ //   - [Any] - matcher that accepts any value
+ //   - [Satisfies] - matcher using a custom predicate function
+ //   - [TestReporter] - interface for test frameworks (usually *testing.T)
+-//   - [NewImp] - create shared coordinator for centralized control of multiple mocks/wrappers
++//   - [GetOrCreateImp] - get/create shared coordinator for a test (used by generated code)
++//   - [Wait] - block until all async expectations for a test are satisfied
+```
+
+**Why:** `NewImp` is replaced by `GetOrCreateImp` which uses the registry. The internal `core.NewImp` is still used by `GetOrCreateImp`, but is no longer exported.
+
+### Changes to `/impgen/run/5_generate/template_content.go`
+
+**Update mock constructor template:**
+
+```diff
+-	ctrl := {{.PkgImptest}}.NewImp(t)
++	ctrl := {{.PkgImptest}}.GetOrCreateImp(t)
+```
+
+**Why:** Generated mocks now use the registry-based `GetOrCreateImp` instead of creating standalone `Imp` instances. This enables automatic coordination between multiple mocks in the same test.
+
+### Changes to `/README.md`
+
+All examples updated from:
+```go
+imp := imptest.NewImp(t)
+```
+
+To:
+```go
+imp := imptest.GetOrCreateImp(t)
+```
+
+**Files updated:** 5 occurrences across Quick Start, Flexible Matching, Expecting Panics, Channel Patterns, and Comparison sections.
+
+### Changes to Generated Files
+
+All 45+ generated mock files regenerated with new template:
+
+```diff
+ func MockIntOps(t _imptest.TestReporter) *IntOpsMockHandle {
+-	ctrl := _imptest.NewImp(t)
++	ctrl := _imptest.GetOrCreateImp(t)
+```
+
+### Changes to Manual Test File
+
+`/UAT/variations/behavior/typesafe-getargs/manual_typed_wrappers_test.go`:
+
+```diff
+ func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMockHandle {
+-	ctrl := imptest.NewImp(t)
++	ctrl := imptest.GetOrCreateImp(t)
+```
+
+---
+
+## Phase 1 Complete
+
+**New Public API:**
+
+```go
+// Get or create shared Imp for a test (used by generated mocks/wrappers)
+imp := imptest.GetOrCreateImp(t)
+
+// Wait for all async expectations under t
+imptest.Wait(t)
+```
+
+**Removed from Public API:**
+
+```go
+// No longer exported - use GetOrCreateImp instead
+imptest.NewImp(t)  // REMOVED
+```
+
+**Key Design Decisions:**
+
+1. **Exported `GetOrCreateImp`** (changed from original plan) - Generated code needs to call it
+2. **Used `TestReporter` interface** instead of `*testing.T` - More flexible, supports test doubles
+3. **Registry uses mutex** - Thread-safe for parallel tests
+4. **Automatic cleanup** via `t.Cleanup()` - Prevents memory leaks
