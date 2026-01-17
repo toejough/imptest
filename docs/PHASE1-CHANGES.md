@@ -17,6 +17,7 @@ Added a package-level registry that maps `*testing.T` to `*Imp`, enabling:
 | `317463f` | REFACTOR | Fix lint issues and test parallelism |
 | `ea2d848` | DOCS | Update plan with Phase 1 status and deviations |
 | `6e9fc5e` | REFACTOR | Remove NewImp export, update templates and docs |
+| `cb6dacb` | REFACTOR | Use dot imports and short var names in tests |
 
 ---
 
@@ -197,25 +198,21 @@ Tests written to express the desired behavior:
 
 ```diff
 -	. "github.com/onsi/gomega"
-+	"github.com/onsi/gomega"
++	. "github.com/onsi/gomega" //nolint:revive // dot import preferred for test readability
 ```
 
-**Why:** Dot imports are discouraged - they pollute the namespace and make it unclear where symbols come from.
+**Why:** The linter discourages dot imports, but they improve test readability with gomega. Added nolint directive to allow this.
 
 **Issue 4: `varnamelen` errors**
 
+Updated `dev/golangci-lint.toml` to allow conventional short names in tests:
+
 ```diff
--	g := NewWithT(t)
-+	expect := gomega.NewWithT(t)
-
--	var wg sync.WaitGroup
-+	var waitGroup sync.WaitGroup
-
--	var mu sync.Mutex
-+	var orderMutex sync.Mutex
+-ignore-names = ['t', 'b', 'rt', 'a']
++ignore-names = ['t', 'b', 'rt', 'a', 'g', 'wg', 'mu']
 ```
 
-**Why:** Single-letter or very short variable names are flagged when the variable has a larger scope. More descriptive names improve readability.
+**Why:** Short names like `g` (gomega), `wg` (WaitGroup), and `mu` (mutex) are idiomatic in Go tests. Updated linter config rather than lengthening names.
 
 **Issue 5: `tparallel` / `paralleltest` errors - Subtests need `t.Parallel()`**
 
@@ -250,19 +247,19 @@ g.Expect(imp1).NotTo(BeIdenticalTo(imp2))  // FAILS: both nil
 ```go
 t.Run("subtest1", func(t *testing.T) {
     t.Parallel()
-    resultsMutex.Lock()
+    mu.Lock()
     results["sub1"] = imptest.GetOrCreateImp(t)
-    resultsMutex.Unlock()
+    mu.Unlock()
 })
 t.Run("subtest2", func(t *testing.T) {
     t.Parallel()
-    resultsMutex.Lock()
+    mu.Lock()
     results["sub2"] = imptest.GetOrCreateImp(t)
-    resultsMutex.Unlock()
+    mu.Unlock()
 })
 t.Cleanup(func() {
     // This runs after all subtests complete
-    expect.Expect(results["sub1"]).NotTo(BeIdenticalTo(results["sub2"]))
+    g.Expect(results["sub1"]).NotTo(BeIdenticalTo(results["sub2"]))
 })
 ```
 
@@ -449,6 +446,41 @@ All 45+ generated mock files regenerated with new template:
 -	ctrl := imptest.NewImp(t)
 +	ctrl := imptest.GetOrCreateImp(t)
 ```
+
+---
+
+## Commit 6: Test Style Preferences
+
+**Commit:** `cb6dacb` - `refactor(test): use dot imports and short var names`
+
+### Changes to `/dev/golangci-lint.toml`
+
+```diff
+-ignore-names = ['t', 'b', 'rt', 'a']
++ignore-names = ['t', 'b', 'rt', 'a', 'g', 'wg', 'mu']
+```
+
+**Why:** Allow idiomatic short names in tests rather than forcing verbose alternatives.
+
+### Changes to `/registry_test.go`
+
+```diff
+-	"github.com/onsi/gomega"
++	. "github.com/onsi/gomega" //nolint:revive // dot import preferred for test readability
+```
+
+```diff
+-	expect := gomega.NewWithT(t)
++	g := NewWithT(t)
+
+-	var waitGroup sync.WaitGroup
++	var wg sync.WaitGroup
+
+-	var orderMutex sync.Mutex
++	var mu sync.Mutex
+```
+
+**Why:** Shorter, idiomatic names are preferred in tests. Dot import for gomega improves readability.
 
 ---
 
