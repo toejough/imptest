@@ -130,7 +130,6 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 	})
 }
 
-// multiMethodObject implements the multi-method interface literal.
 type multiMethodObject struct {
 	value int
 }
@@ -143,7 +142,6 @@ func (m *multiMethodObject) SetValue(v int) {
 	m.value = v
 }
 
-// resultProvider implements the result interface literal.
 type resultProvider struct {
 	result string
 }
@@ -152,7 +150,6 @@ func (r *resultProvider) Result() string {
 	return r.result
 }
 
-// simpleGetter implements the single-method interface literal.
 type simpleGetter struct {
 	value string
 }
@@ -161,7 +158,6 @@ func (g *simpleGetter) Get() string {
 	return g.value
 }
 
-// simpleValidator implements the validation interface literal.
 type simpleValidator struct {
 	shouldFail bool
 }

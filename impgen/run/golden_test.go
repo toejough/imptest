@@ -72,13 +72,11 @@ var (
 	packageCacheMu sync.RWMutex
 )
 
-// cachedPackage holds parsed package data.
 type cachedPackage struct {
 	files []*dst.File
 	fset  *token.FileSet
 }
 
-// realCacheFS implements cache.FileSystem for production use in tests.
 type realCacheFS struct{}
 
 func (realCacheFS) Create(path string) (io.WriteCloser, error) {
@@ -95,7 +93,6 @@ func (realCacheFS) Open(path string) (io.ReadCloser, error) {
 
 func (realCacheFS) Stat(path string) (os.FileInfo, error) { return os.Stat(path) }
 
-// testPackageLoader implements PackageLoader using direct DST parsing.
 type testPackageLoader struct {
 	ProjectRoot string
 	ScenarioDir string

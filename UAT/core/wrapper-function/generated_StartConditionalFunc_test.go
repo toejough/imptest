@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartConditionalFuncCallHandle represents a single call to the wrapped function.
 type StartConditionalFuncCallHandle struct {
 	*_imptest.CallableController[StartConditionalFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartConditionalFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartConditionalFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartConditionalFuncCallHandleEventually struct {
 	h *StartConditionalFuncCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartConditionalFuncCallHandleEventually) ensureStarted() *_imptest.Pen
 	return e.h.pendingCompletion
 }
 
-// StartConditionalFuncReturnsReturn holds the return values from the wrapped function.
 type StartConditionalFuncReturnsReturn struct {
 	Result0 int
 }

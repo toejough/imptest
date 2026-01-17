@@ -8,24 +8,20 @@ import (
 	helpers "github.com/toejough/imptest/UAT/variations/package/dot-imports/helpers"
 )
 
-// ProcessorImp holds method wrappers for setting expectations on Processor.
 type ProcessorImp struct {
 	Process *ProcessorMockProcessMethod
 	// Eventually provides async versions of all methods for concurrent code.
 	Eventually *ProcessorImpEventually
 }
 
-// ProcessorImpEventually holds async method wrappers for Processor.
 type ProcessorImpEventually struct {
 	Process *ProcessorMockProcessMethod
 }
 
-// ProcessorMockProcessArgs holds typed arguments for Process.
 type ProcessorMockProcessArgs struct {
 	Input string
 }
 
-// ProcessorMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ProcessorMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -43,7 +39,6 @@ func (c *ProcessorMockProcessCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// ProcessorMockProcessMethod wraps DependencyMethod with typed returns.
 type ProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -73,7 +68,6 @@ func MockProcessor(t _imptest.TestReporter) (helpers.Processor, *ProcessorImp) {
 	return mock, imp
 }
 
-// mockProcessorImpl implements helpers.Processor.
 type mockProcessorImpl struct {
 	ctrl *_imptest.Imp
 }

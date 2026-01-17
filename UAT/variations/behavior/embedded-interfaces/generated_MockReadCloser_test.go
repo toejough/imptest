@@ -8,7 +8,6 @@ import (
 	embedded "github.com/toejough/imptest/UAT/variations/behavior/embedded-interfaces"
 )
 
-// ReadCloserImp holds method wrappers for setting expectations on ReadCloser.
 type ReadCloserImp struct {
 	Read  *ReadCloserMockReadMethod
 	Close *_imptest.DependencyMethod
@@ -16,13 +15,11 @@ type ReadCloserImp struct {
 	Eventually *ReadCloserImpEventually
 }
 
-// ReadCloserImpEventually holds async method wrappers for ReadCloser.
 type ReadCloserImpEventually struct {
 	Read  *ReadCloserMockReadMethod
 	Close *_imptest.DependencyMethod
 }
 
-// ReadCloserMockCloseCall wraps DependencyCall with typed GetArgs and Return.
 type ReadCloserMockCloseCall struct {
 	*_imptest.DependencyCall
 }
@@ -32,12 +29,10 @@ func (c *ReadCloserMockCloseCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// ReadCloserMockReadArgs holds typed arguments for Read.
 type ReadCloserMockReadArgs struct {
 	P []byte
 }
 
-// ReadCloserMockReadCall wraps DependencyCall with typed GetArgs and Return.
 type ReadCloserMockReadCall struct {
 	*_imptest.DependencyCall
 }
@@ -55,7 +50,6 @@ func (c *ReadCloserMockReadCall) Return(result0 int, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// ReadCloserMockReadMethod wraps DependencyMethod with typed returns.
 type ReadCloserMockReadMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -87,7 +81,6 @@ func MockReadCloser(t _imptest.TestReporter) (embedded.ReadCloser, *ReadCloserIm
 	return mock, imp
 }
 
-// mockReadCloserImpl implements embedded.ReadCloser.
 type mockReadCloserImpl struct {
 	ctrl *_imptest.Imp
 }

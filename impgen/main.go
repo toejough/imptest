@@ -34,7 +34,6 @@ func main() {
 	}
 }
 
-// realFileSystem implements FileSystem using os package.
 type realFileSystem struct{}
 
 // Glob returns the names of all files matching pattern.
@@ -73,7 +72,6 @@ func (fs *realFileSystem) WriteFile(name string, data []byte, perm os.FileMode) 
 	return nil
 }
 
-// realPackageLoader implements PackageLoader using direct DST parsing.
 type realPackageLoader struct{}
 
 // Load loads a package by import path and returns its DST files and FileSet.

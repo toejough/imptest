@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
+	"github.com/toejough/imptest/match"
 )
 
 // Generate a mock for the dependency using v2 API.
@@ -125,7 +125,11 @@ func TestCalculatorProcessValuePanic(
 	calc := callable.NewCalculator(5)
 
 	// Test that negative values cause a panic using v2 API
-	StartCalculatorProcessValue(t, calc.ProcessValue, -1).PanicEquals("negative values not supported")
+	StartCalculatorProcessValue(
+		t,
+		calc.ProcessValue,
+		-1,
+	).PanicEquals("negative values not supported")
 }
 
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.

@@ -29,7 +29,6 @@ import (
 	"github.com/toejough/testredundancy"
 )
 
-// Coverage displays the coverage report.
 type Coverage struct {
 	HTML bool `targ:"flag,desc=Open HTML report in browser"`
 }

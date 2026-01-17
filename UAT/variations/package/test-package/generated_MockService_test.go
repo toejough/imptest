@@ -8,7 +8,6 @@ import (
 	testpkgimport "github.com/toejough/imptest/UAT/variations/package/test-package"
 )
 
-// ServiceImp holds method wrappers for setting expectations on Service.
 type ServiceImp struct {
 	Execute  *ServiceMockExecuteMethod
 	Validate *ServiceMockValidateMethod
@@ -16,18 +15,15 @@ type ServiceImp struct {
 	Eventually *ServiceImpEventually
 }
 
-// ServiceImpEventually holds async method wrappers for Service.
 type ServiceImpEventually struct {
 	Execute  *ServiceMockExecuteMethod
 	Validate *ServiceMockValidateMethod
 }
 
-// ServiceMockExecuteArgs holds typed arguments for Execute.
 type ServiceMockExecuteArgs struct {
 	Input string
 }
 
-// ServiceMockExecuteCall wraps DependencyCall with typed GetArgs and Return.
 type ServiceMockExecuteCall struct {
 	*_imptest.DependencyCall
 }
@@ -45,7 +41,6 @@ func (c *ServiceMockExecuteCall) Return(result0 string, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// ServiceMockExecuteMethod wraps DependencyMethod with typed returns.
 type ServiceMockExecuteMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -62,12 +57,10 @@ func (m *ServiceMockExecuteMethod) ArgsShould(matchers ...any) *ServiceMockExecu
 	return &ServiceMockExecuteCall{DependencyCall: call}
 }
 
-// ServiceMockValidateArgs holds typed arguments for Validate.
 type ServiceMockValidateArgs struct {
 	Input string
 }
 
-// ServiceMockValidateCall wraps DependencyCall with typed GetArgs and Return.
 type ServiceMockValidateCall struct {
 	*_imptest.DependencyCall
 }
@@ -85,7 +78,6 @@ func (c *ServiceMockValidateCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// ServiceMockValidateMethod wraps DependencyMethod with typed returns.
 type ServiceMockValidateMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -117,7 +109,6 @@ func MockService(t _imptest.TestReporter) (testpkgimport.Service, *ServiceImp) {
 	return mock, imp
 }
 
-// mockServiceImpl implements testpkgimport.Service.
 type mockServiceImpl struct {
 	ctrl *_imptest.Imp
 }

@@ -2,12 +2,10 @@
 // and using matchers for partial field validation.
 package matching
 
-// ComplexService is an interface taking a complex struct.
 type ComplexService interface {
 	Process(d Data) bool
 }
 
-// Data is a complex struct where we might only care about matching some fields.
 type Data struct {
 	ID        int
 	Payload   string

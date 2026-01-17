@@ -7,7 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// StartPanicFuncCallHandle represents a single call to the wrapped function.
 type StartPanicFuncCallHandle struct {
 	*_imptest.CallableController[StartPanicFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -58,7 +57,6 @@ func (h *StartPanicFuncCallHandle) PanicShould(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// StartPanicFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartPanicFuncCallHandleEventually struct {
 	h *StartPanicFuncCallHandle
 }
@@ -84,7 +82,6 @@ func (e *StartPanicFuncCallHandleEventually) ensureStarted() *_imptest.PendingCo
 	return e.h.pendingCompletion
 }
 
-// StartPanicFuncReturnsReturn holds the return values from the wrapped function.
 type StartPanicFuncReturnsReturn struct {
 }
 

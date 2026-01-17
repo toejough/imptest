@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartMultiplyFuncCallHandle represents a single call to the wrapped function.
 type StartMultiplyFuncCallHandle struct {
 	*_imptest.CallableController[StartMultiplyFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartMultiplyFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartMultiplyFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartMultiplyFuncCallHandleEventually struct {
 	h *StartMultiplyFuncCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartMultiplyFuncCallHandleEventually) ensureStarted() *_imptest.Pendin
 	return e.h.pendingCompletion
 }
 
-// StartMultiplyFuncReturnsReturn holds the return values from the wrapped function.
 type StartMultiplyFuncReturnsReturn struct {
 	Result0 int
 }

@@ -8,7 +8,6 @@ import (
 	channels "github.com/toejough/imptest/UAT/variations/signature/channels"
 )
 
-// ChannelHandlerImp holds method wrappers for setting expectations on ChannelHandler.
 type ChannelHandlerImp struct {
 	SendOnly      *ChannelHandlerMockSendOnlyMethod
 	ReceiveOnly   *ChannelHandlerMockReceiveOnlyMethod
@@ -18,7 +17,6 @@ type ChannelHandlerImp struct {
 	Eventually *ChannelHandlerImpEventually
 }
 
-// ChannelHandlerImpEventually holds async method wrappers for ChannelHandler.
 type ChannelHandlerImpEventually struct {
 	SendOnly      *ChannelHandlerMockSendOnlyMethod
 	ReceiveOnly   *ChannelHandlerMockReceiveOnlyMethod
@@ -26,12 +24,10 @@ type ChannelHandlerImpEventually struct {
 	ReturnChannel *_imptest.DependencyMethod
 }
 
-// ChannelHandlerMockBidirectionalArgs holds typed arguments for Bidirectional.
 type ChannelHandlerMockBidirectionalArgs struct {
 	Ch chan bool
 }
 
-// ChannelHandlerMockBidirectionalCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockBidirectionalCall struct {
 	*_imptest.DependencyCall
 }
@@ -49,7 +45,6 @@ func (c *ChannelHandlerMockBidirectionalCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// ChannelHandlerMockBidirectionalMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockBidirectionalMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -66,12 +61,10 @@ func (m *ChannelHandlerMockBidirectionalMethod) ArgsShould(matchers ...any) *Cha
 	return &ChannelHandlerMockBidirectionalCall{DependencyCall: call}
 }
 
-// ChannelHandlerMockReceiveOnlyArgs holds typed arguments for ReceiveOnly.
 type ChannelHandlerMockReceiveOnlyArgs struct {
 	Ch <-chan string
 }
 
-// ChannelHandlerMockReceiveOnlyCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockReceiveOnlyCall struct {
 	*_imptest.DependencyCall
 }
@@ -89,7 +82,6 @@ func (c *ChannelHandlerMockReceiveOnlyCall) Return(result0 string, result1 error
 	c.DependencyCall.Return(result0, result1)
 }
 
-// ChannelHandlerMockReceiveOnlyMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockReceiveOnlyMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -106,7 +98,6 @@ func (m *ChannelHandlerMockReceiveOnlyMethod) ArgsShould(matchers ...any) *Chann
 	return &ChannelHandlerMockReceiveOnlyCall{DependencyCall: call}
 }
 
-// ChannelHandlerMockReturnChannelCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockReturnChannelCall struct {
 	*_imptest.DependencyCall
 }
@@ -116,12 +107,10 @@ func (c *ChannelHandlerMockReturnChannelCall) Return(result0 <-chan int) {
 	c.DependencyCall.Return(result0)
 }
 
-// ChannelHandlerMockSendOnlyArgs holds typed arguments for SendOnly.
 type ChannelHandlerMockSendOnlyArgs struct {
 	Ch chan<- int
 }
 
-// ChannelHandlerMockSendOnlyCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockSendOnlyCall struct {
 	*_imptest.DependencyCall
 }
@@ -139,7 +128,6 @@ func (c *ChannelHandlerMockSendOnlyCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// ChannelHandlerMockSendOnlyMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockSendOnlyMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -175,7 +163,6 @@ func MockChannelHandler(t _imptest.TestReporter) (channels.ChannelHandler, *Chan
 	return mock, imp
 }
 
-// mockChannelHandlerImpl implements channels.ChannelHandler.
 type mockChannelHandlerImpl struct {
 	ctrl *_imptest.Imp
 }

@@ -9,7 +9,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartCountFilesCallHandle represents a single call to the wrapped function.
 type StartCountFilesCallHandle struct {
 	*_imptest.CallableController[StartCountFilesReturnsReturn]
 	controller        *_imptest.TargetController
@@ -90,7 +89,6 @@ func (h *StartCountFilesCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartCountFilesCallHandleEventually wraps a call handle for async expectation registration.
 type StartCountFilesCallHandleEventually struct {
 	h *StartCountFilesCallHandle
 }
@@ -116,7 +114,6 @@ func (e *StartCountFilesCallHandleEventually) ensureStarted() *_imptest.PendingC
 	return e.h.pendingCompletion
 }
 
-// StartCountFilesReturnsReturn holds the return values from the wrapped function.
 type StartCountFilesReturnsReturn struct {
 	Result0 int
 	Result1 error

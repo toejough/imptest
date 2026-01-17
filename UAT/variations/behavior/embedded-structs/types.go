@@ -3,7 +3,6 @@ package embeddedstructs
 
 import "fmt"
 
-// Counter is another base struct with counting methods.
 type Counter struct {
 	count int
 }
@@ -19,7 +18,6 @@ func (c *Counter) Value() int {
 	return c.count
 }
 
-// Logger is a base struct with logging methods.
 type Logger struct {
 	prefix string
 }
@@ -34,8 +32,6 @@ func (l *Logger) SetPrefix(prefix string) {
 	l.prefix = prefix
 }
 
-// TimedLogger embeds Logger and Counter, adding its own method.
-// This demonstrates struct embedding with promoted methods.
 type TimedLogger struct {
 	Logger  // Embedded - Log and SetPrefix are promoted
 	Counter // Embedded - Inc and Value are promoted

@@ -8,7 +8,6 @@ import (
 	core "github.com/toejough/imptest/internal/core"
 )
 
-// TestReporterImp holds method wrappers for setting expectations on TestReporter.
 type TestReporterImp struct {
 	Helper *_imptest.DependencyMethod
 	Fatalf *TestReporterMockFatalfMethod
@@ -16,19 +15,16 @@ type TestReporterImp struct {
 	Eventually *TestReporterImpEventually
 }
 
-// TestReporterImpEventually holds async method wrappers for TestReporter.
 type TestReporterImpEventually struct {
 	Helper *_imptest.DependencyMethod
 	Fatalf *TestReporterMockFatalfMethod
 }
 
-// TestReporterMockFatalfArgs holds typed arguments for Fatalf.
 type TestReporterMockFatalfArgs struct {
 	Format string
 	Args   []any
 }
 
-// TestReporterMockFatalfCall wraps DependencyCall with typed GetArgs.
 type TestReporterMockFatalfCall struct {
 	*_imptest.DependencyCall
 }
@@ -42,7 +38,6 @@ func (c *TestReporterMockFatalfCall) GetArgs() TestReporterMockFatalfArgs {
 	}
 }
 
-// TestReporterMockFatalfMethod wraps DependencyMethod with typed returns.
 type TestReporterMockFatalfMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -78,7 +73,6 @@ func MockTestReporter(t _imptest.TestReporter) (core.TestReporter, *TestReporter
 	return mock, imp
 }
 
-// mockTestReporterImpl implements core.TestReporter.
 type mockTestReporterImpl struct {
 	ctrl *_imptest.Imp
 }

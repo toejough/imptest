@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-// StartCalculatorWrapperAddCallHandle represents a single call to the wrapped method.
 type StartCalculatorWrapperAddCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperAddReturns]
 }
@@ -116,7 +115,6 @@ func (w *StartCalculatorWrapperAddWrapper) Start(a int, b int) *StartCalculatorW
 	return handle
 }
 
-// StartCalculatorWrapperDivideCallHandle represents a single call to the wrapped method.
 type StartCalculatorWrapperDivideCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperDivideReturns]
 }
@@ -230,7 +228,6 @@ func (w *StartCalculatorWrapperDivideWrapper) Start(numerator int, denominator i
 	return handle
 }
 
-// StartCalculatorWrapperHandle wraps an implementation of handlers.Calculator to intercept method calls.
 type StartCalculatorWrapperHandle struct {
 	Add          *StartCalculatorWrapperAddWrapper
 	Divide       *StartCalculatorWrapperDivideWrapper
@@ -239,7 +236,6 @@ type StartCalculatorWrapperHandle struct {
 	impl         handlers.Calculator
 }
 
-// StartCalculatorWrapperMultiplyCallHandle represents a single call to the wrapped method.
 type StartCalculatorWrapperMultiplyCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperMultiplyReturns]
 }
@@ -345,7 +341,6 @@ func (w *StartCalculatorWrapperMultiplyWrapper) Start(value int) *StartCalculato
 	return handle
 }
 
-// StartCalculatorWrapperProcessValueCallHandle represents a single call to the wrapped method.
 type StartCalculatorWrapperProcessValueCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperProcessValueReturns]
 }

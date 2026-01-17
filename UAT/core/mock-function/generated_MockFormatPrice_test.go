@@ -7,13 +7,11 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// FormatPriceMockArgs holds typed arguments for FormatPrice.
 type FormatPriceMockArgs struct {
 	Amount   float64
 	Currency string
 }
 
-// FormatPriceMockCall wraps DependencyCall with typed GetArgs and Return.
 type FormatPriceMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -32,7 +30,6 @@ func (c *FormatPriceMockCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// FormatPriceMockMethod wraps DependencyMethod with typed returns.
 type FormatPriceMockMethod struct {
 	*_imptest.DependencyMethod
 	// Eventually provides async version of this function for concurrent code.

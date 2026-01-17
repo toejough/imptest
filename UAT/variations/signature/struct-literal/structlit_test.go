@@ -6,8 +6,8 @@ package structlit_test
 import (
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	structlit "github.com/toejough/imptest/UAT/variations/signature/struct-literal"
+	"github.com/toejough/imptest/match"
 )
 
 // TestDependencyWithMultiFieldStructLiteral tests mocking with multi-field struct literal parameter.

@@ -9,7 +9,6 @@ import (
 	fs "io/fs"
 )
 
-// TreeWalkerImp holds method wrappers for setting expectations on TreeWalker.
 type TreeWalkerImp struct {
 	Walk              *TreeWalkerMockWalkMethod
 	WalkWithNamedType *TreeWalkerMockWalkWithNamedTypeMethod
@@ -17,19 +16,16 @@ type TreeWalkerImp struct {
 	Eventually *TreeWalkerImpEventually
 }
 
-// TreeWalkerImpEventually holds async method wrappers for TreeWalker.
 type TreeWalkerImpEventually struct {
 	Walk              *TreeWalkerMockWalkMethod
 	WalkWithNamedType *TreeWalkerMockWalkWithNamedTypeMethod
 }
 
-// TreeWalkerMockWalkArgs holds typed arguments for Walk.
 type TreeWalkerMockWalkArgs struct {
 	Root string
 	Fn   func(string, fs.DirEntry, error) error
 }
 
-// TreeWalkerMockWalkCall wraps DependencyCall with typed GetArgs and Return.
 type TreeWalkerMockWalkCall struct {
 	*_imptest.DependencyCall
 }
@@ -48,7 +44,6 @@ func (c *TreeWalkerMockWalkCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// TreeWalkerMockWalkMethod wraps DependencyMethod with typed returns.
 type TreeWalkerMockWalkMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -65,13 +60,11 @@ func (m *TreeWalkerMockWalkMethod) ArgsShould(matchers ...any) *TreeWalkerMockWa
 	return &TreeWalkerMockWalkCall{DependencyCall: call}
 }
 
-// TreeWalkerMockWalkWithNamedTypeArgs holds typed arguments for WalkWithNamedType.
 type TreeWalkerMockWalkWithNamedTypeArgs struct {
 	Root string
 	Fn   visitor.WalkFunc
 }
 
-// TreeWalkerMockWalkWithNamedTypeCall wraps DependencyCall with typed GetArgs and Return.
 type TreeWalkerMockWalkWithNamedTypeCall struct {
 	*_imptest.DependencyCall
 }
@@ -90,7 +83,6 @@ func (c *TreeWalkerMockWalkWithNamedTypeCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// TreeWalkerMockWalkWithNamedTypeMethod wraps DependencyMethod with typed returns.
 type TreeWalkerMockWalkWithNamedTypeMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -122,7 +114,6 @@ func MockTreeWalker(t _imptest.TestReporter) (visitor.TreeWalker, *TreeWalkerImp
 	return mock, imp
 }
 
-// mockTreeWalkerImpl implements visitor.TreeWalker.
 type mockTreeWalkerImpl struct {
 	ctrl *_imptest.Imp
 }

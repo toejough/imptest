@@ -10,7 +10,6 @@ var (
 	ErrProcessFailed = errors.New("process failed")
 )
 
-// ConfigManager demonstrates a struct with methods using struct literal returns.
 type ConfigManager struct{}
 
 // Load returns a struct literal containing configuration data.
@@ -32,9 +31,6 @@ func (c ConfigManager) Load(_ string) struct {
 	}
 }
 
-// DataProcessor demonstrates an interface with struct literal parameters and returns.
-// Struct literals are anonymous struct types defined inline, commonly used for
-// configuration options and API responses where a full named type is overkill.
 type DataProcessor interface {
 	// Process accepts a struct literal parameter with single field.
 	// Single-field struct literals are common for simple configuration options.

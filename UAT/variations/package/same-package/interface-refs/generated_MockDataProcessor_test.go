@@ -8,7 +8,6 @@ import (
 	samepackage "github.com/toejough/imptest/UAT/variations/package/same-package/interface-refs"
 )
 
-// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
 type DataProcessorImp struct {
 	Process   *DataProcessorMockProcessMethod
 	Transform *DataProcessorMockTransformMethod
@@ -17,20 +16,17 @@ type DataProcessorImp struct {
 	Eventually *DataProcessorImpEventually
 }
 
-// DataProcessorImpEventually holds async method wrappers for DataProcessor.
 type DataProcessorImpEventually struct {
 	Process   *DataProcessorMockProcessMethod
 	Transform *DataProcessorMockTransformMethod
 	Validate  *DataProcessorMockValidateMethod
 }
 
-// DataProcessorMockProcessArgs holds typed arguments for Process.
 type DataProcessorMockProcessArgs struct {
 	Source samepackage.DataSource
 	Sink   samepackage.DataSink
 }
 
-// DataProcessorMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -49,7 +45,6 @@ func (c *DataProcessorMockProcessCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockProcessMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -66,12 +61,10 @@ func (m *DataProcessorMockProcessMethod) ArgsShould(matchers ...any) *DataProces
 	return &DataProcessorMockProcessCall{DependencyCall: call}
 }
 
-// DataProcessorMockTransformArgs holds typed arguments for Transform.
 type DataProcessorMockTransformArgs struct {
 	Input samepackage.DataSource
 }
 
-// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockTransformCall struct {
 	*_imptest.DependencyCall
 }
@@ -89,7 +82,6 @@ func (c *DataProcessorMockTransformCall) Return(result0 samepackage.DataSource, 
 	c.DependencyCall.Return(result0, result1)
 }
 
-// DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockTransformMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -106,12 +98,10 @@ func (m *DataProcessorMockTransformMethod) ArgsShould(matchers ...any) *DataProc
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
-// DataProcessorMockValidateArgs holds typed arguments for Validate.
 type DataProcessorMockValidateArgs struct {
 	Sink samepackage.DataSink
 }
 
-// DataProcessorMockValidateCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockValidateCall struct {
 	*_imptest.DependencyCall
 }
@@ -129,7 +119,6 @@ func (c *DataProcessorMockValidateCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockValidateMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockValidateMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -163,7 +152,6 @@ func MockDataProcessor(t _imptest.TestReporter) (samepackage.DataProcessor, *Dat
 	return mock, imp
 }
 
-// mockDataProcessorImpl implements samepackage.DataProcessor.
 type mockDataProcessorImpl struct {
 	ctrl *_imptest.Imp
 }

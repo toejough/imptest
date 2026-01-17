@@ -105,7 +105,6 @@ func BenchmarkInterfaceGeneration(b *testing.B) {
 	}
 }
 
-// discardFileSystem implements run.FileSystem, discarding all writes.
 type discardFileSystem struct{}
 
 func (d *discardFileSystem) Glob(_ string) ([]string, error) {

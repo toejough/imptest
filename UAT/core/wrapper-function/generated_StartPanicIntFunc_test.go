@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartPanicIntFuncCallHandle represents a single call to the wrapped function.
 type StartPanicIntFuncCallHandle struct {
 	*_imptest.CallableController[StartPanicIntFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartPanicIntFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartPanicIntFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartPanicIntFuncCallHandleEventually struct {
 	h *StartPanicIntFuncCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartPanicIntFuncCallHandleEventually) ensureStarted() *_imptest.Pendin
 	return e.h.pendingCompletion
 }
 
-// StartPanicIntFuncReturnsReturn holds the return values from the wrapped function.
 type StartPanicIntFuncReturnsReturn struct {
 	Result0 int
 }

@@ -8,7 +8,6 @@ import (
 	storage "github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage"
 )
 
-// RepositoryImp holds method wrappers for setting expectations on Repository.
 type RepositoryImp struct {
 	Save   *RepositoryMockSaveMethod
 	Load   *RepositoryMockLoadMethod
@@ -17,19 +16,16 @@ type RepositoryImp struct {
 	Eventually *RepositoryImpEventually
 }
 
-// RepositoryImpEventually holds async method wrappers for Repository.
 type RepositoryImpEventually struct {
 	Save   *RepositoryMockSaveMethod
 	Load   *RepositoryMockLoadMethod
 	Delete *RepositoryMockDeleteMethod
 }
 
-// RepositoryMockDeleteArgs holds typed arguments for Delete.
 type RepositoryMockDeleteArgs struct {
 	Key string
 }
 
-// RepositoryMockDeleteCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockDeleteCall struct {
 	*_imptest.DependencyCall
 }
@@ -47,7 +43,6 @@ func (c *RepositoryMockDeleteCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// RepositoryMockDeleteMethod wraps DependencyMethod with typed returns.
 type RepositoryMockDeleteMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -64,12 +59,10 @@ func (m *RepositoryMockDeleteMethod) ArgsShould(matchers ...any) *RepositoryMock
 	return &RepositoryMockDeleteCall{DependencyCall: call}
 }
 
-// RepositoryMockLoadArgs holds typed arguments for Load.
 type RepositoryMockLoadArgs struct {
 	Key string
 }
 
-// RepositoryMockLoadCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockLoadCall struct {
 	*_imptest.DependencyCall
 }
@@ -87,7 +80,6 @@ func (c *RepositoryMockLoadCall) Return(result0 []byte, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// RepositoryMockLoadMethod wraps DependencyMethod with typed returns.
 type RepositoryMockLoadMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -104,13 +96,11 @@ func (m *RepositoryMockLoadMethod) ArgsShould(matchers ...any) *RepositoryMockLo
 	return &RepositoryMockLoadCall{DependencyCall: call}
 }
 
-// RepositoryMockSaveArgs holds typed arguments for Save.
 type RepositoryMockSaveArgs struct {
 	Key  string
 	Data []byte
 }
 
-// RepositoryMockSaveCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockSaveCall struct {
 	*_imptest.DependencyCall
 }
@@ -129,7 +119,6 @@ func (c *RepositoryMockSaveCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// RepositoryMockSaveMethod wraps DependencyMethod with typed returns.
 type RepositoryMockSaveMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -163,7 +152,6 @@ func MockRepository(t _imptest.TestReporter) (storage.Repository, *RepositoryImp
 	return mock, imp
 }
 
-// mockRepositoryImpl implements storage.Repository.
 type mockRepositoryImpl struct {
 	ctrl *_imptest.Imp
 }

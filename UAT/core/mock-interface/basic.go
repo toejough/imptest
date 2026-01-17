@@ -1,8 +1,6 @@
 // Package basic demonstrates the core mocking features of imptest.
 package basic
 
-// Ops demonstrates the core mocking features of imptest.
-// It covers single and multiple return values, void methods, and variadic arguments.
 type Ops interface {
 	// Add demonstrates a simple method with parameters and a single return value.
 	Add(a, b int) int

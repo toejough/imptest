@@ -8,7 +8,6 @@ import (
 	noncomparable "github.com/toejough/imptest/UAT/variations/signature/non-comparable"
 )
 
-// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
 type DataProcessorImp struct {
 	ProcessSlice *DataProcessorMockProcessSliceMethod
 	ProcessMap   *DataProcessorMockProcessMapMethod
@@ -16,18 +15,15 @@ type DataProcessorImp struct {
 	Eventually *DataProcessorImpEventually
 }
 
-// DataProcessorImpEventually holds async method wrappers for DataProcessor.
 type DataProcessorImpEventually struct {
 	ProcessSlice *DataProcessorMockProcessSliceMethod
 	ProcessMap   *DataProcessorMockProcessMapMethod
 }
 
-// DataProcessorMockProcessMapArgs holds typed arguments for ProcessMap.
 type DataProcessorMockProcessMapArgs struct {
 	Config map[string]int
 }
 
-// DataProcessorMockProcessMapCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessMapCall struct {
 	*_imptest.DependencyCall
 }
@@ -45,7 +41,6 @@ func (c *DataProcessorMockProcessMapCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockProcessMapMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessMapMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -62,12 +57,10 @@ func (m *DataProcessorMockProcessMapMethod) ArgsShould(matchers ...any) *DataPro
 	return &DataProcessorMockProcessMapCall{DependencyCall: call}
 }
 
-// DataProcessorMockProcessSliceArgs holds typed arguments for ProcessSlice.
 type DataProcessorMockProcessSliceArgs struct {
 	Data []string
 }
 
-// DataProcessorMockProcessSliceCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessSliceCall struct {
 	*_imptest.DependencyCall
 }
@@ -85,7 +78,6 @@ func (c *DataProcessorMockProcessSliceCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockProcessSliceMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessSliceMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -117,7 +109,6 @@ func MockDataProcessor(t _imptest.TestReporter) (noncomparable.DataProcessor, *D
 	return mock, imp
 }
 
-// mockDataProcessorImpl implements noncomparable.DataProcessor.
 type mockDataProcessorImpl struct {
 	ctrl *_imptest.Imp
 }

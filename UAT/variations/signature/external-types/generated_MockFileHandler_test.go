@@ -10,7 +10,6 @@ import (
 	os "os"
 )
 
-// FileHandlerImp holds method wrappers for setting expectations on FileHandler.
 type FileHandlerImp struct {
 	ReadAll  *FileHandlerMockReadAllMethod
 	OpenFile *FileHandlerMockOpenFileMethod
@@ -19,20 +18,17 @@ type FileHandlerImp struct {
 	Eventually *FileHandlerImpEventually
 }
 
-// FileHandlerImpEventually holds async method wrappers for FileHandler.
 type FileHandlerImpEventually struct {
 	ReadAll  *FileHandlerMockReadAllMethod
 	OpenFile *FileHandlerMockOpenFileMethod
 	Stats    *FileHandlerMockStatsMethod
 }
 
-// FileHandlerMockOpenFileArgs holds typed arguments for OpenFile.
 type FileHandlerMockOpenFileArgs struct {
 	Path string
 	Mode os.FileMode
 }
 
-// FileHandlerMockOpenFileCall wraps DependencyCall with typed GetArgs and Return.
 type FileHandlerMockOpenFileCall struct {
 	*_imptest.DependencyCall
 }
@@ -51,7 +47,6 @@ func (c *FileHandlerMockOpenFileCall) Return(result0 *os.File, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// FileHandlerMockOpenFileMethod wraps DependencyMethod with typed returns.
 type FileHandlerMockOpenFileMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -68,12 +63,10 @@ func (m *FileHandlerMockOpenFileMethod) ArgsShould(matchers ...any) *FileHandler
 	return &FileHandlerMockOpenFileCall{DependencyCall: call}
 }
 
-// FileHandlerMockReadAllArgs holds typed arguments for ReadAll.
 type FileHandlerMockReadAllArgs struct {
 	R io.Reader
 }
 
-// FileHandlerMockReadAllCall wraps DependencyCall with typed GetArgs and Return.
 type FileHandlerMockReadAllCall struct {
 	*_imptest.DependencyCall
 }
@@ -91,7 +84,6 @@ func (c *FileHandlerMockReadAllCall) Return(result0 []byte, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// FileHandlerMockReadAllMethod wraps DependencyMethod with typed returns.
 type FileHandlerMockReadAllMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -108,12 +100,10 @@ func (m *FileHandlerMockReadAllMethod) ArgsShould(matchers ...any) *FileHandlerM
 	return &FileHandlerMockReadAllCall{DependencyCall: call}
 }
 
-// FileHandlerMockStatsArgs holds typed arguments for Stats.
 type FileHandlerMockStatsArgs struct {
 	Path string
 }
 
-// FileHandlerMockStatsCall wraps DependencyCall with typed GetArgs and Return.
 type FileHandlerMockStatsCall struct {
 	*_imptest.DependencyCall
 }
@@ -131,7 +121,6 @@ func (c *FileHandlerMockStatsCall) Return(result0 os.FileInfo, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// FileHandlerMockStatsMethod wraps DependencyMethod with typed returns.
 type FileHandlerMockStatsMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -165,7 +154,6 @@ func MockFileHandler(t _imptest.TestReporter) (externalimports.FileHandler, *Fil
 	return mock, imp
 }
 
-// mockFileHandlerImpl implements externalimports.FileHandler.
 type mockFileHandlerImpl struct {
 	ctrl *_imptest.Imp
 }

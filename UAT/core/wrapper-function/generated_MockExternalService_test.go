@@ -8,7 +8,6 @@ import (
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
 )
 
-// ExternalServiceImp holds method wrappers for setting expectations on ExternalService.
 type ExternalServiceImp struct {
 	FetchData *ExternalServiceMockFetchDataMethod
 	Process   *ExternalServiceMockProcessMethod
@@ -16,18 +15,15 @@ type ExternalServiceImp struct {
 	Eventually *ExternalServiceImpEventually
 }
 
-// ExternalServiceImpEventually holds async method wrappers for ExternalService.
 type ExternalServiceImpEventually struct {
 	FetchData *ExternalServiceMockFetchDataMethod
 	Process   *ExternalServiceMockProcessMethod
 }
 
-// ExternalServiceMockFetchDataArgs holds typed arguments for FetchData.
 type ExternalServiceMockFetchDataArgs struct {
 	Id int
 }
 
-// ExternalServiceMockFetchDataCall wraps DependencyCall with typed GetArgs and Return.
 type ExternalServiceMockFetchDataCall struct {
 	*_imptest.DependencyCall
 }
@@ -45,7 +41,6 @@ func (c *ExternalServiceMockFetchDataCall) Return(result0 string, result1 error)
 	c.DependencyCall.Return(result0, result1)
 }
 
-// ExternalServiceMockFetchDataMethod wraps DependencyMethod with typed returns.
 type ExternalServiceMockFetchDataMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -62,12 +57,10 @@ func (m *ExternalServiceMockFetchDataMethod) ArgsShould(matchers ...any) *Extern
 	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
 }
 
-// ExternalServiceMockProcessArgs holds typed arguments for Process.
 type ExternalServiceMockProcessArgs struct {
 	Data string
 }
 
-// ExternalServiceMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ExternalServiceMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -85,7 +78,6 @@ func (c *ExternalServiceMockProcessCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// ExternalServiceMockProcessMethod wraps DependencyMethod with typed returns.
 type ExternalServiceMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -117,7 +109,6 @@ func MockExternalService(t _imptest.TestReporter) (callable.ExternalService, *Ex
 	return mock, imp
 }
 
-// mockExternalServiceImpl implements callable.ExternalService.
 type mockExternalServiceImpl struct {
 	ctrl *_imptest.Imp
 }

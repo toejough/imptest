@@ -15,7 +15,6 @@ import (
 	detect "github.com/toejough/imptest/impgen/run/3_detect"
 )
 
-// NamingMode represents the different modes for generating type names.
 type NamingMode int
 
 // NamingMode values.
@@ -30,7 +29,6 @@ var (
 	ErrNotPackageReference = errors.New("not a package reference")
 )
 
-// GeneratorInfo holds information gathered for generation.
 type GeneratorInfo struct {
 	PkgName            string
 	InterfaceName      string
@@ -41,7 +39,6 @@ type GeneratorInfo struct {
 	NameProvided       bool // true if --name was explicitly provided
 }
 
-// ResultData contains all result-related template data.
 type ResultData struct {
 	Vars           string        // "r0, r1" or "ret0, ret1"
 	Assignments    string        // "Result0: r0, Result1: r1"
@@ -54,8 +51,6 @@ type ResultData struct {
 	WaitMethodName string // "WaitForCompletion" or "WaitForResponse"
 }
 
-// ResultDataBuilder builds result-related template data from result types.
-// This consolidates the duplicated result building logic across generators.
 type ResultDataBuilder struct {
 	ResultTypes []string
 	VarPrefix   string // e.g., "r", "ret", "result"
@@ -173,7 +168,6 @@ const (
 	pkgTime       = "_time"
 )
 
-// baseGenerator holds common state and methods for code generation.
 type baseGenerator struct {
 	codeWriter
 	typeFormatter
@@ -353,8 +347,6 @@ func (baseGen *baseGenerator) isTypeParameter(name string) bool {
 	return false
 }
 
-// codeWriter provides common buffer writing functionality for code generators.
-// ... (omitting some lines for brevity, but I must match exactly).
 type codeWriter struct {
 	buf bytes.Buffer
 }
@@ -364,18 +356,12 @@ func (w *codeWriter) bytes() []byte {
 	return w.buf.Bytes()
 }
 
-// pf writes a formatted string to the buffer.
-
-// fieldInfo represents extracted information about a single field entry.
 type fieldInfo struct {
 	Name  string     // The name (explicit or generated)
 	Index int        // The overall index across all fields
 	Field *dst.Field // The original AST field (use Field.Type with typeWithQualifier)
 }
 
-// typeExprWalker traverses AST type expressions with a generic return type.
-// It provides a unified way to walk type expressions, handling all AST node types
-// while allowing custom logic for leaf nodes (Ident, SelectorExpr) and result combining.
 type typeExprWalker[T any] struct {
 	visitIdent    func(*dst.Ident) T
 	visitSelector func(*dst.SelectorExpr) T
@@ -451,7 +437,6 @@ func (w *typeExprWalker[T]) walkMapType(typeExpr *dst.MapType) T {
 	return w.combine(w.walk(typeExpr.Key), w.walk(typeExpr.Value))
 }
 
-// typeFormatter handles formatting AST types into strings with package qualifiers.
 type typeFormatter struct {
 	fset        *token.FileSet
 	qualifier   string
@@ -592,7 +577,6 @@ func (tf *typeFormatter) typeWithQualifierStar(t *dst.StarExpr) string {
 	return buf.String()
 }
 
-// variadicArgsResult holds the result of buildVariadicArgs.
 type variadicArgsResult struct {
 	hasVariadic     bool
 	nonVariadicArgs string

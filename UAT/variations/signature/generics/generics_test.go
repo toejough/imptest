@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	generics "github.com/toejough/imptest/UAT/variations/signature/generics"
+	"github.com/toejough/imptest/match"
 )
 
 // TestGenericCallable demonstrates how imptest supports generic functions.
@@ -70,7 +70,13 @@ func TestProcessItem_Error(t *testing.T) {
 		t.Parallel()
 		repoMock, repoImp := MockRepository[string](t)
 
-		call := StartProcessItem[string](t, generics.ProcessItem[string], repoMock, "123", func(s string) string { return s })
+		call := StartProcessItem[string](
+			t,
+			generics.ProcessItem[string],
+			repoMock,
+			"123",
+			func(s string) string { return s },
+		)
 
 		repoImp.Get.ArgsEqual("123").Return("", errTest)
 
@@ -87,7 +93,13 @@ func TestProcessItem_Error(t *testing.T) {
 		t.Parallel()
 		repoMock, repoImp := MockRepository[string](t)
 
-		call := StartProcessItem[string](t, generics.ProcessItem[string], repoMock, "123", func(s string) string { return s })
+		call := StartProcessItem[string](
+			t,
+			generics.ProcessItem[string],
+			repoMock,
+			"123",
+			func(s string) string { return s },
+		)
 
 		repoImp.Get.ArgsEqual("123").Return("data", nil)
 		repoImp.Save.ArgsEqual("data").Return(errTest)

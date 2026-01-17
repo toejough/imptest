@@ -9,24 +9,20 @@ import (
 	http "net/http"
 )
 
-// HTTPMiddlewareImp holds method wrappers for setting expectations on HTTPMiddleware.
 type HTTPMiddlewareImp struct {
 	Wrap *HTTPMiddlewareMockWrapMethod
 	// Eventually provides async versions of all methods for concurrent code.
 	Eventually *HTTPMiddlewareImpEventually
 }
 
-// HTTPMiddlewareImpEventually holds async method wrappers for HTTPMiddleware.
 type HTTPMiddlewareImpEventually struct {
 	Wrap *HTTPMiddlewareMockWrapMethod
 }
 
-// HTTPMiddlewareMockWrapArgs holds typed arguments for Wrap.
 type HTTPMiddlewareMockWrapArgs struct {
 	Handler http.HandlerFunc
 }
 
-// HTTPMiddlewareMockWrapCall wraps DependencyCall with typed GetArgs and Return.
 type HTTPMiddlewareMockWrapCall struct {
 	*_imptest.DependencyCall
 }
@@ -44,7 +40,6 @@ func (c *HTTPMiddlewareMockWrapCall) Return(result0 http.HandlerFunc) {
 	c.DependencyCall.Return(result0)
 }
 
-// HTTPMiddlewareMockWrapMethod wraps DependencyMethod with typed returns.
 type HTTPMiddlewareMockWrapMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -74,7 +69,6 @@ func MockHTTPMiddleware(t _imptest.TestReporter) (middleware.HTTPMiddleware, *HT
 	return mock, imp
 }
 
-// mockHTTPMiddlewareImpl implements middleware.HTTPMiddleware.
 type mockHTTPMiddlewareImpl struct {
 	ctrl *_imptest.Imp
 }

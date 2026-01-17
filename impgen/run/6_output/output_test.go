@@ -124,7 +124,6 @@ func TestWriteGeneratedCode(t *testing.T) {
 	}
 }
 
-// mockWriter is a test mock for the Writer interface.
 type mockWriter struct {
 	writtenFiles map[string][]byte
 	writeErr     error

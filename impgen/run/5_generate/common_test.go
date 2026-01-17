@@ -472,7 +472,6 @@ const (
 	testTypeSomeType = "SomeType"
 )
 
-// mockPackageLoader is a test mock for detect.PackageLoader.
 type mockPackageLoader struct {
 	loadFunc func(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error)
 }

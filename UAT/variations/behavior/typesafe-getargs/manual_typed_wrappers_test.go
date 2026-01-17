@@ -6,13 +6,11 @@ import (
 	typesafeargs "github.com/toejough/imptest/UAT/variations/behavior/typesafe-getargs"
 )
 
-// CalculatorAddArgs holds typed arguments for Add method.
 type CalculatorAddArgs struct {
 	A int
 	B int
 }
 
-// CalculatorAddCall wraps DependencyCall with typed GetArgs.
 type CalculatorAddCall struct {
 	*imptest.DependencyCall
 }
@@ -26,7 +24,6 @@ func (c *CalculatorAddCall) GetArgs() CalculatorAddArgs {
 	}
 }
 
-// CalculatorAddMethod wraps DependencyMethod with typed return.
 type CalculatorAddMethod struct {
 	*imptest.DependencyMethod
 
@@ -44,7 +41,6 @@ func (m *CalculatorAddMethod) ArgsShould(matchers ...any) *CalculatorAddCall {
 	return &CalculatorAddCall{DependencyCall: call}
 }
 
-// TypesafeCalculatorImp holds method wrappers for setting expectations.
 type TypesafeCalculatorImp struct {
 	Add      *CalculatorAddMethod
 	Multiply *imptest.DependencyMethod // For now, only Add is typed

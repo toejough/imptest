@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartValidateRequestCallHandle represents a single call to the wrapped function.
 type StartValidateRequestCallHandle struct {
 	*_imptest.CallableController[StartValidateRequestReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartValidateRequestCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartValidateRequestCallHandleEventually wraps a call handle for async expectation registration.
 type StartValidateRequestCallHandleEventually struct {
 	h *StartValidateRequestCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartValidateRequestCallHandleEventually) ensureStarted() *_imptest.Pen
 	return e.h.pendingCompletion
 }
 
-// StartValidateRequestReturnsReturn holds the return values from the wrapped function.
 type StartValidateRequestReturnsReturn struct {
 	Result0 error
 }

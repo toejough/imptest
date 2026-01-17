@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartGetDefaultsCallHandle represents a single call to the wrapped function.
 type StartGetDefaultsCallHandle struct {
 	*_imptest.CallableController[StartGetDefaultsReturnsReturn]
 	controller        *_imptest.TargetController
@@ -85,7 +84,6 @@ func (h *StartGetDefaultsCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartGetDefaultsCallHandleEventually wraps a call handle for async expectation registration.
 type StartGetDefaultsCallHandleEventually struct {
 	h *StartGetDefaultsCallHandle
 }
@@ -111,7 +109,6 @@ func (e *StartGetDefaultsCallHandleEventually) ensureStarted() *_imptest.Pending
 	return e.h.pendingCompletion
 }
 
-// StartGetDefaultsReturnsReturn holds the return values from the wrapped function.
 type StartGetDefaultsReturnsReturn struct {
 	Result0 struct {
 		MaxRetries int

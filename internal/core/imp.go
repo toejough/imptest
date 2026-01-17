@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// GenericCall represents a call to any mocked method.
-// It contains the response channel that the mock blocks on.
 type GenericCall struct {
 	MethodName   string
 	Args         []any
@@ -31,15 +29,12 @@ func (c *GenericCall) Name() string {
 	return c.MethodName
 }
 
-// GenericResponse holds the response to send back to a mocked method.
 type GenericResponse struct {
 	Type         string // "return", "panic"
 	ReturnValues []any
 	PanicValue   any
 }
 
-// Imp is the central coordinator for dependency mocking.
-// It wraps the Controller to provide conversational testing.
 type Imp struct {
 	*Controller[*GenericCall]
 

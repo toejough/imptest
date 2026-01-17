@@ -9,7 +9,7 @@
 // determine if this capability is supported or should be marked as unsupported.
 //
 // Expected behavior (similar to interface wrapping in UAT-32):
-// - `impgen Calculator --target` should generate `WrapCalculator` function
+// - `impgen Calculator --target` should generate `StartCalculator` function
 // - `StartCalculator(t, calc)` returns a wrapper with method interceptors
 // - Each method on the struct gets its own interceptor (Add, Multiply, Divide, Process)
 // - Calls are intercepted and recorded while still delegating to the original struct
@@ -23,13 +23,13 @@ import (
 
 // Generate target wrapper for Calculator struct
 // This is the key directive: attempting to wrap a struct type with --target
-// Expected: Should generate WrapCalculator function that wraps ALL methods
+// Expected: Should generate StartCalculator function that wraps ALL methods
 //
 //go:generate impgen calculator.Calculator --target
 
-// TestWrapCalculator_BasicWrapping demonstrates basic struct wrapping with --target.
+// TestStartCalculator_BasicWrapping demonstrates basic struct wrapping with --target.
 // This test verifies that we can wrap a Calculator struct to intercept all method calls.
-func TestWrapCalculator_BasicWrapping(t *testing.T) {
+func TestStartCalculator_BasicWrapping(t *testing.T) {
 	t.Parallel()
 
 	// Create a calculator instance
@@ -44,9 +44,9 @@ func TestWrapCalculator_BasicWrapping(t *testing.T) {
 	wrapper.Add.Start(5, 3).ReturnsEqual(18)
 }
 
-// TestWrapCalculator_ErrorHandling demonstrates wrapping methods that return errors.
+// TestStartCalculator_ErrorHandling demonstrates wrapping methods that return errors.
 // This test verifies that struct wrapping handles error return values correctly.
-func TestWrapCalculator_ErrorHandling(t *testing.T) {
+func TestStartCalculator_ErrorHandling(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(2, 0)
@@ -71,10 +71,10 @@ func TestWrapCalculator_ErrorHandling(t *testing.T) {
 	wrapper.Process.Start(10).ReturnsEqual("Result: 25", nil)
 }
 
-// TestWrapCalculator_MethodInteraction demonstrates wrapping a method that calls other methods.
+// TestStartCalculator_MethodInteraction demonstrates wrapping a method that calls other methods.
 // This test verifies that struct wrapping intercepts both the high-level method AND
 // the methods it calls internally (if called through the wrapper).
-func TestWrapCalculator_MethodInteraction(t *testing.T) {
+func TestStartCalculator_MethodInteraction(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(3, 10)
@@ -93,9 +93,9 @@ func TestWrapCalculator_MethodInteraction(t *testing.T) {
 	// use the wrapped methods exclusively.
 }
 
-// TestWrapCalculator_MultipleMethodCalls demonstrates intercepting multiple different methods.
+// TestStartCalculator_MultipleMethodCalls demonstrates intercepting multiple different methods.
 // This test verifies that struct wrapping creates interceptors for ALL methods on the struct.
-func TestWrapCalculator_MultipleMethodCalls(t *testing.T) {
+func TestStartCalculator_MultipleMethodCalls(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(3, 5)
@@ -114,9 +114,9 @@ func TestWrapCalculator_MultipleMethodCalls(t *testing.T) {
 	wrapper.Divide.Start(100, 4).ReturnsEqual(25, true)
 }
 
-// TestWrapCalculator_MultipleReturnValues demonstrates wrapping methods with multiple return values.
+// TestStartCalculator_MultipleReturnValues demonstrates wrapping methods with multiple return values.
 // This test verifies that struct wrapping handles methods with multiple returns (like Divide).
-func TestWrapCalculator_MultipleReturnValues(t *testing.T) {
+func TestStartCalculator_MultipleReturnValues(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(1, 0)
@@ -129,9 +129,9 @@ func TestWrapCalculator_MultipleReturnValues(t *testing.T) {
 	wrapper.Divide.Start(50, 0).ReturnsEqual(0, false)
 }
 
-// TestWrapCalculator_RepeatedCalls demonstrates that multiple calls to the same method are recorded.
+// TestStartCalculator_RepeatedCalls demonstrates that multiple calls to the same method are recorded.
 // This test verifies that struct wrapping maintains a history of all calls to each method.
-func TestWrapCalculator_RepeatedCalls(t *testing.T) {
+func TestStartCalculator_RepeatedCalls(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(1, 0)
@@ -143,9 +143,9 @@ func TestWrapCalculator_RepeatedCalls(t *testing.T) {
 	wrapper.Add.Start(5, 6).ReturnsEqual(11) // 5 + 6 + 0 = 11
 }
 
-// TestWrapCalculator_StatePreservation demonstrates that the wrapped struct maintains state.
+// TestStartCalculator_StatePreservation demonstrates that the wrapped struct maintains state.
 // This test verifies that wrapping doesn't interfere with the struct's internal state.
-func TestWrapCalculator_StatePreservation(t *testing.T) {
+func TestStartCalculator_StatePreservation(t *testing.T) {
 	t.Parallel()
 
 	// Create calculator with specific multiplier and offset

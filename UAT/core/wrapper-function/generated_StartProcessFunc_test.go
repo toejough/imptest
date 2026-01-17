@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartProcessFuncCallHandle represents a single call to the wrapped function.
 type StartProcessFuncCallHandle struct {
 	*_imptest.CallableController[StartProcessFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -89,7 +88,6 @@ func (h *StartProcessFuncCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartProcessFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartProcessFuncCallHandleEventually struct {
 	h *StartProcessFuncCallHandle
 }
@@ -115,7 +113,6 @@ func (e *StartProcessFuncCallHandleEventually) ensureStarted() *_imptest.Pending
 	return e.h.pendingCompletion
 }
 
-// StartProcessFuncReturnsReturn holds the return values from the wrapped function.
 type StartProcessFuncReturnsReturn struct {
 	Result0 string
 	Result1 error

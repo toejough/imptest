@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartFilterCallHandle represents a single call to the wrapped function.
 type StartFilterCallHandle struct {
 	*_imptest.CallableController[StartFilterReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartFilterCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartFilterCallHandleEventually wraps a call handle for async expectation registration.
 type StartFilterCallHandleEventually struct {
 	h *StartFilterCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartFilterCallHandleEventually) ensureStarted() *_imptest.PendingCompl
 	return e.h.pendingCompletion
 }
 
-// StartFilterReturnsReturn holds the return values from the wrapped function.
 type StartFilterReturnsReturn struct {
 	Result0 []int
 }

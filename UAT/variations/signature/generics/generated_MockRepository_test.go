@@ -8,7 +8,6 @@ import (
 	generics "github.com/toejough/imptest/UAT/variations/signature/generics"
 )
 
-// RepositoryImp holds method wrappers for setting expectations on Repository.
 type RepositoryImp[T any] struct {
 	Save *RepositoryMockSaveMethod[T]
 	Get  *RepositoryMockGetMethod[T]
@@ -16,18 +15,15 @@ type RepositoryImp[T any] struct {
 	Eventually *RepositoryImpEventually[T]
 }
 
-// RepositoryImpEventually holds async method wrappers for Repository.
 type RepositoryImpEventually[T any] struct {
 	Save *RepositoryMockSaveMethod[T]
 	Get  *RepositoryMockGetMethod[T]
 }
 
-// RepositoryMockGetArgs holds typed arguments for Get.
 type RepositoryMockGetArgs[T any] struct {
 	Id string
 }
 
-// RepositoryMockGetCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockGetCall[T any] struct {
 	*_imptest.DependencyCall
 }
@@ -45,7 +41,6 @@ func (c *RepositoryMockGetCall[T]) Return(result0 T, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// RepositoryMockGetMethod wraps DependencyMethod with typed returns.
 type RepositoryMockGetMethod[T any] struct {
 	*_imptest.DependencyMethod
 }
@@ -62,12 +57,10 @@ func (m *RepositoryMockGetMethod[T]) ArgsShould(matchers ...any) *RepositoryMock
 	return &RepositoryMockGetCall[T]{DependencyCall: call}
 }
 
-// RepositoryMockSaveArgs holds typed arguments for Save.
 type RepositoryMockSaveArgs[T any] struct {
 	Item T
 }
 
-// RepositoryMockSaveCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockSaveCall[T any] struct {
 	*_imptest.DependencyCall
 }
@@ -85,7 +78,6 @@ func (c *RepositoryMockSaveCall[T]) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// RepositoryMockSaveMethod wraps DependencyMethod with typed returns.
 type RepositoryMockSaveMethod[T any] struct {
 	*_imptest.DependencyMethod
 }
@@ -117,7 +109,6 @@ func MockRepository[T any](t _imptest.TestReporter) (generics.Repository[T], *Re
 	return mock, imp
 }
 
-// mockRepositoryImpl implements generics.Repository[T].
 type mockRepositoryImpl[T any] struct {
 	ctrl *_imptest.Imp
 }

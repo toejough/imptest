@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartSlowFuncFuncCallHandle represents a single call to the wrapped function.
 type StartSlowFuncFuncCallHandle struct {
 	*_imptest.CallableController[StartSlowFuncFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartSlowFuncFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartSlowFuncFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartSlowFuncFuncCallHandleEventually struct {
 	h *StartSlowFuncFuncCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartSlowFuncFuncCallHandleEventually) ensureStarted() *_imptest.Pendin
 	return e.h.pendingCompletion
 }
 
-// StartSlowFuncFuncReturnsReturn holds the return values from the wrapped function.
 type StartSlowFuncFuncReturnsReturn struct {
 	Result0 int
 }

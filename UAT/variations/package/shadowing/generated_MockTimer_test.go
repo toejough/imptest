@@ -8,7 +8,6 @@ import (
 	time "github.com/toejough/imptest/UAT/variations/package/shadowing/time"
 )
 
-// TimerImp holds method wrappers for setting expectations on Timer.
 type TimerImp struct {
 	Wait       *TimerMockWaitMethod
 	GetElapsed *_imptest.DependencyMethod
@@ -16,13 +15,11 @@ type TimerImp struct {
 	Eventually *TimerImpEventually
 }
 
-// TimerImpEventually holds async method wrappers for Timer.
 type TimerImpEventually struct {
 	Wait       *TimerMockWaitMethod
 	GetElapsed *_imptest.DependencyMethod
 }
 
-// TimerMockGetElapsedCall wraps DependencyCall with typed GetArgs and Return.
 type TimerMockGetElapsedCall struct {
 	*_imptest.DependencyCall
 }
@@ -32,12 +29,10 @@ func (c *TimerMockGetElapsedCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// TimerMockWaitArgs holds typed arguments for Wait.
 type TimerMockWaitArgs struct {
 	Seconds int
 }
 
-// TimerMockWaitCall wraps DependencyCall with typed GetArgs and Return.
 type TimerMockWaitCall struct {
 	*_imptest.DependencyCall
 }
@@ -55,7 +50,6 @@ func (c *TimerMockWaitCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// TimerMockWaitMethod wraps DependencyMethod with typed returns.
 type TimerMockWaitMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -87,7 +81,6 @@ func MockTimer(t _imptest.TestReporter) (time.Timer, *TimerImp) {
 	return mock, imp
 }
 
-// mockTimerImpl implements time.Timer.
 type mockTimerImpl struct {
 	ctrl *_imptest.Imp
 }

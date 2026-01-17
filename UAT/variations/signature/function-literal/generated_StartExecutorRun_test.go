@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartExecutorRunCallHandle represents a single call to the wrapped function.
 type StartExecutorRunCallHandle struct {
 	*_imptest.CallableController[StartExecutorRunReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartExecutorRunCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartExecutorRunCallHandleEventually wraps a call handle for async expectation registration.
 type StartExecutorRunCallHandleEventually struct {
 	h *StartExecutorRunCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartExecutorRunCallHandleEventually) ensureStarted() *_imptest.Pending
 	return e.h.pendingCompletion
 }
 
-// StartExecutorRunReturnsReturn holds the return values from the wrapped function.
 type StartExecutorRunReturnsReturn struct {
 	Result0 error
 }

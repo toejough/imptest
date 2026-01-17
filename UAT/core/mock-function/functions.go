@@ -22,7 +22,6 @@ var (
 	ErrOrderNotFound = errors.New("order not found")
 )
 
-// Order represents a business entity.
 type Order struct {
 	ID     int
 	Status string

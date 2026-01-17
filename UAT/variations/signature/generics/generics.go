@@ -3,7 +3,6 @@ package generics
 
 import "fmt"
 
-// Repository is a generic interface for storage operations.
 type Repository[T any] interface {
 	Save(item T) error
 	Get(id string) (T, error)

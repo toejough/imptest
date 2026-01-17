@@ -18,6 +18,36 @@ disable = [
 path = '_test\.go$'
 linters = ['dogsled', 'err113', 'wrapcheck']
 
+# Exclude revive exported type comment check from UAT demo files
+[[linters.exclusions.rules]]
+path = 'UAT/'
+linters = ['revive']
+text = 'exported:.*should have comment'
+
+# Exclude revive exported type comment check from type alias files
+[[linters.exclusions.rules]]
+path = 'imptest\.go$'
+linters = ['revive']
+text = 'exported:.*should have comment'
+
+# Exclude revive exported type comment check from internal packages
+[[linters.exclusions.rules]]
+path = 'internal/'
+linters = ['revive']
+text = 'exported:.*should have comment'
+
+# Exclude revive exported type comment check from impgen internal packages
+[[linters.exclusions.rules]]
+path = 'impgen/run/'
+linters = ['revive']
+text = 'exported:.*should have comment'
+
+# Exclude revive exported type comment check from match package
+[[linters.exclusions.rules]]
+path = 'match/'
+linters = ['revive']
+text = 'exported:.*should have comment'
+
 [linters.settings.depguard.rules.all]
 files = ['$all', '!$test']
 allow = ['$gostd', 'github.com/dave/dst', 'github.com/toejough/imptest', 'github.com/toejough/targ', 'github.com/toejough/go-reorder']

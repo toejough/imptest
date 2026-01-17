@@ -7,7 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// OpsImp holds method wrappers for setting expectations on Ops.
 type OpsImp struct {
 	internalMethod *OpsMockinternalMethodMethod
 	PublicMethod   *OpsMockPublicMethodMethod
@@ -15,18 +14,15 @@ type OpsImp struct {
 	Eventually *OpsImpEventually
 }
 
-// OpsImpEventually holds async method wrappers for Ops.
 type OpsImpEventually struct {
 	internalMethod *OpsMockinternalMethodMethod
 	PublicMethod   *OpsMockPublicMethodMethod
 }
 
-// OpsMockPublicMethodArgs holds typed arguments for PublicMethod.
 type OpsMockPublicMethodArgs struct {
 	X int
 }
 
-// OpsMockPublicMethodCall wraps DependencyCall with typed GetArgs and Return.
 type OpsMockPublicMethodCall struct {
 	*_imptest.DependencyCall
 }
@@ -44,7 +40,6 @@ func (c *OpsMockPublicMethodCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// OpsMockPublicMethodMethod wraps DependencyMethod with typed returns.
 type OpsMockPublicMethodMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -61,12 +56,10 @@ func (m *OpsMockPublicMethodMethod) ArgsShould(matchers ...any) *OpsMockPublicMe
 	return &OpsMockPublicMethodCall{DependencyCall: call}
 }
 
-// OpsMockinternalMethodArgs holds typed arguments for internalMethod.
 type OpsMockinternalMethodArgs struct {
 	X int
 }
 
-// OpsMockinternalMethodCall wraps DependencyCall with typed GetArgs and Return.
 type OpsMockinternalMethodCall struct {
 	*_imptest.DependencyCall
 }
@@ -84,7 +77,6 @@ func (c *OpsMockinternalMethodCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// OpsMockinternalMethodMethod wraps DependencyMethod with typed returns.
 type OpsMockinternalMethodMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -116,7 +108,6 @@ func MockOps(t _imptest.TestReporter) (Ops, *OpsImp) {
 	return mock, imp
 }
 
-// mockOpsImpl implements Ops.
 type mockOpsImpl struct {
 	ctrl *_imptest.Imp
 }

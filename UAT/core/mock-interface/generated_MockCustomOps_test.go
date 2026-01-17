@@ -8,7 +8,6 @@ import (
 	basic "github.com/toejough/imptest/UAT/core/mock-interface"
 )
 
-// CustomOpsImp holds method wrappers for setting expectations on Ops.
 type CustomOpsImp struct {
 	Add    *CustomOpsMockAddMethod
 	Store  *CustomOpsMockStoreMethod
@@ -19,7 +18,6 @@ type CustomOpsImp struct {
 	Eventually *CustomOpsImpEventually
 }
 
-// CustomOpsImpEventually holds async method wrappers for Ops.
 type CustomOpsImpEventually struct {
 	Add    *CustomOpsMockAddMethod
 	Store  *CustomOpsMockStoreMethod
@@ -28,13 +26,11 @@ type CustomOpsImpEventually struct {
 	Finish *_imptest.DependencyMethod
 }
 
-// CustomOpsMockAddArgs holds typed arguments for Add.
 type CustomOpsMockAddArgs struct {
 	A int
 	B int
 }
 
-// CustomOpsMockAddCall wraps DependencyCall with typed GetArgs and Return.
 type CustomOpsMockAddCall struct {
 	*_imptest.DependencyCall
 }
@@ -53,7 +49,6 @@ func (c *CustomOpsMockAddCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// CustomOpsMockAddMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockAddMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -70,7 +65,6 @@ func (m *CustomOpsMockAddMethod) ArgsShould(matchers ...any) *CustomOpsMockAddCa
 	return &CustomOpsMockAddCall{DependencyCall: call}
 }
 
-// CustomOpsMockFinishCall wraps DependencyCall with typed GetArgs and Return.
 type CustomOpsMockFinishCall struct {
 	*_imptest.DependencyCall
 }
@@ -80,12 +74,10 @@ func (c *CustomOpsMockFinishCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// CustomOpsMockLogArgs holds typed arguments for Log.
 type CustomOpsMockLogArgs struct {
 	Message string
 }
 
-// CustomOpsMockLogCall wraps DependencyCall with typed GetArgs.
 type CustomOpsMockLogCall struct {
 	*_imptest.DependencyCall
 }
@@ -98,7 +90,6 @@ func (c *CustomOpsMockLogCall) GetArgs() CustomOpsMockLogArgs {
 	}
 }
 
-// CustomOpsMockLogMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockLogMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -115,13 +106,11 @@ func (m *CustomOpsMockLogMethod) ArgsShould(matchers ...any) *CustomOpsMockLogCa
 	return &CustomOpsMockLogCall{DependencyCall: call}
 }
 
-// CustomOpsMockNotifyArgs holds typed arguments for Notify.
 type CustomOpsMockNotifyArgs struct {
 	Message string
 	Ids     []int
 }
 
-// CustomOpsMockNotifyCall wraps DependencyCall with typed GetArgs and Return.
 type CustomOpsMockNotifyCall struct {
 	*_imptest.DependencyCall
 }
@@ -140,7 +129,6 @@ func (c *CustomOpsMockNotifyCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// CustomOpsMockNotifyMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockNotifyMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -161,13 +149,11 @@ func (m *CustomOpsMockNotifyMethod) ArgsShould(matchers ...any) *CustomOpsMockNo
 	return &CustomOpsMockNotifyCall{DependencyCall: call}
 }
 
-// CustomOpsMockStoreArgs holds typed arguments for Store.
 type CustomOpsMockStoreArgs struct {
 	Key   string
 	Value any
 }
 
-// CustomOpsMockStoreCall wraps DependencyCall with typed GetArgs and Return.
 type CustomOpsMockStoreCall struct {
 	*_imptest.DependencyCall
 }
@@ -186,7 +172,6 @@ func (c *CustomOpsMockStoreCall) Return(result0 int, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// CustomOpsMockStoreMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockStoreMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -224,7 +209,6 @@ func MockCustomOps(t _imptest.TestReporter) (basic.Ops, *CustomOpsImp) {
 	return mock, imp
 }
 
-// mockCustomOpsImpl implements basic.Ops.
 type mockCustomOpsImpl struct {
 	ctrl *_imptest.Imp
 }

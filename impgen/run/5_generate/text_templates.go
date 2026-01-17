@@ -6,8 +6,6 @@ import (
 	"text/template"
 )
 
-// TemplateRegistry holds all parsed text templates for code generation.
-// Create a registry using NewTemplateRegistry() to initialize all templates.
 type TemplateRegistry struct {
 	// Dependency templates
 	depHeaderTmpl          *template.Template
@@ -309,11 +307,9 @@ func (r *TemplateRegistry) WriteTargetReturnsStruct(buf *bytes.Buffer, data any)
 }
 
 // WriteTargetStartMethod writes the target Start method.
+// Note: This template is currently empty, so Execute cannot fail.
 func (r *TemplateRegistry) WriteTargetStartMethod(buf *bytes.Buffer, data any) {
-	err := r.targetStartMethodTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute targetStartMethod template: %v", err))
-	}
+	_ = r.targetStartMethodTmpl.Execute(buf, data)
 }
 
 // WriteTargetWaitMethod writes the target Wait method.
@@ -323,11 +319,9 @@ func (r *TemplateRegistry) WriteTargetWaitMethod(buf *bytes.Buffer, data any) {
 }
 
 // WriteTargetWrapperStruct writes the target wrapper struct.
+// Note: This template is currently empty, so Execute cannot fail.
 func (r *TemplateRegistry) WriteTargetWrapperStruct(buf *bytes.Buffer, data any) {
-	err := r.targetWrapperStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute targetWrapperStruct template: %v", err))
-	}
+	_ = r.targetWrapperStructTmpl.Execute(buf, data)
 }
 
 // parseDependencyTemplates parses all dependency mock templates.

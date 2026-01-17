@@ -8,7 +8,6 @@ import (
 	orderedvsmode "github.com/toejough/imptest/UAT/variations/concurrency/ordered"
 )
 
-// ServiceImp holds method wrappers for setting expectations on Service.
 type ServiceImp struct {
 	OperationA *ServiceMockOperationAMethod
 	OperationB *ServiceMockOperationBMethod
@@ -17,19 +16,16 @@ type ServiceImp struct {
 	Eventually *ServiceImpEventually
 }
 
-// ServiceImpEventually holds async method wrappers for Service.
 type ServiceImpEventually struct {
 	OperationA *ServiceMockOperationAMethod
 	OperationB *ServiceMockOperationBMethod
 	OperationC *ServiceMockOperationCMethod
 }
 
-// ServiceMockOperationAArgs holds typed arguments for OperationA.
 type ServiceMockOperationAArgs struct {
 	Id int
 }
 
-// ServiceMockOperationACall wraps DependencyCall with typed GetArgs and Return.
 type ServiceMockOperationACall struct {
 	*_imptest.DependencyCall
 }
@@ -47,7 +43,6 @@ func (c *ServiceMockOperationACall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// ServiceMockOperationAMethod wraps DependencyMethod with typed returns.
 type ServiceMockOperationAMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -64,12 +59,10 @@ func (m *ServiceMockOperationAMethod) ArgsShould(matchers ...any) *ServiceMockOp
 	return &ServiceMockOperationACall{DependencyCall: call}
 }
 
-// ServiceMockOperationBArgs holds typed arguments for OperationB.
 type ServiceMockOperationBArgs struct {
 	Id int
 }
 
-// ServiceMockOperationBCall wraps DependencyCall with typed GetArgs and Return.
 type ServiceMockOperationBCall struct {
 	*_imptest.DependencyCall
 }
@@ -87,7 +80,6 @@ func (c *ServiceMockOperationBCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// ServiceMockOperationBMethod wraps DependencyMethod with typed returns.
 type ServiceMockOperationBMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -104,12 +96,10 @@ func (m *ServiceMockOperationBMethod) ArgsShould(matchers ...any) *ServiceMockOp
 	return &ServiceMockOperationBCall{DependencyCall: call}
 }
 
-// ServiceMockOperationCArgs holds typed arguments for OperationC.
 type ServiceMockOperationCArgs struct {
 	Id int
 }
 
-// ServiceMockOperationCCall wraps DependencyCall with typed GetArgs and Return.
 type ServiceMockOperationCCall struct {
 	*_imptest.DependencyCall
 }
@@ -127,7 +117,6 @@ func (c *ServiceMockOperationCCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// ServiceMockOperationCMethod wraps DependencyMethod with typed returns.
 type ServiceMockOperationCMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -161,7 +150,6 @@ func MockService(t _imptest.TestReporter) (orderedvsmode.Service, *ServiceImp) {
 	return mock, imp
 }
 
-// mockServiceImpl implements orderedvsmode.Service.
 type mockServiceImpl struct {
 	ctrl *_imptest.Imp
 }

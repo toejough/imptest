@@ -8,8 +8,8 @@ import (
 	"io/fs"
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	visitor "github.com/toejough/imptest/UAT/variations/behavior/callbacks"
+	"github.com/toejough/imptest/match"
 )
 
 func TestCallbackMatcherSupport(t *testing.T) {
@@ -165,7 +165,6 @@ func TestWalkWithNamedType(t *testing.T) {
 	call.Return(nil)
 }
 
-// mockDirEntry is a simple fs.DirEntry implementation for testing.
 type mockDirEntry struct {
 	name  string
 	isDir bool

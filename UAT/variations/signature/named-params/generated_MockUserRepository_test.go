@@ -9,7 +9,6 @@ import (
 	named "github.com/toejough/imptest/UAT/variations/signature/named-params"
 )
 
-// UserRepositoryImp holds method wrappers for setting expectations on UserRepository.
 type UserRepositoryImp struct {
 	GetUser    *UserRepositoryMockGetUserMethod
 	SaveUser   *UserRepositoryMockSaveUserMethod
@@ -19,7 +18,6 @@ type UserRepositoryImp struct {
 	Eventually *UserRepositoryImpEventually
 }
 
-// UserRepositoryImpEventually holds async method wrappers for UserRepository.
 type UserRepositoryImpEventually struct {
 	GetUser    *UserRepositoryMockGetUserMethod
 	SaveUser   *UserRepositoryMockSaveUserMethod
@@ -27,12 +25,10 @@ type UserRepositoryImpEventually struct {
 	CountUsers *UserRepositoryMockCountUsersMethod
 }
 
-// UserRepositoryMockCountUsersArgs holds typed arguments for CountUsers.
 type UserRepositoryMockCountUsersArgs struct {
 	Ctx context.Context
 }
 
-// UserRepositoryMockCountUsersCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockCountUsersCall struct {
 	*_imptest.DependencyCall
 }
@@ -50,7 +46,6 @@ func (c *UserRepositoryMockCountUsersCall) Return(result0 int, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// UserRepositoryMockCountUsersMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockCountUsersMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -67,13 +62,11 @@ func (m *UserRepositoryMockCountUsersMethod) ArgsShould(matchers ...any) *UserRe
 	return &UserRepositoryMockCountUsersCall{DependencyCall: call}
 }
 
-// UserRepositoryMockDeleteUserArgs holds typed arguments for DeleteUser.
 type UserRepositoryMockDeleteUserArgs struct {
 	Ctx    context.Context
 	UserID int
 }
 
-// UserRepositoryMockDeleteUserCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockDeleteUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -92,7 +85,6 @@ func (c *UserRepositoryMockDeleteUserCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// UserRepositoryMockDeleteUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockDeleteUserMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -109,13 +101,11 @@ func (m *UserRepositoryMockDeleteUserMethod) ArgsShould(matchers ...any) *UserRe
 	return &UserRepositoryMockDeleteUserCall{DependencyCall: call}
 }
 
-// UserRepositoryMockGetUserArgs holds typed arguments for GetUser.
 type UserRepositoryMockGetUserArgs struct {
 	Ctx    context.Context
 	UserID int
 }
 
-// UserRepositoryMockGetUserCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockGetUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -134,7 +124,6 @@ func (c *UserRepositoryMockGetUserCall) Return(result0 named.User, result1 error
 	c.DependencyCall.Return(result0, result1)
 }
 
-// UserRepositoryMockGetUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockGetUserMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -151,13 +140,11 @@ func (m *UserRepositoryMockGetUserMethod) ArgsShould(matchers ...any) *UserRepos
 	return &UserRepositoryMockGetUserCall{DependencyCall: call}
 }
 
-// UserRepositoryMockSaveUserArgs holds typed arguments for SaveUser.
 type UserRepositoryMockSaveUserArgs struct {
 	Ctx  context.Context
 	User named.User
 }
 
-// UserRepositoryMockSaveUserCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockSaveUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -176,7 +163,6 @@ func (c *UserRepositoryMockSaveUserCall) Return(result0 named.User, result1 erro
 	c.DependencyCall.Return(result0, result1)
 }
 
-// UserRepositoryMockSaveUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockSaveUserMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -212,7 +198,6 @@ func MockUserRepository(t _imptest.TestReporter) (named.UserRepository, *UserRep
 	return mock, imp
 }
 
-// mockUserRepositoryImpl implements named.UserRepository.
 type mockUserRepositoryImpl struct {
 	ctrl *_imptest.Imp
 }

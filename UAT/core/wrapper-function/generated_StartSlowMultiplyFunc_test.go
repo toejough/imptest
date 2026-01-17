@@ -9,7 +9,6 @@ import (
 	time "time"
 )
 
-// StartSlowMultiplyFuncCallHandle represents a single call to the wrapped function.
 type StartSlowMultiplyFuncCallHandle struct {
 	*_imptest.CallableController[StartSlowMultiplyFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -83,7 +82,6 @@ func (h *StartSlowMultiplyFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartSlowMultiplyFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartSlowMultiplyFuncCallHandleEventually struct {
 	h *StartSlowMultiplyFuncCallHandle
 }
@@ -109,7 +107,6 @@ func (e *StartSlowMultiplyFuncCallHandleEventually) ensureStarted() *_imptest.Pe
 	return e.h.pendingCompletion
 }
 
-// StartSlowMultiplyFuncReturnsReturn holds the return values from the wrapped function.
 type StartSlowMultiplyFuncReturnsReturn struct {
 	Result0 int
 }

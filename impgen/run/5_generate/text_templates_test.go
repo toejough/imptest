@@ -47,9 +47,6 @@ func TestTemplateRegistry_WritePanicPaths(t *testing.T) {
 	}
 }
 
-// WriteTargetWaitMethod has an empty template - should not panic and produce no output
-
-// templateWriteTest defines a template write function and its expected panic message prefix.
 type templateWriteTest struct {
 	name      string
 	writeFunc func(registry *TemplateRegistry, buf *bytes.Buffer)

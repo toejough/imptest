@@ -5,9 +5,6 @@ import (
 	"reflect"
 )
 
-// Matcher defines the interface for flexible value matching.
-// Compatible with gomega.GomegaMatcher via duck typing - any type
-// implementing Match and FailureMessage will work.
 type Matcher interface {
 	Match(actual any) (success bool, err error)
 	FailureMessage(actual any) string

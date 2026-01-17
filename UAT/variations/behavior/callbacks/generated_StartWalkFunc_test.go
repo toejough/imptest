@@ -9,7 +9,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartWalkFuncCallHandle represents a single call to the wrapped function.
 type StartWalkFuncCallHandle struct {
 	*_imptest.CallableController[StartWalkFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -83,7 +82,6 @@ func (h *StartWalkFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartWalkFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartWalkFuncCallHandleEventually struct {
 	h *StartWalkFuncCallHandle
 }
@@ -109,7 +107,6 @@ func (e *StartWalkFuncCallHandleEventually) ensureStarted() *_imptest.PendingCom
 	return e.h.pendingCompletion
 }
 
-// StartWalkFuncReturnsReturn holds the return values from the wrapped function.
 type StartWalkFuncReturnsReturn struct {
 	Result0 error
 }

@@ -8,7 +8,6 @@ import (
 	helpers "github.com/toejough/imptest/UAT/variations/package/dot-imports/helpers"
 )
 
-// StorageImp holds method wrappers for setting expectations on Storage.
 type StorageImp struct {
 	Save *StorageMockSaveMethod
 	Load *StorageMockLoadMethod
@@ -16,18 +15,15 @@ type StorageImp struct {
 	Eventually *StorageImpEventually
 }
 
-// StorageImpEventually holds async method wrappers for Storage.
 type StorageImpEventually struct {
 	Save *StorageMockSaveMethod
 	Load *StorageMockLoadMethod
 }
 
-// StorageMockLoadArgs holds typed arguments for Load.
 type StorageMockLoadArgs struct {
 	Key string
 }
 
-// StorageMockLoadCall wraps DependencyCall with typed GetArgs and Return.
 type StorageMockLoadCall struct {
 	*_imptest.DependencyCall
 }
@@ -45,7 +41,6 @@ func (c *StorageMockLoadCall) Return(result0 string, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// StorageMockLoadMethod wraps DependencyMethod with typed returns.
 type StorageMockLoadMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -62,13 +57,11 @@ func (m *StorageMockLoadMethod) ArgsShould(matchers ...any) *StorageMockLoadCall
 	return &StorageMockLoadCall{DependencyCall: call}
 }
 
-// StorageMockSaveArgs holds typed arguments for Save.
 type StorageMockSaveArgs struct {
 	Key   string
 	Value string
 }
 
-// StorageMockSaveCall wraps DependencyCall with typed GetArgs and Return.
 type StorageMockSaveCall struct {
 	*_imptest.DependencyCall
 }
@@ -87,7 +80,6 @@ func (c *StorageMockSaveCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// StorageMockSaveMethod wraps DependencyMethod with typed returns.
 type StorageMockSaveMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -119,7 +111,6 @@ func MockStorage(t _imptest.TestReporter) (helpers.Storage, *StorageImp) {
 	return mock, imp
 }
 
-// mockStorageImpl implements helpers.Storage.
 type mockStorageImpl struct {
 	ctrl *_imptest.Imp
 }

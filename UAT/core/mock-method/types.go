@@ -1,8 +1,6 @@
 // Package mockmethod demonstrates mocking individual struct methods.
 package mockmethod
 
-// Counter is a struct type with methods that we want to mock individually.
-// Unlike mocking the whole struct, we mock single method signatures.
 type Counter struct {
 	val int
 }

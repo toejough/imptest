@@ -8,7 +8,6 @@ import (
 	concurrency "github.com/toejough/imptest/UAT/variations/concurrency/eventually"
 )
 
-// SlowServiceImp holds method wrappers for setting expectations on SlowService.
 type SlowServiceImp struct {
 	DoA *SlowServiceMockDoAMethod
 	DoB *SlowServiceMockDoBMethod
@@ -16,18 +15,15 @@ type SlowServiceImp struct {
 	Eventually *SlowServiceImpEventually
 }
 
-// SlowServiceImpEventually holds async method wrappers for SlowService.
 type SlowServiceImpEventually struct {
 	DoA *SlowServiceMockDoAMethod
 	DoB *SlowServiceMockDoBMethod
 }
 
-// SlowServiceMockDoAArgs holds typed arguments for DoA.
 type SlowServiceMockDoAArgs struct {
 	Id int
 }
 
-// SlowServiceMockDoACall wraps DependencyCall with typed GetArgs and Return.
 type SlowServiceMockDoACall struct {
 	*_imptest.DependencyCall
 }
@@ -45,7 +41,6 @@ func (c *SlowServiceMockDoACall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// SlowServiceMockDoAMethod wraps DependencyMethod with typed returns.
 type SlowServiceMockDoAMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -62,12 +57,10 @@ func (m *SlowServiceMockDoAMethod) ArgsShould(matchers ...any) *SlowServiceMockD
 	return &SlowServiceMockDoACall{DependencyCall: call}
 }
 
-// SlowServiceMockDoBArgs holds typed arguments for DoB.
 type SlowServiceMockDoBArgs struct {
 	Id int
 }
 
-// SlowServiceMockDoBCall wraps DependencyCall with typed GetArgs and Return.
 type SlowServiceMockDoBCall struct {
 	*_imptest.DependencyCall
 }
@@ -85,7 +78,6 @@ func (c *SlowServiceMockDoBCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// SlowServiceMockDoBMethod wraps DependencyMethod with typed returns.
 type SlowServiceMockDoBMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -117,7 +109,6 @@ func MockSlowService(t _imptest.TestReporter) (concurrency.SlowService, *SlowSer
 	return mock, imp
 }
 
-// mockSlowServiceImpl implements concurrency.SlowService.
 type mockSlowServiceImpl struct {
 	ctrl *_imptest.Imp
 }

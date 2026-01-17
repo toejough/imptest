@@ -6,7 +6,6 @@ import (
 	"os"
 )
 
-// FileHandler demonstrates using external types in method signatures.
 type FileHandler interface {
 	// ReadAll uses io.Reader in parameter
 	ReadAll(r io.Reader) ([]byte, error)

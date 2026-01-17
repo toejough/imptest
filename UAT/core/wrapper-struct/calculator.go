@@ -11,9 +11,6 @@ var (
 	ErrNegativeInput = errors.New("negative input not allowed")
 )
 
-// Calculator provides arithmetic operations with state.
-// This demonstrates wrapping an entire struct type with --target flag to intercept all method calls.
-// Unlike wrapping individual methods (UAT-02), struct wrapping creates wrappers for ALL methods at once.
 type Calculator struct {
 	multiplier int
 	offset     int
@@ -61,7 +58,6 @@ func (c *Calculator) Process(input int) (string, error) {
 	return fmt.Sprintf("Result: %d", sum), nil
 }
 
-// Counter is a simple struct for testing struct wrappers with state.
 type Counter struct {
 	value int
 }

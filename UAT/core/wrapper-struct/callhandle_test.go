@@ -3,8 +3,8 @@ package calculator_test
 import (
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	calculator "github.com/toejough/imptest/UAT/core/wrapper-struct"
+	"github.com/toejough/imptest/match"
 )
 
 // Generate wrapper for Counter struct

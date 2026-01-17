@@ -8,19 +8,16 @@ import (
 	manyparams "github.com/toejough/imptest/UAT/variations/signature/edge-many-params"
 )
 
-// ManyParamsImp holds method wrappers for setting expectations on ManyParams.
 type ManyParamsImp struct {
 	Process *ManyParamsMockProcessMethod
 	// Eventually provides async versions of all methods for concurrent code.
 	Eventually *ManyParamsImpEventually
 }
 
-// ManyParamsImpEventually holds async method wrappers for ManyParams.
 type ManyParamsImpEventually struct {
 	Process *ManyParamsMockProcessMethod
 }
 
-// ManyParamsMockProcessArgs holds typed arguments for Process.
 type ManyParamsMockProcessArgs struct {
 	A int
 	B int
@@ -34,7 +31,6 @@ type ManyParamsMockProcessArgs struct {
 	J int
 }
 
-// ManyParamsMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ManyParamsMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -61,7 +57,6 @@ func (c *ManyParamsMockProcessCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// ManyParamsMockProcessMethod wraps DependencyMethod with typed returns.
 type ManyParamsMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -91,7 +86,6 @@ func MockManyParams(t _imptest.TestReporter) (manyparams.ManyParams, *ManyParams
 	return mock, imp
 }
 
-// mockManyParamsImpl implements manyparams.ManyParams.
 type mockManyParamsImpl struct {
 	ctrl *_imptest.Imp
 }

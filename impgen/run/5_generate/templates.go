@@ -1,10 +1,5 @@
 package generate
 
-// unexported variables.
-// All template definitions have been migrated to quicktemplate (.qtpl files).
-// The generated Go code is in *_qtpl.go files.
-
-// baseTemplateData holds common fields shared by all template data structs.
 type baseTemplateData struct {
 	PkgName        string
 	ImpName        string
@@ -31,7 +26,6 @@ type baseTemplateData struct {
 	AdditionalImports []importInfo
 }
 
-// callbackParam holds metadata about a callback function parameter.
 type callbackParam struct {
 	ParamName        string               // Original parameter name (e.g., "fn")
 	ParamType        string               // Full type signature (e.g., "func(string, fs.DirEntry, error) error")
@@ -45,16 +39,12 @@ type callbackParam struct {
 	HasResults       bool                 // Whether callback has return values
 }
 
-// callbackParamField holds metadata about a single callback parameter or result field.
 type callbackParamField struct {
 	Name  string // Field name (e.g., "Path", "Result0")
 	Type  string // Field type (e.g., "string", "error")
 	Index int    // Zero-based index
 }
 
-// Types
-
-// depMethodTemplateData holds data for dependency impl method template.
 type depMethodTemplateData struct {
 	baseTemplateData //nolint:unused // Embedded struct accessed by templates
 
@@ -88,7 +78,6 @@ type depMethodTemplateData struct {
 	ReturnParamNames  string // Comma-separated return parameter names (e.g., "result0, result1")
 }
 
-// depTemplateData holds data for dependency mock templates.
 type depTemplateData struct {
 	baseTemplateData //nolint:unused // Embedded struct accessed by templates
 
@@ -104,13 +93,11 @@ type depTemplateData struct {
 	IsStructType  bool                    // True if mocking a struct type (needs synthetic interface)
 }
 
-// importInfo holds information about an additional import needed for external types.
 type importInfo struct {
 	Alias string // Package alias/name (e.g., "io", "os")
 	Path  string // Full import path (e.g., "io", "os", "github.com/dave/dst")
 }
 
-// interfaceTargetTemplateData holds data for interface target wrapper templates.
 type interfaceTargetTemplateData struct {
 	baseTemplateData //nolint:unused // Embedded struct accessed by templates
 
@@ -124,7 +111,6 @@ type interfaceTargetTemplateData struct {
 	IsStructType  bool                // True if wrapping a struct type (needs pointer in field/param types)
 }
 
-// methodWrapperData holds template data for a single interface method wrapper.
 type methodWrapperData struct {
 	MethodName        string        // Interface method name (e.g., "Log")
 	WrapName          string        // Internal wrapper constructor (e.g., "wrapWrapLoggerWrapperLog")
@@ -149,34 +135,29 @@ type methodWrapperData struct {
 	PkgReflect        string        // Package alias for reflect (e.g., "_reflect")
 }
 
-// paramField holds info about a single parameter field for args structs.
 type paramField struct {
 	Name  string // Field name (e.g., "A", "B", "Key")
 	Type  string // Field type (e.g., "int", "string")
 	Index int    // Zero-based index in args array
 }
 
-// resultCheck holds data for a single result comparison check.
 type resultCheck struct {
 	Field    string // Field name (e.g., "R1")
 	Expected string // Expected parameter name (e.g., "expected1")
 	Index    int    // 1-based index for error messages
 }
 
-// resultField holds data for a single result struct field.
 type resultField struct {
 	Name string // Field name (e.g., "R1")
 	Type string // Field type (e.g., "int")
 }
 
-// resultVar holds info about a single result variable.
 type resultVar struct {
 	Name  string
 	Type  string
 	Index int
 }
 
-// targetTemplateData holds data for target wrapper templates.
 type targetTemplateData struct {
 	baseTemplateData //nolint:unused // Embedded struct accessed by templates
 

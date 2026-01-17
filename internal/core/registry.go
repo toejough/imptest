@@ -69,8 +69,6 @@ var (
 	registryMu sync.Mutex
 )
 
-// cleanupRegistrar is the interface needed for registering cleanup functions.
-// This is satisfied by *testing.T and *testing.B.
 type cleanupRegistrar interface {
 	Cleanup(cleanupFunc func())
 }

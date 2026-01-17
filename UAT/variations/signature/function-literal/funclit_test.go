@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	funclit "github.com/toejough/imptest/UAT/variations/signature/function-literal"
+	"github.com/toejough/imptest/match"
 )
 
 // Generate dependency mock for interface with function literal params

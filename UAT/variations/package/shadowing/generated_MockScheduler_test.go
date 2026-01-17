@@ -9,7 +9,6 @@ import (
 	time "time"
 )
 
-// SchedulerImp holds method wrappers for setting expectations on Scheduler.
 type SchedulerImp struct {
 	ScheduleAt  *SchedulerMockScheduleAtMethod
 	Delay       *SchedulerMockDelayMethod
@@ -19,7 +18,6 @@ type SchedulerImp struct {
 	Eventually *SchedulerImpEventually
 }
 
-// SchedulerImpEventually holds async method wrappers for Scheduler.
 type SchedulerImpEventually struct {
 	ScheduleAt  *SchedulerMockScheduleAtMethod
 	Delay       *SchedulerMockDelayMethod
@@ -27,13 +25,11 @@ type SchedulerImpEventually struct {
 	GetInterval *SchedulerMockGetIntervalMethod
 }
 
-// SchedulerMockDelayArgs holds typed arguments for Delay.
 type SchedulerMockDelayArgs struct {
 	TaskID   string
 	Duration time.Duration
 }
 
-// SchedulerMockDelayCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockDelayCall struct {
 	*_imptest.DependencyCall
 }
@@ -52,7 +48,6 @@ func (c *SchedulerMockDelayCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// SchedulerMockDelayMethod wraps DependencyMethod with typed returns.
 type SchedulerMockDelayMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -69,12 +64,10 @@ func (m *SchedulerMockDelayMethod) ArgsShould(matchers ...any) *SchedulerMockDel
 	return &SchedulerMockDelayCall{DependencyCall: call}
 }
 
-// SchedulerMockGetIntervalArgs holds typed arguments for GetInterval.
 type SchedulerMockGetIntervalArgs struct {
 	TaskID string
 }
 
-// SchedulerMockGetIntervalCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockGetIntervalCall struct {
 	*_imptest.DependencyCall
 }
@@ -92,7 +85,6 @@ func (c *SchedulerMockGetIntervalCall) Return(result0 time.Duration) {
 	c.DependencyCall.Return(result0)
 }
 
-// SchedulerMockGetIntervalMethod wraps DependencyMethod with typed returns.
 type SchedulerMockGetIntervalMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -109,7 +101,6 @@ func (m *SchedulerMockGetIntervalMethod) ArgsShould(matchers ...any) *SchedulerM
 	return &SchedulerMockGetIntervalCall{DependencyCall: call}
 }
 
-// SchedulerMockNextRunCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockNextRunCall struct {
 	*_imptest.DependencyCall
 }
@@ -119,13 +110,11 @@ func (c *SchedulerMockNextRunCall) Return(result0 time.Time, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// SchedulerMockScheduleAtArgs holds typed arguments for ScheduleAt.
 type SchedulerMockScheduleAtArgs struct {
 	TaskID string
 	When   time.Time
 }
 
-// SchedulerMockScheduleAtCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockScheduleAtCall struct {
 	*_imptest.DependencyCall
 }
@@ -144,7 +133,6 @@ func (c *SchedulerMockScheduleAtCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// SchedulerMockScheduleAtMethod wraps DependencyMethod with typed returns.
 type SchedulerMockScheduleAtMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -180,7 +168,6 @@ func MockScheduler(t _imptest.TestReporter) (timeconflict.Scheduler, *SchedulerI
 	return mock, imp
 }
 
-// mockSchedulerImpl implements timeconflict.Scheduler.
 type mockSchedulerImpl struct {
 	ctrl *_imptest.Imp
 }

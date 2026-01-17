@@ -8,24 +8,20 @@ import (
 	samepackage "github.com/toejough/imptest/UAT/variations/package/same-package/interface-refs"
 )
 
-// DataSinkImp holds method wrappers for setting expectations on DataSink.
 type DataSinkImp struct {
 	PutData *DataSinkMockPutDataMethod
 	// Eventually provides async versions of all methods for concurrent code.
 	Eventually *DataSinkImpEventually
 }
 
-// DataSinkImpEventually holds async method wrappers for DataSink.
 type DataSinkImpEventually struct {
 	PutData *DataSinkMockPutDataMethod
 }
 
-// DataSinkMockPutDataArgs holds typed arguments for PutData.
 type DataSinkMockPutDataArgs struct {
 	Data []byte
 }
 
-// DataSinkMockPutDataCall wraps DependencyCall with typed GetArgs and Return.
 type DataSinkMockPutDataCall struct {
 	*_imptest.DependencyCall
 }
@@ -43,7 +39,6 @@ func (c *DataSinkMockPutDataCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataSinkMockPutDataMethod wraps DependencyMethod with typed returns.
 type DataSinkMockPutDataMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -73,7 +68,6 @@ func MockDataSink(t _imptest.TestReporter) (samepackage.DataSink, *DataSinkImp) 
 	return mock, imp
 }
 
-// mockDataSinkImpl implements samepackage.DataSink.
 type mockDataSinkImpl struct {
 	ctrl *_imptest.Imp
 }

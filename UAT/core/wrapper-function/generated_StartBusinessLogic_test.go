@@ -9,7 +9,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartBusinessLogicCallHandle represents a single call to the wrapped function.
 type StartBusinessLogicCallHandle struct {
 	*_imptest.CallableController[StartBusinessLogicReturnsReturn]
 	controller        *_imptest.TargetController
@@ -90,7 +89,6 @@ func (h *StartBusinessLogicCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartBusinessLogicCallHandleEventually wraps a call handle for async expectation registration.
 type StartBusinessLogicCallHandleEventually struct {
 	h *StartBusinessLogicCallHandle
 }
@@ -116,7 +114,6 @@ func (e *StartBusinessLogicCallHandleEventually) ensureStarted() *_imptest.Pendi
 	return e.h.pendingCompletion
 }
 
-// StartBusinessLogicReturnsReturn holds the return values from the wrapped function.
 type StartBusinessLogicReturnsReturn struct {
 	Result0 string
 	Result1 error

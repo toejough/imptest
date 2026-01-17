@@ -35,7 +35,6 @@ func DependencyCode(
 	return gen.generate()
 }
 
-// dependencyGenerator generates dependency mocks.
 type dependencyGenerator struct {
 	baseGenerator
 

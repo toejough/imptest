@@ -8,19 +8,16 @@ import (
 	samepackage "github.com/toejough/imptest/UAT/variations/package/same-package/interface-refs"
 )
 
-// DataSourceImp holds method wrappers for setting expectations on DataSource.
 type DataSourceImp struct {
 	GetData *_imptest.DependencyMethod
 	// Eventually provides async versions of all methods for concurrent code.
 	Eventually *DataSourceImpEventually
 }
 
-// DataSourceImpEventually holds async method wrappers for DataSource.
 type DataSourceImpEventually struct {
 	GetData *_imptest.DependencyMethod
 }
 
-// DataSourceMockGetDataCall wraps DependencyCall with typed GetArgs and Return.
 type DataSourceMockGetDataCall struct {
 	*_imptest.DependencyCall
 }
@@ -43,7 +40,6 @@ func MockDataSource(t _imptest.TestReporter) (samepackage.DataSource, *DataSourc
 	return mock, imp
 }
 
-// mockDataSourceImpl implements samepackage.DataSource.
 type mockDataSourceImpl struct {
 	ctrl *_imptest.Imp
 }

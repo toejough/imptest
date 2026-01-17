@@ -8,24 +8,20 @@ import (
 	matching "github.com/toejough/imptest/UAT/variations/behavior/matching"
 )
 
-// ComplexServiceImp holds method wrappers for setting expectations on ComplexService.
 type ComplexServiceImp struct {
 	Process *ComplexServiceMockProcessMethod
 	// Eventually provides async versions of all methods for concurrent code.
 	Eventually *ComplexServiceImpEventually
 }
 
-// ComplexServiceImpEventually holds async method wrappers for ComplexService.
 type ComplexServiceImpEventually struct {
 	Process *ComplexServiceMockProcessMethod
 }
 
-// ComplexServiceMockProcessArgs holds typed arguments for Process.
 type ComplexServiceMockProcessArgs struct {
 	D matching.Data
 }
 
-// ComplexServiceMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ComplexServiceMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -43,7 +39,6 @@ func (c *ComplexServiceMockProcessCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// ComplexServiceMockProcessMethod wraps DependencyMethod with typed returns.
 type ComplexServiceMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -73,7 +68,6 @@ func MockComplexService(t _imptest.TestReporter) (matching.ComplexService, *Comp
 	return mock, imp
 }
 
-// mockComplexServiceImpl implements matching.ComplexService.
 type mockComplexServiceImpl struct {
 	ctrl *_imptest.Imp
 }

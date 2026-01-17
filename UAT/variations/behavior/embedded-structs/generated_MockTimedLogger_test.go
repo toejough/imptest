@@ -7,7 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// TimedLoggerImp holds method wrappers for setting expectations on TimedLogger.
 type TimedLoggerImp struct {
 	Inc          *_imptest.DependencyMethod
 	Log          *TimedLoggerMockLogMethod
@@ -18,7 +17,6 @@ type TimedLoggerImp struct {
 	Eventually *TimedLoggerImpEventually
 }
 
-// TimedLoggerImpEventually holds async method wrappers for TimedLogger.
 type TimedLoggerImpEventually struct {
 	Inc          *_imptest.DependencyMethod
 	Log          *TimedLoggerMockLogMethod
@@ -27,7 +25,6 @@ type TimedLoggerImpEventually struct {
 	Value        *_imptest.DependencyMethod
 }
 
-// TimedLoggerMockIncCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockIncCall struct {
 	*_imptest.DependencyCall
 }
@@ -37,7 +34,6 @@ func (c *TimedLoggerMockIncCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// TimedLoggerMockInterface is a generated interface matching the methods of TimedLogger.
 type TimedLoggerMockInterface interface {
 	Inc() int
 	Log(msg string) string
@@ -46,12 +42,10 @@ type TimedLoggerMockInterface interface {
 	Value() int
 }
 
-// TimedLoggerMockLogArgs holds typed arguments for Log.
 type TimedLoggerMockLogArgs struct {
 	Msg string
 }
 
-// TimedLoggerMockLogCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockLogCall struct {
 	*_imptest.DependencyCall
 }
@@ -69,7 +63,6 @@ func (c *TimedLoggerMockLogCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// TimedLoggerMockLogMethod wraps DependencyMethod with typed returns.
 type TimedLoggerMockLogMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -86,12 +79,10 @@ func (m *TimedLoggerMockLogMethod) ArgsShould(matchers ...any) *TimedLoggerMockL
 	return &TimedLoggerMockLogCall{DependencyCall: call}
 }
 
-// TimedLoggerMockLogWithCountArgs holds typed arguments for LogWithCount.
 type TimedLoggerMockLogWithCountArgs struct {
 	Msg string
 }
 
-// TimedLoggerMockLogWithCountCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockLogWithCountCall struct {
 	*_imptest.DependencyCall
 }
@@ -109,7 +100,6 @@ func (c *TimedLoggerMockLogWithCountCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// TimedLoggerMockLogWithCountMethod wraps DependencyMethod with typed returns.
 type TimedLoggerMockLogWithCountMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -126,12 +116,10 @@ func (m *TimedLoggerMockLogWithCountMethod) ArgsShould(matchers ...any) *TimedLo
 	return &TimedLoggerMockLogWithCountCall{DependencyCall: call}
 }
 
-// TimedLoggerMockSetPrefixArgs holds typed arguments for SetPrefix.
 type TimedLoggerMockSetPrefixArgs struct {
 	Prefix string
 }
 
-// TimedLoggerMockSetPrefixCall wraps DependencyCall with typed GetArgs.
 type TimedLoggerMockSetPrefixCall struct {
 	*_imptest.DependencyCall
 }
@@ -144,7 +132,6 @@ func (c *TimedLoggerMockSetPrefixCall) GetArgs() TimedLoggerMockSetPrefixArgs {
 	}
 }
 
-// TimedLoggerMockSetPrefixMethod wraps DependencyMethod with typed returns.
 type TimedLoggerMockSetPrefixMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -161,7 +148,6 @@ func (m *TimedLoggerMockSetPrefixMethod) ArgsShould(matchers ...any) *TimedLogge
 	return &TimedLoggerMockSetPrefixCall{DependencyCall: call}
 }
 
-// TimedLoggerMockValueCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockValueCall struct {
 	*_imptest.DependencyCall
 }
@@ -192,7 +178,6 @@ func MockTimedLogger(t _imptest.TestReporter) (TimedLoggerMockInterface, *TimedL
 	return mock, imp
 }
 
-// mockTimedLoggerImpl implements TimedLoggerMockInterface.
 type mockTimedLoggerImpl struct {
 	ctrl *_imptest.Imp
 }

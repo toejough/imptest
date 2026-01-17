@@ -514,7 +514,6 @@ type {{.ReturnsType}}Return{{.TypeParamsDecl}} struct {
 `
 	// tmplTargetStartMethod is no longer used - Start logic is now in tmplTargetConstructor.
 	tmplTargetStartMethod = ``
-
 	// tmplTargetWrapperStruct is no longer used - wrapper handle removed in API simplification.
 	tmplTargetWrapperStruct = ``
 )

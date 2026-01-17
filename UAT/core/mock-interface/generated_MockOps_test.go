@@ -8,7 +8,6 @@ import (
 	basic "github.com/toejough/imptest/UAT/core/mock-interface"
 )
 
-// OpsImp holds method wrappers for setting expectations on Ops.
 type OpsImp struct {
 	Add    *OpsMockAddMethod
 	Store  *OpsMockStoreMethod
@@ -19,7 +18,6 @@ type OpsImp struct {
 	Eventually *OpsImpEventually
 }
 
-// OpsImpEventually holds async method wrappers for Ops.
 type OpsImpEventually struct {
 	Add    *OpsMockAddMethod
 	Store  *OpsMockStoreMethod
@@ -28,13 +26,11 @@ type OpsImpEventually struct {
 	Finish *_imptest.DependencyMethod
 }
 
-// OpsMockAddArgs holds typed arguments for Add.
 type OpsMockAddArgs struct {
 	A int
 	B int
 }
 
-// OpsMockAddCall wraps DependencyCall with typed GetArgs and Return.
 type OpsMockAddCall struct {
 	*_imptest.DependencyCall
 }
@@ -53,7 +49,6 @@ func (c *OpsMockAddCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// OpsMockAddMethod wraps DependencyMethod with typed returns.
 type OpsMockAddMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -70,7 +65,6 @@ func (m *OpsMockAddMethod) ArgsShould(matchers ...any) *OpsMockAddCall {
 	return &OpsMockAddCall{DependencyCall: call}
 }
 
-// OpsMockFinishCall wraps DependencyCall with typed GetArgs and Return.
 type OpsMockFinishCall struct {
 	*_imptest.DependencyCall
 }
@@ -80,12 +74,10 @@ func (c *OpsMockFinishCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// OpsMockLogArgs holds typed arguments for Log.
 type OpsMockLogArgs struct {
 	Message string
 }
 
-// OpsMockLogCall wraps DependencyCall with typed GetArgs.
 type OpsMockLogCall struct {
 	*_imptest.DependencyCall
 }
@@ -98,7 +90,6 @@ func (c *OpsMockLogCall) GetArgs() OpsMockLogArgs {
 	}
 }
 
-// OpsMockLogMethod wraps DependencyMethod with typed returns.
 type OpsMockLogMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -115,13 +106,11 @@ func (m *OpsMockLogMethod) ArgsShould(matchers ...any) *OpsMockLogCall {
 	return &OpsMockLogCall{DependencyCall: call}
 }
 
-// OpsMockNotifyArgs holds typed arguments for Notify.
 type OpsMockNotifyArgs struct {
 	Message string
 	Ids     []int
 }
 
-// OpsMockNotifyCall wraps DependencyCall with typed GetArgs and Return.
 type OpsMockNotifyCall struct {
 	*_imptest.DependencyCall
 }
@@ -140,7 +129,6 @@ func (c *OpsMockNotifyCall) Return(result0 bool) {
 	c.DependencyCall.Return(result0)
 }
 
-// OpsMockNotifyMethod wraps DependencyMethod with typed returns.
 type OpsMockNotifyMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -161,13 +149,11 @@ func (m *OpsMockNotifyMethod) ArgsShould(matchers ...any) *OpsMockNotifyCall {
 	return &OpsMockNotifyCall{DependencyCall: call}
 }
 
-// OpsMockStoreArgs holds typed arguments for Store.
 type OpsMockStoreArgs struct {
 	Key   string
 	Value any
 }
 
-// OpsMockStoreCall wraps DependencyCall with typed GetArgs and Return.
 type OpsMockStoreCall struct {
 	*_imptest.DependencyCall
 }
@@ -186,7 +172,6 @@ func (c *OpsMockStoreCall) Return(result0 int, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// OpsMockStoreMethod wraps DependencyMethod with typed returns.
 type OpsMockStoreMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -224,7 +209,6 @@ func MockOps(t _imptest.TestReporter) (basic.Ops, *OpsImp) {
 	return mock, imp
 }
 
-// mockOpsImpl implements basic.Ops.
 type mockOpsImpl struct {
 	ctrl *_imptest.Imp
 }

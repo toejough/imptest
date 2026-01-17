@@ -8,7 +8,6 @@ import (
 	safety "github.com/toejough/imptest/UAT/variations/behavior/panic-handling"
 )
 
-// StartUnsafeRunnerCallHandle represents a single call to the wrapped function.
 type StartUnsafeRunnerCallHandle struct {
 	*_imptest.CallableController[StartUnsafeRunnerReturnsReturn]
 	controller        *_imptest.TargetController
@@ -59,7 +58,6 @@ func (h *StartUnsafeRunnerCallHandle) PanicShould(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// StartUnsafeRunnerCallHandleEventually wraps a call handle for async expectation registration.
 type StartUnsafeRunnerCallHandleEventually struct {
 	h *StartUnsafeRunnerCallHandle
 }
@@ -85,7 +83,6 @@ func (e *StartUnsafeRunnerCallHandleEventually) ensureStarted() *_imptest.Pendin
 	return e.h.pendingCompletion
 }
 
-// StartUnsafeRunnerReturnsReturn holds the return values from the wrapped function.
 type StartUnsafeRunnerReturnsReturn struct {
 }
 

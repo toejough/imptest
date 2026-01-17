@@ -2,8 +2,6 @@ package timeconflict
 
 import "time"
 
-// Scheduler demonstrates using stdlib time.Time and time.Duration.
-// This tests that both user code and generated code can import time without conflicts.
 type Scheduler interface {
 	// ScheduleAt takes a stdlib time.Time as parameter
 	ScheduleAt(taskID string, when time.Time) error

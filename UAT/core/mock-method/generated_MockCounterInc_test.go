@@ -7,7 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// CounterIncMockCall wraps DependencyCall with typed GetArgs and Return.
 type CounterIncMockCall struct {
 	*_imptest.DependencyCall
 }

@@ -73,7 +73,6 @@ func TargetCodeFromFuncType(
 	return gen.generate()
 }
 
-// targetGenerator generates target wrappers.
 type targetGenerator struct {
 	baseGenerator
 

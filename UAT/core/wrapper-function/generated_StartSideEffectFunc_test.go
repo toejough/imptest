@@ -7,7 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// StartSideEffectFuncCallHandle represents a single call to the wrapped function.
 type StartSideEffectFuncCallHandle struct {
 	*_imptest.CallableController[StartSideEffectFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -58,7 +57,6 @@ func (h *StartSideEffectFuncCallHandle) PanicShould(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// StartSideEffectFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartSideEffectFuncCallHandleEventually struct {
 	h *StartSideEffectFuncCallHandle
 }
@@ -84,7 +82,6 @@ func (e *StartSideEffectFuncCallHandleEventually) ensureStarted() *_imptest.Pend
 	return e.h.pendingCompletion
 }
 
-// StartSideEffectFuncReturnsReturn holds the return values from the wrapped function.
 type StartSideEffectFuncReturnsReturn struct {
 }
 

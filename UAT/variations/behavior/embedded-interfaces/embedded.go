@@ -6,12 +6,10 @@ import (
 	"io"
 )
 
-// Closer is a local interface.
 type Closer interface {
 	Close() error
 }
 
-// ReadCloser embeds an external (io.Reader) and a local (Closer) interface.
 type ReadCloser interface {
 	io.Reader
 	Closer

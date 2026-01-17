@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartComputeFuncCallHandle represents a single call to the wrapped function.
 type StartComputeFuncCallHandle struct {
 	*_imptest.CallableController[StartComputeFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -96,7 +95,6 @@ func (h *StartComputeFuncCallHandle) ReturnsShould(v0 any, v1 any, v2 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartComputeFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartComputeFuncCallHandleEventually struct {
 	h *StartComputeFuncCallHandle
 }
@@ -122,7 +120,6 @@ func (e *StartComputeFuncCallHandleEventually) ensureStarted() *_imptest.Pending
 	return e.h.pendingCompletion
 }
 
-// StartComputeFuncReturnsReturn holds the return values from the wrapped function.
 type StartComputeFuncReturnsReturn struct {
 	Result0 int
 	Result1 string

@@ -358,7 +358,6 @@ const (
 	goFileEnvVar = "GOFILE"
 )
 
-// mockCachingFileSystem implements FileSystem for testing cache behavior.
 type mockCachingFileSystem struct {
 	files map[string][]byte
 }
@@ -389,7 +388,6 @@ func (m *mockCachingFileSystem) WriteFile(name string, data []byte, _ os.FileMod
 	return nil
 }
 
-// mockPkgLoader is a test mock for detect.PackageLoader.
 type mockPkgLoader struct {
 	files []*dst.File
 	fset  *token.FileSet

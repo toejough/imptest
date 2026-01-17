@@ -8,14 +8,12 @@ import (
 	safety "github.com/toejough/imptest/UAT/variations/behavior/panic-handling"
 )
 
-// CriticalDependencyImp holds method wrappers for setting expectations on CriticalDependency.
 type CriticalDependencyImp struct {
 	DoWork *_imptest.DependencyMethod
 	// Eventually provides async versions of all methods for concurrent code.
 	Eventually *CriticalDependencyImpEventually
 }
 
-// CriticalDependencyImpEventually holds async method wrappers for CriticalDependency.
 type CriticalDependencyImpEventually struct {
 	DoWork *_imptest.DependencyMethod
 }
@@ -33,7 +31,6 @@ func MockCriticalDependency(t _imptest.TestReporter) (safety.CriticalDependency,
 	return mock, imp
 }
 
-// mockCriticalDependencyImpl implements safety.CriticalDependency.
 type mockCriticalDependencyImpl struct {
 	ctrl *_imptest.Imp
 }

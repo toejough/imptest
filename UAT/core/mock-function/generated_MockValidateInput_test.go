@@ -7,12 +7,10 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// ValidateInputMockArgs holds typed arguments for ValidateInput.
 type ValidateInputMockArgs struct {
 	Input string
 }
 
-// ValidateInputMockCall wraps DependencyCall with typed GetArgs and Return.
 type ValidateInputMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -30,7 +28,6 @@ func (c *ValidateInputMockCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// ValidateInputMockMethod wraps DependencyMethod with typed returns.
 type ValidateInputMockMethod struct {
 	*_imptest.DependencyMethod
 	// Eventually provides async version of this function for concurrent code.

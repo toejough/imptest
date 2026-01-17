@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartConfigManagerLoadCallHandle represents a single call to the wrapped function.
 type StartConfigManagerLoadCallHandle struct {
 	*_imptest.CallableController[StartConfigManagerLoadReturnsReturn]
 	controller        *_imptest.TargetController
@@ -86,7 +85,6 @@ func (h *StartConfigManagerLoadCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartConfigManagerLoadCallHandleEventually wraps a call handle for async expectation registration.
 type StartConfigManagerLoadCallHandleEventually struct {
 	h *StartConfigManagerLoadCallHandle
 }
@@ -112,7 +110,6 @@ func (e *StartConfigManagerLoadCallHandleEventually) ensureStarted() *_imptest.P
 	return e.h.pendingCompletion
 }
 
-// StartConfigManagerLoadReturnsReturn holds the return values from the wrapped function.
 type StartConfigManagerLoadReturnsReturn struct {
 	Result0 struct {
 		Host string

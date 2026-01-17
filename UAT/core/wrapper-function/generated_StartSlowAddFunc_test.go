@@ -9,7 +9,6 @@ import (
 	time "time"
 )
 
-// StartSlowAddFuncCallHandle represents a single call to the wrapped function.
 type StartSlowAddFuncCallHandle struct {
 	*_imptest.CallableController[StartSlowAddFuncReturnsReturn]
 	controller        *_imptest.TargetController
@@ -83,7 +82,6 @@ func (h *StartSlowAddFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartSlowAddFuncCallHandleEventually wraps a call handle for async expectation registration.
 type StartSlowAddFuncCallHandleEventually struct {
 	h *StartSlowAddFuncCallHandle
 }
@@ -109,7 +107,6 @@ func (e *StartSlowAddFuncCallHandleEventually) ensureStarted() *_imptest.Pending
 	return e.h.pendingCompletion
 }
 
-// StartSlowAddFuncReturnsReturn holds the return values from the wrapped function.
 type StartSlowAddFuncReturnsReturn struct {
 	Result0 int
 }

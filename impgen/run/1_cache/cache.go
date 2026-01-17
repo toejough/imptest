@@ -20,19 +20,16 @@ const (
 	FilePerm = 0o600
 )
 
-// Data represents the structure of the persistent disk cache.
 type Data struct {
 	Entries map[string]Entry `json:"entries"`
 }
 
-// Entry represents a single cached mock generation result.
 type Entry struct {
 	Signature string `json:"signature"`
 	Content   string `json:"content"`
 	Filename  string `json:"filename"`
 }
 
-// FileSystem abstracts file operations for the cache system.
 type FileSystem interface {
 	Open(path string) (io.ReadCloser, error)
 	Create(path string) (io.WriteCloser, error)

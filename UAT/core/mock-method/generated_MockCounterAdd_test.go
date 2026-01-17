@@ -7,12 +7,10 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// CounterAddMockArgs holds typed arguments for Counter.Add.
 type CounterAddMockArgs struct {
 	N int
 }
 
-// CounterAddMockCall wraps DependencyCall with typed GetArgs and Return.
 type CounterAddMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -30,7 +28,6 @@ func (c *CounterAddMockCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// CounterAddMockMethod wraps DependencyMethod with typed returns.
 type CounterAddMockMethod struct {
 	*_imptest.DependencyMethod
 	// Eventually provides async version of this function for concurrent code.

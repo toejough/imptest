@@ -8,7 +8,6 @@ import (
 	interfaceliteral "github.com/toejough/imptest/UAT/variations/signature/interface-literal"
 )
 
-// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
 type DataProcessorImp struct {
 	Process           *DataProcessorMockProcessMethod
 	Transform         *DataProcessorMockTransformMethod
@@ -18,7 +17,6 @@ type DataProcessorImp struct {
 	Eventually *DataProcessorImpEventually
 }
 
-// DataProcessorImpEventually holds async method wrappers for DataProcessor.
 type DataProcessorImpEventually struct {
 	Process           *DataProcessorMockProcessMethod
 	Transform         *DataProcessorMockTransformMethod
@@ -26,12 +24,10 @@ type DataProcessorImpEventually struct {
 	ProcessWithReturn *DataProcessorMockProcessWithReturnMethod
 }
 
-// DataProcessorMockProcessArgs holds typed arguments for Process.
 type DataProcessorMockProcessArgs struct {
 	Obj interface{ Get() string }
 }
 
-// DataProcessorMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -49,7 +45,6 @@ func (c *DataProcessorMockProcessCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockProcessMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -66,12 +61,10 @@ func (m *DataProcessorMockProcessMethod) ArgsShould(matchers ...any) *DataProces
 	return &DataProcessorMockProcessCall{DependencyCall: call}
 }
 
-// DataProcessorMockProcessWithReturnArgs holds typed arguments for ProcessWithReturn.
 type DataProcessorMockProcessWithReturnArgs struct {
 	Input string
 }
 
-// DataProcessorMockProcessWithReturnCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessWithReturnCall struct {
 	*_imptest.DependencyCall
 }
@@ -89,7 +82,6 @@ func (c *DataProcessorMockProcessWithReturnCall) Return(result0 interface{ Resul
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockProcessWithReturnMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessWithReturnMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -106,7 +98,6 @@ func (m *DataProcessorMockProcessWithReturnMethod) ArgsShould(matchers ...any) *
 	return &DataProcessorMockProcessWithReturnCall{DependencyCall: call}
 }
 
-// DataProcessorMockTransformArgs holds typed arguments for Transform.
 type DataProcessorMockTransformArgs struct {
 	Obj interface {
 		GetValue() int
@@ -114,7 +105,6 @@ type DataProcessorMockTransformArgs struct {
 	}
 }
 
-// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockTransformCall struct {
 	*_imptest.DependencyCall
 }
@@ -135,7 +125,6 @@ func (c *DataProcessorMockTransformCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockTransformMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -155,12 +144,10 @@ func (m *DataProcessorMockTransformMethod) ArgsShould(matchers ...any) *DataProc
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
-// DataProcessorMockValidateArgs holds typed arguments for Validate.
 type DataProcessorMockValidateArgs struct {
 	Validator interface{ Check(string) error }
 }
 
-// DataProcessorMockValidateCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockValidateCall struct {
 	*_imptest.DependencyCall
 }
@@ -178,7 +165,6 @@ func (c *DataProcessorMockValidateCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockValidateMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockValidateMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -214,7 +200,6 @@ func MockDataProcessor(t _imptest.TestReporter) (interfaceliteral.DataProcessor,
 	return mock, imp
 }
 
-// mockDataProcessorImpl implements interfaceliteral.DataProcessor.
 type mockDataProcessorImpl struct {
 	ctrl *_imptest.Imp
 }

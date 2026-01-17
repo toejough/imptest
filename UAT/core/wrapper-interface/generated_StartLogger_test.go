@@ -11,14 +11,12 @@ import (
 	"testing"
 )
 
-// StartLoggerWrapperHandle wraps an implementation of handlers.Logger to intercept method calls.
 type StartLoggerWrapperHandle struct {
 	Log            *StartLoggerWrapperLogWrapper
 	LogWithContext *StartLoggerWrapperLogWithContextWrapper
 	impl           handlers.Logger
 }
 
-// StartLoggerWrapperLogCallHandle represents a single call to the wrapped method.
 type StartLoggerWrapperLogCallHandle struct {
 	*_imptest.CallableController[StartLoggerWrapperLogReturns]
 }
@@ -102,7 +100,6 @@ type StartLoggerWrapperLogReturns struct {
 	Result0 error
 }
 
-// StartLoggerWrapperLogWithContextCallHandle represents a single call to the wrapped method.
 type StartLoggerWrapperLogWithContextCallHandle struct {
 	*_imptest.CallableController[StartLoggerWrapperLogWithContextReturns]
 }

@@ -3,8 +3,8 @@ package handlers_test
 import (
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	handlers "github.com/toejough/imptest/UAT/core/wrapper-interface"
+	"github.com/toejough/imptest/match"
 )
 
 // TestInterfaceWrapper_CallHandleHasExpectMethods verifies Expect* methods exist.

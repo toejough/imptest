@@ -8,8 +8,6 @@ var (
 	ErrTransformFailed = errors.New("transform failed")
 )
 
-// DataProcessor demonstrates an interface with function literal parameters.
-// This is a common pattern for data transformation and processing pipelines.
 type DataProcessor interface {
 	// Transform applies a transformation function to each item.
 	// The function literal parameter allows flexible transformations at runtime.
@@ -23,7 +21,6 @@ type DataProcessor interface {
 	Reduce(items []int, initial int, reducer func(acc, item int) int) int
 }
 
-// Executor demonstrates a struct with methods accepting function literals.
 type Executor struct{}
 
 // Run executes a callback function with error handling.

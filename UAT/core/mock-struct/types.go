@@ -9,8 +9,6 @@ var (
 	ErrNotFound = errors.New("not found")
 )
 
-// Calculator is a struct type with methods that we want to mock.
-// Unlike an interface, this is a concrete implementation.
 type Calculator struct {
 	memory int
 }

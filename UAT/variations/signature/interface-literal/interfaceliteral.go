@@ -2,9 +2,6 @@
 // interface literal types in method signatures.
 package interfaceliteral
 
-// DataProcessor demonstrates interface literals in method signatures.
-// Interface literals are anonymous interfaces defined inline, commonly used for
-// ad-hoc contracts without needing to define a named interface type.
 type DataProcessor interface {
 	// Process accepts an object with a single getter method.
 	// This is a common pattern for simple read-only access to data.

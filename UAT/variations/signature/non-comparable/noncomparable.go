@@ -2,7 +2,6 @@
 // parameter types like slices and maps.
 package noncomparable
 
-// DataProcessor handles types that don't support the '==' operator (slices and maps).
 type DataProcessor interface {
 	ProcessSlice(data []string) int
 	ProcessMap(config map[string]int) bool

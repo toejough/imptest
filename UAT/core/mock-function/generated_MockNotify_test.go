@@ -7,13 +7,11 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// NotifyMockArgs holds typed arguments for Notify.
 type NotifyMockArgs struct {
 	UserID  int
 	Message string
 }
 
-// NotifyMockCall wraps DependencyCall with typed GetArgs.
 type NotifyMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -27,7 +25,6 @@ func (c *NotifyMockCall) GetArgs() NotifyMockArgs {
 	}
 }
 
-// NotifyMockMethod wraps DependencyMethod with typed returns.
 type NotifyMockMethod struct {
 	*_imptest.DependencyMethod
 	// Eventually provides async version of this function for concurrent code.

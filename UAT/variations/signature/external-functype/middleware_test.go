@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	// Import for impgen to resolve the package.
 	_ "github.com/toejough/imptest/UAT/variations/signature/external-functype"
+	"github.com/toejough/imptest/match"
 )
 
 // TestHTTPMiddleware tests using an interface with external function type parameters.

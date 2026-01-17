@@ -17,8 +17,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/match"
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
+	"github.com/toejough/imptest/match"
 )
 
 // TestMockFunction_ComplexTypes demonstrates mocking a function with complex type signatures.

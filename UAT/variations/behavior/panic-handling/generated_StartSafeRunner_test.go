@@ -9,7 +9,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartSafeRunnerCallHandle represents a single call to the wrapped function.
 type StartSafeRunnerCallHandle struct {
 	*_imptest.CallableController[StartSafeRunnerReturnsReturn]
 	controller        *_imptest.TargetController
@@ -83,7 +82,6 @@ func (h *StartSafeRunnerCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartSafeRunnerCallHandleEventually wraps a call handle for async expectation registration.
 type StartSafeRunnerCallHandleEventually struct {
 	h *StartSafeRunnerCallHandle
 }
@@ -109,7 +107,6 @@ func (e *StartSafeRunnerCallHandleEventually) ensureStarted() *_imptest.PendingC
 	return e.h.pendingCompletion
 }
 
-// StartSafeRunnerReturnsReturn holds the return values from the wrapped function.
 type StartSafeRunnerReturnsReturn struct {
 	Result0 bool
 }

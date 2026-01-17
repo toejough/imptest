@@ -10,7 +10,6 @@ import (
 	time "time"
 )
 
-// FileSystemImp holds method wrappers for setting expectations on FileSystem.
 type FileSystemImp struct {
 	Stat   *FileSystemMockStatMethod
 	Create *FileSystemMockCreateMethod
@@ -18,19 +17,16 @@ type FileSystemImp struct {
 	Eventually *FileSystemImpEventually
 }
 
-// FileSystemImpEventually holds async method wrappers for FileSystem.
 type FileSystemImpEventually struct {
 	Stat   *FileSystemMockStatMethod
 	Create *FileSystemMockCreateMethod
 }
 
-// FileSystemMockCreateArgs holds typed arguments for Create.
 type FileSystemMockCreateArgs struct {
 	Path string
 	Mode os.FileMode
 }
 
-// FileSystemMockCreateCall wraps DependencyCall with typed GetArgs and Return.
 type FileSystemMockCreateCall struct {
 	*_imptest.DependencyCall
 }
@@ -49,7 +45,6 @@ func (c *FileSystemMockCreateCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// FileSystemMockCreateMethod wraps DependencyMethod with typed returns.
 type FileSystemMockCreateMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -66,12 +61,10 @@ func (m *FileSystemMockCreateMethod) ArgsShould(matchers ...any) *FileSystemMock
 	return &FileSystemMockCreateCall{DependencyCall: call}
 }
 
-// FileSystemMockStatArgs holds typed arguments for Stat.
 type FileSystemMockStatArgs struct {
 	Path string
 }
 
-// FileSystemMockStatCall wraps DependencyCall with typed GetArgs and Return.
 type FileSystemMockStatCall struct {
 	*_imptest.DependencyCall
 }
@@ -89,7 +82,6 @@ func (c *FileSystemMockStatCall) Return(result0 os.FileMode, result1 time.Time, 
 	c.DependencyCall.Return(result0, result1, result2)
 }
 
-// FileSystemMockStatMethod wraps DependencyMethod with typed returns.
 type FileSystemMockStatMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -121,7 +113,6 @@ func MockFileSystem(t _imptest.TestReporter) (crossfile.FileSystem, *FileSystemI
 	return mock, imp
 }
 
-// mockFileSystemImpl implements crossfile.FileSystem.
 type mockFileSystemImpl struct {
 	ctrl *_imptest.Imp
 }

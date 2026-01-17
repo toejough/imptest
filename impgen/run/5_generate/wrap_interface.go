@@ -36,8 +36,6 @@ func InterfaceTargetCode(
 	return gen.generate(isStructType)
 }
 
-// interfaceTargetGenerator generates target wrappers for interfaces and struct types.
-// Each interface method gets wrapped like a function with its own wrapper struct.
 type interfaceTargetGenerator struct {
 	baseGenerator
 

@@ -9,28 +9,17 @@ import (
 	"time"
 )
 
-// Call represents a single call to a mock or callable.
 type Call interface {
 	Name() string
 	Done() bool
 }
 
-// CallableController manages the state of a single function execution.
 type CallableController[T any] struct {
 	T          TestReporter
 	ReturnChan chan T
 	PanicChan  chan any
 	Returned   *T
 	Panicked   any
-}
-
-// NewCallableController creates a new callable controller.
-func NewCallableController[T any](t TestReporter) *CallableController[T] {
-	return &CallableController[T]{
-		T:          t,
-		ReturnChan: make(chan T, 1),
-		PanicChan:  make(chan any, 1),
-	}
 }
 
 // WaitForResponse blocks until the wrapped function returns or panics.
@@ -47,7 +36,6 @@ func (c *CallableController[T]) WaitForResponse() {
 	}
 }
 
-// Controller manages the call queue and synchronization for a mock or callable.
 type Controller[T Call] struct {
 	T        TestReporter
 	Timer    Timer
@@ -61,23 +49,6 @@ type Controller[T Call] struct {
 	// If it returns true, the call was handled by a pending expectation.
 	// This allows Imp to intercept calls for async Eventually() handling.
 	PendingMatcher func(T) bool
-}
-
-// NewController creates a new controller with the default real timer.
-func NewController[T Call](t TestReporter) *Controller[T] {
-	return NewControllerWithTimer[T](t, realTimer{})
-}
-
-// NewControllerWithTimer creates a new controller with a custom timer for testing.
-func NewControllerWithTimer[T Call](t TestReporter, timer Timer) *Controller[T] {
-	ctrl := &Controller[T]{
-		T:        t,
-		Timer:    timer,
-		CallChan: make(chan T, 1),
-	}
-	go ctrl.dispatchLoop()
-
-	return ctrl
 }
 
 // GetCall waits for a call that matches the given validator. The validator returns
@@ -311,8 +282,6 @@ func (c *Controller[T]) dispatchLoop() {
 	}
 }
 
-// PendingCompletion represents an expectation on a target wrapper call
-// that hasn't been satisfied yet.
 type PendingCompletion struct {
 	t    TestReporter
 	mu   sync.Mutex
@@ -473,8 +442,6 @@ func (pc *PendingCompletion) checkReturnValues(
 	}
 }
 
-// PendingExpectation represents an expectation registered with Eventually()
-// that hasn't been matched yet.
 type PendingExpectation struct {
 	mu           sync.Mutex
 	MethodName   string
@@ -593,9 +560,6 @@ func (pe *PendingExpectation) setMatched(responseChan chan<- GenericResponse, ar
 	}
 }
 
-// TargetController manages pending completions for target wrappers.
-// It enables async Eventually() pattern where expectations are registered
-// before calls complete, then Wait() blocks until all are satisfied.
 type TargetController struct {
 	t                  TestReporter
 	mu                 sync.Mutex
@@ -621,28 +585,47 @@ func (tc *TargetController) RegisterPendingCompletion() *PendingCompletion {
 	return completion
 }
 
-// Wait blocks until all pending completions are satisfied.
-
-// TestReporter is the minimal interface imptest needs from test frameworks.
-// testing.T, testing.B, and *Imp all implement this interface.
 type TestReporter interface {
 	Helper()
 	Fatalf(format string, args ...any)
 }
 
-// Timer abstracts time-based operations for testability.
 type Timer interface {
 	After(d time.Duration) <-chan time.Time
 }
 
-// realTimer is the default timer implementation that uses the standard time package.
+// NewCallableController creates a new callable controller.
+func NewCallableController[T any](t TestReporter) *CallableController[T] {
+	return &CallableController[T]{
+		T:          t,
+		ReturnChan: make(chan T, 1),
+		PanicChan:  make(chan any, 1),
+	}
+}
+
+// NewController creates a new controller with the default real timer.
+func NewController[T Call](t TestReporter) *Controller[T] {
+	return NewControllerWithTimer[T](t, realTimer{})
+}
+
+// NewControllerWithTimer creates a new controller with a custom timer for testing.
+func NewControllerWithTimer[T Call](t TestReporter, timer Timer) *Controller[T] {
+	ctrl := &Controller[T]{
+		T:        t,
+		Timer:    timer,
+		CallChan: make(chan T, 1),
+	}
+	go ctrl.dispatchLoop()
+
+	return ctrl
+}
+
 type realTimer struct{}
 
 func (realTimer) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }
 
-// waiter represents a goroutine waiting for a matching call.
 type waiter[T any] struct {
 	validator      func(T) error // Returns nil for match, error for mismatch
 	result         chan T

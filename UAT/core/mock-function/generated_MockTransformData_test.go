@@ -8,14 +8,12 @@ import (
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
 )
 
-// TransformDataMockArgs holds typed arguments for TransformData.
 type TransformDataMockArgs struct {
 	Items     []*mockfunction.Order
 	Lookup    map[string]*mockfunction.Order
 	Processor func(*mockfunction.Order) error
 }
 
-// TransformDataMockCall wraps DependencyCall with typed GetArgs and Return.
 type TransformDataMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,7 +33,6 @@ func (c *TransformDataMockCall) Return(result0 *mockfunction.Order, result1 erro
 	c.DependencyCall.Return(result0, result1)
 }
 
-// TransformDataMockMethod wraps DependencyMethod with typed returns.
 type TransformDataMockMethod struct {
 	*_imptest.DependencyMethod
 	// Eventually provides async version of this function for concurrent code.

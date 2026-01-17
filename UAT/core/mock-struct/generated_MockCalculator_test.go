@@ -7,7 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// CalculatorImp holds method wrappers for setting expectations on Calculator.
 type CalculatorImp struct {
 	Add   *CalculatorMockAddMethod
 	Get   *_imptest.DependencyMethod
@@ -17,7 +16,6 @@ type CalculatorImp struct {
 	Eventually *CalculatorImpEventually
 }
 
-// CalculatorImpEventually holds async method wrappers for Calculator.
 type CalculatorImpEventually struct {
 	Add   *CalculatorMockAddMethod
 	Get   *_imptest.DependencyMethod
@@ -25,13 +23,11 @@ type CalculatorImpEventually struct {
 	Store *CalculatorMockStoreMethod
 }
 
-// CalculatorMockAddArgs holds typed arguments for Add.
 type CalculatorMockAddArgs struct {
 	A int
 	B int
 }
 
-// CalculatorMockAddCall wraps DependencyCall with typed GetArgs and Return.
 type CalculatorMockAddCall struct {
 	*_imptest.DependencyCall
 }
@@ -50,7 +46,6 @@ func (c *CalculatorMockAddCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// CalculatorMockAddMethod wraps DependencyMethod with typed returns.
 type CalculatorMockAddMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -67,7 +62,6 @@ func (m *CalculatorMockAddMethod) ArgsShould(matchers ...any) *CalculatorMockAdd
 	return &CalculatorMockAddCall{DependencyCall: call}
 }
 
-// CalculatorMockGetCall wraps DependencyCall with typed GetArgs and Return.
 type CalculatorMockGetCall struct {
 	*_imptest.DependencyCall
 }
@@ -77,7 +71,6 @@ func (c *CalculatorMockGetCall) Return(result0 int, result1 error) {
 	c.DependencyCall.Return(result0, result1)
 }
 
-// CalculatorMockInterface is a generated interface matching the methods of Calculator.
 type CalculatorMockInterface interface {
 	Add(a int, b int) int
 	Get() (int, error)
@@ -85,12 +78,10 @@ type CalculatorMockInterface interface {
 	Store(value int) int
 }
 
-// CalculatorMockStoreArgs holds typed arguments for Store.
 type CalculatorMockStoreArgs struct {
 	Value int
 }
 
-// CalculatorMockStoreCall wraps DependencyCall with typed GetArgs and Return.
 type CalculatorMockStoreCall struct {
 	*_imptest.DependencyCall
 }
@@ -108,7 +99,6 @@ func (c *CalculatorMockStoreCall) Return(result0 int) {
 	c.DependencyCall.Return(result0)
 }
 
-// CalculatorMockStoreMethod wraps DependencyMethod with typed returns.
 type CalculatorMockStoreMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -144,7 +134,6 @@ func MockCalculator(t _imptest.TestReporter) (CalculatorMockInterface, *Calculat
 	return mock, imp
 }
 
-// mockCalculatorImpl implements CalculatorMockInterface.
 type mockCalculatorImpl struct {
 	ctrl *_imptest.Imp
 }

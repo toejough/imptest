@@ -8,7 +8,6 @@ import (
 	parameterized "github.com/toejough/imptest/UAT/variations/signature/parameterized"
 )
 
-// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
 type DataProcessorImp struct {
 	ProcessContainer *DataProcessorMockProcessContainerMethod
 	ProcessPair      *DataProcessorMockProcessPairMethod
@@ -17,19 +16,16 @@ type DataProcessorImp struct {
 	Eventually *DataProcessorImpEventually
 }
 
-// DataProcessorImpEventually holds async method wrappers for DataProcessor.
 type DataProcessorImpEventually struct {
 	ProcessContainer *DataProcessorMockProcessContainerMethod
 	ProcessPair      *DataProcessorMockProcessPairMethod
 	ReturnContainer  *_imptest.DependencyMethod
 }
 
-// DataProcessorMockProcessContainerArgs holds typed arguments for ProcessContainer.
 type DataProcessorMockProcessContainerArgs struct {
 	Data parameterized.Container[string]
 }
 
-// DataProcessorMockProcessContainerCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessContainerCall struct {
 	*_imptest.DependencyCall
 }
@@ -47,7 +43,6 @@ func (c *DataProcessorMockProcessContainerCall) Return(result0 error) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockProcessContainerMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessContainerMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -64,12 +59,10 @@ func (m *DataProcessorMockProcessContainerMethod) ArgsShould(matchers ...any) *D
 	return &DataProcessorMockProcessContainerCall{DependencyCall: call}
 }
 
-// DataProcessorMockProcessPairArgs holds typed arguments for ProcessPair.
 type DataProcessorMockProcessPairArgs struct {
 	Pair parameterized.Pair[int, bool]
 }
 
-// DataProcessorMockProcessPairCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessPairCall struct {
 	*_imptest.DependencyCall
 }
@@ -87,7 +80,6 @@ func (c *DataProcessorMockProcessPairCall) Return(result0 string) {
 	c.DependencyCall.Return(result0)
 }
 
-// DataProcessorMockProcessPairMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessPairMethod struct {
 	*_imptest.DependencyMethod
 }
@@ -104,7 +96,6 @@ func (m *DataProcessorMockProcessPairMethod) ArgsShould(matchers ...any) *DataPr
 	return &DataProcessorMockProcessPairCall{DependencyCall: call}
 }
 
-// DataProcessorMockReturnContainerCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockReturnContainerCall struct {
 	*_imptest.DependencyCall
 }
@@ -131,7 +122,6 @@ func MockDataProcessor(t _imptest.TestReporter) (parameterized.DataProcessor, *D
 	return mock, imp
 }
 
-// mockDataProcessorImpl implements parameterized.DataProcessor.
 type mockDataProcessorImpl struct {
 	ctrl *_imptest.Imp
 }

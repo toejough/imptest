@@ -7,8 +7,6 @@ import (
 	. "github.com/toejough/imptest/UAT/variations/package/dot-imports/business/storage" //nolint:staticcheck,revive // Dot import intentional for UAT
 )
 
-// UserService demonstrates business logic that uses dot-imported interfaces.
-// This is the production code that the test will need to mock.
 type UserService struct {
 	repo Repository
 }

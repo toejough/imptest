@@ -2,8 +2,6 @@ package core
 
 import "fmt"
 
-// DependencyArgs provides access to the actual arguments that were passed to the dependency.
-// Code generation will create properly typed versions of this.
 type DependencyArgs struct {
 	A1 any
 	A2 any
@@ -13,9 +11,6 @@ type DependencyArgs struct {
 	// More fields will be generated as needed
 }
 
-// DependencyCall represents an expected call to a dependency.
-// This type wraps a GenericCall from the Controller and provides the v2 API.
-// In async mode (Eventually()), it wraps a PendingExpectation instead.
 type DependencyCall struct {
 	call    *GenericCall        // set in synchronous mode
 	pending *PendingExpectation // set in async mode (Eventually)
@@ -78,9 +73,6 @@ func (dc *DependencyCall) Return(values ...any) {
 	}
 }
 
-// DependencyMethod represents a method on a mocked interface.
-// It provides methods to set up expectations for that specific method.
-// Code generation creates instances of this for each method in an interface.
 type DependencyMethod struct {
 	imp        *Imp
 	methodName string
@@ -94,17 +86,6 @@ func NewDependencyMethod(imp *Imp, methodName string) *DependencyMethod {
 		imp:        imp,
 		methodName: methodName,
 		eventually: false,
-	}
-}
-
-// AsEventually returns a copy of this DependencyMethod configured for async mode.
-// In async mode, expectation methods return immediately (non-blocking) and register
-// pending expectations that are matched when calls arrive.
-func (dm *DependencyMethod) AsEventually() *DependencyMethod {
-	return &DependencyMethod{
-		imp:        dm.imp,
-		methodName: dm.methodName,
-		eventually: true,
 	}
 }
 
@@ -126,30 +107,6 @@ func (dm *DependencyMethod) ArgsEqual(args ...any) *DependencyCall {
 			}
 		}
 
-		return nil
-	}
-
-	if dm.eventually {
-		// Async mode - register pending expectation and return immediately
-		pending := dm.imp.RegisterPendingExpectation(dm.methodName, validator)
-
-		return &DependencyCall{
-			pending: pending,
-		}
-	}
-
-	// Synchronous mode - block until call arrives
-	call := dm.imp.GetCallOrdered(0, dm.methodName, validator)
-
-	return newDependencyCall(call)
-}
-
-// Called waits for a call to this method with any arguments.
-// Use when you only care that the method was called, not what arguments were passed.
-// In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
-func (dm *DependencyMethod) Called() *DependencyCall {
-	// Always matches - accepts any arguments
-	validator := func(_ []any) error {
 		return nil
 	}
 
@@ -191,6 +148,41 @@ func (dm *DependencyMethod) ArgsShould(matchers ...any) *DependencyCall {
 			}
 		}
 
+		return nil
+	}
+
+	if dm.eventually {
+		// Async mode - register pending expectation and return immediately
+		pending := dm.imp.RegisterPendingExpectation(dm.methodName, validator)
+
+		return &DependencyCall{
+			pending: pending,
+		}
+	}
+
+	// Synchronous mode - block until call arrives
+	call := dm.imp.GetCallOrdered(0, dm.methodName, validator)
+
+	return newDependencyCall(call)
+}
+
+// AsEventually returns a copy of this DependencyMethod configured for async mode.
+// In async mode, expectation methods return immediately (non-blocking) and register
+// pending expectations that are matched when calls arrive.
+func (dm *DependencyMethod) AsEventually() *DependencyMethod {
+	return &DependencyMethod{
+		imp:        dm.imp,
+		methodName: dm.methodName,
+		eventually: true,
+	}
+}
+
+// Called waits for a call to this method with any arguments.
+// Use when you only care that the method was called, not what arguments were passed.
+// In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
+func (dm *DependencyMethod) Called() *DependencyCall {
+	// Always matches - accepts any arguments
+	validator := func(_ []any) error {
 		return nil
 	}
 

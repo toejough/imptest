@@ -1,9 +1,6 @@
 // Package storage provides storage interfaces for dot-import testing.
 package storage
 
-// Repository demonstrates an interface that will be dot-imported by business logic.
-// This simulates a common pattern where storage abstractions are imported
-// without qualification for cleaner code.
 type Repository interface {
 	// Save persists data with a key
 	Save(key string, data []byte) error

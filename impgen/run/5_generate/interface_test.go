@@ -53,7 +53,6 @@ func TestDependencyCode_Error(t *testing.T) {
 	}
 }
 
-// mockPkgLoader is a test mock for detect.PackageLoader.
 type mockPkgLoader struct {
 	files []*dst.File
 	fset  *token.FileSet

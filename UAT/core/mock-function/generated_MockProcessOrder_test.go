@@ -9,13 +9,11 @@ import (
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
 )
 
-// ProcessOrderMockArgs holds typed arguments for ProcessOrder.
 type ProcessOrderMockArgs struct {
 	Ctx     context.Context
 	OrderID int
 }
 
-// ProcessOrderMockCall wraps DependencyCall with typed GetArgs and Return.
 type ProcessOrderMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -34,7 +32,6 @@ func (c *ProcessOrderMockCall) Return(result0 *mockfunction.Order, result1 error
 	c.DependencyCall.Return(result0, result1)
 }
 
-// ProcessOrderMockMethod wraps DependencyMethod with typed returns.
 type ProcessOrderMockMethod struct {
 	*_imptest.DependencyMethod
 	// Eventually provides async version of this function for concurrent code.

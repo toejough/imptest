@@ -6,8 +6,8 @@ import (
 
 	. "github.com/onsi/gomega" //nolint:revive // Dot import intentional for Gomega matcher DSL
 
-	"github.com/toejough/imptest/match"
 	matching "github.com/toejough/imptest/UAT/variations/behavior/matching"
+	"github.com/toejough/imptest/match"
 )
 
 //go:generate impgen matching.ComplexService --dependency

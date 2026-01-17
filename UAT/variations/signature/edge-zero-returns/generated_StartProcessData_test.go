@@ -7,7 +7,6 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// StartProcessDataCallHandle represents a single call to the wrapped function.
 type StartProcessDataCallHandle struct {
 	*_imptest.CallableController[StartProcessDataReturnsReturn]
 	controller        *_imptest.TargetController
@@ -58,7 +57,6 @@ func (h *StartProcessDataCallHandle) PanicShould(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// StartProcessDataCallHandleEventually wraps a call handle for async expectation registration.
 type StartProcessDataCallHandleEventually struct {
 	h *StartProcessDataCallHandle
 }
@@ -84,7 +82,6 @@ func (e *StartProcessDataCallHandleEventually) ensureStarted() *_imptest.Pending
 	return e.h.pendingCompletion
 }
 
-// StartProcessDataReturnsReturn holds the return values from the wrapped function.
 type StartProcessDataReturnsReturn struct {
 }
 

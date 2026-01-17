@@ -9,7 +9,6 @@ import (
 	"github.com/toejough/go-reorder"
 )
 
-// Writer interface for writing generated code.
 type Writer interface {
 	WriteFile(name string, data []byte, perm os.FileMode) error
 }

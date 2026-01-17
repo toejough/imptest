@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-// StartCounterWrapperAddAmountCallHandle represents a single call to the wrapped method.
 type StartCounterWrapperAddAmountCallHandle struct {
 	*_imptest.CallableController[StartCounterWrapperAddAmountReturns]
 }
@@ -116,7 +115,6 @@ func (w *StartCounterWrapperAddAmountWrapper) Start(amount int) *StartCounterWra
 	return handle
 }
 
-// StartCounterWrapperGetValueCallHandle represents a single call to the wrapped method.
 type StartCounterWrapperGetValueCallHandle struct {
 	*_imptest.CallableController[StartCounterWrapperGetValueReturns]
 }
@@ -222,7 +220,6 @@ func (w *StartCounterWrapperGetValueWrapper) Start() *StartCounterWrapperGetValu
 	return handle
 }
 
-// StartCounterWrapperHandle wraps an implementation of calculator.Counter to intercept method calls.
 type StartCounterWrapperHandle struct {
 	AddAmount *StartCounterWrapperAddAmountWrapper
 	GetValue  *StartCounterWrapperGetValueWrapper
@@ -230,7 +227,6 @@ type StartCounterWrapperHandle struct {
 	impl      *calculator.Counter
 }
 
-// StartCounterWrapperIncrementCallHandle represents a single call to the wrapped method.
 type StartCounterWrapperIncrementCallHandle struct {
 	*_imptest.CallableController[StartCounterWrapperIncrementReturns]
 }

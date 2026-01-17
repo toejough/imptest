@@ -48,7 +48,6 @@ func FunctionTypeDependencyCode(
 	return FunctionDependencyCode(astFiles, info, fset, pkgImportPath, pkgLoader, funcDecl)
 }
 
-// funcDepTemplateData holds data for function dependency mock templates.
 type funcDepTemplateData struct {
 	baseTemplateData //nolint:unused // Embedded struct accessed by templates
 
@@ -59,7 +58,6 @@ type funcDepTemplateData struct {
 	Method       depMethodTemplateData // Method template data
 }
 
-// functionDependencyGenerator generates dependency mocks for package-level functions.
 type functionDependencyGenerator struct {
 	baseGenerator
 

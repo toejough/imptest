@@ -10,7 +10,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartProcessUserCallHandle represents a single call to the wrapped function.
 type StartProcessUserCallHandle struct {
 	*_imptest.CallableController[StartProcessUserReturnsReturn]
 	controller        *_imptest.TargetController
@@ -91,7 +90,6 @@ func (h *StartProcessUserCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartProcessUserCallHandleEventually wraps a call handle for async expectation registration.
 type StartProcessUserCallHandleEventually struct {
 	h *StartProcessUserCallHandle
 }
@@ -117,7 +115,6 @@ func (e *StartProcessUserCallHandleEventually) ensureStarted() *_imptest.Pending
 	return e.h.pendingCompletion
 }
 
-// StartProcessUserReturnsReturn holds the return values from the wrapped function.
 type StartProcessUserReturnsReturn struct {
 	Result0 named.User
 	Result1 error

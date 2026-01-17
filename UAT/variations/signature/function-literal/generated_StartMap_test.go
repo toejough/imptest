@@ -8,7 +8,6 @@ import (
 	_reflect "reflect"
 )
 
-// StartMapCallHandle represents a single call to the wrapped function.
 type StartMapCallHandle struct {
 	*_imptest.CallableController[StartMapReturnsReturn]
 	controller        *_imptest.TargetController
@@ -82,7 +81,6 @@ func (h *StartMapCallHandle) ReturnsShould(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// StartMapCallHandleEventually wraps a call handle for async expectation registration.
 type StartMapCallHandleEventually struct {
 	h *StartMapCallHandle
 }
@@ -108,7 +106,6 @@ func (e *StartMapCallHandleEventually) ensureStarted() *_imptest.PendingCompleti
 	return e.h.pendingCompletion
 }
 
-// StartMapReturnsReturn holds the return values from the wrapped function.
 type StartMapReturnsReturn struct {
 	Result0 []int
 }

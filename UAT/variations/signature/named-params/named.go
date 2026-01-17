@@ -14,7 +14,6 @@ var (
 	ErrNotFound       = errors.New("user not found")
 )
 
-// Calculator demonstrates a target function with named returns.
 type Calculator struct{}
 
 // Divide demonstrates named return values in a function.
@@ -27,14 +26,11 @@ func (c Calculator) Divide(dividend, divisor int) (quotient, remainder int, err 
 	return dividend / divisor, dividend % divisor, nil
 }
 
-// User represents a user entity.
 type User struct {
 	ID   int
 	Name string
 }
 
-// UserRepository demonstrates named parameters and named return values.
-// This is a common Go pattern for improving code readability.
 type UserRepository interface {
 	// GetUser demonstrates named parameters (ctx, userID) and named returns (user, err).
 	// Named returns make the function signature more self-documenting.

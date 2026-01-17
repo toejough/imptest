@@ -29,15 +29,11 @@ var (
 	ErrInterfaceModeRequired = errors.New("mode flag required: use --dependency or --target")
 )
 
-// Interfaces - Public
-
-// FileReader interface for reading files during signature calculation.
 type FileReader interface {
 	Glob(pattern string) ([]string, error)
 	ReadFile(name string) ([]byte, error)
 }
 
-// FileSystem interface combines reading and writing for convenience.
 type FileSystem interface {
 	FileReader
 	output.Writer
@@ -176,9 +172,6 @@ var (
 	errMutuallyExclusiveFlags = errors.New("--target and --dependency flags are mutually exclusive")
 )
 
-// Structs - Private
-
-// cliArgs defines the command-line arguments for the generator.
 type cliArgs struct {
 	Interface  string `targ:"positional,required,desc=interface or function name to wrap/mock"`
 	Name       string `targ:"flag,desc=name for the generated code (overrides default naming)"`
@@ -190,7 +183,6 @@ type cliArgs struct {
 // Run is required by targ but not used - parsing only.
 func (c *cliArgs) Run() { _ = c }
 
-// symbolResult holds the result of symbol detection for caching purposes.
 type symbolResult struct {
 	symbol   detect.SymbolDetails
 	astFiles []*dst.File

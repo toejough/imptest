@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// SlowService represents a dependency that might be called concurrently.
 type SlowService interface {
 	DoA(id int) string
 	DoB(id int) string

@@ -18,7 +18,6 @@ import (
 	astutil "github.com/toejough/imptest/impgen/run/0_util"
 )
 
-// SymbolType identifies the kind of symbol found.
 type SymbolType int
 
 // SymbolType values.
@@ -29,14 +28,12 @@ const (
 	SymbolStructType
 )
 
-// FuncTypeWithDetails is a helper struct to return both the function type and its type parameters.
 type FuncTypeWithDetails struct {
 	FuncType   *dst.FuncType
 	TypeParams *dst.FieldList
 	TypeName   string // The name of the type (e.g., "WalkFunc")
 }
 
-// IfaceWithDetails is a helper struct to return both the interface and its type parameters.
 type IfaceWithDetails struct {
 	Iface         *dst.InterfaceType
 	TypeParams    *dst.FieldList
@@ -44,19 +41,16 @@ type IfaceWithDetails struct {
 	IsStructType  bool              // true if this was synthesized from a struct type
 }
 
-// PackageLoader defines an interface for loading Go packages.
 type PackageLoader interface {
 	Load(importPath string) ([]*dst.File, *token.FileSet, *types.Info, error)
 }
 
-// StructWithDetails is a helper struct to return struct type information.
 type StructWithDetails struct {
 	TypeParams    *dst.FieldList
 	TypeName      string            // The name of the struct type (e.g., "Calculator")
 	SourceImports []*dst.ImportSpec // imports from the file containing the struct
 }
 
-// SymbolDetails holds information about the detected symbol.
 type SymbolDetails struct {
 	Kind SymbolType
 
@@ -360,7 +354,6 @@ var (
 	}
 )
 
-// symbolFinder attempts to find a symbol and returns details if found.
 type symbolFinder func(
 	astFiles []*dst.File,
 	fset *token.FileSet,

@@ -9,11 +9,11 @@ import (
 	_ "github.com/toejough/imptest/UAT/core/wrapper-functype"
 )
 
-// TestWrapFunctionType verifies that we can wrap a named function type.
+// TestStartFunctionType verifies that we can wrap a named function type.
 // According to the design, wrapping a function type should:
 // 1. Create a StartWalkFunc(t, fn, args...) function
 // 2. Allow expecting return values with ReturnsEqual/ReturnsShould
-func TestWrapFunctionType(t *testing.T) {
+func TestStartFunctionType(t *testing.T) {
 	t.Parallel()
 
 	testFn := func(path, _ string) error {
@@ -31,8 +31,8 @@ func TestWrapFunctionType(t *testing.T) {
 	returns.ReturnsEqual(nil)
 }
 
-// TestWrapFunctionTypeWithError verifies error handling.
-func TestWrapFunctionTypeWithError(t *testing.T) {
+// TestStartFunctionTypeWithError verifies error handling.
+func TestStartFunctionTypeWithError(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("test error")
