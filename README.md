@@ -64,9 +64,9 @@ func Test_PrintSum(t *testing.T) {
    over dependency behavior
 1. A `//go:generate` directive created a type-safe wrapper (`WrapPrintSum`) for the function under test, enabling return
    value and panic validation
-1. The test controls the dependency interactively—each `Expect` call waits for the actual call
-1. Results are injected on-demand with `Return`, simulating any behavior you want
-1. Return values are validated with `ExpectReturn`
+1. The test controlled the dependency interactively—each `Expect` call waited for the actual call
+1. Results were injected on-demand with `Return`, simulating the desired behavior
+1. Return values were validated with `ExpectReturn`
 
 ## Flexible Matching with Gomega
 
@@ -106,8 +106,8 @@ func Test_PrintSum_Flexible(t *testing.T) {
 | **Interface Mocks**       | Generate type-safe mocks from any interface with `//go:generate impgen <package.Interface> --dependency`                  |
 | **Callable Wrappers**     | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target`                         |
 | **Two-Return Pattern**    | Mocks return `(mock, imp)`: `mock` is the interface, `imp` holds method expectations                                      |
-| **Two-Step Matching**     | Access methods via `imp.X`, then specify matching mode (`Expect()` or `Match()`)       |
-| **Type Safety**           | `Expect(int, int)` is compile-time checked; `Match(matcher, matcher)` accepts matchers |
+| **Two-Step Matching**     | Access methods via `imp.X`, then specify matching mode (`Expect()` or `Match()`)                                          |
+| **Type Safety**           | `Expect(int, int)` is compile-time checked; `Match(matcher, matcher)` accepts matchers                                    |
 | **Concurrent Support**    | Use `.Eventually` for async expectations, then `imptest.Wait(t)` to block until satisfied                                 |
 | **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
 
