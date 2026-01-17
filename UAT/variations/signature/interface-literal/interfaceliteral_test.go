@@ -18,17 +18,17 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 	t.Run("SingleMethod", func(t *testing.T) {
 		t.Parallel()
-		mock := MockDataProcessor(t)
+		mock, imp := MockDataProcessor(t)
 
 		obj := &simpleGetter{value: "test data"}
 
 		// Launch goroutine that calls the method with interface literal parameter
 		go func() {
-			_ = mock.Mock.Process(obj)
+			_ = mock.Process(obj)
 		}()
 
 		// Verify the mock received the call and inject return value
-		call := mock.Method.Process.ExpectCalledWithExactly(obj)
+		call := imp.Process.ExpectCalledWithExactly(obj)
 		call.InjectReturnValues("processed")
 
 		// Verify args can be retrieved
@@ -40,17 +40,17 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 	t.Run("MultipleMethod", func(t *testing.T) {
 		t.Parallel()
-		mock := MockDataProcessor(t)
+		mock, imp := MockDataProcessor(t)
 
 		obj := &multiMethodObject{value: 42}
 
 		// Launch goroutine that calls the method
 		go func() {
-			_ = mock.Mock.Transform(obj)
+			_ = mock.Transform(obj)
 		}()
 
 		// Verify and inject return value
-		call := mock.Method.Transform.ExpectCalledWithExactly(obj)
+		call := imp.Transform.ExpectCalledWithExactly(obj)
 		call.InjectReturnValues(100)
 
 		// Verify args can be retrieved and methods can be called
@@ -62,18 +62,18 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 	t.Run("WithError", func(t *testing.T) {
 		t.Parallel()
-		mock := MockDataProcessor(t)
+		mock, imp := MockDataProcessor(t)
 
 		validator := &simpleValidator{shouldFail: true}
 
 		// Launch goroutine that calls the method
 		go func() {
-			_ = mock.Mock.Validate(validator)
+			_ = mock.Validate(validator)
 		}()
 
 		// Verify and inject error return
 		testErr := errors.New("mock validation error")
-		call := mock.Method.Validate.ExpectCalledWithExactly(validator)
+		call := imp.Validate.ExpectCalledWithExactly(validator)
 		call.InjectReturnValues(testErr)
 
 		// Verify validator can be called
@@ -87,17 +87,17 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 	t.Run("ReturnType", func(t *testing.T) {
 		t.Parallel()
-		mock := MockDataProcessor(t)
+		mock, imp := MockDataProcessor(t)
 
 		// Launch goroutine that calls the method
 		go func() {
-			result := mock.Mock.ProcessWithReturn("input")
+			result := mock.ProcessWithReturn("input")
 			_ = result.Result() // Use the returned interface literal
 		}()
 
 		// Verify and inject return value
 		returnObj := &resultProvider{result: "output"}
-		call := mock.Method.ProcessWithReturn.ExpectCalledWithExactly("input")
+		call := imp.ProcessWithReturn.ExpectCalledWithExactly("input")
 		call.InjectReturnValues(returnObj)
 
 		// Verify args
@@ -109,17 +109,17 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 	t.Run("WithMatchers", func(t *testing.T) {
 		t.Parallel()
-		mock := MockDataProcessor(t)
+		mock, imp := MockDataProcessor(t)
 
 		obj := &simpleGetter{value: "matcher test"}
 
 		// Launch goroutine
 		go func() {
-			_ = mock.Mock.Process(obj)
+			_ = mock.Process(obj)
 		}()
 
 		// Use matcher for interface literal parameter
-		call := mock.Method.Process.ExpectCalledWithMatches(imptest.Any())
+		call := imp.Process.ExpectCalledWithMatches(imptest.Any())
 		call.InjectReturnValues("matched result")
 
 		// Verify we can still get args

@@ -10,15 +10,8 @@ import (
 	os "os"
 )
 
-// FileHandlerMockHandle is the test handle for FileHandler.
-type FileHandlerMockHandle struct {
-	Mock       externalimports.FileHandler
-	Method     *FileHandlerMockMethods
-	Controller *_imptest.Imp
-}
-
-// FileHandlerMockMethods holds method wrappers for setting expectations.
-type FileHandlerMockMethods struct {
+// FileHandlerImp holds method wrappers for setting expectations on FileHandler.
+type FileHandlerImp struct {
 	ReadAll  *FileHandlerMockReadAllMethod
 	OpenFile *FileHandlerMockOpenFileMethod
 	Stats    *FileHandlerMockStatsMethod
@@ -152,25 +145,21 @@ func (m *FileHandlerMockStatsMethod) ExpectCalledWithMatches(matchers ...any) *F
 	return &FileHandlerMockStatsCall{DependencyCall: call}
 }
 
-// MockFileHandler creates a new FileHandlerMockHandle for testing.
-func MockFileHandler(t _imptest.TestReporter) *FileHandlerMockHandle {
+// MockFileHandler creates a mock FileHandler and returns (mock, expectation handle).
+func MockFileHandler(t _imptest.TestReporter) (externalimports.FileHandler, *FileHandlerImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &FileHandlerMockMethods{
+	imp := &FileHandlerImp{
 		ReadAll:  newFileHandlerMockReadAllMethod(_imptest.NewDependencyMethod(ctrl, "ReadAll")),
 		OpenFile: newFileHandlerMockOpenFileMethod(_imptest.NewDependencyMethod(ctrl, "OpenFile")),
 		Stats:    newFileHandlerMockStatsMethod(_imptest.NewDependencyMethod(ctrl, "Stats")),
 	}
-	h := &FileHandlerMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockFileHandlerImpl{handle: h}
-	return h
+	mock := &mockFileHandlerImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockFileHandlerImpl implements externalimports.FileHandler.
 type mockFileHandlerImpl struct {
-	handle *FileHandlerMockHandle
+	ctrl *_imptest.Imp
 }
 
 // OpenFile implements externalimports.FileHandler.OpenFile.
@@ -180,7 +169,7 @@ func (impl *mockFileHandlerImpl) OpenFile(path string, mode os.FileMode) (*os.Fi
 		Args:         []any{path, mode},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -210,7 +199,7 @@ func (impl *mockFileHandlerImpl) ReadAll(r io.Reader) ([]byte, error) {
 		Args:         []any{r},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -240,7 +229,7 @@ func (impl *mockFileHandlerImpl) Stats(path string) (os.FileInfo, error) {
 		Args:         []any{path},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

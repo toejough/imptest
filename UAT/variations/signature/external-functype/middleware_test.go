@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/toejough/imptest"
+	// Import for impgen to resolve the package.
+	_ "github.com/toejough/imptest/UAT/variations/signature/external-functype"
 )
 
 // TestHTTPMiddleware tests using an interface with external function type parameters.
@@ -19,7 +21,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	t.Parallel()
 
 	// Create the mock
-	mock := MockHTTPMiddleware(t)
+	mock, imp := MockHTTPMiddleware(t)
 
 	// Create a simple handler
 	handler := func(w http.ResponseWriter, _ *http.Request) {
@@ -37,12 +39,12 @@ func TestHTTPMiddleware(t *testing.T) {
 	done := make(chan http.HandlerFunc)
 
 	go func() {
-		result := mock.Mock.Wrap(handler)
+		result := mock.Wrap(handler)
 		done <- result
 	}()
 
 	// Expect the Wrap call and inject the wrapped handler
-	call := mock.Method.Wrap.Eventually.ExpectCalledWithMatches(imptest.Any())
+	call := imp.Wrap.Eventually.ExpectCalledWithMatches(imptest.Any())
 	call.InjectReturnValues(wrappedHandler)
 
 	// Wait for the result

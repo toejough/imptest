@@ -19,17 +19,17 @@ func TestImportInference(t *testing.T) {
 	// the local time package above (as localtime), impgen automatically
 	// knows we want to mock local time.Timer, not stdlib time.Timer
 
-	mock := MockTimer(t)
+	mock, imp := MockTimer(t)
 
 	// Verify we got the local time.Timer mock (which has Wait and GetElapsed methods)
 	// Also verify the import is used
-	var _ localtime.Timer = mock.Mock //nolint:staticcheck // Intentional compile-time interface check
+	var _ localtime.Timer = mock //nolint:staticcheck // Intentional compile-time interface check
 
 	go func() {
-		_ = mock.Mock.Wait(100)
-		_ = mock.Mock.GetElapsed()
+		_ = mock.Wait(100)
+		_ = mock.GetElapsed()
 	}()
 
-	mock.Method.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
-	mock.Method.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
+	imp.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
+	imp.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
 }

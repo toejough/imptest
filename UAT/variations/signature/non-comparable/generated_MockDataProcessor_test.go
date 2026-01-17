@@ -8,15 +8,8 @@ import (
 	noncomparable "github.com/toejough/imptest/UAT/variations/signature/non-comparable"
 )
 
-// DataProcessorMockHandle is the test handle for DataProcessor.
-type DataProcessorMockHandle struct {
-	Mock       noncomparable.DataProcessor
-	Method     *DataProcessorMockMethods
-	Controller *_imptest.Imp
-}
-
-// DataProcessorMockMethods holds method wrappers for setting expectations.
-type DataProcessorMockMethods struct {
+// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
+type DataProcessorImp struct {
 	ProcessSlice *DataProcessorMockProcessSliceMethod
 	ProcessMap   *DataProcessorMockProcessMapMethod
 }
@@ -105,24 +98,20 @@ func (m *DataProcessorMockProcessSliceMethod) ExpectCalledWithMatches(matchers .
 	return &DataProcessorMockProcessSliceCall{DependencyCall: call}
 }
 
-// MockDataProcessor creates a new DataProcessorMockHandle for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
+// MockDataProcessor creates a mock DataProcessor and returns (mock, expectation handle).
+func MockDataProcessor(t _imptest.TestReporter) (noncomparable.DataProcessor, *DataProcessorImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &DataProcessorMockMethods{
+	imp := &DataProcessorImp{
 		ProcessSlice: newDataProcessorMockProcessSliceMethod(_imptest.NewDependencyMethod(ctrl, "ProcessSlice")),
 		ProcessMap:   newDataProcessorMockProcessMapMethod(_imptest.NewDependencyMethod(ctrl, "ProcessMap")),
 	}
-	h := &DataProcessorMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockDataProcessorImpl{handle: h}
-	return h
+	mock := &mockDataProcessorImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockDataProcessorImpl implements noncomparable.DataProcessor.
 type mockDataProcessorImpl struct {
-	handle *DataProcessorMockHandle
+	ctrl *_imptest.Imp
 }
 
 // ProcessMap implements noncomparable.DataProcessor.ProcessMap.
@@ -132,7 +121,7 @@ func (impl *mockDataProcessorImpl) ProcessMap(config map[string]int) bool {
 		Args:         []any{config},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -155,7 +144,7 @@ func (impl *mockDataProcessorImpl) ProcessSlice(data []string) int {
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -23,34 +23,25 @@ func TestSamePackageInterfaces(t *testing.T) {
 	t.Parallel()
 
 	// Create mocks for all interfaces
-	processor := MockDataProcessor(t)
-	source := MockDataSource(t)
-	sink := MockDataSink(t)
+	processor, procImp := MockDataProcessor(t)
+	source, _ := MockDataSource(t)
+	sink, _ := MockDataSink(t)
 
 	// Test that we can use same-package interface types in expectations
-	testData := []byte("test data")
 	testErr := errors.New("test error")
 
-	// Set up source to return test data
-	go func() {
-		source.Method.GetData.ExpectCalledWithExactly().InjectReturnValues(testData, nil)
-	}()
-
-	// Set up sink to accept data
-	go func() {
-		sink.Method.PutData.ExpectCalledWithExactly(testData).InjectReturnValues(testErr)
-	}()
-
 	// Set up processor expectation with same-package interface arguments
+	// Note: The mock's Process method doesn't actually call source.GetData() or sink.PutData(),
+	// it just receives the interface values as arguments and waits for the test to inject a return.
 	go func() {
-		processor.Method.Process.ExpectCalledWithMatches(
+		procImp.Process.ExpectCalledWithMatches(
 			imptest.Any(),
 			imptest.Any(),
 		).InjectReturnValues(testErr)
 	}()
 
-	// Call the processor
-	result := processor.Mock.Process(source.Mock, sink.Mock)
+	// Call the processor - this passes the mock interfaces as arguments
+	result := processor.Process(source, sink)
 
 	// Verify result
 	if !errors.Is(result, testErr) {
@@ -66,22 +57,22 @@ func TestSamePackageInterfaces(t *testing.T) {
 func TestTransformReturnsInterface(t *testing.T) {
 	t.Parallel()
 
-	processor := MockDataProcessor(t)
-	inputSource := MockDataSource(t)
-	outputSource := MockDataSource(t)
+	processor, procImp := MockDataProcessor(t)
+	inputSource, _ := MockDataSource(t)
+	outputSource, _ := MockDataSource(t)
 
 	// Get the interface value to return
-	expectedOutput := outputSource.Mock
+	expectedOutput := outputSource
 
 	// Set up processor to return a different source
 	go func() {
-		processor.Method.Transform.ExpectCalledWithMatches(
+		procImp.Transform.ExpectCalledWithMatches(
 			imptest.Any(),
 		).InjectReturnValues(expectedOutput, nil)
 	}()
 
 	// Call transform
-	result, err := processor.Mock.Transform(inputSource.Mock)
+	result, err := processor.Transform(inputSource)
 	// Verify result
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)

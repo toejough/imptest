@@ -9,15 +9,8 @@ import (
 	fs "io/fs"
 )
 
-// TreeWalkerMockHandle is the test handle for TreeWalker.
-type TreeWalkerMockHandle struct {
-	Mock       visitor.TreeWalker
-	Method     *TreeWalkerMockMethods
-	Controller *_imptest.Imp
-}
-
-// TreeWalkerMockMethods holds method wrappers for setting expectations.
-type TreeWalkerMockMethods struct {
+// TreeWalkerImp holds method wrappers for setting expectations on TreeWalker.
+type TreeWalkerImp struct {
 	Walk              *TreeWalkerMockWalkMethod
 	WalkWithNamedType *TreeWalkerMockWalkWithNamedTypeMethod
 }
@@ -110,24 +103,20 @@ func (m *TreeWalkerMockWalkWithNamedTypeMethod) ExpectCalledWithMatches(matchers
 	return &TreeWalkerMockWalkWithNamedTypeCall{DependencyCall: call}
 }
 
-// MockTreeWalker creates a new TreeWalkerMockHandle for testing.
-func MockTreeWalker(t _imptest.TestReporter) *TreeWalkerMockHandle {
+// MockTreeWalker creates a mock TreeWalker and returns (mock, expectation handle).
+func MockTreeWalker(t _imptest.TestReporter) (visitor.TreeWalker, *TreeWalkerImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &TreeWalkerMockMethods{
+	imp := &TreeWalkerImp{
 		Walk:              newTreeWalkerMockWalkMethod(_imptest.NewDependencyMethod(ctrl, "Walk")),
 		WalkWithNamedType: newTreeWalkerMockWalkWithNamedTypeMethod(_imptest.NewDependencyMethod(ctrl, "WalkWithNamedType")),
 	}
-	h := &TreeWalkerMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockTreeWalkerImpl{handle: h}
-	return h
+	mock := &mockTreeWalkerImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockTreeWalkerImpl implements visitor.TreeWalker.
 type mockTreeWalkerImpl struct {
-	handle *TreeWalkerMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Walk implements visitor.TreeWalker.Walk.
@@ -137,7 +126,7 @@ func (impl *mockTreeWalkerImpl) Walk(root string, fn func(string, fs.DirEntry, e
 		Args:         []any{root, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -160,7 +149,7 @@ func (impl *mockTreeWalkerImpl) WalkWithNamedType(root string, fn visitor.WalkFu
 		Args:         []any{root, fn},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

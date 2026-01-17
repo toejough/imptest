@@ -18,37 +18,38 @@ func TestStructMocking(t *testing.T) {
 	t.Parallel()
 
 	// Initialize the generated mock - works just like interface mocking.
-	mock := MockCalculator(t)
+	// Returns (mock, imp) where mock implements the interface and imp sets expectations.
+	mock, imp := MockCalculator(t)
 
 	// Run the code under test in a goroutine.
-	go mockstruct.UseCalculator(mock.Mock)
+	go mockstruct.UseCalculator(mock)
 
 	// Interactive Control Pattern - identical to interface mocking.
 
 	// 1. Intercept 'Add' and provide a return value.
-	mock.Method.Add.ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
+	imp.Add.ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
 
 	// 2. Intercept 'Store' and provide a return value.
-	mock.Method.Store.ExpectCalledWithExactly(42).InjectReturnValues(0)
+	imp.Store.ExpectCalledWithExactly(42).InjectReturnValues(0)
 
 	// 3. Intercept 'Get' and provide multiple return values.
-	mock.Method.Get.ExpectCalledWithExactly().InjectReturnValues(42, nil)
+	imp.Get.ExpectCalledWithExactly().InjectReturnValues(42, nil)
 
 	// 4. Intercept 'Reset' (void method) and signal completion.
-	mock.Method.Reset.ExpectCalledWithExactly().InjectReturnValues()
+	imp.Reset.ExpectCalledWithExactly().InjectReturnValues()
 }
 
 // TestStructMockingWithError demonstrates returning errors from mocked struct methods.
 func TestStructMockingWithError(t *testing.T) {
 	t.Parallel()
 
-	mock := MockCalculator(t)
+	mock, imp := MockCalculator(t)
 
 	// Run a simple operation that calls Get.
 	go func() {
-		_, _ = mock.Mock.Get()
+		_, _ = mock.Get()
 	}()
 
 	// Return an error from Get.
-	mock.Method.Get.ExpectCalledWithExactly().InjectReturnValues(0, mockstruct.ErrNotFound)
+	imp.Get.ExpectCalledWithExactly().InjectReturnValues(0, mockstruct.ErrNotFound)
 }

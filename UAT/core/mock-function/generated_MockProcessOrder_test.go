@@ -34,13 +34,6 @@ func (c *ProcessOrderMockCall) InjectReturnValues(result0 *mockfunction.Order, r
 	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
-// ProcessOrderMockHandle is the test handle for ProcessOrder function.
-type ProcessOrderMockHandle struct {
-	Mock       func(ctx context.Context, orderID int) (*mockfunction.Order, error)
-	Method     *ProcessOrderMockMethod
-	Controller *_imptest.Imp
-}
-
 // ProcessOrderMockMethod wraps DependencyMethod with typed returns.
 type ProcessOrderMockMethod struct {
 	*_imptest.DependencyMethod
@@ -60,20 +53,17 @@ func (m *ProcessOrderMockMethod) ExpectCalledWithMatches(matchers ...any) *Proce
 	return &ProcessOrderMockCall{DependencyCall: call}
 }
 
-// MockProcessOrder creates a new ProcessOrderMockHandle for testing.
-func MockProcessOrder(t _imptest.TestReporter) *ProcessOrderMockHandle {
+// MockProcessOrder creates a mock ProcessOrder function and returns (mock, expectation handle).
+func MockProcessOrder(t _imptest.TestReporter) (func(ctx context.Context, orderID int) (*mockfunction.Order, error), *ProcessOrderMockMethod) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	h := &ProcessOrderMockHandle{
-		Controller: ctrl,
-		Method:     newProcessOrderMockMethod(_imptest.NewDependencyMethod(ctrl, "ProcessOrder")),
-	}
-	h.Mock = func(ctx context.Context, orderID int) (*mockfunction.Order, error) {
+	imp := newProcessOrderMockMethod(_imptest.NewDependencyMethod(ctrl, "ProcessOrder"))
+	mock := func(ctx context.Context, orderID int) (*mockfunction.Order, error) {
 		call := &_imptest.GenericCall{
 			MethodName:   "ProcessOrder",
 			Args:         []any{ctx, orderID},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.Controller.CallChan <- call
+		ctrl.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)
@@ -95,7 +85,7 @@ func MockProcessOrder(t _imptest.TestReporter) *ProcessOrderMockHandle {
 
 		return result1, result2
 	}
-	return h
+	return mock, imp
 }
 
 // newProcessOrderMockMethod creates a typed method wrapper with Eventually initialized.

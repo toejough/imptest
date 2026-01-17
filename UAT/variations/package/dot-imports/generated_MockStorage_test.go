@@ -8,11 +8,10 @@ import (
 	helpers "github.com/toejough/imptest/UAT/variations/package/dot-imports/helpers"
 )
 
-// StorageMockHandle is the test handle for Storage.
-type StorageMockHandle struct {
-	Mock       helpers.Storage
-	Method     *StorageMockMethods
-	Controller *_imptest.Imp
+// StorageImp holds method wrappers for setting expectations on Storage.
+type StorageImp struct {
+	Save *StorageMockSaveMethod
+	Load *StorageMockLoadMethod
 }
 
 // StorageMockLoadArgs holds typed arguments for Load.
@@ -55,12 +54,6 @@ func (m *StorageMockLoadMethod) ExpectCalledWithExactly(key string) *StorageMock
 func (m *StorageMockLoadMethod) ExpectCalledWithMatches(matchers ...any) *StorageMockLoadCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &StorageMockLoadCall{DependencyCall: call}
-}
-
-// StorageMockMethods holds method wrappers for setting expectations.
-type StorageMockMethods struct {
-	Save *StorageMockSaveMethod
-	Load *StorageMockLoadMethod
 }
 
 // StorageMockSaveArgs holds typed arguments for Save.
@@ -107,24 +100,20 @@ func (m *StorageMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *Storag
 	return &StorageMockSaveCall{DependencyCall: call}
 }
 
-// MockStorage creates a new StorageMockHandle for testing.
-func MockStorage(t _imptest.TestReporter) *StorageMockHandle {
+// MockStorage creates a mock Storage and returns (mock, expectation handle).
+func MockStorage(t _imptest.TestReporter) (helpers.Storage, *StorageImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &StorageMockMethods{
+	imp := &StorageImp{
 		Save: newStorageMockSaveMethod(_imptest.NewDependencyMethod(ctrl, "Save")),
 		Load: newStorageMockLoadMethod(_imptest.NewDependencyMethod(ctrl, "Load")),
 	}
-	h := &StorageMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockStorageImpl{handle: h}
-	return h
+	mock := &mockStorageImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockStorageImpl implements helpers.Storage.
 type mockStorageImpl struct {
-	handle *StorageMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Load implements helpers.Storage.Load.
@@ -134,7 +123,7 @@ func (impl *mockStorageImpl) Load(key string) (string, error) {
 		Args:         []any{key},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -164,7 +153,7 @@ func (impl *mockStorageImpl) Save(key string, value string) error {
 		Args:         []any{key, value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

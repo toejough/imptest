@@ -16,14 +16,14 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	t.Parallel()
 
 	// V2 Pattern: Create mock and wrap the function under test
-	mock := MockTreeWalker(t)
+	mock, imp := MockTreeWalker(t)
 	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
 	// Start the function under test in a goroutine
-	wrapperCall := wrapper.Method.Start(mock.Mock, "/test")
+	wrapperCall := wrapper.Method.Start(mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call without Eventually to see if that's the issue
-	call := mock.Method.Walk.ExpectCalledWithMatches("/test", imptest.Any())
+	call := imp.Walk.ExpectCalledWithMatches("/test", imptest.Any())
 
 	// V2 Pattern: Extract the callback from args using the typed wrapper
 	args := call.GetArgs()
@@ -47,17 +47,17 @@ func TestCallbackPanicSupport(t *testing.T) {
 	t.Parallel()
 
 	// V2 Pattern: Create mock
-	mock := MockTreeWalker(t)
+	mock, imp := MockTreeWalker(t)
 
 	// Start goroutine that will pass a panicking callback to the mock
 	go func() {
-		_ = mock.Mock.Walk("/test", func(_ string, _ fs.DirEntry, _ error) error {
+		_ = mock.Walk("/test", func(_ string, _ fs.DirEntry, _ error) error {
 			panic("test panic") // Callback panics on its own
 		})
 	}()
 
 	// V2 Pattern: Wait for the Walk call
-	call := mock.Method.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
+	call := imp.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
 
 	// V2 Pattern: Extract callback and invoke it, catching the panic
 	rawArgs := call.RawArgs()
@@ -90,14 +90,14 @@ func TestCountFiles(t *testing.T) {
 	t.Parallel()
 
 	// V2 Pattern: Create mock and wrap function under test
-	mock := MockTreeWalker(t)
+	mock, imp := MockTreeWalker(t)
 	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
 	// Start the code under test
-	wrapperCall := wrapper.Method.Start(mock.Mock, "/test")
+	wrapperCall := wrapper.Method.Start(mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call
-	call := mock.Method.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
+	call := imp.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
 
 	// V2 Pattern: Extract the callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
@@ -136,17 +136,17 @@ func TestWalkWithNamedType(t *testing.T) {
 	t.Parallel()
 
 	// V2 Pattern: Create mock
-	mock := MockTreeWalker(t)
+	mock, imp := MockTreeWalker(t)
 
 	// Call WalkWithNamedType in a goroutine to trigger the mock
 	go func() {
-		_ = mock.Mock.WalkWithNamedType("/data", func(_ string, _ fs.DirEntry, _ error) error {
+		_ = mock.WalkWithNamedType("/data", func(_ string, _ fs.DirEntry, _ error) error {
 			return nil
 		})
 	}()
 
 	// V2 Pattern: Wait for and verify the WalkWithNamedType call
-	call := mock.Method.WalkWithNamedType.Eventually.ExpectCalledWithMatches("/data", imptest.Any())
+	call := imp.WalkWithNamedType.Eventually.ExpectCalledWithMatches("/data", imptest.Any())
 
 	// V2 Pattern: Extract callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()

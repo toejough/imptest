@@ -8,6 +8,12 @@ import (
 	embedded "github.com/toejough/imptest/UAT/variations/behavior/embedded-interfaces"
 )
 
+// ReadCloserImp holds method wrappers for setting expectations on ReadCloser.
+type ReadCloserImp struct {
+	Read  *ReadCloserMockReadMethod
+	Close *_imptest.DependencyMethod
+}
+
 // ReadCloserMockCloseCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type ReadCloserMockCloseCall struct {
 	*_imptest.DependencyCall
@@ -16,19 +22,6 @@ type ReadCloserMockCloseCall struct {
 // InjectReturnValues specifies the typed values the mock should return.
 func (c *ReadCloserMockCloseCall) InjectReturnValues(result0 error) {
 	c.DependencyCall.InjectReturnValues(result0)
-}
-
-// ReadCloserMockHandle is the test handle for ReadCloser.
-type ReadCloserMockHandle struct {
-	Mock       embedded.ReadCloser
-	Method     *ReadCloserMockMethods
-	Controller *_imptest.Imp
-}
-
-// ReadCloserMockMethods holds method wrappers for setting expectations.
-type ReadCloserMockMethods struct {
-	Read  *ReadCloserMockReadMethod
-	Close *_imptest.DependencyMethod
 }
 
 // ReadCloserMockReadArgs holds typed arguments for Read.
@@ -73,24 +66,20 @@ func (m *ReadCloserMockReadMethod) ExpectCalledWithMatches(matchers ...any) *Rea
 	return &ReadCloserMockReadCall{DependencyCall: call}
 }
 
-// MockReadCloser creates a new ReadCloserMockHandle for testing.
-func MockReadCloser(t _imptest.TestReporter) *ReadCloserMockHandle {
+// MockReadCloser creates a mock ReadCloser and returns (mock, expectation handle).
+func MockReadCloser(t _imptest.TestReporter) (embedded.ReadCloser, *ReadCloserImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &ReadCloserMockMethods{
+	imp := &ReadCloserImp{
 		Read:  newReadCloserMockReadMethod(_imptest.NewDependencyMethod(ctrl, "Read")),
 		Close: _imptest.NewDependencyMethod(ctrl, "Close"),
 	}
-	h := &ReadCloserMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockReadCloserImpl{handle: h}
-	return h
+	mock := &mockReadCloserImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockReadCloserImpl implements embedded.ReadCloser.
 type mockReadCloserImpl struct {
-	handle *ReadCloserMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Close implements embedded.ReadCloser.Close.
@@ -100,7 +89,7 @@ func (impl *mockReadCloserImpl) Close() error {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -123,7 +112,7 @@ func (impl *mockReadCloserImpl) Read(p []byte) (int, error) {
 		Args:         []any{p},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

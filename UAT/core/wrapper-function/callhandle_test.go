@@ -47,7 +47,7 @@ func TestCallHandle_EventuallyExpectPanic(t *testing.T) {
 	call.Eventually.ExpectPanicEquals("expected panic")
 
 	// Wait for expectation to be satisfied
-	wrapper.Controller.Wait()
+	imptest.Wait(t)
 }
 
 // TestCallHandle_EventuallyExpectReturns verifies async Eventually() pattern on target wrappers.
@@ -77,7 +77,7 @@ func TestCallHandle_EventuallyExpectReturns(t *testing.T) {
 	call3.Eventually.ExpectReturnsEqual(300)
 
 	// Wait for all expectations to be satisfied
-	wrapper.Controller.Wait()
+	imptest.Wait(t)
 }
 
 // TestCallHandle_ExpectCallsWaitForResponse verifies Expect* methods internally call WaitForResponse.

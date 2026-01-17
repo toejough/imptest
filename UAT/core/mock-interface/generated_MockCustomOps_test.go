@@ -8,6 +8,15 @@ import (
 	basic "github.com/toejough/imptest/UAT/core/mock-interface"
 )
 
+// CustomOpsImp holds method wrappers for setting expectations on Ops.
+type CustomOpsImp struct {
+	Add    *CustomOpsMockAddMethod
+	Store  *CustomOpsMockStoreMethod
+	Log    *CustomOpsMockLogMethod
+	Notify *CustomOpsMockNotifyMethod
+	Finish *_imptest.DependencyMethod
+}
+
 // CustomOpsMockAddArgs holds typed arguments for Add.
 type CustomOpsMockAddArgs struct {
 	A int
@@ -62,13 +71,6 @@ func (c *CustomOpsMockFinishCall) InjectReturnValues(result0 bool) {
 	c.DependencyCall.InjectReturnValues(result0)
 }
 
-// CustomOpsMockHandle is the test handle for Ops.
-type CustomOpsMockHandle struct {
-	Mock       basic.Ops
-	Method     *CustomOpsMockMethods
-	Controller *_imptest.Imp
-}
-
 // CustomOpsMockLogArgs holds typed arguments for Log.
 type CustomOpsMockLogArgs struct {
 	Message string
@@ -104,15 +106,6 @@ func (m *CustomOpsMockLogMethod) ExpectCalledWithExactly(message string) *Custom
 func (m *CustomOpsMockLogMethod) ExpectCalledWithMatches(matchers ...any) *CustomOpsMockLogCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &CustomOpsMockLogCall{DependencyCall: call}
-}
-
-// CustomOpsMockMethods holds method wrappers for setting expectations.
-type CustomOpsMockMethods struct {
-	Add    *CustomOpsMockAddMethod
-	Store  *CustomOpsMockStoreMethod
-	Log    *CustomOpsMockLogMethod
-	Notify *CustomOpsMockNotifyMethod
-	Finish *_imptest.DependencyMethod
 }
 
 // CustomOpsMockNotifyArgs holds typed arguments for Notify.
@@ -207,27 +200,23 @@ func (m *CustomOpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *Cus
 	return &CustomOpsMockStoreCall{DependencyCall: call}
 }
 
-// MockCustomOps creates a new CustomOpsMockHandle for testing.
-func MockCustomOps(t _imptest.TestReporter) *CustomOpsMockHandle {
+// MockCustomOps creates a mock Ops and returns (mock, expectation handle).
+func MockCustomOps(t _imptest.TestReporter) (basic.Ops, *CustomOpsImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &CustomOpsMockMethods{
+	imp := &CustomOpsImp{
 		Add:    newCustomOpsMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add")),
 		Store:  newCustomOpsMockStoreMethod(_imptest.NewDependencyMethod(ctrl, "Store")),
 		Log:    newCustomOpsMockLogMethod(_imptest.NewDependencyMethod(ctrl, "Log")),
 		Notify: newCustomOpsMockNotifyMethod(_imptest.NewDependencyMethod(ctrl, "Notify")),
 		Finish: _imptest.NewDependencyMethod(ctrl, "Finish"),
 	}
-	h := &CustomOpsMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockCustomOpsImpl{handle: h}
-	return h
+	mock := &mockCustomOpsImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockCustomOpsImpl implements basic.Ops.
 type mockCustomOpsImpl struct {
-	handle *CustomOpsMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Add implements basic.Ops.Add.
@@ -237,7 +226,7 @@ func (impl *mockCustomOpsImpl) Add(a int, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -260,7 +249,7 @@ func (impl *mockCustomOpsImpl) Finish() bool {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -283,7 +272,7 @@ func (impl *mockCustomOpsImpl) Log(message string) {
 		Args:         []any{message},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -302,7 +291,7 @@ func (impl *mockCustomOpsImpl) Notify(message string, ids ...int) bool {
 		Args:         callArgs,
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -325,7 +314,7 @@ func (impl *mockCustomOpsImpl) Store(key string, value any) (int, error) {
 		Args:         []any{key, value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

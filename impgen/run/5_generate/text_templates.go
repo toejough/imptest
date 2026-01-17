@@ -152,11 +152,9 @@ func (r *TemplateRegistry) WriteFuncDepMethodWrapper(buf *bytes.Buffer, data any
 }
 
 // WriteFuncDepMockStruct writes the function dependency mock struct.
+// Template is empty (two-return style doesn't need Handle struct) but call is kept for structural consistency.
 func (r *TemplateRegistry) WriteFuncDepMockStruct(buf *bytes.Buffer, data any) {
-	err := r.funcDepMockStructTmpl.Execute(buf, data)
-	if err != nil {
-		panic(fmt.Sprintf("failed to execute funcDepMockStruct template: %v", err))
-	}
+	_ = r.funcDepMockStructTmpl.Execute(buf, data)
 }
 
 // WriteInterfaceTargetConstructor writes the interface target constructor.

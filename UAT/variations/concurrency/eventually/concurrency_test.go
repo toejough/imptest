@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toejough/imptest"
 	concurrency "github.com/toejough/imptest/UAT/variations/concurrency/eventually"
 )
 
@@ -11,10 +12,10 @@ import (
 func TestAsyncEventuallyInjectPanicValue(t *testing.T) {
 	t.Parallel()
 
-	mock := MockSlowService(t)
+	mock, imp := MockSlowService(t)
 
 	// Register expectation with panic FIRST (async pattern)
-	mock.Method.DoA.Eventually.ExpectCalledWithExactly(999).InjectPanicValue("test panic")
+	imp.DoA.Eventually.ExpectCalledWithExactly(999).InjectPanicValue("test panic")
 
 	// Capture panic from goroutine
 	panicChan := make(chan any, 1)
@@ -26,11 +27,11 @@ func TestAsyncEventuallyInjectPanicValue(t *testing.T) {
 			}
 		}()
 
-		_ = mock.Mock.DoA(999)
+		_ = mock.DoA(999)
 	}()
 
 	// Wait for all expectations to be satisfied
-	mock.Controller.Wait()
+	imptest.Wait(t)
 
 	// Wait for panic to be received
 	p := <-panicChan
@@ -53,20 +54,20 @@ func TestAsyncEventuallyInjectPanicValue(t *testing.T) {
 func TestAsyncEventuallyWithControllerWait(t *testing.T) {
 	t.Parallel()
 
-	mock := MockSlowService(t)
+	mock, imp := MockSlowService(t)
 
 	// Register expectations FIRST - these must NOT block (new async behavior)
 	// With blocking Eventually(), this would deadlock because no goroutine is making calls yet
-	mock.Method.DoA.Eventually.ExpectCalledWithExactly(789).InjectReturnValues("Async A")
-	mock.Method.DoB.Eventually.ExpectCalledWithExactly(789).InjectReturnValues("Async B")
+	imp.DoA.Eventually.ExpectCalledWithExactly(789).InjectReturnValues("Async A")
+	imp.DoB.Eventually.ExpectCalledWithExactly(789).InjectReturnValues("Async B")
 
 	// NOW start code under test - the expectations are already registered
 	go func() {
-		_ = concurrency.RunConcurrent(mock.Mock, 789)
+		_ = concurrency.RunConcurrent(mock, 789)
 	}()
 
-	// Controller.Wait() blocks until all expectations are satisfied
-	mock.Controller.Wait()
+	// imptest.Wait() blocks until all expectations are satisfied
+	imptest.Wait(t)
 }
 
 //go:generate impgen concurrency.SlowService --dependency
@@ -83,24 +84,24 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 	t.Parallel()
 
 	// Initialize the generated mock implementation.
-	mock := MockSlowService(t)
+	mock, imp := MockSlowService(t)
 
 	// resultChan will collect the results from the concurrent execution.
 	resultChan := make(chan []string, 1)
 
 	// Run the code under test. It will call DoA and DoB concurrently.
 	go func() {
-		resultChan <- concurrency.RunConcurrent(mock.Mock, 123)
+		resultChan <- concurrency.RunConcurrent(mock, 123)
 	}()
 
 	// Requirement: We can expect DoA then DoB, even if the code calls them in reverse order.
 	// The .Eventually modifier tells imptest to wait indefinitely for the call.
 
 	// 1. Expect DoA(123) to be called.
-	mock.Method.DoA.Eventually.ExpectCalledWithExactly(123).InjectReturnValues("Result A")
+	imp.DoA.Eventually.ExpectCalledWithExactly(123).InjectReturnValues("Result A")
 
 	// 2. Expect DoB(123) to be called.
-	mock.Method.DoB.Eventually.ExpectCalledWithExactly(123).InjectReturnValues("Result B")
+	imp.DoB.Eventually.ExpectCalledWithExactly(123).InjectReturnValues("Result B")
 
 	// Wait for the code under test to finish and verify results.
 	results := <-resultChan
@@ -118,17 +119,17 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 func TestExplicitReversedExpectation(t *testing.T) {
 	t.Parallel()
 
-	mock := MockSlowService(t)
+	mock, imp := MockSlowService(t)
 	resultChan := make(chan []string, 1)
 
 	go func() {
-		resultChan <- concurrency.RunConcurrent(mock.Mock, 456)
+		resultChan <- concurrency.RunConcurrent(mock, 456)
 	}()
 
 	// Requirement: Demonstrate that we can wait for DoB first, then DoA,
 	// regardless of which one the system-under-test triggers first.
-	mock.Method.DoB.Eventually.ExpectCalledWithExactly(456).InjectReturnValues("Result B")
-	mock.Method.DoA.Eventually.ExpectCalledWithExactly(456).InjectReturnValues("Result A")
+	imp.DoB.Eventually.ExpectCalledWithExactly(456).InjectReturnValues("Result B")
+	imp.DoA.Eventually.ExpectCalledWithExactly(456).InjectReturnValues("Result A")
 
 	results := <-resultChan
 	if results[0] != "Result A" || results[1] != "Result B" {
@@ -136,19 +137,19 @@ func TestExplicitReversedExpectation(t *testing.T) {
 	}
 }
 
-// TestSetTimeoutAPI verifies SetTimeout can be called on the controller.
+// TestSetTimeoutAPI verifies SetTimeout can be called on the Imp.
 func TestSetTimeoutAPI(t *testing.T) {
 	t.Parallel()
 
-	mock := MockSlowService(t)
+	mock, imp := MockSlowService(t)
 
-	// SetTimeout should be callable (currently a stub)
-	mock.Controller.SetTimeout(5 * time.Second)
+	// SetTimeout is callable on the Imp
+	imptest.GetOrCreateImp(t).SetTimeout(5 * time.Second)
 
 	go func() {
-		_ = mock.Mock.DoA(1)
+		_ = mock.DoA(1)
 	}()
 
-	mock.Method.DoA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues("ok")
-	mock.Controller.Wait()
+	imp.DoA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues("ok")
+	imptest.Wait(t)
 }

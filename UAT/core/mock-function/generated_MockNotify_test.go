@@ -27,13 +27,6 @@ func (c *NotifyMockCall) GetArgs() NotifyMockArgs {
 	}
 }
 
-// NotifyMockHandle is the test handle for Notify function.
-type NotifyMockHandle struct {
-	Mock       func(userID int, message string)
-	Method     *NotifyMockMethod
-	Controller *_imptest.Imp
-}
-
 // NotifyMockMethod wraps DependencyMethod with typed returns.
 type NotifyMockMethod struct {
 	*_imptest.DependencyMethod
@@ -53,27 +46,24 @@ func (m *NotifyMockMethod) ExpectCalledWithMatches(matchers ...any) *NotifyMockC
 	return &NotifyMockCall{DependencyCall: call}
 }
 
-// MockNotify creates a new NotifyMockHandle for testing.
-func MockNotify(t _imptest.TestReporter) *NotifyMockHandle {
+// MockNotify creates a mock Notify function and returns (mock, expectation handle).
+func MockNotify(t _imptest.TestReporter) (func(userID int, message string), *NotifyMockMethod) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	h := &NotifyMockHandle{
-		Controller: ctrl,
-		Method:     newNotifyMockMethod(_imptest.NewDependencyMethod(ctrl, "Notify")),
-	}
-	h.Mock = func(userID int, message string) {
+	imp := newNotifyMockMethod(_imptest.NewDependencyMethod(ctrl, "Notify"))
+	mock := func(userID int, message string) {
 		call := &_imptest.GenericCall{
 			MethodName:   "Notify",
 			Args:         []any{userID, message},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.Controller.CallChan <- call
+		ctrl.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)
 		}
 
 	}
-	return h
+	return mock, imp
 }
 
 // newNotifyMockMethod creates a typed method wrapper with Eventually initialized.

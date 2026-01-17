@@ -24,17 +24,17 @@ func TestDependencyWithNamedParams(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mock := MockUserRepository(t)
+	mock, imp := MockUserRepository(t)
 
 	// Run code under test
 	go func() {
-		user, err := mock.Mock.GetUser(ctx, 123)
+		user, err := mock.GetUser(ctx, 123)
 		_ = user
 		_ = err
 	}()
 
 	// Verify mock handles named parameters and returns correctly
-	mock.Method.GetUser.ExpectCalledWithExactly(ctx, 123).
+	imp.GetUser.ExpectCalledWithExactly(ctx, 123).
 		InjectReturnValues(named.User{ID: 123, Name: "Alice"}, nil)
 }
 
@@ -44,16 +44,16 @@ func TestFunctionWithNamedParams(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mockRepo := MockUserRepository(t)
+	mockRepo, repoImp := MockUserRepository(t)
 
 	// Wrap the ProcessUser function for testing
 	wrapper := WrapProcessUser(t, named.ProcessUser)
 
 	// Start the wrapped function
-	call := wrapper.Method.Start(ctx, 456, mockRepo.Mock)
+	call := wrapper.Method.Start(ctx, 456, mockRepo)
 
 	// Handle the repository call
-	mockRepo.Method.GetUser.ExpectCalledWithExactly(ctx, 456).
+	repoImp.GetUser.ExpectCalledWithExactly(ctx, 456).
 		InjectReturnValues(named.User{ID: 456, Name: "Bob"}, nil)
 
 	// Verify the wrapper received correct return values
@@ -66,34 +66,34 @@ func TestMultipleMethods(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	mock := MockUserRepository(t)
+	mock, imp := MockUserRepository(t)
 
 	go func() {
 		// Test SaveUser (named params + named returns)
-		savedUser, err := mock.Mock.SaveUser(ctx, named.User{ID: 789, Name: "Charlie"})
+		savedUser, err := mock.SaveUser(ctx, named.User{ID: 789, Name: "Charlie"})
 		_ = savedUser
 		_ = err
 
 		// Test DeleteUser (named params + single named return)
-		err = mock.Mock.DeleteUser(ctx, 789)
+		err = mock.DeleteUser(ctx, 789)
 		_ = err
 
 		// Test CountUsers (named param + named returns)
-		count, err := mock.Mock.CountUsers(ctx)
+		count, err := mock.CountUsers(ctx)
 		_ = count
 		_ = err
 	}()
 
 	// Handle SaveUser
-	mock.Method.SaveUser.ExpectCalledWithExactly(ctx, named.User{ID: 789, Name: "Charlie"}).
+	imp.SaveUser.ExpectCalledWithExactly(ctx, named.User{ID: 789, Name: "Charlie"}).
 		InjectReturnValues(named.User{ID: 789, Name: "Charlie"}, nil)
 
 	// Handle DeleteUser
-	mock.Method.DeleteUser.ExpectCalledWithExactly(ctx, 789).
+	imp.DeleteUser.ExpectCalledWithExactly(ctx, 789).
 		InjectReturnValues(nil)
 
 	// Handle CountUsers
-	mock.Method.CountUsers.ExpectCalledWithExactly(ctx).
+	imp.CountUsers.ExpectCalledWithExactly(ctx).
 		InjectReturnValues(3, nil)
 }
 

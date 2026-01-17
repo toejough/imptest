@@ -94,6 +94,7 @@ type depTemplateData struct {
 
 	MockName      string                  // Constructor function name (e.g., "MockOps")
 	MockTypeName  string                  // Struct type name (e.g., "OpsMock")
+	ImpTypeName   string                  // Expectation handle type name (e.g., "OpsImp")
 	BaseName      string                  // Base interface name without "Mock" prefix
 	InterfaceName string                  // Local interface name (e.g., "Ops")
 	InterfaceType string                  // Qualified interface type (e.g., "basic.Ops")

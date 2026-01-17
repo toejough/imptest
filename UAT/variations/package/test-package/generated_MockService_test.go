@@ -8,6 +8,12 @@ import (
 	testpkgimport "github.com/toejough/imptest/UAT/variations/package/test-package"
 )
 
+// ServiceImp holds method wrappers for setting expectations on Service.
+type ServiceImp struct {
+	Execute  *ServiceMockExecuteMethod
+	Validate *ServiceMockValidateMethod
+}
+
 // ServiceMockExecuteArgs holds typed arguments for Execute.
 type ServiceMockExecuteArgs struct {
 	Input string
@@ -48,19 +54,6 @@ func (m *ServiceMockExecuteMethod) ExpectCalledWithExactly(input string) *Servic
 func (m *ServiceMockExecuteMethod) ExpectCalledWithMatches(matchers ...any) *ServiceMockExecuteCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &ServiceMockExecuteCall{DependencyCall: call}
-}
-
-// ServiceMockHandle is the test handle for Service.
-type ServiceMockHandle struct {
-	Mock       testpkgimport.Service
-	Method     *ServiceMockMethods
-	Controller *_imptest.Imp
-}
-
-// ServiceMockMethods holds method wrappers for setting expectations.
-type ServiceMockMethods struct {
-	Execute  *ServiceMockExecuteMethod
-	Validate *ServiceMockValidateMethod
 }
 
 // ServiceMockValidateArgs holds typed arguments for Validate.
@@ -105,24 +98,20 @@ func (m *ServiceMockValidateMethod) ExpectCalledWithMatches(matchers ...any) *Se
 	return &ServiceMockValidateCall{DependencyCall: call}
 }
 
-// MockService creates a new ServiceMockHandle for testing.
-func MockService(t _imptest.TestReporter) *ServiceMockHandle {
+// MockService creates a mock Service and returns (mock, expectation handle).
+func MockService(t _imptest.TestReporter) (testpkgimport.Service, *ServiceImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &ServiceMockMethods{
+	imp := &ServiceImp{
 		Execute:  newServiceMockExecuteMethod(_imptest.NewDependencyMethod(ctrl, "Execute")),
 		Validate: newServiceMockValidateMethod(_imptest.NewDependencyMethod(ctrl, "Validate")),
 	}
-	h := &ServiceMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockServiceImpl{handle: h}
-	return h
+	mock := &mockServiceImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockServiceImpl implements testpkgimport.Service.
 type mockServiceImpl struct {
-	handle *ServiceMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Execute implements testpkgimport.Service.Execute.
@@ -132,7 +121,7 @@ func (impl *mockServiceImpl) Execute(input string) (string, error) {
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -162,7 +151,7 @@ func (impl *mockServiceImpl) Validate(input string) bool {
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

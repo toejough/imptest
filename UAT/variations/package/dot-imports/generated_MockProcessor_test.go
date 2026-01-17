@@ -8,15 +8,8 @@ import (
 	helpers "github.com/toejough/imptest/UAT/variations/package/dot-imports/helpers"
 )
 
-// ProcessorMockHandle is the test handle for Processor.
-type ProcessorMockHandle struct {
-	Mock       helpers.Processor
-	Method     *ProcessorMockMethods
-	Controller *_imptest.Imp
-}
-
-// ProcessorMockMethods holds method wrappers for setting expectations.
-type ProcessorMockMethods struct {
+// ProcessorImp holds method wrappers for setting expectations on Processor.
+type ProcessorImp struct {
 	Process *ProcessorMockProcessMethod
 }
 
@@ -62,23 +55,19 @@ func (m *ProcessorMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *P
 	return &ProcessorMockProcessCall{DependencyCall: call}
 }
 
-// MockProcessor creates a new ProcessorMockHandle for testing.
-func MockProcessor(t _imptest.TestReporter) *ProcessorMockHandle {
+// MockProcessor creates a mock Processor and returns (mock, expectation handle).
+func MockProcessor(t _imptest.TestReporter) (helpers.Processor, *ProcessorImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &ProcessorMockMethods{
+	imp := &ProcessorImp{
 		Process: newProcessorMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}
-	h := &ProcessorMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockProcessorImpl{handle: h}
-	return h
+	mock := &mockProcessorImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockProcessorImpl implements helpers.Processor.
 type mockProcessorImpl struct {
-	handle *ProcessorMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Process implements helpers.Processor.Process.
@@ -88,7 +77,7 @@ func (impl *mockProcessorImpl) Process(input string) string {
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -14,15 +14,15 @@ import (
 func TestDotImportedProcessor(t *testing.T) {
 	t.Parallel()
 
-	mock := MockProcessor(t)
+	mock, imp := MockProcessor(t)
 
 	// Launch goroutine
 	go func() {
-		_ = mock.Mock.Process("input data")
+		_ = mock.Process("input data")
 	}()
 
 	// Verify and inject return
-	call := mock.Method.Process.ExpectCalledWithExactly("input data")
+	call := imp.Process.ExpectCalledWithExactly("input data")
 	call.InjectReturnValues("processed data")
 
 	// Verify args
@@ -41,15 +41,15 @@ func TestDotImportedStorage(t *testing.T) {
 
 	t.Run("Save", func(t *testing.T) {
 		t.Parallel()
-		mock := MockStorage(t)
+		mock, imp := MockStorage(t)
 
 		// Launch goroutine that calls Save
 		go func() {
-			_ = mock.Mock.Save("key1", "value1")
+			_ = mock.Save("key1", "value1")
 		}()
 
 		// Verify the mock received the call
-		call := mock.Method.Save.ExpectCalledWithExactly("key1", "value1")
+		call := imp.Save.ExpectCalledWithExactly("key1", "value1")
 		call.InjectReturnValues(nil)
 
 		// Verify args can be retrieved
@@ -65,30 +65,30 @@ func TestDotImportedStorage(t *testing.T) {
 
 	t.Run("SaveWithError", func(t *testing.T) {
 		t.Parallel()
-		mock := MockStorage(t)
+		mock, imp := MockStorage(t)
 
 		// Launch goroutine
 		go func() {
-			_ = mock.Mock.Save("bad_key", "bad_value")
+			_ = mock.Save("bad_key", "bad_value")
 		}()
 
 		// Inject error return
 		testErr := errors.New("save failed")
-		call := mock.Method.Save.ExpectCalledWithExactly("bad_key", "bad_value")
+		call := imp.Save.ExpectCalledWithExactly("bad_key", "bad_value")
 		call.InjectReturnValues(testErr)
 	})
 
 	t.Run("Load", func(t *testing.T) {
 		t.Parallel()
-		mock := MockStorage(t)
+		mock, imp := MockStorage(t)
 
 		// Launch goroutine
 		go func() {
-			_, _ = mock.Mock.Load("key2")
+			_, _ = mock.Load("key2")
 		}()
 
 		// Verify and inject return values
-		call := mock.Method.Load.ExpectCalledWithExactly("key2")
+		call := imp.Load.ExpectCalledWithExactly("key2")
 		call.InjectReturnValues("loaded_value", nil)
 
 		// Verify args
@@ -100,16 +100,16 @@ func TestDotImportedStorage(t *testing.T) {
 
 	t.Run("LoadWithError", func(t *testing.T) {
 		t.Parallel()
-		mock := MockStorage(t)
+		mock, imp := MockStorage(t)
 
 		// Launch goroutine
 		go func() {
-			_, _ = mock.Mock.Load("missing_key")
+			_, _ = mock.Load("missing_key")
 		}()
 
 		// Inject error return
 		testErr := errors.New("not found")
-		call := mock.Method.Load.ExpectCalledWithExactly("missing_key")
+		call := imp.Load.ExpectCalledWithExactly("missing_key")
 		call.InjectReturnValues("", testErr)
 	})
 }

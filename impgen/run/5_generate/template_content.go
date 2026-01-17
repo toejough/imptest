@@ -28,19 +28,15 @@ func (c *{{.CallTypeName}}{{.TypeParamsUse}}) InjectReturnValues({{.TypedReturnP
 }
 {{end}}{{end}}
 `
-	tmplDepConstructor = `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
-func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
+	tmplDepConstructor = `// {{.MockName}} creates a mock {{.InterfaceName}} and returns (mock, expectation handle).
+func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) ({{if .IsStructType}}{{.MockTypeName}}Interface{{.TypeParamsUse}}{{else}}{{.InterfaceType}}{{end}}, *{{.ImpTypeName}}{{.TypeParamsUse}}) {
 	ctrl := {{.PkgImptest}}.GetOrCreateImp(t)
-	methods := &{{.MockTypeName}}Methods{{.TypeParamsUse}}{
+	imp := &{{.ImpTypeName}}{{.TypeParamsUse}}{
 {{range .Methods}}{{if .HasParams}}		{{.MethodName}}: new{{.MethodTypeName}}{{$.TypeParamsUse}}({{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}")),
 {{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}"),
 {{end}}{{end}}	}
-	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &{{.ImplName}}{{.TypeParamsUse}}{handle: h}
-	return h
+	mock := &{{.ImplName}}{{.TypeParamsUse}}{ctrl: ctrl}
+	return mock, imp
 }
 
 `
@@ -66,7 +62,7 @@ func (impl *{{.ImplName}}{{.TypeParamsUse}}) {{.MethodName}}({{.Params}}){{.Resu
 		Args: {{if .HasVariadic}}callArgs{{else}}[]any{ {{.Args}} }{{end}},
 		ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -86,7 +82,7 @@ func (impl *{{.ImplName}}{{.TypeParamsUse}}) {{.MethodName}}({{.Params}}){{.Resu
 	tmplDepImplStruct = `{{if .IsStructType}}// {{.ImplName}} implements {{.MockTypeName}}Interface.
 {{else}}// {{.ImplName}} implements {{.InterfaceType}}.
 {{end}}type {{.ImplName}}{{.TypeParamsDecl}} struct {
-	handle *{{.MockTypeName}}Handle{{.TypeParamsUse}}
+	ctrl *{{.PkgImptest}}.Imp
 }
 
 `
@@ -128,29 +124,19 @@ func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers
 
 {{end}}
 `
-	tmplDepMockStruct = `// {{.MockTypeName}}Handle is the test handle for {{.InterfaceName}}.
-type {{.MockTypeName}}Handle{{.TypeParamsDecl}} struct {
-	Mock       {{if .IsStructType}}{{.MockTypeName}}Interface{{.TypeParamsUse}}{{else}}{{.InterfaceType}}{{end}}
-	Method     *{{.MockTypeName}}Methods{{.TypeParamsUse}}
-	Controller *{{.PkgImptest}}.Imp
-}
-
-// {{.MockTypeName}}Methods holds method wrappers for setting expectations.
-type {{.MockTypeName}}Methods{{.TypeParamsDecl}} struct {
+	tmplDepMockStruct = `// {{.ImpTypeName}} holds method wrappers for setting expectations on {{.InterfaceName}}.
+type {{.ImpTypeName}}{{.TypeParamsDecl}} struct {
 {{range .Methods}}{{if .HasParams}}	{{.MethodName}} *{{.MethodTypeName}}{{$.TypeParamsUse}}
 {{else}}	{{.MethodName}} *{{$.PkgImptest}}.DependencyMethod
 {{end}}{{end}}}
 
 `
-	tmplFuncDepConstructor = `// {{.MockName}} creates a new {{.MockTypeName}}Handle for testing.
-func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTypeName}}Handle{{.TypeParamsUse}} {
+	tmplFuncDepConstructor = `// {{.MockName}} creates a mock {{.FuncName}} function and returns (mock, expectation handle).
+func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) ({{.FuncSig}}, {{if .Method.HasParams}}*{{.Method.MethodTypeName}}{{.TypeParamsUse}}{{else}}*{{.PkgImptest}}.DependencyMethod{{end}}) {
 	ctrl := {{.PkgImptest}}.GetOrCreateImp(t)
-	h := &{{.MockTypeName}}Handle{{.TypeParamsUse}}{
-		Controller: ctrl,
-{{if .Method.HasParams}}		Method: new{{.Method.MethodTypeName}}{{.TypeParamsUse}}({{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}")),
-{{else}}		Method: {{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}"),
-{{end}}	}
-	h.Mock = func({{.Method.Params}}){{.Method.Results}} {
+{{if .Method.HasParams}}	imp := new{{.Method.MethodTypeName}}{{.TypeParamsUse}}({{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}"))
+{{else}}	imp := {{.PkgImptest}}.NewDependencyMethod(ctrl, "{{.FuncName}}")
+{{end}}	mock := func({{.Method.Params}}){{.Method.Results}} {
 		{{if .Method.HasVariadic}}callArgs := []any{ {{.Method.NonVariadicArgs}} }
 		for _, v := range {{.Method.VariadicArg}} {
 			callArgs = append(callArgs, v)
@@ -160,7 +146,7 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTy
 			Args: {{if .Method.HasVariadic}}callArgs{{else}}[]any{ {{.Method.Args}} }{{end}},
 			ResponseChan: make(chan {{.PkgImptest}}.GenericResponse, 1),
 		}
-		h.Controller.CallChan <- call
+		ctrl.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)
@@ -175,7 +161,7 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) *{{.MockTy
 		{{end}}
 		return {{.Method.ReturnList}}{{end}}
 	}
-	return h
+	return mock, imp
 }
 
 `
@@ -211,15 +197,7 @@ func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(m
 
 {{end}}
 `
-	tmplFuncDepMockStruct = `// {{.MockTypeName}}Handle is the test handle for {{.FuncName}} function.
-type {{.MockTypeName}}Handle{{.TypeParamsDecl}} struct {
-	Mock       {{.FuncSig}}
-{{if .Method.HasParams}}	Method     *{{.Method.MethodTypeName}}{{.TypeParamsUse}}
-{{else}}	Method     *{{.PkgImptest}}.DependencyMethod
-{{end}}	Controller *{{.PkgImptest}}.Imp
-}
-
-`
+	tmplFuncDepMockStruct          = `` // No longer needed - function mocks use two-return style
 	tmplInterfaceTargetConstructor = `// {{.WrapName}} creates a new wrapper for the given {{.InterfaceType}} implementation.
 func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.InterfaceType}}) *{{.WrapperType}}Handle {
 	h := &{{.WrapperType}}Handle{

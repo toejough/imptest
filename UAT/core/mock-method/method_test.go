@@ -20,18 +20,19 @@ func TestMethodMock(t *testing.T) {
 	)
 
 	// Create mock for Counter.Add method signature
-	mock := MockCounterAdd(t)
+	// Returns (mock, imp) where mock is the function and imp sets expectations.
+	mock, imp := MockCounterAdd(t)
 
 	// Start goroutine that uses the mock function
 	go func() {
-		result := mockmethod.UseCounterAdd(mock.Mock, inputValue)
+		result := mockmethod.UseCounterAdd(mock, inputValue)
 		if result != returnValue {
 			t.Errorf("expected %d, got %d", returnValue, result)
 		}
 	}()
 
 	// Verify the mock was called with expected argument
-	call := mock.Method.ExpectCalledWithExactly(inputValue)
+	call := imp.ExpectCalledWithExactly(inputValue)
 	args := call.GetArgs()
 
 	if args.N != inputValue {
@@ -46,16 +47,16 @@ func TestMethodMock(t *testing.T) {
 func TestMethodMockMatchers(t *testing.T) {
 	t.Parallel()
 
-	mock := MockCounterAdd(t)
+	mock, imp := MockCounterAdd(t)
 
 	const expectedReturn = 42
 
 	go func() {
-		_ = mockmethod.UseCounterAdd(mock.Mock, 999)
+		_ = mockmethod.UseCounterAdd(mock, 999)
 	}()
 
 	// Use matchers for flexible argument matching
-	call := mock.Method.ExpectCalledWithMatches(999)
+	call := imp.ExpectCalledWithMatches(999)
 	call.InjectReturnValues(expectedReturn)
 }
 
@@ -70,19 +71,19 @@ func TestMultipleMethodMocks(t *testing.T) {
 	)
 
 	// Create mocks for different methods
-	addMock := MockCounterAdd(t)
-	incMock := MockCounterInc(t)
+	addMock, addImp := MockCounterAdd(t)
+	incMock, incImp := MockCounterInc(t)
 
 	// Use both mocks
 	go func() {
-		_ = mockmethod.UseCounterAdd(addMock.Mock, addInput)
+		_ = mockmethod.UseCounterAdd(addMock, addInput)
 	}()
 
 	go func() {
-		_ = mockmethod.UseCounterInc(incMock.Mock)
+		_ = mockmethod.UseCounterInc(incMock)
 	}()
 
 	// Verify both mocks independently
-	addMock.Method.Eventually.ExpectCalledWithExactly(addInput).InjectReturnValues(addReturn)
-	incMock.Method.Eventually.ExpectCalledWithMatches().InjectReturnValues(incReturn)
+	addImp.Eventually.ExpectCalledWithExactly(addInput).InjectReturnValues(addReturn)
+	incImp.Eventually.ExpectCalledWithMatches().InjectReturnValues(incReturn)
 }

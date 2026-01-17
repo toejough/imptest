@@ -58,12 +58,14 @@ type templateWriteTest struct {
 
 // allTemplateWriteTests returns test cases for all template Write functions.
 // WriteTargetWaitMethod is intentionally omitted - template has empty content and won't panic.
+// WriteFuncDepMockStruct is intentionally omitted - template has empty content
+// (two-return style doesn't need Handle struct).
 func allTemplateWriteTests() []templateWriteTest {
 	methodNames := []string{
 		"WriteDepArgsStruct", "WriteDepCallWrapper", "WriteDepConstructor", "WriteDepHeader",
 		"WriteDepImplMethod", "WriteDepImplStruct", "WriteDepInterfaceMethod", "WriteDepMethodWrapper",
 		"WriteDepMockStruct", "WriteFuncDepConstructor", "WriteFuncDepMethodWrapper",
-		"WriteFuncDepMockStruct", "WriteInterfaceTargetConstructor", "WriteInterfaceTargetHeader",
+		"WriteInterfaceTargetConstructor", "WriteInterfaceTargetHeader",
 		"WriteInterfaceTargetMethodCallHandleStruct", "WriteInterfaceTargetMethodExpectCompletes",
 		"WriteInterfaceTargetMethodExpectPanic", "WriteInterfaceTargetMethodExpectReturns",
 		"WriteInterfaceTargetMethodReturns", "WriteInterfaceTargetMethodStart",

@@ -8,6 +8,14 @@ import (
 	structlit "github.com/toejough/imptest/UAT/variations/signature/struct-literal"
 )
 
+// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
+type DataProcessorImp struct {
+	Process   *DataProcessorMockProcessMethod
+	Transform *DataProcessorMockTransformMethod
+	GetConfig *_imptest.DependencyMethod
+	Apply     *DataProcessorMockApplyMethod
+}
+
 // DataProcessorMockApplyArgs holds typed arguments for Apply.
 type DataProcessorMockApplyArgs struct {
 	Req struct{ Method string }
@@ -61,21 +69,6 @@ func (c *DataProcessorMockGetConfigCall) InjectReturnValues(result0 struct {
 	Port int
 }) {
 	c.DependencyCall.InjectReturnValues(result0)
-}
-
-// DataProcessorMockHandle is the test handle for DataProcessor.
-type DataProcessorMockHandle struct {
-	Mock       structlit.DataProcessor
-	Method     *DataProcessorMockMethods
-	Controller *_imptest.Imp
-}
-
-// DataProcessorMockMethods holds method wrappers for setting expectations.
-type DataProcessorMockMethods struct {
-	Process   *DataProcessorMockProcessMethod
-	Transform *DataProcessorMockTransformMethod
-	GetConfig *_imptest.DependencyMethod
-	Apply     *DataProcessorMockApplyMethod
 }
 
 // DataProcessorMockProcessArgs holds typed arguments for Process.
@@ -171,26 +164,22 @@ func (m *DataProcessorMockTransformMethod) ExpectCalledWithMatches(matchers ...a
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
-// MockDataProcessor creates a new DataProcessorMockHandle for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
+// MockDataProcessor creates a mock DataProcessor and returns (mock, expectation handle).
+func MockDataProcessor(t _imptest.TestReporter) (structlit.DataProcessor, *DataProcessorImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &DataProcessorMockMethods{
+	imp := &DataProcessorImp{
 		Process:   newDataProcessorMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 		Transform: newDataProcessorMockTransformMethod(_imptest.NewDependencyMethod(ctrl, "Transform")),
 		GetConfig: _imptest.NewDependencyMethod(ctrl, "GetConfig"),
 		Apply:     newDataProcessorMockApplyMethod(_imptest.NewDependencyMethod(ctrl, "Apply")),
 	}
-	h := &DataProcessorMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockDataProcessorImpl{handle: h}
-	return h
+	mock := &mockDataProcessorImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockDataProcessorImpl implements structlit.DataProcessor.
 type mockDataProcessorImpl struct {
-	handle *DataProcessorMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Apply implements structlit.DataProcessor.Apply.
@@ -200,7 +189,7 @@ func (impl *mockDataProcessorImpl) Apply(req struct{ Method string }) struct{ St
 		Args:         []any{req},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -226,7 +215,7 @@ func (impl *mockDataProcessorImpl) GetConfig() struct {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -255,7 +244,7 @@ func (impl *mockDataProcessorImpl) Process(cfg struct{ Timeout int }) error {
 		Args:         []any{cfg},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -281,7 +270,7 @@ func (impl *mockDataProcessorImpl) Transform(opts struct {
 		Args:         []any{opts},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

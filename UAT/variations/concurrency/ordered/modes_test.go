@@ -3,6 +3,10 @@ package orderedvsmode_test
 import (
 	"errors"
 	"testing"
+
+	"github.com/toejough/imptest"
+	// Import for impgen to resolve the package.
+	_ "github.com/toejough/imptest/UAT/variations/concurrency/ordered"
 )
 
 // NOTE: Testing ordered mode failure (fail-fast) requires MockTester setup.
@@ -13,35 +17,35 @@ import (
 func TestEventually_CallsOutOfOrder(t *testing.T) {
 	t.Parallel()
 
-	mock := MockService(t)
+	mock, imp := MockService(t)
 
 	// Launch operations in separate goroutines so they don't block each other
 	// They'll arrive out of order: B, then A, then C
 	done := make(chan bool, 3)
 
 	go func() {
-		_ = mock.Mock.OperationB(2)
+		_ = mock.OperationB(2)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Mock.OperationA(1)
+		_ = mock.OperationA(1)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Mock.OperationC(3)
+		_ = mock.OperationC(3)
 
 		done <- true
 	}()
 
 	// Use Eventually() to handle out-of-order calls
 	// Eventually mode queues mismatches and waits for matches
-	mock.Method.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.Method.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	imp.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	imp.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	imp.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -53,33 +57,33 @@ func TestEventually_CallsOutOfOrder(t *testing.T) {
 func TestEventually_ConcurrentCalls(t *testing.T) {
 	t.Parallel()
 
-	mock := MockService(t)
+	mock, imp := MockService(t)
 
 	// Launch three concurrent goroutines calling operations simultaneously
 	done := make(chan bool, 3)
 
 	go func() {
-		_ = mock.Mock.OperationC(3)
+		_ = mock.OperationC(3)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Mock.OperationA(1)
+		_ = mock.OperationA(1)
 
 		done <- true
 	}()
 
 	go func() {
-		_ = mock.Mock.OperationB(2)
+		_ = mock.OperationB(2)
 
 		done <- true
 	}()
 
 	// Eventually mode handles any arrival order
-	mock.Method.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.Method.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	imp.OperationA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	imp.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	imp.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -91,14 +95,14 @@ func TestEventually_ConcurrentCalls(t *testing.T) {
 func TestEventually_PreservesTypeSafety(t *testing.T) {
 	t.Parallel()
 
-	mock := MockService(t)
+	mock, imp := MockService(t)
 
 	go func() {
-		_ = mock.Mock.OperationA(42)
+		_ = mock.OperationA(42)
 	}()
 
 	// Eventually() returns *ServiceMockOperationAMethod, not *DependencyMethod
-	call := mock.Method.OperationA.Eventually.ExpectCalledWithExactly(42)
+	call := imp.OperationA.Eventually.ExpectCalledWithExactly(42)
 
 	// Type-safe GetArgs() access
 	args := call.GetArgs()
@@ -116,26 +120,25 @@ func TestEventually_PreservesTypeSafety(t *testing.T) {
 func TestMixed_OrderedAndEventually(t *testing.T) {
 	t.Parallel()
 
-	mock := MockService(t)
+	mock, imp := MockService(t)
 
 	go func() {
-		svc := mock.Mock
 		// First call is ordered - must match expectation order
-		_ = svc.OperationA(1)
+		_ = mock.OperationA(1)
 		// Remaining calls can arrive in any order via Eventually
-		_ = svc.OperationC(3)
-		_ = svc.OperationB(2)
+		_ = mock.OperationC(3)
+		_ = mock.OperationB(2)
 	}()
 
 	// First expectation is ordered (must be matched in order)
-	mock.Method.OperationA.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	imp.OperationA.ExpectCalledWithExactly(1).InjectReturnValues(nil)
 
 	// Remaining expectations use Eventually (can match in any order)
-	mock.Method.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.Method.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	imp.OperationB.Eventually.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	imp.OperationC.Eventually.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	// Wait for all Eventually expectations to be satisfied
-	mock.Controller.Wait()
+	imptest.Wait(t)
 }
 
 //go:generate impgen orderedvsmode.Service --dependency
@@ -144,24 +147,23 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 func TestOrdered_CallsInOrder(t *testing.T) {
 	t.Parallel()
 
-	mock := MockService(t)
+	mock, imp := MockService(t)
 
 	// Start goroutine that calls operations in order: A, B, C
 	done := make(chan bool)
 
 	go func() {
-		svc := mock.Mock
-		_ = svc.OperationA(1)
-		_ = svc.OperationB(2)
-		_ = svc.OperationC(3)
+		_ = mock.OperationA(1)
+		_ = mock.OperationB(2)
+		_ = mock.OperationC(3)
 
 		done <- true
 	}()
 
 	// Expect calls in order (ordered mode = default)
-	mock.Method.OperationA.ExpectCalledWithExactly(1).InjectReturnValues(nil)
-	mock.Method.OperationB.ExpectCalledWithExactly(2).InjectReturnValues(nil)
-	mock.Method.OperationC.ExpectCalledWithExactly(3).InjectReturnValues(nil)
+	imp.OperationA.ExpectCalledWithExactly(1).InjectReturnValues(nil)
+	imp.OperationB.ExpectCalledWithExactly(2).InjectReturnValues(nil)
+	imp.OperationC.ExpectCalledWithExactly(3).InjectReturnValues(nil)
 
 	<-done
 }

@@ -16,14 +16,14 @@ import "testing"
 func TestProcessWithOps(t *testing.T) {
 	t.Parallel()
 
-	mock := MockOps(t)
+	mock, imp := MockOps(t)
 
 	go func() {
-		result := ProcessWithOps(mock.Mock, 5)
+		result := ProcessWithOps(mock, 5)
 		_ = result // Use the result to avoid unused variable warning
 	}()
 
 	// Can test unexported method because we're in the same package
-	mock.Method.internalMethod.ExpectCalledWithExactly(5).InjectReturnValues(10)
-	mock.Method.PublicMethod.ExpectCalledWithExactly(10).InjectReturnValues(20)
+	imp.internalMethod.ExpectCalledWithExactly(5).InjectReturnValues(10)
+	imp.PublicMethod.ExpectCalledWithExactly(10).InjectReturnValues(20)
 }

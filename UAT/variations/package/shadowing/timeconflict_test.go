@@ -17,13 +17,13 @@ import (
 func TestUseTimer(t *testing.T) {
 	t.Parallel()
 
-	mock := MockTimer(t)
+	mock, imp := MockTimer(t)
 
 	go func() {
-		result := timeconflict.UseTimer(mock.Mock)
+		result := timeconflict.UseTimer(mock)
 		_ = result // Use the result to avoid unused variable warning
 	}()
 
-	mock.Method.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
-	mock.Method.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
+	imp.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
+	imp.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
 }

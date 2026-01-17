@@ -9,6 +9,14 @@ import (
 	time "time"
 )
 
+// SchedulerImp holds method wrappers for setting expectations on Scheduler.
+type SchedulerImp struct {
+	ScheduleAt  *SchedulerMockScheduleAtMethod
+	Delay       *SchedulerMockDelayMethod
+	NextRun     *_imptest.DependencyMethod
+	GetInterval *SchedulerMockGetIntervalMethod
+}
+
 // SchedulerMockDelayArgs holds typed arguments for Delay.
 type SchedulerMockDelayArgs struct {
 	TaskID   string
@@ -95,21 +103,6 @@ func (m *SchedulerMockGetIntervalMethod) ExpectCalledWithMatches(matchers ...any
 	return &SchedulerMockGetIntervalCall{DependencyCall: call}
 }
 
-// SchedulerMockHandle is the test handle for Scheduler.
-type SchedulerMockHandle struct {
-	Mock       timeconflict.Scheduler
-	Method     *SchedulerMockMethods
-	Controller *_imptest.Imp
-}
-
-// SchedulerMockMethods holds method wrappers for setting expectations.
-type SchedulerMockMethods struct {
-	ScheduleAt  *SchedulerMockScheduleAtMethod
-	Delay       *SchedulerMockDelayMethod
-	NextRun     *_imptest.DependencyMethod
-	GetInterval *SchedulerMockGetIntervalMethod
-}
-
 // SchedulerMockNextRunCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
 type SchedulerMockNextRunCall struct {
 	*_imptest.DependencyCall
@@ -164,26 +157,22 @@ func (m *SchedulerMockScheduleAtMethod) ExpectCalledWithMatches(matchers ...any)
 	return &SchedulerMockScheduleAtCall{DependencyCall: call}
 }
 
-// MockScheduler creates a new SchedulerMockHandle for testing.
-func MockScheduler(t _imptest.TestReporter) *SchedulerMockHandle {
+// MockScheduler creates a mock Scheduler and returns (mock, expectation handle).
+func MockScheduler(t _imptest.TestReporter) (timeconflict.Scheduler, *SchedulerImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &SchedulerMockMethods{
+	imp := &SchedulerImp{
 		ScheduleAt:  newSchedulerMockScheduleAtMethod(_imptest.NewDependencyMethod(ctrl, "ScheduleAt")),
 		Delay:       newSchedulerMockDelayMethod(_imptest.NewDependencyMethod(ctrl, "Delay")),
 		NextRun:     _imptest.NewDependencyMethod(ctrl, "NextRun"),
 		GetInterval: newSchedulerMockGetIntervalMethod(_imptest.NewDependencyMethod(ctrl, "GetInterval")),
 	}
-	h := &SchedulerMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockSchedulerImpl{handle: h}
-	return h
+	mock := &mockSchedulerImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockSchedulerImpl implements timeconflict.Scheduler.
 type mockSchedulerImpl struct {
-	handle *SchedulerMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Delay implements timeconflict.Scheduler.Delay.
@@ -193,7 +182,7 @@ func (impl *mockSchedulerImpl) Delay(taskID string, duration time.Duration) erro
 		Args:         []any{taskID, duration},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -216,7 +205,7 @@ func (impl *mockSchedulerImpl) GetInterval(taskID string) time.Duration {
 		Args:         []any{taskID},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -239,7 +228,7 @@ func (impl *mockSchedulerImpl) NextRun() (time.Time, error) {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -269,7 +258,7 @@ func (impl *mockSchedulerImpl) ScheduleAt(taskID string, when time.Time) error {
 		Args:         []any{taskID, when},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -8,6 +8,15 @@ import (
 	basic "github.com/toejough/imptest/UAT/core/mock-interface"
 )
 
+// OpsImp holds method wrappers for setting expectations on Ops.
+type OpsImp struct {
+	Add    *OpsMockAddMethod
+	Store  *OpsMockStoreMethod
+	Log    *OpsMockLogMethod
+	Notify *OpsMockNotifyMethod
+	Finish *_imptest.DependencyMethod
+}
+
 // OpsMockAddArgs holds typed arguments for Add.
 type OpsMockAddArgs struct {
 	A int
@@ -62,13 +71,6 @@ func (c *OpsMockFinishCall) InjectReturnValues(result0 bool) {
 	c.DependencyCall.InjectReturnValues(result0)
 }
 
-// OpsMockHandle is the test handle for Ops.
-type OpsMockHandle struct {
-	Mock       basic.Ops
-	Method     *OpsMockMethods
-	Controller *_imptest.Imp
-}
-
 // OpsMockLogArgs holds typed arguments for Log.
 type OpsMockLogArgs struct {
 	Message string
@@ -104,15 +106,6 @@ func (m *OpsMockLogMethod) ExpectCalledWithExactly(message string) *OpsMockLogCa
 func (m *OpsMockLogMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockLogCall {
 	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
 	return &OpsMockLogCall{DependencyCall: call}
-}
-
-// OpsMockMethods holds method wrappers for setting expectations.
-type OpsMockMethods struct {
-	Add    *OpsMockAddMethod
-	Store  *OpsMockStoreMethod
-	Log    *OpsMockLogMethod
-	Notify *OpsMockNotifyMethod
-	Finish *_imptest.DependencyMethod
 }
 
 // OpsMockNotifyArgs holds typed arguments for Notify.
@@ -207,27 +200,23 @@ func (m *OpsMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *OpsMockSt
 	return &OpsMockStoreCall{DependencyCall: call}
 }
 
-// MockOps creates a new OpsMockHandle for testing.
-func MockOps(t _imptest.TestReporter) *OpsMockHandle {
+// MockOps creates a mock Ops and returns (mock, expectation handle).
+func MockOps(t _imptest.TestReporter) (basic.Ops, *OpsImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &OpsMockMethods{
+	imp := &OpsImp{
 		Add:    newOpsMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add")),
 		Store:  newOpsMockStoreMethod(_imptest.NewDependencyMethod(ctrl, "Store")),
 		Log:    newOpsMockLogMethod(_imptest.NewDependencyMethod(ctrl, "Log")),
 		Notify: newOpsMockNotifyMethod(_imptest.NewDependencyMethod(ctrl, "Notify")),
 		Finish: _imptest.NewDependencyMethod(ctrl, "Finish"),
 	}
-	h := &OpsMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockOpsImpl{handle: h}
-	return h
+	mock := &mockOpsImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockOpsImpl implements basic.Ops.
 type mockOpsImpl struct {
-	handle *OpsMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Add implements basic.Ops.Add.
@@ -237,7 +226,7 @@ func (impl *mockOpsImpl) Add(a int, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -260,7 +249,7 @@ func (impl *mockOpsImpl) Finish() bool {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -283,7 +272,7 @@ func (impl *mockOpsImpl) Log(message string) {
 		Args:         []any{message},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -302,7 +291,7 @@ func (impl *mockOpsImpl) Notify(message string, ids ...int) bool {
 		Args:         callArgs,
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -325,7 +314,7 @@ func (impl *mockOpsImpl) Store(key string, value any) (int, error) {
 		Args:         []any{key, value},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

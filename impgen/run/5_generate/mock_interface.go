@@ -86,11 +86,14 @@ func (gen *dependencyGenerator) buildDependencyTemplateData() depTemplateData {
 		},
 	)
 
+	baseName := strings.TrimPrefix(gen.mockName, "Mock")
+
 	return depTemplateData{
 		baseTemplateData: base,
 		MockName:         gen.mockName,
 		MockTypeName:     gen.mockTypeName,
-		BaseName:         strings.TrimPrefix(gen.mockName, "Mock"),
+		ImpTypeName:      baseName + "Imp",
+		BaseName:         baseName,
 		InterfaceName:    gen.interfaceName,
 		InterfaceType:    interfaceType,
 		ImplName:         gen.implName,

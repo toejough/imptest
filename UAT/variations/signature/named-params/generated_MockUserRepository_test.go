@@ -9,6 +9,14 @@ import (
 	named "github.com/toejough/imptest/UAT/variations/signature/named-params"
 )
 
+// UserRepositoryImp holds method wrappers for setting expectations on UserRepository.
+type UserRepositoryImp struct {
+	GetUser    *UserRepositoryMockGetUserMethod
+	SaveUser   *UserRepositoryMockSaveUserMethod
+	DeleteUser *UserRepositoryMockDeleteUserMethod
+	CountUsers *UserRepositoryMockCountUsersMethod
+}
+
 // UserRepositoryMockCountUsersArgs holds typed arguments for CountUsers.
 type UserRepositoryMockCountUsersArgs struct {
 	Ctx context.Context
@@ -139,21 +147,6 @@ func (m *UserRepositoryMockGetUserMethod) ExpectCalledWithMatches(matchers ...an
 	return &UserRepositoryMockGetUserCall{DependencyCall: call}
 }
 
-// UserRepositoryMockHandle is the test handle for UserRepository.
-type UserRepositoryMockHandle struct {
-	Mock       named.UserRepository
-	Method     *UserRepositoryMockMethods
-	Controller *_imptest.Imp
-}
-
-// UserRepositoryMockMethods holds method wrappers for setting expectations.
-type UserRepositoryMockMethods struct {
-	GetUser    *UserRepositoryMockGetUserMethod
-	SaveUser   *UserRepositoryMockSaveUserMethod
-	DeleteUser *UserRepositoryMockDeleteUserMethod
-	CountUsers *UserRepositoryMockCountUsersMethod
-}
-
 // UserRepositoryMockSaveUserArgs holds typed arguments for SaveUser.
 type UserRepositoryMockSaveUserArgs struct {
 	Ctx  context.Context
@@ -198,26 +191,22 @@ func (m *UserRepositoryMockSaveUserMethod) ExpectCalledWithMatches(matchers ...a
 	return &UserRepositoryMockSaveUserCall{DependencyCall: call}
 }
 
-// MockUserRepository creates a new UserRepositoryMockHandle for testing.
-func MockUserRepository(t _imptest.TestReporter) *UserRepositoryMockHandle {
+// MockUserRepository creates a mock UserRepository and returns (mock, expectation handle).
+func MockUserRepository(t _imptest.TestReporter) (named.UserRepository, *UserRepositoryImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &UserRepositoryMockMethods{
+	imp := &UserRepositoryImp{
 		GetUser:    newUserRepositoryMockGetUserMethod(_imptest.NewDependencyMethod(ctrl, "GetUser")),
 		SaveUser:   newUserRepositoryMockSaveUserMethod(_imptest.NewDependencyMethod(ctrl, "SaveUser")),
 		DeleteUser: newUserRepositoryMockDeleteUserMethod(_imptest.NewDependencyMethod(ctrl, "DeleteUser")),
 		CountUsers: newUserRepositoryMockCountUsersMethod(_imptest.NewDependencyMethod(ctrl, "CountUsers")),
 	}
-	h := &UserRepositoryMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockUserRepositoryImpl{handle: h}
-	return h
+	mock := &mockUserRepositoryImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockUserRepositoryImpl implements named.UserRepository.
 type mockUserRepositoryImpl struct {
-	handle *UserRepositoryMockHandle
+	ctrl *_imptest.Imp
 }
 
 // CountUsers implements named.UserRepository.CountUsers.
@@ -227,7 +216,7 @@ func (impl *mockUserRepositoryImpl) CountUsers(ctx context.Context) (int, error)
 		Args:         []any{ctx},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -257,7 +246,7 @@ func (impl *mockUserRepositoryImpl) DeleteUser(ctx context.Context, userID int) 
 		Args:         []any{ctx, userID},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -280,7 +269,7 @@ func (impl *mockUserRepositoryImpl) GetUser(ctx context.Context, userID int) (na
 		Args:         []any{ctx, userID},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -310,7 +299,7 @@ func (impl *mockUserRepositoryImpl) SaveUser(ctx context.Context, user named.Use
 		Args:         []any{ctx, user},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

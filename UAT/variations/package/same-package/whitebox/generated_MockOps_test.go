@@ -7,15 +7,8 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// OpsMockHandle is the test handle for Ops.
-type OpsMockHandle struct {
-	Mock       Ops
-	Method     *OpsMockMethods
-	Controller *_imptest.Imp
-}
-
-// OpsMockMethods holds method wrappers for setting expectations.
-type OpsMockMethods struct {
+// OpsImp holds method wrappers for setting expectations on Ops.
+type OpsImp struct {
 	internalMethod *OpsMockinternalMethodMethod
 	PublicMethod   *OpsMockPublicMethodMethod
 }
@@ -104,24 +97,20 @@ func (m *OpsMockinternalMethodMethod) ExpectCalledWithMatches(matchers ...any) *
 	return &OpsMockinternalMethodCall{DependencyCall: call}
 }
 
-// MockOps creates a new OpsMockHandle for testing.
-func MockOps(t _imptest.TestReporter) *OpsMockHandle {
+// MockOps creates a mock Ops and returns (mock, expectation handle).
+func MockOps(t _imptest.TestReporter) (Ops, *OpsImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &OpsMockMethods{
+	imp := &OpsImp{
 		internalMethod: newOpsMockinternalMethodMethod(_imptest.NewDependencyMethod(ctrl, "internalMethod")),
 		PublicMethod:   newOpsMockPublicMethodMethod(_imptest.NewDependencyMethod(ctrl, "PublicMethod")),
 	}
-	h := &OpsMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockOpsImpl{handle: h}
-	return h
+	mock := &mockOpsImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockOpsImpl implements Ops.
 type mockOpsImpl struct {
-	handle *OpsMockHandle
+	ctrl *_imptest.Imp
 }
 
 // PublicMethod implements Ops.PublicMethod.
@@ -131,7 +120,7 @@ func (impl *mockOpsImpl) PublicMethod(x int) int {
 		Args:         []any{x},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -154,7 +143,7 @@ func (impl *mockOpsImpl) internalMethod(x int) int {
 		Args:         []any{x},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

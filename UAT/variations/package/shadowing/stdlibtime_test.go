@@ -10,39 +10,39 @@ import (
 func TestStdlibTimeTypes(t *testing.T) {
 	t.Parallel()
 
-	mock := MockScheduler(t)
+	mock, imp := MockScheduler(t)
 
 	// Test time.Time as parameter
 	scheduledTime := time.Date(2025, 12, 27, 10, 30, 0, 0, time.UTC)
 
 	go func() {
-		_ = mock.Mock.ScheduleAt("task1", scheduledTime)
+		_ = mock.ScheduleAt("task1", scheduledTime)
 	}()
 
-	mock.Method.ScheduleAt.ExpectCalledWithExactly("task1", scheduledTime).InjectReturnValues(nil)
+	imp.ScheduleAt.ExpectCalledWithExactly("task1", scheduledTime).InjectReturnValues(nil)
 
 	// Test time.Duration as parameter
 	delay := 5 * time.Minute
 
 	go func() {
-		_ = mock.Mock.Delay("task2", delay)
+		_ = mock.Delay("task2", delay)
 	}()
 
-	mock.Method.Delay.ExpectCalledWithExactly("task2", delay).InjectReturnValues(nil)
+	imp.Delay.ExpectCalledWithExactly("task2", delay).InjectReturnValues(nil)
 
 	// Test time.Time as return value
 	expectedTime := time.Date(2025, 12, 28, 10, 30, 0, 0, time.UTC)
 
 	go func() {
-		_, _ = mock.Mock.NextRun()
+		_, _ = mock.NextRun()
 	}()
 
-	mock.Method.NextRun.ExpectCalledWithExactly().InjectReturnValues(expectedTime, nil)
+	imp.NextRun.ExpectCalledWithExactly().InjectReturnValues(expectedTime, nil)
 
 	// Test time.Duration as return value
 	go func() {
-		_ = mock.Mock.GetInterval("task3")
+		_ = mock.GetInterval("task3")
 	}()
 
-	mock.Method.GetInterval.ExpectCalledWithExactly("task3").InjectReturnValues(10 * time.Second)
+	imp.GetInterval.ExpectCalledWithExactly("task3").InjectReturnValues(10 * time.Second)
 }

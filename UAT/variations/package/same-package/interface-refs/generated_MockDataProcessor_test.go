@@ -8,15 +8,8 @@ import (
 	samepackage "github.com/toejough/imptest/UAT/variations/package/same-package/interface-refs"
 )
 
-// DataProcessorMockHandle is the test handle for DataProcessor.
-type DataProcessorMockHandle struct {
-	Mock       samepackage.DataProcessor
-	Method     *DataProcessorMockMethods
-	Controller *_imptest.Imp
-}
-
-// DataProcessorMockMethods holds method wrappers for setting expectations.
-type DataProcessorMockMethods struct {
+// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
+type DataProcessorImp struct {
 	Process   *DataProcessorMockProcessMethod
 	Transform *DataProcessorMockTransformMethod
 	Validate  *DataProcessorMockValidateMethod
@@ -150,25 +143,21 @@ func (m *DataProcessorMockValidateMethod) ExpectCalledWithMatches(matchers ...an
 	return &DataProcessorMockValidateCall{DependencyCall: call}
 }
 
-// MockDataProcessor creates a new DataProcessorMockHandle for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
+// MockDataProcessor creates a mock DataProcessor and returns (mock, expectation handle).
+func MockDataProcessor(t _imptest.TestReporter) (samepackage.DataProcessor, *DataProcessorImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &DataProcessorMockMethods{
+	imp := &DataProcessorImp{
 		Process:   newDataProcessorMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 		Transform: newDataProcessorMockTransformMethod(_imptest.NewDependencyMethod(ctrl, "Transform")),
 		Validate:  newDataProcessorMockValidateMethod(_imptest.NewDependencyMethod(ctrl, "Validate")),
 	}
-	h := &DataProcessorMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockDataProcessorImpl{handle: h}
-	return h
+	mock := &mockDataProcessorImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockDataProcessorImpl implements samepackage.DataProcessor.
 type mockDataProcessorImpl struct {
-	handle *DataProcessorMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Process implements samepackage.DataProcessor.Process.
@@ -178,7 +167,7 @@ func (impl *mockDataProcessorImpl) Process(source samepackage.DataSource, sink s
 		Args:         []any{source, sink},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -201,7 +190,7 @@ func (impl *mockDataProcessorImpl) Transform(input samepackage.DataSource) (same
 		Args:         []any{input},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -231,7 +220,7 @@ func (impl *mockDataProcessorImpl) Validate(sink samepackage.DataSink) bool {
 		Args:         []any{sink},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

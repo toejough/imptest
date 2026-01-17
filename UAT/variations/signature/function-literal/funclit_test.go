@@ -23,20 +23,20 @@ import (
 func TestDependencyWithFunctionLiterals(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, imp := MockDataProcessor(t)
 	items := []int{1, 2, 3}
 	transformFn := func(x int) (int, error) { return x * 2, nil }
 
 	// Run code under test
 	go func() {
-		result, err := mock.Mock.Transform(items, transformFn)
+		result, err := mock.Transform(items, transformFn)
 		_ = result
 		_ = err
 	}()
 
 	// Verify mock handles function literal parameter correctly
 	// Note: Function literals can't be compared with ==, so use matcher
-	mock.Method.Transform.ExpectCalledWithMatches(items, imptest.Any()).
+	imp.Transform.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{2, 4, 6}, nil)
 }
 
@@ -44,16 +44,16 @@ func TestDependencyWithFunctionLiterals(t *testing.T) {
 func TestDependencyWithPredicate(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, imp := MockDataProcessor(t)
 	items := []int{1, 2, 3, 4, 5}
 	isEven := func(x int) bool { return x%2 == 0 }
 
 	go func() {
-		result := mock.Mock.Filter(items, isEven)
+		result := mock.Filter(items, isEven)
 		_ = result
 	}()
 
-	mock.Method.Filter.ExpectCalledWithMatches(items, imptest.Any()).
+	imp.Filter.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{2, 4})
 }
 
@@ -62,16 +62,16 @@ func TestDependencyWithPredicate(t *testing.T) {
 func TestDependencyWithReducer(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, imp := MockDataProcessor(t)
 	items := []int{1, 2, 3, 4}
 	sum := func(acc, item int) int { return acc + item }
 
 	go func() {
-		result := mock.Mock.Reduce(items, 0, sum)
+		result := mock.Reduce(items, 0, sum)
 		_ = result
 	}()
 
-	mock.Method.Reduce.ExpectCalledWithMatches(items, imptest.Any(), imptest.Any()).
+	imp.Reduce.ExpectCalledWithMatches(items, imptest.Any(), imptest.Any()).
 		InjectReturnValues(10)
 }
 
@@ -105,30 +105,30 @@ func TestFunctionWithTransform(t *testing.T) {
 func TestMultipleFunctionLiterals(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, imp := MockDataProcessor(t)
 	items := []int{1, 2, 3, 4, 5}
 
 	// First call: Transform
 	transformFn := func(x int) (int, error) { return x * 3, nil }
 
 	go func() {
-		result, err := mock.Mock.Transform(items, transformFn)
+		result, err := mock.Transform(items, transformFn)
 		_ = result
 		_ = err
 	}()
 
-	mock.Method.Transform.ExpectCalledWithMatches(items, imptest.Any()).
+	imp.Transform.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{3, 6, 9, 12, 15}, nil)
 
 	// Second call: Filter on same mock
 	predicateFn := func(x int) bool { return x > 10 }
 
 	go func() {
-		result := mock.Mock.Filter(items, predicateFn)
+		result := mock.Filter(items, predicateFn)
 		_ = result
 	}()
 
-	mock.Method.Filter.ExpectCalledWithMatches(items, imptest.Any()).
+	imp.Filter.ExpectCalledWithMatches(items, imptest.Any()).
 		InjectReturnValues([]int{12, 15})
 }
 

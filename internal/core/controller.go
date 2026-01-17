@@ -622,16 +622,6 @@ func (tc *TargetController) RegisterPendingCompletion() *PendingCompletion {
 }
 
 // Wait blocks until all pending completions are satisfied.
-func (tc *TargetController) Wait() {
-	tc.mu.Lock()
-	completions := make([]*PendingCompletion, len(tc.pendingCompletions))
-	copy(completions, tc.pendingCompletions)
-	tc.mu.Unlock()
-
-	for _, completion := range completions {
-		<-completion.done
-	}
-}
 
 // TestReporter is the minimal interface imptest needs from test frameworks.
 // testing.T, testing.B, and *Imp all implement this interface.

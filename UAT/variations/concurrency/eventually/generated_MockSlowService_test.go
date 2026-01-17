@@ -8,6 +8,12 @@ import (
 	concurrency "github.com/toejough/imptest/UAT/variations/concurrency/eventually"
 )
 
+// SlowServiceImp holds method wrappers for setting expectations on SlowService.
+type SlowServiceImp struct {
+	DoA *SlowServiceMockDoAMethod
+	DoB *SlowServiceMockDoBMethod
+}
+
 // SlowServiceMockDoAArgs holds typed arguments for DoA.
 type SlowServiceMockDoAArgs struct {
 	Id int
@@ -92,37 +98,20 @@ func (m *SlowServiceMockDoBMethod) ExpectCalledWithMatches(matchers ...any) *Slo
 	return &SlowServiceMockDoBCall{DependencyCall: call}
 }
 
-// SlowServiceMockHandle is the test handle for SlowService.
-type SlowServiceMockHandle struct {
-	Mock       concurrency.SlowService
-	Method     *SlowServiceMockMethods
-	Controller *_imptest.Imp
-}
-
-// SlowServiceMockMethods holds method wrappers for setting expectations.
-type SlowServiceMockMethods struct {
-	DoA *SlowServiceMockDoAMethod
-	DoB *SlowServiceMockDoBMethod
-}
-
-// MockSlowService creates a new SlowServiceMockHandle for testing.
-func MockSlowService(t _imptest.TestReporter) *SlowServiceMockHandle {
+// MockSlowService creates a mock SlowService and returns (mock, expectation handle).
+func MockSlowService(t _imptest.TestReporter) (concurrency.SlowService, *SlowServiceImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &SlowServiceMockMethods{
+	imp := &SlowServiceImp{
 		DoA: newSlowServiceMockDoAMethod(_imptest.NewDependencyMethod(ctrl, "DoA")),
 		DoB: newSlowServiceMockDoBMethod(_imptest.NewDependencyMethod(ctrl, "DoB")),
 	}
-	h := &SlowServiceMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockSlowServiceImpl{handle: h}
-	return h
+	mock := &mockSlowServiceImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockSlowServiceImpl implements concurrency.SlowService.
 type mockSlowServiceImpl struct {
-	handle *SlowServiceMockHandle
+	ctrl *_imptest.Imp
 }
 
 // DoA implements concurrency.SlowService.DoA.
@@ -132,7 +121,7 @@ func (impl *mockSlowServiceImpl) DoA(id int) string {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -155,7 +144,7 @@ func (impl *mockSlowServiceImpl) DoB(id int) string {
 		Args:         []any{id},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

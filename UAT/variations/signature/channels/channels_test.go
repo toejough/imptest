@@ -2,23 +2,26 @@ package channels_test
 
 import (
 	"testing"
+
+	// Import for impgen to resolve the package.
+	_ "github.com/toejough/imptest/UAT/variations/signature/channels"
 )
 
 func TestChannelHandler_Bidirectional(t *testing.T) {
 	t.Parallel()
 
-	mock := MockChannelHandler(t)
+	mock, imp := MockChannelHandler(t)
 
 	testChannel := make(chan bool, 1)
 
 	// Expect call with bidirectional channel
 	go func() {
-		call := mock.Method.Bidirectional.ExpectCalledWithExactly(testChannel)
+		call := imp.Bidirectional.ExpectCalledWithExactly(testChannel)
 		call.InjectReturnValues(true)
 	}()
 
 	// Call the mock
-	result := mock.Mock.Bidirectional(testChannel)
+	result := mock.Bidirectional(testChannel)
 
 	if !result {
 		t.Fatal("expected true, got false")
@@ -28,7 +31,7 @@ func TestChannelHandler_Bidirectional(t *testing.T) {
 func TestChannelHandler_ReceiveOnly(t *testing.T) {
 	t.Parallel()
 
-	mock := MockChannelHandler(t)
+	mock, imp := MockChannelHandler(t)
 
 	testChannel := make(chan string, 1)
 	testChannel <- "test message"
@@ -37,12 +40,12 @@ func TestChannelHandler_ReceiveOnly(t *testing.T) {
 
 	// Expect call with receive-only channel
 	go func() {
-		call := mock.Method.ReceiveOnly.ExpectCalledWithExactly(testChannel)
+		call := imp.ReceiveOnly.ExpectCalledWithExactly(testChannel)
 		call.InjectReturnValues("received", nil)
 	}()
 
 	// Call the mock
-	result, err := mock.Mock.ReceiveOnly(testChannel)
+	result, err := mock.ReceiveOnly(testChannel)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -55,7 +58,7 @@ func TestChannelHandler_ReceiveOnly(t *testing.T) {
 func TestChannelHandler_ReturnChannel(t *testing.T) {
 	t.Parallel()
 
-	mock := MockChannelHandler(t)
+	mock, imp := MockChannelHandler(t)
 
 	resultCh := make(chan int, 1)
 	resultCh <- 42
@@ -67,12 +70,12 @@ func TestChannelHandler_ReturnChannel(t *testing.T) {
 
 	// Expect call and return a channel
 	go func() {
-		call := mock.Method.ReturnChannel.ExpectCalledWithExactly()
+		call := imp.ReturnChannel.ExpectCalledWithExactly()
 		call.InjectReturnValues(recvOnlyCh)
 	}()
 
 	// Call the mock
-	channel := mock.Mock.ReturnChannel()
+	channel := mock.ReturnChannel()
 
 	value := <-channel
 	if value != 42 {
@@ -85,18 +88,18 @@ func TestChannelHandler_ReturnChannel(t *testing.T) {
 func TestChannelHandler_SendOnly(t *testing.T) {
 	t.Parallel()
 
-	mock := MockChannelHandler(t)
+	mock, imp := MockChannelHandler(t)
 
 	testChannel := make(chan int, 1)
 
 	// Expect call with send-only channel
 	go func() {
-		call := mock.Method.SendOnly.ExpectCalledWithExactly(testChannel)
+		call := imp.SendOnly.ExpectCalledWithExactly(testChannel)
 		call.InjectReturnValues(nil)
 	}()
 
 	// Call the mock
-	err := mock.Mock.SendOnly(testChannel)
+	err := mock.SendOnly(testChannel)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}

@@ -10,6 +10,12 @@ import (
 	time "time"
 )
 
+// FileSystemImp holds method wrappers for setting expectations on FileSystem.
+type FileSystemImp struct {
+	Stat   *FileSystemMockStatMethod
+	Create *FileSystemMockCreateMethod
+}
+
 // FileSystemMockCreateArgs holds typed arguments for Create.
 type FileSystemMockCreateArgs struct {
 	Path string
@@ -54,19 +60,6 @@ func (m *FileSystemMockCreateMethod) ExpectCalledWithMatches(matchers ...any) *F
 	return &FileSystemMockCreateCall{DependencyCall: call}
 }
 
-// FileSystemMockHandle is the test handle for FileSystem.
-type FileSystemMockHandle struct {
-	Mock       crossfile.FileSystem
-	Method     *FileSystemMockMethods
-	Controller *_imptest.Imp
-}
-
-// FileSystemMockMethods holds method wrappers for setting expectations.
-type FileSystemMockMethods struct {
-	Stat   *FileSystemMockStatMethod
-	Create *FileSystemMockCreateMethod
-}
-
 // FileSystemMockStatArgs holds typed arguments for Stat.
 type FileSystemMockStatArgs struct {
 	Path string
@@ -109,24 +102,20 @@ func (m *FileSystemMockStatMethod) ExpectCalledWithMatches(matchers ...any) *Fil
 	return &FileSystemMockStatCall{DependencyCall: call}
 }
 
-// MockFileSystem creates a new FileSystemMockHandle for testing.
-func MockFileSystem(t _imptest.TestReporter) *FileSystemMockHandle {
+// MockFileSystem creates a mock FileSystem and returns (mock, expectation handle).
+func MockFileSystem(t _imptest.TestReporter) (crossfile.FileSystem, *FileSystemImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &FileSystemMockMethods{
+	imp := &FileSystemImp{
 		Stat:   newFileSystemMockStatMethod(_imptest.NewDependencyMethod(ctrl, "Stat")),
 		Create: newFileSystemMockCreateMethod(_imptest.NewDependencyMethod(ctrl, "Create")),
 	}
-	h := &FileSystemMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockFileSystemImpl{handle: h}
-	return h
+	mock := &mockFileSystemImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockFileSystemImpl implements crossfile.FileSystem.
 type mockFileSystemImpl struct {
-	handle *FileSystemMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Create implements crossfile.FileSystem.Create.
@@ -136,7 +125,7 @@ func (impl *mockFileSystemImpl) Create(path string, mode os.FileMode) error {
 		Args:         []any{path, mode},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -159,7 +148,7 @@ func (impl *mockFileSystemImpl) Stat(path string) (os.FileMode, time.Time, error
 		Args:         []any{path},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

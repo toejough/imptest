@@ -8,35 +8,24 @@ import (
 	safety "github.com/toejough/imptest/UAT/variations/behavior/panic-handling"
 )
 
-// CriticalDependencyMockHandle is the test handle for CriticalDependency.
-type CriticalDependencyMockHandle struct {
-	Mock       safety.CriticalDependency
-	Method     *CriticalDependencyMockMethods
-	Controller *_imptest.Imp
-}
-
-// CriticalDependencyMockMethods holds method wrappers for setting expectations.
-type CriticalDependencyMockMethods struct {
+// CriticalDependencyImp holds method wrappers for setting expectations on CriticalDependency.
+type CriticalDependencyImp struct {
 	DoWork *_imptest.DependencyMethod
 }
 
-// MockCriticalDependency creates a new CriticalDependencyMockHandle for testing.
-func MockCriticalDependency(t _imptest.TestReporter) *CriticalDependencyMockHandle {
+// MockCriticalDependency creates a mock CriticalDependency and returns (mock, expectation handle).
+func MockCriticalDependency(t _imptest.TestReporter) (safety.CriticalDependency, *CriticalDependencyImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &CriticalDependencyMockMethods{
+	imp := &CriticalDependencyImp{
 		DoWork: _imptest.NewDependencyMethod(ctrl, "DoWork"),
 	}
-	h := &CriticalDependencyMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockCriticalDependencyImpl{handle: h}
-	return h
+	mock := &mockCriticalDependencyImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockCriticalDependencyImpl implements safety.CriticalDependency.
 type mockCriticalDependencyImpl struct {
-	handle *CriticalDependencyMockHandle
+	ctrl *_imptest.Imp
 }
 
 // DoWork implements safety.CriticalDependency.DoWork.
@@ -46,7 +35,7 @@ func (impl *mockCriticalDependencyImpl) DoWork() {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

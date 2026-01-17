@@ -8,15 +8,8 @@ import (
 	parameterized "github.com/toejough/imptest/UAT/variations/signature/parameterized"
 )
 
-// DataProcessorMockHandle is the test handle for DataProcessor.
-type DataProcessorMockHandle struct {
-	Mock       parameterized.DataProcessor
-	Method     *DataProcessorMockMethods
-	Controller *_imptest.Imp
-}
-
-// DataProcessorMockMethods holds method wrappers for setting expectations.
-type DataProcessorMockMethods struct {
+// DataProcessorImp holds method wrappers for setting expectations on DataProcessor.
+type DataProcessorImp struct {
 	ProcessContainer *DataProcessorMockProcessContainerMethod
 	ProcessPair      *DataProcessorMockProcessPairMethod
 	ReturnContainer  *_imptest.DependencyMethod
@@ -116,25 +109,21 @@ func (c *DataProcessorMockReturnContainerCall) InjectReturnValues(result0 parame
 	c.DependencyCall.InjectReturnValues(result0)
 }
 
-// MockDataProcessor creates a new DataProcessorMockHandle for testing.
-func MockDataProcessor(t _imptest.TestReporter) *DataProcessorMockHandle {
+// MockDataProcessor creates a mock DataProcessor and returns (mock, expectation handle).
+func MockDataProcessor(t _imptest.TestReporter) (parameterized.DataProcessor, *DataProcessorImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &DataProcessorMockMethods{
+	imp := &DataProcessorImp{
 		ProcessContainer: newDataProcessorMockProcessContainerMethod(_imptest.NewDependencyMethod(ctrl, "ProcessContainer")),
 		ProcessPair:      newDataProcessorMockProcessPairMethod(_imptest.NewDependencyMethod(ctrl, "ProcessPair")),
 		ReturnContainer:  _imptest.NewDependencyMethod(ctrl, "ReturnContainer"),
 	}
-	h := &DataProcessorMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockDataProcessorImpl{handle: h}
-	return h
+	mock := &mockDataProcessorImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockDataProcessorImpl implements parameterized.DataProcessor.
 type mockDataProcessorImpl struct {
-	handle *DataProcessorMockHandle
+	ctrl *_imptest.Imp
 }
 
 // ProcessContainer implements parameterized.DataProcessor.ProcessContainer.
@@ -144,7 +133,7 @@ func (impl *mockDataProcessorImpl) ProcessContainer(data parameterized.Container
 		Args:         []any{data},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -167,7 +156,7 @@ func (impl *mockDataProcessorImpl) ProcessPair(pair parameterized.Pair[int, bool
 		Args:         []any{pair},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -190,7 +179,7 @@ func (impl *mockDataProcessorImpl) ReturnContainer() parameterized.Container[int
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

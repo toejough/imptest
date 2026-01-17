@@ -25,20 +25,18 @@ func TestFunctionTypeMock_BasicUsage(t *testing.T) {
 	t.Parallel()
 
 	// MockValidator creates a mock for the Validator function type
-	mock := MockValidator(t)
-
-	// Get the function that can be passed where Validator is expected
-	validatorFunc := mock.Mock
+	// Returns (mock, imp) where mock is the function and imp sets expectations.
+	mock, imp := MockValidator(t)
 
 	// Use the mock function in a goroutine (simulating production code)
 	errChan := make(chan error, 1)
 
 	go func() {
-		errChan <- validatorFunc("test@example.com")
+		errChan <- mock("test@example.com")
 	}()
 
 	// Set up expectation and inject return value
-	mock.Method.ExpectCalledWithExactly("test@example.com").
+	imp.ExpectCalledWithExactly("test@example.com").
 		InjectReturnValues(nil)
 
 	// Verify result
@@ -52,15 +50,14 @@ func TestFunctionTypeMock_BasicUsage(t *testing.T) {
 func TestFunctionTypeMock_GetArgs(t *testing.T) {
 	t.Parallel()
 
-	mock := MockValidator(t)
-	validatorFunc := mock.Mock
+	mock, imp := MockValidator(t)
 
 	go func() {
-		_ = validatorFunc("check-this-data")
+		_ = mock("check-this-data")
 	}()
 
 	// Use ExpectCalledWithMatches to accept any call
-	call := mock.Method.ExpectCalledWithMatches(imptest.Any())
+	call := imp.ExpectCalledWithMatches(imptest.Any())
 
 	// Get typed args
 	args := call.GetArgs()
@@ -75,18 +72,17 @@ func TestFunctionTypeMock_GetArgs(t *testing.T) {
 func TestFunctionTypeMock_ReturnError(t *testing.T) {
 	t.Parallel()
 
-	mock := MockValidator(t)
-	validatorFunc := mock.Mock
+	mock, imp := MockValidator(t)
 
 	expectedErr := errors.New("invalid email format")
 	errChan := make(chan error, 1)
 
 	go func() {
-		errChan <- validatorFunc("invalid-email")
+		errChan <- mock("invalid-email")
 	}()
 
 	// Inject error return
-	mock.Method.ExpectCalledWithExactly("invalid-email").
+	imp.ExpectCalledWithExactly("invalid-email").
 		InjectReturnValues(expectedErr)
 
 	// Verify error was returned

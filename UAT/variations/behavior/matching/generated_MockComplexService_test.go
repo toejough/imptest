@@ -8,15 +8,8 @@ import (
 	matching "github.com/toejough/imptest/UAT/variations/behavior/matching"
 )
 
-// ComplexServiceMockHandle is the test handle for ComplexService.
-type ComplexServiceMockHandle struct {
-	Mock       matching.ComplexService
-	Method     *ComplexServiceMockMethods
-	Controller *_imptest.Imp
-}
-
-// ComplexServiceMockMethods holds method wrappers for setting expectations.
-type ComplexServiceMockMethods struct {
+// ComplexServiceImp holds method wrappers for setting expectations on ComplexService.
+type ComplexServiceImp struct {
 	Process *ComplexServiceMockProcessMethod
 }
 
@@ -62,23 +55,19 @@ func (m *ComplexServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...an
 	return &ComplexServiceMockProcessCall{DependencyCall: call}
 }
 
-// MockComplexService creates a new ComplexServiceMockHandle for testing.
-func MockComplexService(t _imptest.TestReporter) *ComplexServiceMockHandle {
+// MockComplexService creates a mock ComplexService and returns (mock, expectation handle).
+func MockComplexService(t _imptest.TestReporter) (matching.ComplexService, *ComplexServiceImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &ComplexServiceMockMethods{
+	imp := &ComplexServiceImp{
 		Process: newComplexServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}
-	h := &ComplexServiceMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockComplexServiceImpl{handle: h}
-	return h
+	mock := &mockComplexServiceImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockComplexServiceImpl implements matching.ComplexService.
 type mockComplexServiceImpl struct {
-	handle *ComplexServiceMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Process implements matching.ComplexService.Process.
@@ -88,7 +77,7 @@ func (impl *mockComplexServiceImpl) Process(d matching.Data) bool {
 		Args:         []any{d},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

@@ -35,13 +35,6 @@ func (c *TransformDataMockCall) InjectReturnValues(result0 *mockfunction.Order, 
 	c.DependencyCall.InjectReturnValues(result0, result1)
 }
 
-// TransformDataMockHandle is the test handle for TransformData function.
-type TransformDataMockHandle struct {
-	Mock       func(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) (*mockfunction.Order, error)
-	Method     *TransformDataMockMethod
-	Controller *_imptest.Imp
-}
-
 // TransformDataMockMethod wraps DependencyMethod with typed returns.
 type TransformDataMockMethod struct {
 	*_imptest.DependencyMethod
@@ -61,20 +54,17 @@ func (m *TransformDataMockMethod) ExpectCalledWithMatches(matchers ...any) *Tran
 	return &TransformDataMockCall{DependencyCall: call}
 }
 
-// MockTransformData creates a new TransformDataMockHandle for testing.
-func MockTransformData(t _imptest.TestReporter) *TransformDataMockHandle {
+// MockTransformData creates a mock TransformData function and returns (mock, expectation handle).
+func MockTransformData(t _imptest.TestReporter) (func(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) (*mockfunction.Order, error), *TransformDataMockMethod) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	h := &TransformDataMockHandle{
-		Controller: ctrl,
-		Method:     newTransformDataMockMethod(_imptest.NewDependencyMethod(ctrl, "TransformData")),
-	}
-	h.Mock = func(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) (*mockfunction.Order, error) {
+	imp := newTransformDataMockMethod(_imptest.NewDependencyMethod(ctrl, "TransformData"))
+	mock := func(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) (*mockfunction.Order, error) {
 		call := &_imptest.GenericCall{
 			MethodName:   "TransformData",
 			Args:         []any{items, lookup, processor},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.Controller.CallChan <- call
+		ctrl.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)
@@ -96,7 +86,7 @@ func MockTransformData(t _imptest.TestReporter) *TransformDataMockHandle {
 
 		return result1, result2
 	}
-	return h
+	return mock, imp
 }
 
 // newTransformDataMockMethod creates a typed method wrapper with Eventually initialized.

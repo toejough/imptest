@@ -20,18 +20,18 @@ func TestProcessItem_Int_Property(t *testing.T) {
 		multiplier := rapid.IntRange(1, 100).Draw(rt, "multiplier")
 
 		// Create mock and wrapper
-		repo := MockRepository[int](t)
+		repo, repoImp := MockRepository[int](t)
 		wrapper := WrapProcessItem[int](t, generics.ProcessItem[int])
 
 		// Define transformer
 		transformer := func(v int) int { return v * multiplier }
 
 		// Start the function
-		call := wrapper.Method.Start(repo.Mock, key, transformer)
+		call := wrapper.Method.Start(repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
-		repo.Method.Get.ExpectCalledWithExactly(key).InjectReturnValues(value, nil)
-		repo.Method.Save.ExpectCalledWithExactly(value * multiplier).InjectReturnValues(nil)
+		repoImp.Get.ExpectCalledWithExactly(key).InjectReturnValues(value, nil)
+		repoImp.Save.ExpectCalledWithExactly(value * multiplier).InjectReturnValues(nil)
 
 		// Property: Function returns nil on success
 		call.ExpectReturnsEqual(nil)
@@ -50,18 +50,18 @@ func TestProcessItem_String_Property(t *testing.T) {
 		suffix := rapid.String().Draw(rt, "suffix")
 
 		// Create mock and wrapper
-		repo := MockRepository[string](t)
+		repo, repoImp := MockRepository[string](t)
 		wrapper := WrapProcessItem[string](t, generics.ProcessItem[string])
 
 		// Define transformer
 		transformer := func(s string) string { return s + suffix }
 
 		// Start the function
-		call := wrapper.Method.Start(repo.Mock, key, transformer)
+		call := wrapper.Method.Start(repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
-		repo.Method.Get.ExpectCalledWithExactly(key).InjectReturnValues(value, nil)
-		repo.Method.Save.ExpectCalledWithExactly(value + suffix).InjectReturnValues(nil)
+		repoImp.Get.ExpectCalledWithExactly(key).InjectReturnValues(value, nil)
+		repoImp.Save.ExpectCalledWithExactly(value + suffix).InjectReturnValues(nil)
 
 		// Property: Function returns nil on success
 		call.ExpectReturnsEqual(nil)

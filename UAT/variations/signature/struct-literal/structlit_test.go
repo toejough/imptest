@@ -14,14 +14,14 @@ import (
 func TestDependencyWithMultiFieldStructLiteral(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, _ := MockDataProcessor(t)
 	opts := struct {
 		Debug bool
 		Level int
 	}{Debug: true, Level: 2}
 
 	go func() {
-		result, err := mock.Mock.Transform(opts)
+		result, err := mock.Transform(opts)
 		_ = result
 		_ = err
 	}()
@@ -41,12 +41,12 @@ func TestDependencyWithMultiFieldStructLiteral(t *testing.T) {
 func TestDependencyWithSingleFieldStructLiteral(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, _ := MockDataProcessor(t)
 	cfg := struct{ Timeout int }{Timeout: 30}
 
 	// Run code under test
 	go func() {
-		err := mock.Mock.Process(cfg)
+		err := mock.Process(cfg)
 		_ = err
 	}()
 
@@ -57,11 +57,11 @@ func TestDependencyWithSingleFieldStructLiteral(t *testing.T) {
 func TestDependencyWithStructLiteralBoth(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, _ := MockDataProcessor(t)
 	req := struct{ Method string }{Method: "POST"}
 
 	go func() {
-		resp := mock.Mock.Apply(req)
+		resp := mock.Apply(req)
 		_ = resp
 	}()
 
@@ -72,10 +72,10 @@ func TestDependencyWithStructLiteralBoth(t *testing.T) {
 func TestDependencyWithStructLiteralReturn(t *testing.T) {
 	t.Parallel()
 
-	mock := MockDataProcessor(t)
+	mock, _ := MockDataProcessor(t)
 
 	go func() {
-		cfg := mock.Mock.GetConfig()
+		cfg := mock.GetConfig()
 		_ = cfg
 	}()
 

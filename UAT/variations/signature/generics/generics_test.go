@@ -20,7 +20,7 @@ import (
 func TestGenericCallable(t *testing.T) {
 	t.Parallel()
 
-	repoImp := MockRepository[int](t)
+	repoMock, repoImp := MockRepository[int](t)
 
 	// Initialize the callable wrapper implementation for a specific instantiation of the generic function.
 	// NewProcessItemImp is generic.
@@ -28,10 +28,12 @@ func TestGenericCallable(t *testing.T) {
 
 	// Start the function.
 	transformer := func(i int) int { return i * 2 }
-	call := logicImp.Method.Start(repoImp.Mock, "456", transformer)
+	call := logicImp.Method.Start(repoMock, "456", transformer)
 
-	repoImp.Method.Get.ExpectCalledWithExactly("456").InjectReturnValues(21, nil)
-	repoImp.Method.Save.ExpectCalledWithExactly(42).InjectReturnValues(nil)
+	//nolint:nilaway // false positive: repoImp assigned above
+	repoImp.Get.ExpectCalledWithExactly("456").InjectReturnValues(21, nil)
+	//nolint:nilaway // false positive: repoImp assigned above
+	repoImp.Save.ExpectCalledWithExactly(42).InjectReturnValues(nil)
 
 	// Verify it returned successfully (nil error).
 	call.ExpectReturnsEqual(nil)
@@ -49,17 +51,19 @@ func TestGenericMocking(t *testing.T) {
 
 	// Initialize the mock implementation for a specific type (string).
 	// The generated constructor is generic.
-	repoImp := MockRepository[string](t)
+	repoMock, repoImp := MockRepository[string](t)
 
 	// Run the code under test in a goroutine.
 	go func() {
 		transformer := func(s string) string { return s + "!" }
-		_ = generics.ProcessItem[string](repoImp.Mock, "123", transformer)
+		_ = generics.ProcessItem[string](repoMock, "123", transformer)
 	}()
 
 	// Expectations are type-safe based on the generic parameter.
-	repoImp.Method.Get.ExpectCalledWithExactly("123").InjectReturnValues("hello", nil)
-	repoImp.Method.Save.ExpectCalledWithExactly("hello!").InjectReturnValues(nil)
+	//nolint:nilaway // false positive: repoImp assigned above
+	repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("hello", nil)
+	//nolint:nilaway // false positive: repoImp assigned above
+	repoImp.Save.ExpectCalledWithExactly("hello!").InjectReturnValues(nil)
 }
 
 // TestProcessItem_Error demonstrates error handling in generic contexts.
@@ -68,12 +72,12 @@ func TestProcessItem_Error(t *testing.T) {
 
 	t.Run("Get error", func(t *testing.T) {
 		t.Parallel()
-		repoImp := MockRepository[string](t)
+		repoMock, repoImp := MockRepository[string](t)
 		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		call := logicImp.Method.Start(repoImp.Mock, "123", func(s string) string { return s })
+		call := logicImp.Method.Start(repoMock, "123", func(s string) string { return s })
 
-		repoImp.Method.Get.ExpectCalledWithExactly("123").InjectReturnValues("", errTest)
+		repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("", errTest)
 
 		call.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {
@@ -86,13 +90,13 @@ func TestProcessItem_Error(t *testing.T) {
 
 	t.Run("Save error", func(t *testing.T) {
 		t.Parallel()
-		repoImp := MockRepository[string](t)
+		repoMock, repoImp := MockRepository[string](t)
 		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		call := logicImp.Method.Start(repoImp.Mock, "123", func(s string) string { return s })
+		call := logicImp.Method.Start(repoMock, "123", func(s string) string { return s })
 
-		repoImp.Method.Get.ExpectCalledWithExactly("123").InjectReturnValues("data", nil)
-		repoImp.Method.Save.ExpectCalledWithExactly("data").InjectReturnValues(errTest)
+		repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("data", nil)
+		repoImp.Save.ExpectCalledWithExactly("data").InjectReturnValues(errTest)
 
 		call.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {

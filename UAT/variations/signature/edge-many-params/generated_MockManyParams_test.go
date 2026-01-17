@@ -8,15 +8,8 @@ import (
 	manyparams "github.com/toejough/imptest/UAT/variations/signature/edge-many-params"
 )
 
-// ManyParamsMockHandle is the test handle for ManyParams.
-type ManyParamsMockHandle struct {
-	Mock       manyparams.ManyParams
-	Method     *ManyParamsMockMethods
-	Controller *_imptest.Imp
-}
-
-// ManyParamsMockMethods holds method wrappers for setting expectations.
-type ManyParamsMockMethods struct {
+// ManyParamsImp holds method wrappers for setting expectations on ManyParams.
+type ManyParamsImp struct {
 	Process *ManyParamsMockProcessMethod
 }
 
@@ -80,23 +73,19 @@ func (m *ManyParamsMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *
 	return &ManyParamsMockProcessCall{DependencyCall: call}
 }
 
-// MockManyParams creates a new ManyParamsMockHandle for testing.
-func MockManyParams(t _imptest.TestReporter) *ManyParamsMockHandle {
+// MockManyParams creates a mock ManyParams and returns (mock, expectation handle).
+func MockManyParams(t _imptest.TestReporter) (manyparams.ManyParams, *ManyParamsImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &ManyParamsMockMethods{
+	imp := &ManyParamsImp{
 		Process: newManyParamsMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
 	}
-	h := &ManyParamsMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockManyParamsImpl{handle: h}
-	return h
+	mock := &mockManyParamsImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockManyParamsImpl implements manyparams.ManyParams.
 type mockManyParamsImpl struct {
-	handle *ManyParamsMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Process implements manyparams.ManyParams.Process.
@@ -106,7 +95,7 @@ func (impl *mockManyParamsImpl) Process(a int, b int, c int, d int, e int, f int
 		Args:         []any{a, b, c, d, e, f, g, h, i, j},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

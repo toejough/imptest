@@ -4,11 +4,14 @@ package crossfile_test
 
 import (
 	"testing"
+
+	// Import for impgen to resolve the package.
+	_ "github.com/toejough/imptest/UAT/variations/signature/cross-file-external"
 )
 
 func TestCrossFileImportsCompile(t *testing.T) {
 	t.Parallel()
 	// If this compiles, the imports are correctly resolved from types.go
-	mock := MockFileSystem(t)
-	_ = mock.Mock
+	mock, _ := MockFileSystem(t)
+	_ = mock
 }

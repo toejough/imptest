@@ -30,13 +30,6 @@ func (c *CounterAddMockCall) InjectReturnValues(result0 int) {
 	c.DependencyCall.InjectReturnValues(result0)
 }
 
-// CounterAddMockHandle is the test handle for Counter.Add function.
-type CounterAddMockHandle struct {
-	Mock       func(n int) int
-	Method     *CounterAddMockMethod
-	Controller *_imptest.Imp
-}
-
 // CounterAddMockMethod wraps DependencyMethod with typed returns.
 type CounterAddMockMethod struct {
 	*_imptest.DependencyMethod
@@ -56,20 +49,17 @@ func (m *CounterAddMockMethod) ExpectCalledWithMatches(matchers ...any) *Counter
 	return &CounterAddMockCall{DependencyCall: call}
 }
 
-// MockCounterAdd creates a new CounterAddMockHandle for testing.
-func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
+// MockCounterAdd creates a mock Counter.Add function and returns (mock, expectation handle).
+func MockCounterAdd(t _imptest.TestReporter) (func(n int) int, *CounterAddMockMethod) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	h := &CounterAddMockHandle{
-		Controller: ctrl,
-		Method:     newCounterAddMockMethod(_imptest.NewDependencyMethod(ctrl, "Counter.Add")),
-	}
-	h.Mock = func(n int) int {
+	imp := newCounterAddMockMethod(_imptest.NewDependencyMethod(ctrl, "Counter.Add"))
+	mock := func(n int) int {
 		call := &_imptest.GenericCall{
 			MethodName:   "Counter.Add",
 			Args:         []any{n},
 			ResponseChan: make(chan _imptest.GenericResponse, 1),
 		}
-		h.Controller.CallChan <- call
+		ctrl.CallChan <- call
 		resp := <-call.ResponseChan
 		if resp.Type == "panic" {
 			panic(resp.PanicValue)
@@ -84,7 +74,7 @@ func MockCounterAdd(t _imptest.TestReporter) *CounterAddMockHandle {
 
 		return result1
 	}
-	return h
+	return mock, imp
 }
 
 // newCounterAddMockMethod creates a typed method wrapper with Eventually initialized.

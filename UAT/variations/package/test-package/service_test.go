@@ -9,19 +9,19 @@ import (
 func TestService_Execute(t *testing.T) {
 	t.Parallel()
 
-	mock := MockService(t)
+	mock, imp := MockService(t)
 
 	input := "test input"
 	expectedOutput := "processed output"
 
 	// Expect call with specific input
 	go func() {
-		call := mock.Method.Execute.ExpectCalledWithExactly(input)
+		call := imp.Execute.ExpectCalledWithExactly(input)
 		call.InjectReturnValues(expectedOutput, nil)
 	}()
 
 	// Call the mock
-	output, err := mock.Mock.Execute(input)
+	output, err := mock.Execute(input)
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
@@ -34,18 +34,18 @@ func TestService_Execute(t *testing.T) {
 func TestService_Validate(t *testing.T) {
 	t.Parallel()
 
-	mock := MockService(t)
+	mock, imp := MockService(t)
 
 	input := "valid input"
 
 	// Expect call and return true
 	go func() {
-		call := mock.Method.Validate.ExpectCalledWithExactly(input)
+		call := imp.Validate.ExpectCalledWithExactly(input)
 		call.InjectReturnValues(true)
 	}()
 
 	// Call the mock
-	result := mock.Mock.Validate(input)
+	result := mock.Validate(input)
 
 	if !result {
 		t.Fatalf("expected true, got false")

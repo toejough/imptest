@@ -32,18 +32,19 @@ func TestBusinessLogic(t *testing.T) {
 	t.Parallel()
 
 	// Initialize the mock implementation dependency and the callable wrapper using v2 API.
-	mockSvc := MockExternalService(t)
+	// Returns (mock, imp) where mock implements the interface and imp sets expectations.
+	mockSvc, svcImp := MockExternalService(t)
 	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
 	// Start the business logic in a goroutine.
 	// We pass the mock implementation and the input arguments.
-	call := wrapper.Method.Start(mockSvc.Mock, 42)
+	call := wrapper.Method.Start(mockSvc, 42)
 
 	// 1. Expect call to FetchData and provide response.
-	mockSvc.Method.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("raw data", nil)
+	svcImp.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("raw data", nil)
 
 	// 2. Expect call to Process and provide response.
-	mockSvc.Method.Process.ExpectCalledWithExactly("raw data").InjectReturnValues("processed data")
+	svcImp.Process.ExpectCalledWithExactly("raw data").InjectReturnValues("processed data")
 
 	// 3. Verify the final output of the business logic.
 	call.ExpectReturnsEqual("Result: processed data", nil)
@@ -57,13 +58,13 @@ func TestBusinessLogic(t *testing.T) {
 func TestBusinessLogicError(t *testing.T) {
 	t.Parallel()
 
-	mockSvc := MockExternalService(t)
+	mockSvc, svcImp := MockExternalService(t)
 	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
-	call := wrapper.Method.Start(mockSvc.Mock, 99)
+	call := wrapper.Method.Start(mockSvc, 99)
 
 	// Simulate an error from the service.
-	mockSvc.Method.FetchData.ExpectCalledWithExactly(99).InjectReturnValues("", errNotFound)
+	svcImp.FetchData.ExpectCalledWithExactly(99).InjectReturnValues("", errNotFound)
 
 	// Requirement: Verify that the business logic returns the error.
 	// We use Satisfies to check if the error is (or wraps) errNotFound.

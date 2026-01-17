@@ -26,7 +26,7 @@ import (
 func TestMockFunction_ComplexTypes(t *testing.T) {
 	t.Parallel()
 
-	mock := MockTransformData(t)
+	mock, imp := MockTransformData(t)
 
 	order := &mockfunction.Order{ID: 1, Status: "test", Total: 10.0}
 	items := []*mockfunction.Order{order}
@@ -36,11 +36,11 @@ func TestMockFunction_ComplexTypes(t *testing.T) {
 	resultChan := make(chan *mockfunction.Order, 1)
 
 	go func() {
-		result, _ := mock.Mock(items, lookup, processor)
+		result, _ := mock(items, lookup, processor)
 		resultChan <- result
 	}()
 
-	mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any(), imptest.Any()).
+	imp.ExpectCalledWithMatches(imptest.Any(), imptest.Any(), imptest.Any()).
 		InjectReturnValues(order, nil)
 
 	result := <-resultChan
@@ -53,28 +53,28 @@ func TestMockFunction_ComplexTypes(t *testing.T) {
 func TestMockFunction_Eventually(t *testing.T) {
 	t.Parallel()
 
-	mock := MockValidateInput(t)
+	mock, imp := MockValidateInput(t)
 
 	// Start multiple goroutines calling the mock
-	go func() { _ = mock.Mock("input1") }()
-	go func() { _ = mock.Mock("input2") }()
+	go func() { _ = mock("input1") }()
+	go func() { _ = mock("input2") }()
 
 	// Match calls in any order using Eventually
-	mock.Method.Eventually.ExpectCalledWithExactly("input2").InjectReturnValues(nil)
-	mock.Method.Eventually.ExpectCalledWithExactly("input1").InjectReturnValues(nil)
+	imp.Eventually.ExpectCalledWithExactly("input2").InjectReturnValues(nil)
+	imp.Eventually.ExpectCalledWithExactly("input1").InjectReturnValues(nil)
 }
 
 // TestMockFunction_GetArgs demonstrates accessing typed arguments.
 func TestMockFunction_GetArgs(t *testing.T) {
 	t.Parallel()
 
-	mock := MockFormatPrice(t)
+	mock, imp := MockFormatPrice(t)
 
 	go func() {
-		_ = mock.Mock(123.45, "EUR")
+		_ = mock(123.45, "EUR")
 	}()
 
-	call := mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any())
+	call := imp.ExpectCalledWithMatches(imptest.Any(), imptest.Any())
 
 	// Access typed arguments
 	args := call.GetArgs()
@@ -93,7 +93,7 @@ func TestMockFunction_GetArgs(t *testing.T) {
 func TestMockFunction_NoError(t *testing.T) {
 	t.Parallel()
 
-	mock := MockFormatPrice(t)
+	mock, imp := MockFormatPrice(t)
 
 	amount := 99.99
 	currency := "USD"
@@ -102,10 +102,10 @@ func TestMockFunction_NoError(t *testing.T) {
 	resultChan := make(chan string, 1)
 
 	go func() {
-		resultChan <- mock.Mock(amount, currency)
+		resultChan <- mock(amount, currency)
 	}()
 
-	mock.Method.ExpectCalledWithExactly(amount, currency).InjectReturnValues(expected)
+	imp.ExpectCalledWithExactly(amount, currency).InjectReturnValues(expected)
 
 	result := <-resultChan
 	if result != expected {
@@ -117,7 +117,7 @@ func TestMockFunction_NoError(t *testing.T) {
 func TestMockFunction_NoReturns(t *testing.T) {
 	t.Parallel()
 
-	mock := MockNotify(t)
+	mock, imp := MockNotify(t)
 
 	userID := 42
 	message := "Hello!"
@@ -125,13 +125,13 @@ func TestMockFunction_NoReturns(t *testing.T) {
 	done := make(chan struct{}, 1)
 
 	go func() {
-		mock.Mock(userID, message)
+		mock(userID, message)
 
 		done <- struct{}{}
 	}()
 
 	// For void functions, still need to call InjectReturnValues to unblock the mock
-	mock.Method.ExpectCalledWithExactly(userID, message).InjectReturnValues()
+	imp.ExpectCalledWithExactly(userID, message).InjectReturnValues()
 
 	<-done
 }
@@ -140,17 +140,17 @@ func TestMockFunction_NoReturns(t *testing.T) {
 func TestMockFunction_Simple(t *testing.T) {
 	t.Parallel()
 
-	mock := MockValidateInput(t)
+	mock, imp := MockValidateInput(t)
 
 	testData := "valid input"
 
 	resultChan := make(chan error, 1)
 
 	go func() {
-		resultChan <- mock.Mock(testData)
+		resultChan <- mock(testData)
 	}()
 
-	mock.Method.ExpectCalledWithExactly(testData).InjectReturnValues(nil)
+	imp.ExpectCalledWithExactly(testData).InjectReturnValues(nil)
 
 	err := <-resultChan
 	if err != nil {
@@ -162,7 +162,7 @@ func TestMockFunction_Simple(t *testing.T) {
 func TestMockFunction_WithError(t *testing.T) {
 	t.Parallel()
 
-	mock := MockProcessOrder(t)
+	mock, imp := MockProcessOrder(t)
 
 	ctx := context.Background()
 	orderID := 999
@@ -171,11 +171,11 @@ func TestMockFunction_WithError(t *testing.T) {
 	resultChan := make(chan error, 1)
 
 	go func() {
-		_, err := mock.Mock(ctx, orderID)
+		_, err := mock(ctx, orderID)
 		resultChan <- err
 	}()
 
-	mock.Method.ExpectCalledWithExactly(ctx, orderID).InjectReturnValues(nil, expectedErr)
+	imp.ExpectCalledWithExactly(ctx, orderID).InjectReturnValues(nil, expectedErr)
 
 	err := <-resultChan
 	if !errors.Is(err, expectedErr) {
@@ -187,7 +187,7 @@ func TestMockFunction_WithError(t *testing.T) {
 func TestMockFunction_WithMatchers(t *testing.T) {
 	t.Parallel()
 
-	mock := MockProcessOrder(t)
+	mock, imp := MockProcessOrder(t)
 
 	ctx := context.Background()
 	orderID := 456
@@ -196,12 +196,12 @@ func TestMockFunction_WithMatchers(t *testing.T) {
 	resultChan := make(chan *mockfunction.Order, 1)
 
 	go func() {
-		order, _ := mock.Mock(ctx, orderID)
+		order, _ := mock(ctx, orderID)
 		resultChan <- order
 	}()
 
 	// Use matchers instead of exact values
-	mock.Method.ExpectCalledWithMatches(imptest.Any(), imptest.Any()).
+	imp.ExpectCalledWithMatches(imptest.Any(), imptest.Any()).
 		InjectReturnValues(expectedOrder, nil)
 
 	order := <-resultChan
@@ -221,7 +221,7 @@ func TestMockFunction_WithMatchers(t *testing.T) {
 func TestMockFunction_WithReturns(t *testing.T) {
 	t.Parallel()
 
-	mock := MockProcessOrder(t)
+	mock, imp := MockProcessOrder(t)
 
 	ctx := context.Background()
 	orderID := 123
@@ -234,8 +234,8 @@ func TestMockFunction_WithReturns(t *testing.T) {
 	}, 1)
 
 	go func() {
-		// mock.Mock returns a function with the same signature as ProcessOrder
-		order, err := mock.Mock(ctx, orderID)
+		// mock is a function with the same signature as ProcessOrder
+		order, err := mock(ctx, orderID)
 		resultChan <- struct {
 			order *mockfunction.Order
 			err   error
@@ -243,7 +243,7 @@ func TestMockFunction_WithReturns(t *testing.T) {
 	}()
 
 	// Set up expectation and inject return values
-	mock.Method.ExpectCalledWithExactly(ctx, orderID).InjectReturnValues(expectedOrder, nil)
+	imp.ExpectCalledWithExactly(ctx, orderID).InjectReturnValues(expectedOrder, nil)
 
 	// Verify results
 	result := <-resultChan

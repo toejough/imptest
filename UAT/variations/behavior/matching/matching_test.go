@@ -23,14 +23,14 @@ import (
 func TestAdvancedMatching(t *testing.T) {
 	t.Parallel()
 
-	mock := MockComplexService(t)
+	mock, imp := MockComplexService(t)
 
-	go matching.UseService(mock.Mock, "hello world")
+	go matching.UseService(mock, "hello world")
 
 	// Use ExpectCalledWithMatches with matchers to validate only the parts of the input we care about.
 	// Requirement: We want to match the Payload exactly, ensure the ID is valid (positive),
 	// but ignore the Timestamp because it is non-deterministic.
-	mock.Method.Process.ExpectCalledWithMatches(imptest.Satisfies(func(data matching.Data) error {
+	imp.Process.ExpectCalledWithMatches(imptest.Satisfies(func(data matching.Data) error {
 		if data.Payload != "hello world" {
 			return fmt.Errorf("expected payload 'hello world', got %q", data.Payload)
 		}
@@ -55,14 +55,14 @@ func TestAdvancedMatching(t *testing.T) {
 func TestGomegaIntegration(t *testing.T) {
 	t.Parallel()
 
-	mock := MockComplexService(t)
+	mock, imp := MockComplexService(t)
 
-	go matching.UseService(mock.Mock, "gomega rules")
+	go matching.UseService(mock, "gomega rules")
 
 	// We use Gomega's And and HaveField matchers to verify the struct state.
 	// This demonstrates how imptest's flexible matcher interface allows for
 	// highly readable and powerful expectations.
-	mock.Method.Process.ExpectCalledWithMatches(
+	imp.Process.ExpectCalledWithMatches(
 		And(
 			HaveField("Payload", Equal("gomega rules")),
 			HaveField("ID", BeNumerically(">", 100)),
@@ -78,10 +78,10 @@ func TestGomegaIntegration(t *testing.T) {
 func TestMatchAny(t *testing.T) {
 	t.Parallel()
 
-	mock := MockComplexService(t)
+	mock, imp := MockComplexService(t)
 
 	// In this scenario, we don't care about the input data at all, only that the call happened.
-	go mock.Mock.Process(matching.Data{ID: 999})
+	go mock.Process(matching.Data{ID: 999})
 
-	mock.Method.Process.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(true)
+	imp.Process.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(true)
 }
