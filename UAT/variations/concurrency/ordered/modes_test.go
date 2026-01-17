@@ -43,9 +43,9 @@ func TestEventually_CallsOutOfOrder(t *testing.T) {
 
 	// Use Eventually() to handle out-of-order calls
 	// Eventually mode queues mismatches and waits for matches
-	imp.OperationA.Eventually.Expect(1).Return(nil)
-	imp.OperationB.Eventually.Expect(2).Return(nil)
-	imp.OperationC.Eventually.Expect(3).Return(nil)
+	imp.Eventually.OperationA.ArgsEqual(1).Return(nil)
+	imp.Eventually.OperationB.ArgsEqual(2).Return(nil)
+	imp.Eventually.OperationC.ArgsEqual(3).Return(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -81,9 +81,9 @@ func TestEventually_ConcurrentCalls(t *testing.T) {
 	}()
 
 	// Eventually mode handles any arrival order
-	imp.OperationA.Eventually.Expect(1).Return(nil)
-	imp.OperationB.Eventually.Expect(2).Return(nil)
-	imp.OperationC.Eventually.Expect(3).Return(nil)
+	imp.Eventually.OperationA.ArgsEqual(1).Return(nil)
+	imp.Eventually.OperationB.ArgsEqual(2).Return(nil)
+	imp.Eventually.OperationC.ArgsEqual(3).Return(nil)
 
 	// Wait for all goroutines
 	<-done
@@ -102,7 +102,7 @@ func TestEventually_PreservesTypeSafety(t *testing.T) {
 	}()
 
 	// Eventually() returns *ServiceMockOperationAMethod, not *DependencyMethod
-	call := imp.OperationA.Eventually.Expect(42)
+	call := imp.Eventually.OperationA.ArgsEqual(42)
 
 	// Type-safe GetArgs() access
 	args := call.GetArgs()
@@ -131,11 +131,11 @@ func TestMixed_OrderedAndEventually(t *testing.T) {
 	}()
 
 	// First expectation is ordered (must be matched in order)
-	imp.OperationA.Expect(1).Return(nil)
+	imp.OperationA.ArgsEqual(1).Return(nil)
 
 	// Remaining expectations use Eventually (can match in any order)
-	imp.OperationB.Eventually.Expect(2).Return(nil)
-	imp.OperationC.Eventually.Expect(3).Return(nil)
+	imp.Eventually.OperationB.ArgsEqual(2).Return(nil)
+	imp.Eventually.OperationC.ArgsEqual(3).Return(nil)
 
 	// Wait for all Eventually expectations to be satisfied
 	imptest.Wait(t)
@@ -161,9 +161,9 @@ func TestOrdered_CallsInOrder(t *testing.T) {
 	}()
 
 	// Expect calls in order (ordered mode = default)
-	imp.OperationA.Expect(1).Return(nil)
-	imp.OperationB.Expect(2).Return(nil)
-	imp.OperationC.Expect(3).Return(nil)
+	imp.OperationA.ArgsEqual(1).Return(nil)
+	imp.OperationB.ArgsEqual(2).Return(nil)
+	imp.OperationC.ArgsEqual(3).Return(nil)
 
 	<-done
 }

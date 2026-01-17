@@ -17,7 +17,7 @@ func TestDataProcessor_ProcessContainer(t *testing.T) {
 
 	// Expect call with parameterized type
 	go func() {
-		call := imp.ProcessContainer.Expect(data)
+		call := imp.ProcessContainer.ArgsEqual(data)
 		call.Return(nil)
 	}()
 
@@ -37,7 +37,7 @@ func TestDataProcessor_ProcessPair(t *testing.T) {
 
 	// Expect call with parameterized type
 	go func() {
-		call := imp.ProcessPair.Expect(pair)
+		call := imp.ProcessPair.ArgsEqual(pair)
 		call.Return("processed")
 	}()
 
@@ -58,7 +58,7 @@ func TestDataProcessor_ReturnContainer(t *testing.T) {
 
 	// Expect call and return parameterized type
 	go func() {
-		call := imp.ReturnContainer.Expect()
+		call := imp.ReturnContainer.Called()
 		call.Return(expected)
 	}()
 

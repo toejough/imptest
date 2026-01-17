@@ -31,11 +31,11 @@ func TestEmbeddedStructMethods(t *testing.T) {
 	}()
 
 	// SetPrefix is promoted from Logger
-	imp.SetPrefix.Expect("APP").Return()
+	imp.SetPrefix.ArgsEqual("APP").Return()
 
 	// LogWithCount is a direct method on TimedLogger
 	// It internally calls Inc (from Counter) and Log (from Logger)
-	imp.LogWithCount.Expect("Hello").Return(expectedResult)
+	imp.LogWithCount.ArgsEqual("Hello").Return(expectedResult)
 }
 
 // TestPromotedMethodsFromCounter demonstrates using promoted methods from Counter.
@@ -56,8 +56,8 @@ func TestPromotedMethodsFromCounter(t *testing.T) {
 	}()
 
 	// Both methods are promoted from embedded Counter
-	imp.Value.Match().Return(initialValue)
-	imp.Inc.Match().Return(afterInc)
+	imp.Value.ArgsShould().Return(initialValue)
+	imp.Inc.ArgsShould().Return(afterInc)
 }
 
 // TestPromotedMethodsFromLogger demonstrates using promoted methods from Logger.
@@ -77,8 +77,8 @@ func TestPromotedMethodsFromLogger(t *testing.T) {
 	}()
 
 	// Both methods are promoted from embedded Logger
-	imp.SetPrefix.Expect("INFO").Return()
-	imp.Log.Expect("Test message").Return(expectedLog)
+	imp.SetPrefix.ArgsEqual("INFO").Return()
+	imp.Log.ArgsEqual("Test message").Return(expectedLog)
 }
 
 // TestRealTimedLogger exercises the actual TimedLogger implementation.

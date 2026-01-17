@@ -18,8 +18,8 @@ type StartCountFilesCallHandle struct {
 	Eventually *StartCountFilesCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartCountFilesCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartCountFilesCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *StartCountFilesCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartCountFilesCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartCountFilesCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *StartCountFilesCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartCountFilesCallHandle) ExpectReturn(v0 int, v1 error) {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartCountFilesCallHandle) ReturnsEqual(v0 int, v1 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -68,8 +68,8 @@ func (h *StartCountFilesCallHandle) ExpectReturn(v0 int, v1 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartCountFilesCallHandle) ExpectReturnMatch(v0 any, v1 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartCountFilesCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -95,13 +95,13 @@ type StartCountFilesCallHandleEventually struct {
 	h *StartCountFilesCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartCountFilesCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartCountFilesCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartCountFilesCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartCountFilesCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

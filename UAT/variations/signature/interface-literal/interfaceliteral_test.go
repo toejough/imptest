@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 )
 
 //go:generate impgen DataProcessor --dependency
@@ -28,7 +28,7 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 		}()
 
 		// Verify the mock received the call and inject return value
-		call := imp.Process.Expect(obj)
+		call := imp.Process.ArgsEqual(obj)
 		call.Return("processed")
 
 		// Verify args can be retrieved
@@ -50,7 +50,7 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 		}()
 
 		// Verify and inject return value
-		call := imp.Transform.Expect(obj)
+		call := imp.Transform.ArgsEqual(obj)
 		call.Return(100)
 
 		// Verify args can be retrieved and methods can be called
@@ -73,7 +73,7 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 		// Verify and inject error return
 		testErr := errors.New("mock validation error")
-		call := imp.Validate.Expect(validator)
+		call := imp.Validate.ArgsEqual(validator)
 		call.Return(testErr)
 
 		// Verify validator can be called
@@ -97,7 +97,7 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 		// Verify and inject return value
 		returnObj := &resultProvider{result: "output"}
-		call := imp.ProcessWithReturn.Expect("input")
+		call := imp.ProcessWithReturn.ArgsEqual("input")
 		call.Return(returnObj)
 
 		// Verify args
@@ -119,7 +119,7 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 		}()
 
 		// Use matcher for interface literal parameter
-		call := imp.Process.Match(imptest.Any)
+		call := imp.Process.ArgsShould(match.BeAny)
 		call.Return("matched result")
 
 		// Verify we can still get args

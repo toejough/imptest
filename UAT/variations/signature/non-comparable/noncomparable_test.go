@@ -25,10 +25,10 @@ func TestNonComparableArguments(t *testing.T) {
 
 	// Intercept ProcessSlice with a slice argument.
 	// Requirement: reflect.DeepEqual is used automatically for slices.
-	imp.ProcessSlice.Expect([]string{"a", "b", "c"}).Return(3)
+	imp.ProcessSlice.ArgsEqual([]string{"a", "b", "c"}).Return(3)
 
 	// Intercept ProcessMap with a map argument.
 	// Requirement: reflect.DeepEqual is used automatically for maps.
-	imp.ProcessMap.Expect(map[string]int{"threshold": 10}).
+	imp.ProcessMap.ArgsEqual(map[string]int{"threshold": 10}).
 		Return(true)
 }

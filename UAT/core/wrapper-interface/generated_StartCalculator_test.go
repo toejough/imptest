@@ -15,8 +15,8 @@ type StartCalculatorWrapperAddCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperAddReturns]
 }
 
-// ExpectCompletes verifies the method completes without panicking.
-func (h *StartCalculatorWrapperAddCallHandle) ExpectCompletes() {
+// Completes verifies the method completes without panicking.
+func (h *StartCalculatorWrapperAddCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -25,8 +25,8 @@ func (h *StartCalculatorWrapperAddCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the method panics with the expected value.
-func (h *StartCalculatorWrapperAddCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the method panics with the expected value.
+func (h *StartCalculatorWrapperAddCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -41,8 +41,8 @@ func (h *StartCalculatorWrapperAddCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
-func (h *StartCalculatorWrapperAddCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the method panics with a value matching the given matcher.
+func (h *StartCalculatorWrapperAddCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -57,8 +57,8 @@ func (h *StartCalculatorWrapperAddCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturn verifies the method returned the expected values.
-func (h *StartCalculatorWrapperAddCallHandle) ExpectReturn(v0 int) {
+// ReturnsEqual verifies the method returned the expected values.
+func (h *StartCalculatorWrapperAddCallHandle) ReturnsEqual(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -72,8 +72,8 @@ func (h *StartCalculatorWrapperAddCallHandle) ExpectReturn(v0 int) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartCalculatorWrapperAddCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartCalculatorWrapperAddCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -121,8 +121,8 @@ type StartCalculatorWrapperDivideCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperDivideReturns]
 }
 
-// ExpectCompletes verifies the method completes without panicking.
-func (h *StartCalculatorWrapperDivideCallHandle) ExpectCompletes() {
+// Completes verifies the method completes without panicking.
+func (h *StartCalculatorWrapperDivideCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -131,8 +131,8 @@ func (h *StartCalculatorWrapperDivideCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the method panics with the expected value.
-func (h *StartCalculatorWrapperDivideCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the method panics with the expected value.
+func (h *StartCalculatorWrapperDivideCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -147,8 +147,8 @@ func (h *StartCalculatorWrapperDivideCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
-func (h *StartCalculatorWrapperDivideCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the method panics with a value matching the given matcher.
+func (h *StartCalculatorWrapperDivideCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -163,8 +163,8 @@ func (h *StartCalculatorWrapperDivideCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturn verifies the method returned the expected values.
-func (h *StartCalculatorWrapperDivideCallHandle) ExpectReturn(v0 int, v1 bool) {
+// ReturnsEqual verifies the method returned the expected values.
+func (h *StartCalculatorWrapperDivideCallHandle) ReturnsEqual(v0 int, v1 bool) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -181,8 +181,8 @@ func (h *StartCalculatorWrapperDivideCallHandle) ExpectReturn(v0 int, v1 bool) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartCalculatorWrapperDivideCallHandle) ExpectReturnMatch(v0 any, v1 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartCalculatorWrapperDivideCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -244,8 +244,8 @@ type StartCalculatorWrapperMultiplyCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperMultiplyReturns]
 }
 
-// ExpectCompletes verifies the method completes without panicking.
-func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectCompletes() {
+// Completes verifies the method completes without panicking.
+func (h *StartCalculatorWrapperMultiplyCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -254,8 +254,8 @@ func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the method panics with the expected value.
-func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the method panics with the expected value.
+func (h *StartCalculatorWrapperMultiplyCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -270,8 +270,8 @@ func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
-func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the method panics with a value matching the given matcher.
+func (h *StartCalculatorWrapperMultiplyCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -286,8 +286,8 @@ func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectPanicMatch(matcher any)
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturn verifies the method returned the expected values.
-func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectReturn(v0 int) {
+// ReturnsEqual verifies the method returned the expected values.
+func (h *StartCalculatorWrapperMultiplyCallHandle) ReturnsEqual(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -301,8 +301,8 @@ func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectReturn(v0 int) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartCalculatorWrapperMultiplyCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartCalculatorWrapperMultiplyCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -350,8 +350,8 @@ type StartCalculatorWrapperProcessValueCallHandle struct {
 	*_imptest.CallableController[StartCalculatorWrapperProcessValueReturns]
 }
 
-// ExpectCompletes verifies the method completes without panicking.
-func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectCompletes() {
+// Completes verifies the method completes without panicking.
+func (h *StartCalculatorWrapperProcessValueCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -360,8 +360,8 @@ func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the method panics with the expected value.
-func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the method panics with the expected value.
+func (h *StartCalculatorWrapperProcessValueCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -376,8 +376,8 @@ func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectPanic(expected any)
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
-func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the method panics with a value matching the given matcher.
+func (h *StartCalculatorWrapperProcessValueCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -392,8 +392,8 @@ func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectPanicMatch(matcher 
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturn verifies the method returned the expected values.
-func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectReturn(v0 int) {
+// ReturnsEqual verifies the method returned the expected values.
+func (h *StartCalculatorWrapperProcessValueCallHandle) ReturnsEqual(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -407,8 +407,8 @@ func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectReturn(v0 int) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartCalculatorWrapperProcessValueCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartCalculatorWrapperProcessValueCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 

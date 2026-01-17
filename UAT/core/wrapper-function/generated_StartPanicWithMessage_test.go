@@ -16,8 +16,8 @@ type StartPanicWithMessageCallHandle struct {
 	Eventually *StartPanicWithMessageCallHandleEventually
 }
 
-// ExpectCompletes verifies the function completes without panicking.
-func (h *StartPanicWithMessageCallHandle) ExpectCompletes() {
+// Completes verifies the function completes without panicking.
+func (h *StartPanicWithMessageCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -26,8 +26,8 @@ func (h *StartPanicWithMessageCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartPanicWithMessageCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartPanicWithMessageCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -42,8 +42,8 @@ func (h *StartPanicWithMessageCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartPanicWithMessageCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartPanicWithMessageCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -63,13 +63,13 @@ type StartPanicWithMessageCallHandleEventually struct {
 	h *StartPanicWithMessageCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartPanicWithMessageCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartPanicWithMessageCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartPanicWithMessageCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartPanicWithMessageCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

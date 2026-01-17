@@ -15,7 +15,7 @@ func TestAsyncEventuallyPanic(t *testing.T) {
 	mock, imp := MockSlowService(t)
 
 	// Register expectation with panic FIRST (async pattern)
-	imp.DoA.Eventually.Expect(999).Panic("test panic")
+	imp.Eventually.DoA.ArgsEqual(999).Panic("test panic")
 
 	// Capture panic from goroutine
 	panicChan := make(chan any, 1)
@@ -58,8 +58,8 @@ func TestAsyncEventuallyWithControllerWait(t *testing.T) {
 
 	// Register expectations FIRST - these must NOT block (new async behavior)
 	// With blocking Eventually(), this would deadlock because no goroutine is making calls yet
-	imp.DoA.Eventually.Expect(789).Return("Async A")
-	imp.DoB.Eventually.Expect(789).Return("Async B")
+	imp.Eventually.DoA.ArgsEqual(789).Return("Async A")
+	imp.Eventually.DoB.ArgsEqual(789).Return("Async B")
 
 	// NOW start code under test - the expectations are already registered
 	go func() {
@@ -98,10 +98,10 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 	// The .Eventually modifier tells imptest to wait indefinitely for the call.
 
 	// 1. Expect DoA(123) to be called.
-	imp.DoA.Eventually.Expect(123).Return("Result A")
+	imp.Eventually.DoA.ArgsEqual(123).Return("Result A")
 
 	// 2. Expect DoB(123) to be called.
-	imp.DoB.Eventually.Expect(123).Return("Result B")
+	imp.Eventually.DoB.ArgsEqual(123).Return("Result B")
 
 	// Wait for the code under test to finish and verify results.
 	results := <-resultChan
@@ -128,8 +128,8 @@ func TestExplicitReversedExpectation(t *testing.T) {
 
 	// Requirement: Demonstrate that we can wait for DoB first, then DoA,
 	// regardless of which one the system-under-test triggers first.
-	imp.DoB.Eventually.Expect(456).Return("Result B")
-	imp.DoA.Eventually.Expect(456).Return("Result A")
+	imp.Eventually.DoB.ArgsEqual(456).Return("Result B")
+	imp.Eventually.DoA.ArgsEqual(456).Return("Result A")
 
 	results := <-resultChan
 	if results[0] != "Result A" || results[1] != "Result B" {
@@ -150,6 +150,6 @@ func TestSetTimeoutAPI(t *testing.T) {
 		_ = mock.DoA(1)
 	}()
 
-	imp.DoA.Eventually.Expect(1).Return("ok")
+	imp.Eventually.DoA.ArgsEqual(1).Return("ok")
 	imptest.Wait(t)
 }

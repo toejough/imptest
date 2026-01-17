@@ -3,17 +3,17 @@ package handlers_test
 import (
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 	handlers "github.com/toejough/imptest/UAT/core/wrapper-interface"
 )
 
 // TestInterfaceWrapper_CallHandleHasExpectMethods verifies Expect* methods exist.
 //
 // REQUIREMENT: Call handles from interface method wrappers must have:
-// - ExpectReturn(...)
-// - ExpectReturnMatch(...)
-// - ExpectPanic(...)
-// - ExpectPanicMatch(...)
+// - ReturnsEqual(...)
+// - ReturnsShould(...)
+// - PanicEquals(...)
+// - PanicShould(...)
 func TestInterfaceWrapper_CallHandleHasExpectMethods(t *testing.T) {
 	t.Parallel()
 
@@ -22,8 +22,8 @@ func TestInterfaceWrapper_CallHandleHasExpectMethods(t *testing.T) {
 
 	call := wrapper.Add.Start(5, 7)
 
-	// ExpectReturn should work
-	call.ExpectReturn(14) // 2 + 5 + 7
+	// ReturnsEqual should work
+	call.ReturnsEqual(14) // 2 + 5 + 7
 }
 
 // TestInterfaceWrapper_CallHandleHasReturnedField verifies Returned field access.
@@ -74,9 +74,9 @@ func TestInterfaceWrapper_ConcurrentCalls(t *testing.T) {
 	call3 := wrapper.Add.Start(100, 100)
 
 	// Each handle should independently verify its own results
-	call1.ExpectReturn(2)
-	call2.ExpectReturn(20)
-	call3.ExpectReturn(200)
+	call1.ReturnsEqual(2)
+	call2.ReturnsEqual(20)
+	call3.ReturnsEqual(200)
 }
 
 // TestInterfaceWrapper_ExpectReturnMatch verifies matcher support.
@@ -89,9 +89,9 @@ func TestInterfaceWrapper_ExpectReturnMatch(t *testing.T) {
 	call := wrapper.Divide.Start(10, 2)
 
 	// Should be able to use matchers
-	call.ExpectReturnMatch(
-		imptest.Any,
-		imptest.Any,
+	call.ReturnsShould(
+		match.BeAny,
+		match.BeAny,
 	)
 }
 
@@ -103,7 +103,7 @@ func TestInterfaceWrapper_MultipleReturns(t *testing.T) {
 	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.Divide.Start(20, 4)
-	call.ExpectReturn(5, true)
+	call.ReturnsEqual(5, true)
 }
 
 // TestInterfaceWrapper_MultiplyMethod verifies Multiply method coverage.
@@ -116,7 +116,7 @@ func TestInterfaceWrapper_MultiplyMethod(t *testing.T) {
 	wrapper := StartCalculator(t, calc)
 
 	// Call Multiply directly to ensure coverage
-	wrapper.Multiply.Start(7).ExpectReturn(21)
+	wrapper.Multiply.Start(7).ReturnsEqual(21)
 }
 
 // TestInterfaceWrapper_NoGetCallsMethod verifies GetCalls() doesn't exist.
@@ -144,7 +144,7 @@ func TestInterfaceWrapper_NoGetCallsMethod(t *testing.T) {
 
 // TestInterfaceWrapper_PanicCapture verifies panic handling with call handles.
 //
-// REQUIREMENT: Call handles must support ExpectPanic() and ExpectPanicMatch().
+// REQUIREMENT: Call handles must support PanicEquals() and PanicShould().
 func TestInterfaceWrapper_PanicCapture(t *testing.T) {
 	t.Parallel()
 
@@ -152,7 +152,7 @@ func TestInterfaceWrapper_PanicCapture(t *testing.T) {
 	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.ProcessValue.Start(-1)
-	call.ExpectPanic("negative values not supported")
+	call.PanicEquals("negative values not supported")
 }
 
 // TestInterfaceWrapper_PanicFieldAccess verifies manual Panicked field access.
@@ -205,6 +205,6 @@ func TestInterfaceWrapper_StartReturnsUniqueCallHandles(t *testing.T) {
 	}
 
 	// Each handle should independently verify its own results
-	call1.ExpectReturn(18) // 10 + 5 + 3
-	call2.ExpectReturn(40) // 10 + 10 + 20
+	call1.ReturnsEqual(18) // 10 + 5 + 3
+	call2.ReturnsEqual(40) // 10 + 10 + 20
 }

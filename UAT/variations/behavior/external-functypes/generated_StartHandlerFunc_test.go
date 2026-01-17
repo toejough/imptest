@@ -17,8 +17,8 @@ type StartHandlerFuncCallHandle struct {
 	Eventually *StartHandlerFuncCallHandleEventually
 }
 
-// ExpectCompletes verifies the function completes without panicking.
-func (h *StartHandlerFuncCallHandle) ExpectCompletes() {
+// Completes verifies the function completes without panicking.
+func (h *StartHandlerFuncCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -27,8 +27,8 @@ func (h *StartHandlerFuncCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartHandlerFuncCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartHandlerFuncCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -43,8 +43,8 @@ func (h *StartHandlerFuncCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartHandlerFuncCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartHandlerFuncCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,13 +64,13 @@ type StartHandlerFuncCallHandleEventually struct {
 	h *StartHandlerFuncCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartHandlerFuncCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartHandlerFuncCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartHandlerFuncCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartHandlerFuncCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

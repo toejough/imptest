@@ -5,12 +5,14 @@
 //
 // These are meant to be used directly in test code:
 //
-//   - [Any] - matcher that accepts any value
-//   - [Satisfies] - matcher using a custom predicate function
 //   - [TestReporter] - interface for test frameworks (usually *testing.T)
 //   - [GetOrCreateImp] - get/create shared coordinator for a test (used by generated code)
 //   - [Wait] - block until all async expectations for a test are satisfied
 //   - [SetTimeout] - configure timeout for blocking operations
+//
+// For matchers (BeAny, Satisfy), import the match package:
+//
+//	import . "github.com/toejough/imptest/match"
 //
 // # Generated Code API
 //
@@ -30,13 +32,6 @@ import (
 	"time"
 
 	"github.com/toejough/imptest/internal/core"
-)
-
-// Exported variables.
-var (
-	// Any is a matcher that matches any value.
-	//nolint:gochecknoglobals // Intentional exported constant-like value
-	Any = core.Any
 )
 
 // Call represents a single call to a mock or callable.
@@ -112,10 +107,6 @@ func MatchValue(actual, expected any) (bool, string) {
 	return core.MatchValue(actual, expected)
 }
 
-// Satisfies returns a matcher that uses a predicate function to check for a match.
-func Satisfies[T any](predicate func(T) error) Matcher {
-	return core.Satisfies(predicate)
-}
 
 // GetOrCreateImp returns the Imp for the given test, creating one if needed.
 // Multiple calls with the same TestReporter return the same Imp instance.

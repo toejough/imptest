@@ -18,8 +18,8 @@ type StartBusinessLogicCallHandle struct {
 	Eventually *StartBusinessLogicCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartBusinessLogicCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartBusinessLogicCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *StartBusinessLogicCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartBusinessLogicCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartBusinessLogicCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *StartBusinessLogicCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartBusinessLogicCallHandle) ExpectReturn(v0 string, v1 error) {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartBusinessLogicCallHandle) ReturnsEqual(v0 string, v1 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -68,8 +68,8 @@ func (h *StartBusinessLogicCallHandle) ExpectReturn(v0 string, v1 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartBusinessLogicCallHandle) ExpectReturnMatch(v0 any, v1 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartBusinessLogicCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -95,13 +95,13 @@ type StartBusinessLogicCallHandleEventually struct {
 	h *StartBusinessLogicCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartBusinessLogicCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartBusinessLogicCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartBusinessLogicCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartBusinessLogicCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

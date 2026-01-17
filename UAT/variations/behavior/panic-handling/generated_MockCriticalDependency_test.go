@@ -11,6 +11,13 @@ import (
 // CriticalDependencyImp holds method wrappers for setting expectations on CriticalDependency.
 type CriticalDependencyImp struct {
 	DoWork *_imptest.DependencyMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *CriticalDependencyImpEventually
+}
+
+// CriticalDependencyImpEventually holds async method wrappers for CriticalDependency.
+type CriticalDependencyImpEventually struct {
+	DoWork *_imptest.DependencyMethod
 }
 
 // MockCriticalDependency creates a mock CriticalDependency and returns (mock, expectation handle).
@@ -18,6 +25,9 @@ func MockCriticalDependency(t _imptest.TestReporter) (safety.CriticalDependency,
 	ctrl := _imptest.GetOrCreateImp(t)
 	imp := &CriticalDependencyImp{
 		DoWork: _imptest.NewDependencyMethod(ctrl, "DoWork"),
+	}
+	imp.Eventually = &CriticalDependencyImpEventually{
+		DoWork: _imptest.NewDependencyMethod(ctrl, "DoWork").AsEventually(),
 	}
 	mock := &mockCriticalDependencyImpl{ctrl: ctrl}
 	return mock, imp

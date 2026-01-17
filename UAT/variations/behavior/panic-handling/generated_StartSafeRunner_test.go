@@ -18,8 +18,8 @@ type StartSafeRunnerCallHandle struct {
 	Eventually *StartSafeRunnerCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartSafeRunnerCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartSafeRunnerCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *StartSafeRunnerCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartSafeRunnerCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartSafeRunnerCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *StartSafeRunnerCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartSafeRunnerCallHandle) ExpectReturn(v0 bool) {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartSafeRunnerCallHandle) ReturnsEqual(v0 bool) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -65,8 +65,8 @@ func (h *StartSafeRunnerCallHandle) ExpectReturn(v0 bool) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartSafeRunnerCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartSafeRunnerCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -88,13 +88,13 @@ type StartSafeRunnerCallHandleEventually struct {
 	h *StartSafeRunnerCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartSafeRunnerCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartSafeRunnerCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartSafeRunnerCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartSafeRunnerCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

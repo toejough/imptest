@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
 )
 
@@ -40,13 +40,13 @@ func TestBusinessLogic(t *testing.T) {
 	call := StartBusinessLogic(t, callable.BusinessLogic, mockSvc, 42)
 
 	// 1. Expect call to FetchData and provide response.
-	svcImp.FetchData.Expect(42).Return("raw data", nil)
+	svcImp.FetchData.ArgsEqual(42).Return("raw data", nil)
 
 	// 2. Expect call to Process and provide response.
-	svcImp.Process.Expect("raw data").Return("processed data")
+	svcImp.Process.ArgsEqual("raw data").Return("processed data")
 
 	// 3. Verify the final output of the business logic.
-	call.ExpectReturn("Result: processed data", nil)
+	call.ReturnsEqual("Result: processed data", nil)
 }
 
 // TestBusinessLogicError demonstrates error path validation using matchers.
@@ -62,11 +62,11 @@ func TestBusinessLogicError(t *testing.T) {
 	call := StartBusinessLogic(t, callable.BusinessLogic, mockSvc, 99)
 
 	// Simulate an error from the service.
-	svcImp.FetchData.Expect(99).Return("", errNotFound)
+	svcImp.FetchData.ArgsEqual(99).Return("", errNotFound)
 
 	// Requirement: Verify that the business logic returns the error.
-	// We use Satisfies to check if the error is (or wraps) errNotFound.
-	call.ExpectReturnMatch("", imptest.Satisfies(func(err error) error {
+	// We use Satisfy to check if the error is (or wraps) errNotFound.
+	call.ReturnsShould("", match.Satisfy(func(err error) error {
 		if !errors.Is(err, errNotFound) {
 			return fmt.Errorf("expected error %w, got %w", errNotFound, err)
 		}
@@ -82,7 +82,7 @@ func TestCalculatorAdd(t *testing.T) {
 	calc := callable.NewCalculator(2)
 
 	// Start the method with test arguments using v2 API
-	StartCalculatorAdd(t, calc.Add, 5, 3).ExpectReturn(8)
+	StartCalculatorAdd(t, calc.Add, 5, 3).ReturnsEqual(8)
 }
 
 // TestCalculatorDivide demonstrates wrapping a method with multiple return values.
@@ -92,7 +92,7 @@ func TestCalculatorDivide(t *testing.T) {
 	calc := callable.NewCalculator(1)
 
 	// Test successful division using v2 API
-	StartCalculatorDivide(t, calc.Divide, 10, 2).ExpectReturn(5, true)
+	StartCalculatorDivide(t, calc.Divide, 10, 2).ReturnsEqual(5, true)
 }
 
 // TestCalculatorDivideByZero demonstrates testing error conditions.
@@ -102,7 +102,7 @@ func TestCalculatorDivideByZero(t *testing.T) {
 	calc := callable.NewCalculator(1)
 
 	// Test division by zero returns false using v2 API
-	StartCalculatorDivide(t, calc.Divide, 10, 0).ExpectReturn(0, false)
+	StartCalculatorDivide(t, calc.Divide, 10, 0).ReturnsEqual(0, false)
 }
 
 // TestCalculatorMultiply demonstrates wrapping a method that uses receiver state.
@@ -113,7 +113,7 @@ func TestCalculatorMultiply(t *testing.T) {
 	calc := callable.NewCalculator(3)
 
 	// Test that it correctly applies the multiplier using v2 API
-	StartCalculatorMultiply(t, calc.Multiply, 7).ExpectReturn(21)
+	StartCalculatorMultiply(t, calc.Multiply, 7).ReturnsEqual(21)
 }
 
 // TestCalculatorProcessValuePanic demonstrates testing panic behavior.
@@ -125,7 +125,7 @@ func TestCalculatorProcessValuePanic(
 	calc := callable.NewCalculator(5)
 
 	// Test that negative values cause a panic using v2 API
-	StartCalculatorProcessValue(t, calc.ProcessValue, -1).ExpectPanic("negative values not supported")
+	StartCalculatorProcessValue(t, calc.ProcessValue, -1).PanicEquals("negative values not supported")
 }
 
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.
@@ -137,7 +137,7 @@ func TestCalculatorProcessValueSuccess(
 	calc := callable.NewCalculator(5)
 
 	// Test normal case: (3 * 5) + 10 = 25 using v2 API
-	StartCalculatorProcessValue(t, calc.ProcessValue, 3).ExpectReturn(25)
+	StartCalculatorProcessValue(t, calc.ProcessValue, 3).ReturnsEqual(25)
 }
 
 // unexported variables.

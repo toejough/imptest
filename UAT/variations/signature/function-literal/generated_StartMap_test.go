@@ -17,8 +17,8 @@ type StartMapCallHandle struct {
 	Eventually *StartMapCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartMapCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartMapCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *StartMapCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartMapCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartMapCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *StartMapCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartMapCallHandle) ExpectReturn(v0 []int) {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartMapCallHandle) ReturnsEqual(v0 []int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +64,8 @@ func (h *StartMapCallHandle) ExpectReturn(v0 []int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartMapCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartMapCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -87,13 +87,13 @@ type StartMapCallHandleEventually struct {
 	h *StartMapCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartMapCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartMapCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartMapCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartMapCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

@@ -17,8 +17,8 @@ type StartUnsafeRunnerCallHandle struct {
 	Eventually *StartUnsafeRunnerCallHandleEventually
 }
 
-// ExpectCompletes verifies the function completes without panicking.
-func (h *StartUnsafeRunnerCallHandle) ExpectCompletes() {
+// Completes verifies the function completes without panicking.
+func (h *StartUnsafeRunnerCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -27,8 +27,8 @@ func (h *StartUnsafeRunnerCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartUnsafeRunnerCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartUnsafeRunnerCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -43,8 +43,8 @@ func (h *StartUnsafeRunnerCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartUnsafeRunnerCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartUnsafeRunnerCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,13 +64,13 @@ type StartUnsafeRunnerCallHandleEventually struct {
 	h *StartUnsafeRunnerCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartUnsafeRunnerCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartUnsafeRunnerCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartUnsafeRunnerCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartUnsafeRunnerCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

@@ -34,13 +34,13 @@ type CalculatorAddMethod struct {
 	Eventually *CalculatorAddMethod
 }
 
-func (m *CalculatorAddMethod) Expect(a, b int) *CalculatorAddCall {
-	call := m.DependencyMethod.Expect(a, b)
+func (m *CalculatorAddMethod) ArgsEqual(a, b int) *CalculatorAddCall {
+	call := m.DependencyMethod.ArgsEqual(a, b)
 	return &CalculatorAddCall{DependencyCall: call}
 }
 
-func (m *CalculatorAddMethod) Match(matchers ...any) *CalculatorAddCall {
-	call := m.DependencyMethod.Match(matchers...)
+func (m *CalculatorAddMethod) ArgsShould(matchers ...any) *CalculatorAddCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &CalculatorAddCall{DependencyCall: call}
 }
 
@@ -149,7 +149,7 @@ func (impl *mockCalculatorImpl) Store(key string, value any) error {
 
 func newCalculatorAddMethod(depMethod *imptest.DependencyMethod) *CalculatorAddMethod {
 	m := &CalculatorAddMethod{DependencyMethod: depMethod}
-	m.Eventually = &CalculatorAddMethod{DependencyMethod: depMethod.Eventually}
+	m.Eventually = &CalculatorAddMethod{DependencyMethod: depMethod.AsEventually()}
 
 	return m
 }

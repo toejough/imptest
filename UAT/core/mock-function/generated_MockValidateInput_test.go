@@ -33,19 +33,19 @@ func (c *ValidateInputMockCall) Return(result0 error) {
 // ValidateInputMockMethod wraps DependencyMethod with typed returns.
 type ValidateInputMockMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
+	// Eventually provides async version of this function for concurrent code.
 	Eventually *ValidateInputMockMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ValidateInputMockMethod) Expect(input string) *ValidateInputMockCall {
-	call := m.DependencyMethod.Expect(input)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ValidateInputMockMethod) ArgsEqual(input string) *ValidateInputMockCall {
+	call := m.DependencyMethod.ArgsEqual(input)
 	return &ValidateInputMockCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ValidateInputMockMethod) Match(matchers ...any) *ValidateInputMockCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ValidateInputMockMethod) ArgsShould(matchers ...any) *ValidateInputMockCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ValidateInputMockCall{DependencyCall: call}
 }
 
@@ -80,6 +80,6 @@ func MockValidateInput(t _imptest.TestReporter) (func(input string) error, *Vali
 // newValidateInputMockMethod creates a typed method wrapper with Eventually initialized.
 func newValidateInputMockMethod(dm *_imptest.DependencyMethod) *ValidateInputMockMethod {
 	m := &ValidateInputMockMethod{DependencyMethod: dm}
-	m.Eventually = &ValidateInputMockMethod{DependencyMethod: dm.Eventually}
+	m.Eventually = &ValidateInputMockMethod{DependencyMethod: dm.AsEventually()}
 	return m
 }

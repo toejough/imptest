@@ -41,8 +41,8 @@ func TestWrapLogger_BasicUsage(t *testing.T) {
 	logger := &ConsoleLogger{}
 	wrapper := StartLogger(t, logger)
 
-	// Start() returns call handle, ExpectReturn() verifies and waits
-	wrapper.Log.Start("test message").ExpectReturn(nil)
+	// Start() returns call handle, ReturnsEqual() verifies and waits
+	wrapper.Log.Start("test message").ReturnsEqual(nil)
 }
 
 // TestWrapLogger_WithContext demonstrates wrapping methods with context.
@@ -53,5 +53,5 @@ func TestWrapLogger_WithContext(t *testing.T) {
 	wrapper := StartLogger(t, logger)
 
 	ctx := context.Background()
-	wrapper.LogWithContext.Start(ctx, "context message").ExpectReturn(nil)
+	wrapper.LogWithContext.Start(ctx, "context message").ReturnsEqual(nil)
 }

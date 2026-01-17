@@ -16,7 +16,7 @@ func TestChannelHandler_Bidirectional(t *testing.T) {
 
 	// Expect call with bidirectional channel
 	go func() {
-		call := imp.Bidirectional.Expect(testChannel)
+		call := imp.Bidirectional.ArgsEqual(testChannel)
 		call.Return(true)
 	}()
 
@@ -40,7 +40,7 @@ func TestChannelHandler_ReceiveOnly(t *testing.T) {
 
 	// Expect call with receive-only channel
 	go func() {
-		call := imp.ReceiveOnly.Expect(testChannel)
+		call := imp.ReceiveOnly.ArgsEqual(testChannel)
 		call.Return("received", nil)
 	}()
 
@@ -70,7 +70,7 @@ func TestChannelHandler_ReturnChannel(t *testing.T) {
 
 	// Expect call and return a channel
 	go func() {
-		call := imp.ReturnChannel.Expect()
+		call := imp.ReturnChannel.Called()
 		call.Return(recvOnlyCh)
 	}()
 
@@ -94,7 +94,7 @@ func TestChannelHandler_SendOnly(t *testing.T) {
 
 	// Expect call with send-only channel
 	go func() {
-		call := imp.SendOnly.Expect(testChannel)
+		call := imp.SendOnly.ArgsEqual(testChannel)
 		call.Return(nil)
 	}()
 

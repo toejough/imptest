@@ -11,6 +11,13 @@ import (
 // DataSourceImp holds method wrappers for setting expectations on DataSource.
 type DataSourceImp struct {
 	GetData *_imptest.DependencyMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *DataSourceImpEventually
+}
+
+// DataSourceImpEventually holds async method wrappers for DataSource.
+type DataSourceImpEventually struct {
+	GetData *_imptest.DependencyMethod
 }
 
 // DataSourceMockGetDataCall wraps DependencyCall with typed GetArgs and Return.
@@ -28,6 +35,9 @@ func MockDataSource(t _imptest.TestReporter) (samepackage.DataSource, *DataSourc
 	ctrl := _imptest.GetOrCreateImp(t)
 	imp := &DataSourceImp{
 		GetData: _imptest.NewDependencyMethod(ctrl, "GetData"),
+	}
+	imp.Eventually = &DataSourceImpEventually{
+		GetData: _imptest.NewDependencyMethod(ctrl, "GetData").AsEventually(),
 	}
 	mock := &mockDataSourceImpl{ctrl: ctrl}
 	return mock, imp

@@ -35,6 +35,10 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) ({{if .IsS
 {{range .Methods}}{{if .HasParams}}		{{.MethodName}}: new{{.MethodTypeName}}{{$.TypeParamsUse}}({{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}")),
 {{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}"),
 {{end}}{{end}}	}
+	imp.Eventually = &{{.ImpTypeName}}Eventually{{.TypeParamsUse}}{
+{{range .Methods}}{{if .HasParams}}		{{.MethodName}}: new{{.MethodTypeName}}{{$.TypeParamsUse}}({{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}").AsEventually()),
+{{else}}		{{.MethodName}}: {{$.PkgImptest}}.NewDependencyMethod(ctrl, "{{.MethodName}}").AsEventually(),
+{{end}}{{end}}	}
 	mock := &{{.ImplName}}{{.TypeParamsUse}}{ctrl: ctrl}
 	return mock, imp
 }
@@ -95,30 +99,26 @@ type {{.MockTypeName}}Interface{{.TypeParamsDecl}} interface {
 	tmplDepMethodWrapper = `{{if .HasParams}}// {{.MethodTypeName}} wraps DependencyMethod with typed returns.
 type {{.MethodTypeName}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *{{.MethodTypeName}}{{.TypeParamsUse}}
 }
 
-// new{{.MethodTypeName}} creates a typed method wrapper with Eventually initialized.
+// new{{.MethodTypeName}} creates a typed method wrapper.
 func new{{.MethodTypeName}}{{.TypeParamsDecl}}(dm *{{.PkgImptest}}.DependencyMethod) *{{.MethodTypeName}}{{.TypeParamsUse}} {
-	m := &{{.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm}
-	m.Eventually = &{{.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm.Eventually}
-	return m
+	return &{{.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm}
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) Expect({{.TypedParams}}) *{{.CallTypeName}}{{.TypeParamsUse}} {
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ArgsEqual({{.TypedParams}}) *{{.CallTypeName}}{{.TypeParamsUse}} {
 	{{if .HasVariadic}}callArgs := []any{ {{if .NonVariadicArgs}}{{.NonVariadicArgs}}{{end}} }
 	for _, v := range {{.VariadicArg}} {
 		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.Expect(callArgs...){{else}}call := m.DependencyMethod.Expect({{.ArgNames}}){{end}}
+	call := m.DependencyMethod.ArgsEqual(callArgs...){{else}}call := m.DependencyMethod.ArgsEqual({{.ArgNames}}){{end}}
 	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) Match(matchers ...any) *{{.CallTypeName}}{{.TypeParamsUse}} {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ArgsShould(matchers ...any) *{{.CallTypeName}}{{.TypeParamsUse}} {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
@@ -126,6 +126,14 @@ func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) Match(matchers ...any) *{{.CallT
 `
 	tmplDepMockStruct = `// {{.ImpTypeName}} holds method wrappers for setting expectations on {{.InterfaceName}}.
 type {{.ImpTypeName}}{{.TypeParamsDecl}} struct {
+{{range .Methods}}{{if .HasParams}}	{{.MethodName}} *{{.MethodTypeName}}{{$.TypeParamsUse}}
+{{else}}	{{.MethodName}} *{{$.PkgImptest}}.DependencyMethod
+{{end}}{{end}}	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *{{.ImpTypeName}}Eventually{{.TypeParamsUse}}
+}
+
+// {{.ImpTypeName}}Eventually holds async method wrappers for {{.InterfaceName}}.
+type {{.ImpTypeName}}Eventually{{.TypeParamsDecl}} struct {
 {{range .Methods}}{{if .HasParams}}	{{.MethodName}} *{{.MethodTypeName}}{{$.TypeParamsUse}}
 {{else}}	{{.MethodName}} *{{$.PkgImptest}}.DependencyMethod
 {{end}}{{end}}}
@@ -168,30 +176,30 @@ func {{.MockName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter) ({{.FuncSi
 	tmplFuncDepMethodWrapper = `{{if .Method.HasParams}}// {{.Method.MethodTypeName}} wraps DependencyMethod with typed returns.
 type {{.Method.MethodTypeName}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
+	// Eventually provides async version of this function for concurrent code.
 	Eventually *{{.Method.MethodTypeName}}{{.TypeParamsUse}}
 }
 
 // new{{.Method.MethodTypeName}} creates a typed method wrapper with Eventually initialized.
 func new{{.Method.MethodTypeName}}{{.TypeParamsDecl}}(dm *{{.PkgImptest}}.DependencyMethod) *{{.Method.MethodTypeName}}{{.TypeParamsUse}} {
 	m := &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm}
-	m.Eventually = &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm.Eventually}
+	m.Eventually = &{{.Method.MethodTypeName}}{{.TypeParamsUse}}{DependencyMethod: dm.AsEventually()}
 	return m
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) Expect({{.Method.TypedParams}}) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ArgsEqual({{.Method.TypedParams}}) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
 	{{if .Method.HasVariadic}}callArgs := []any{ {{if .Method.NonVariadicArgs}}{{.Method.NonVariadicArgs}}{{end}} }
 	for _, v := range {{.Method.VariadicArg}} {
 		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.Expect(callArgs...){{else}}call := m.DependencyMethod.Expect({{.Method.ArgNames}}){{end}}
+	call := m.DependencyMethod.ArgsEqual(callArgs...){{else}}call := m.DependencyMethod.ArgsEqual({{.Method.ArgNames}}){{end}}
 	return &{{.Method.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) Match(matchers ...any) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ArgsShould(matchers ...any) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &{{.Method.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
@@ -232,8 +240,8 @@ type {{.CallHandleType}} struct {
 }
 
 `
-	tmplInterfaceTargetMethodExpectCompletes = `// ExpectCompletes verifies the method completes without panicking.
-func (h *{{.CallHandleType}}) ExpectCompletes() {
+	tmplInterfaceTargetMethodExpectCompletes = `// Completes verifies the method completes without panicking.
+func (h *{{.CallHandleType}}) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -243,8 +251,8 @@ func (h *{{.CallHandleType}}) ExpectCompletes() {
 }
 
 `
-	tmplInterfaceTargetMethodExpectPanic = `// ExpectPanic verifies the method panics with the expected value.
-func (h *{{.CallHandleType}}) ExpectPanic(expected any) {
+	tmplInterfaceTargetMethodExpectPanic = `// PanicEquals verifies the method panics with the expected value.
+func (h *{{.CallHandleType}}) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -259,8 +267,8 @@ func (h *{{.CallHandleType}}) ExpectPanic(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
-func (h *{{.CallHandleType}}) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the method panics with a value matching the given matcher.
+func (h *{{.CallHandleType}}) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -276,8 +284,8 @@ func (h *{{.CallHandleType}}) ExpectPanicMatch(matcher any) {
 }
 
 `
-	tmplInterfaceTargetMethodExpectReturns = `// ExpectReturn verifies the method returned the expected values.
-func (h *{{.CallHandleType}}) ExpectReturn({{.ExpectedParams}}) {
+	tmplInterfaceTargetMethodExpectReturns = `// ReturnsEqual verifies the method returned the expected values.
+func (h *{{.CallHandleType}}) ReturnsEqual({{.ExpectedParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -291,8 +299,8 @@ func (h *{{.CallHandleType}}) ExpectReturn({{.ExpectedParams}}) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *{{.CallHandleType}}) ExpectReturnMatch({{.MatcherParams}}) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *{{.CallHandleType}}) ReturnsShould({{.MatcherParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -376,13 +384,13 @@ func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ensureStarted() *{{.Pk
 	return e.h.pendingCompletion
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
@@ -408,8 +416,8 @@ func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.Func
 }
 
 `
-	tmplTargetExpectCompletes = `// ExpectCompletes verifies the function completes without panicking.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectCompletes() {
+	tmplTargetExpectCompletes = `// Completes verifies the function completes without panicking.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -419,8 +427,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectCompletes() {
 }
 
 `
-	tmplTargetExpectPanic = `// ExpectPanic verifies the function panics with the expected value.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanic(expected any) {
+	tmplTargetExpectPanic = `// PanicEquals verifies the function panics with the expected value.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -435,8 +443,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -452,8 +460,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicMatch(matcher any) {
 }
 
 `
-	tmplTargetExpectReturns = `// ExpectReturn verifies the function returned the expected values.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturn({{.ExpectedParams}}) {
+	tmplTargetExpectReturns = `// ReturnsEqual verifies the function returned the expected values.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ReturnsEqual({{.ExpectedParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -467,8 +475,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturn({{.ExpectedParams}}
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturnMatch({{.MatcherParams}}) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ReturnsShould({{.MatcherParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 

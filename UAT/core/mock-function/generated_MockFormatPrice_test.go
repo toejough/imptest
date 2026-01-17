@@ -35,19 +35,19 @@ func (c *FormatPriceMockCall) Return(result0 string) {
 // FormatPriceMockMethod wraps DependencyMethod with typed returns.
 type FormatPriceMockMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
+	// Eventually provides async version of this function for concurrent code.
 	Eventually *FormatPriceMockMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *FormatPriceMockMethod) Expect(amount float64, currency string) *FormatPriceMockCall {
-	call := m.DependencyMethod.Expect(amount, currency)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *FormatPriceMockMethod) ArgsEqual(amount float64, currency string) *FormatPriceMockCall {
+	call := m.DependencyMethod.ArgsEqual(amount, currency)
 	return &FormatPriceMockCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *FormatPriceMockMethod) Match(matchers ...any) *FormatPriceMockCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *FormatPriceMockMethod) ArgsShould(matchers ...any) *FormatPriceMockCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &FormatPriceMockCall{DependencyCall: call}
 }
 
@@ -82,6 +82,6 @@ func MockFormatPrice(t _imptest.TestReporter) (func(amount float64, currency str
 // newFormatPriceMockMethod creates a typed method wrapper with Eventually initialized.
 func newFormatPriceMockMethod(dm *_imptest.DependencyMethod) *FormatPriceMockMethod {
 	m := &FormatPriceMockMethod{DependencyMethod: dm}
-	m.Eventually = &FormatPriceMockMethod{DependencyMethod: dm.Eventually}
+	m.Eventually = &FormatPriceMockMethod{DependencyMethod: dm.AsEventually()}
 	return m
 }

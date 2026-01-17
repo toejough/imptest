@@ -17,8 +17,8 @@ type StartCalculatorAddCallHandle struct {
 	Eventually *StartCalculatorAddCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartCalculatorAddCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartCalculatorAddCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *StartCalculatorAddCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartCalculatorAddCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartCalculatorAddCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *StartCalculatorAddCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartCalculatorAddCallHandle) ExpectReturn(v0 int) {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartCalculatorAddCallHandle) ReturnsEqual(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +64,8 @@ func (h *StartCalculatorAddCallHandle) ExpectReturn(v0 int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartCalculatorAddCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartCalculatorAddCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -87,13 +87,13 @@ type StartCalculatorAddCallHandleEventually struct {
 	h *StartCalculatorAddCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartCalculatorAddCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartCalculatorAddCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartCalculatorAddCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartCalculatorAddCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

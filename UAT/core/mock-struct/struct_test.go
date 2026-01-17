@@ -27,16 +27,16 @@ func TestStructMocking(t *testing.T) {
 	// Interactive Control Pattern - identical to interface mocking.
 
 	// 1. Intercept 'Add' and provide a return value.
-	imp.Add.Expect(1, 2).Return(3)
+	imp.Add.ArgsEqual(1, 2).Return(3)
 
 	// 2. Intercept 'Store' and provide a return value.
-	imp.Store.Expect(42).Return(0)
+	imp.Store.ArgsEqual(42).Return(0)
 
 	// 3. Intercept 'Get' and provide multiple return values.
-	imp.Get.Expect().Return(42, nil)
+	imp.Get.Called().Return(42, nil)
 
 	// 4. Intercept 'Reset' (void method) and signal completion.
-	imp.Reset.Expect().Return()
+	imp.Reset.Called().Return()
 }
 
 // TestStructMockingWithError demonstrates returning errors from mocked struct methods.
@@ -51,5 +51,5 @@ func TestStructMockingWithError(t *testing.T) {
 	}()
 
 	// Return an error from Get.
-	imp.Get.Expect().Return(0, mockstruct.ErrNotFound)
+	imp.Get.Called().Return(0, mockstruct.ErrNotFound)
 }

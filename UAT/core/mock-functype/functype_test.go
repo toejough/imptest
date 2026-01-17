@@ -13,7 +13,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 )
 
 // Generate dependency mock for function type directly (Issue #50)
@@ -36,7 +36,7 @@ func TestFunctionTypeMock_BasicUsage(t *testing.T) {
 	}()
 
 	// Set up expectation and inject return value
-	imp.Expect("test@example.com").
+	imp.ArgsEqual("test@example.com").
 		Return(nil)
 
 	// Verify result
@@ -56,8 +56,8 @@ func TestFunctionTypeMock_GetArgs(t *testing.T) {
 		_ = mock("check-this-data")
 	}()
 
-	// Use Match to accept any call
-	call := imp.Match(imptest.Any)
+	// Use ArgsShould to accept any call
+	call := imp.ArgsShould(match.BeAny)
 
 	// Get typed args
 	args := call.GetArgs()
@@ -82,7 +82,7 @@ func TestFunctionTypeMock_ReturnError(t *testing.T) {
 	}()
 
 	// Inject error return
-	imp.Expect("invalid-email").
+	imp.ArgsEqual("invalid-email").
 		Return(expectedErr)
 
 	// Verify error was returned

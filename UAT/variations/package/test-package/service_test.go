@@ -16,7 +16,7 @@ func TestService_Execute(t *testing.T) {
 
 	// Expect call with specific input
 	go func() {
-		call := imp.Execute.Expect(input)
+		call := imp.Execute.ArgsEqual(input)
 		call.Return(expectedOutput, nil)
 	}()
 
@@ -40,7 +40,7 @@ func TestService_Validate(t *testing.T) {
 
 	// Expect call and return true
 	go func() {
-		call := imp.Validate.Expect(input)
+		call := imp.Validate.ArgsEqual(input)
 		call.Return(true)
 	}()
 

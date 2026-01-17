@@ -11,6 +11,13 @@ import (
 // DataSinkImp holds method wrappers for setting expectations on DataSink.
 type DataSinkImp struct {
 	PutData *DataSinkMockPutDataMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *DataSinkImpEventually
+}
+
+// DataSinkImpEventually holds async method wrappers for DataSink.
+type DataSinkImpEventually struct {
+	PutData *DataSinkMockPutDataMethod
 }
 
 // DataSinkMockPutDataArgs holds typed arguments for PutData.
@@ -39,19 +46,17 @@ func (c *DataSinkMockPutDataCall) Return(result0 error) {
 // DataSinkMockPutDataMethod wraps DependencyMethod with typed returns.
 type DataSinkMockPutDataMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *DataSinkMockPutDataMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *DataSinkMockPutDataMethod) Expect(data []byte) *DataSinkMockPutDataCall {
-	call := m.DependencyMethod.Expect(data)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *DataSinkMockPutDataMethod) ArgsEqual(data []byte) *DataSinkMockPutDataCall {
+	call := m.DependencyMethod.ArgsEqual(data)
 	return &DataSinkMockPutDataCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *DataSinkMockPutDataMethod) Match(matchers ...any) *DataSinkMockPutDataCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *DataSinkMockPutDataMethod) ArgsShould(matchers ...any) *DataSinkMockPutDataCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &DataSinkMockPutDataCall{DependencyCall: call}
 }
 
@@ -60,6 +65,9 @@ func MockDataSink(t _imptest.TestReporter) (samepackage.DataSink, *DataSinkImp) 
 	ctrl := _imptest.GetOrCreateImp(t)
 	imp := &DataSinkImp{
 		PutData: newDataSinkMockPutDataMethod(_imptest.NewDependencyMethod(ctrl, "PutData")),
+	}
+	imp.Eventually = &DataSinkImpEventually{
+		PutData: newDataSinkMockPutDataMethod(_imptest.NewDependencyMethod(ctrl, "PutData").AsEventually()),
 	}
 	mock := &mockDataSinkImpl{ctrl: ctrl}
 	return mock, imp
@@ -93,9 +101,7 @@ func (impl *mockDataSinkImpl) PutData(data []byte) error {
 	return result1
 }
 
-// newDataSinkMockPutDataMethod creates a typed method wrapper with Eventually initialized.
+// newDataSinkMockPutDataMethod creates a typed method wrapper.
 func newDataSinkMockPutDataMethod(dm *_imptest.DependencyMethod) *DataSinkMockPutDataMethod {
-	m := &DataSinkMockPutDataMethod{DependencyMethod: dm}
-	m.Eventually = &DataSinkMockPutDataMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &DataSinkMockPutDataMethod{DependencyMethod: dm}
 }

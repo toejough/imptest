@@ -62,14 +62,14 @@ Use `--target` when you want to **test a function or method** by:
 //go:generate impgen orders.ProcessOrder --target
 
 func TestProcessOrder(t *testing.T) {
-    mock, imp := MockPaymentService(t)
+    mock, expect := MockPaymentService(t)
 
     call := StartProcessOrder(t, orders.ProcessOrder, mock, order)
 
-    imp.Charge.Expect(order.Amount).
+    expect.Charge.ArgsEqual(order.Amount).
         Return(receipt, nil)
 
-    call.ExpectReturn(expectedResult, nil)
+    call.ReturnsEqual(expectedResult, nil)
 }
 ```
 
@@ -86,12 +86,12 @@ Use `--dependency` when you want to **mock a dependency** by:
 //go:generate impgen storage.Repository --dependency
 
 func TestUserService(t *testing.T) {
-    mock, imp := MockRepository(t)
+    mock, expect := MockRepository(t)
     service := NewUserService(mock)
 
     go service.GetUser(123)
 
-    imp.FindByID.Expect(123).
+    expect.FindByID.ArgsEqual(123).
         Return(User{ID: 123, Name: "Alice"}, nil)
 }
 ```
@@ -124,15 +124,15 @@ func TestUserService(t *testing.T) {
 call := StartMyFunc(t, pkg.MyFunc, arg1, arg2, ...)
 
 // 2. Handle any dependency interactions (see Mock Pattern)
-imp.DepMethod.Expect(...).Return(...)
+expect.DepMethod.ArgsEqual(...).Return(...)
 
 // 3. Verify the result
-call.ExpectReturn(expectedReturn1, expectedReturn2)
+call.ReturnsEqual(expectedReturn1, expectedReturn2)
 // or
-call.ExpectPanic("expected panic message")
+call.PanicEquals("expected panic message")
 
 // For async verification:
-call.Eventually.ExpectReturn(expected)
+call.Eventually.ReturnsEqual(expected)
 imptest.Wait(t)  // blocks until satisfied
 ```
 
@@ -145,7 +145,7 @@ wrapper := StartCalculator(t, impl)
 call := wrapper.Add.Start(10, 20)
 
 // 3. Verify the result
-call.ExpectReturn(30)
+call.ReturnsEqual(30)
 ```
 
 #### Wrapper Examples
@@ -156,14 +156,14 @@ call.ExpectReturn(30)
 //go:generate impgen orders.ProcessOrder --target
 
 func TestProcessOrder(t *testing.T) {
-    mock, imp := MockExternalService(t)
+    mock, expect := MockExternalService(t)
 
     call := StartProcessOrder(t, orders.ProcessOrder, mock, 42)
 
-    imp.FetchData.Expect(42).
+    expect.FetchData.ArgsEqual(42).
         Return("data", nil)
 
-    call.ExpectReturn("Result: data", nil)
+    call.ReturnsEqual("Result: data", nil)
 }
 ```
 
@@ -176,7 +176,7 @@ func TestCalculatorAdd(t *testing.T) {
     calc := calculator.NewCalculator()
 
     call := StartCalculatorAdd(t, calc.Add, 10, 20)
-    call.ExpectReturn(30)
+    call.ReturnsEqual(30)
 }
 ```
 
@@ -190,10 +190,10 @@ func TestCalculator(t *testing.T) {
     wrapper := StartCalculator(t, calc)
 
     addCall := wrapper.Add.Start(10, 20)
-    addCall.ExpectReturn(30)
+    addCall.ReturnsEqual(30)
 
     mulCall := wrapper.Multiply.Start(5, 6)
-    mulCall.ExpectReturn(30)
+    mulCall.ReturnsEqual(30)
 }
 ```
 
@@ -207,10 +207,10 @@ func TestLogger(t *testing.T) {
     wrapper := StartLogger(t, impl)
 
     infoCall := wrapper.Info.Start("test message")
-    infoCall.ExpectReturn()
+    infoCall.ReturnsEqual()
 
     warnCall := wrapper.Warn.Start("warning!")
-    warnCall.ExpectReturn()
+    warnCall.ReturnsEqual()
 }
 ```
 
@@ -225,7 +225,7 @@ func TestWalkFunc(t *testing.T) {
     }
 
     call := StartWalkFunc(t, myWalker, "/path", mockFileInfo)
-    call.ExpectReturn(nil)
+    call.ReturnsEqual(nil)
 }
 ```
 
@@ -236,7 +236,7 @@ func TestWalkFunc(t *testing.T) {
 
 func TestUnsafeRunnerPanics(t *testing.T) {
     call := StartUnsafeRunner(t, safety.UnsafeRunner, 10, 0)  // Division by zero
-    call.ExpectPanic("division by zero")
+    call.PanicEquals("division by zero")
 }
 ```
 
@@ -265,22 +265,24 @@ func TestUnsafeRunnerPanics(t *testing.T) {
 All mocks follow the same pattern:
 
 ```go
+import "github.com/toejough/imptest/match"
+
 // 1. Create mock with testing.T (returns mock and expectation handle)
-mock, imp := MockService(t)
+mock, expect := MockService(t)
 
 // 2. Pass mock (the interface implementation) to code under test
 go myFunction(mock)
 
 // 3. For each expected call (in Ordered mode):
-imp.MethodName.Expect(arg1, arg2).
+expect.MethodName.ArgsEqual(arg1, arg2).
     Return(ret1, ret2)
 
 // Or with matchers for flexible matching:
-imp.MethodName.Match(imptest.Any, expectedArg2).
+expect.MethodName.ArgsShould(match.BeAny, expectedArg2).
     Return(ret1, ret2)
 
 // For concurrent code, use Eventually with imptest.Wait(t):
-imp.MethodName.Eventually.Expect(arg1, arg2).
+expect.Eventually.MethodName.ArgsEqual(arg1, arg2).
     Return(ret1, ret2)
 imptest.Wait(t)  // blocks until all Eventually expectations satisfied
 ```
@@ -293,12 +295,12 @@ imptest.Wait(t)  // blocks until all Eventually expectations satisfied
 //go:generate impgen storage.Repository --dependency
 
 func TestUserService(t *testing.T) {
-    mock, imp := MockRepository(t)
+    mock, expect := MockRepository(t)
     service := NewUserService(mock)
 
     go service.GetUser(123)
 
-    imp.FindByID.Expect(123).
+    expect.FindByID.ArgsEqual(123).
         Return(User{ID: 123}, nil)
 }
 ```
@@ -309,12 +311,12 @@ func TestUserService(t *testing.T) {
 //go:generate impgen logger.Logger --dependency
 
 func TestWithVariadic(t *testing.T) {
-    mock, imp := MockLogger(t)
+    mock, expect := MockLogger(t)
 
     go doWork(mock)
 
     // Variadic args passed normally
-    imp.Logf.Expect("format: %s %d", "hello", 42).
+    expect.Logf.ArgsEqual("format: %s %d", "hello", 42).
         Return()
 }
 ```
@@ -323,12 +325,12 @@ func TestWithVariadic(t *testing.T) {
 
 ```go
 func TestErrorPath(t *testing.T) {
-    mock, imp := MockRepository(t)
+    mock, expect := MockRepository(t)
     service := NewUserService(mock)
 
     go service.GetUser(999)
 
-    imp.FindByID.Expect(999).
+    expect.FindByID.ArgsEqual(999).
         Return(User{}, ErrNotFound)
 }
 ```
@@ -337,12 +339,12 @@ func TestErrorPath(t *testing.T) {
 
 ```go
 func TestPanicRecovery(t *testing.T) {
-    mock, imp := MockRepository(t)
+    mock, expect := MockRepository(t)
     service := NewUserService(mock)
 
     go service.GetUser(123)
 
-    imp.FindByID.Expect(123).
+    expect.FindByID.ArgsEqual(123).
         Panic("database connection lost")
 }
 ```
@@ -353,11 +355,11 @@ func TestPanicRecovery(t *testing.T) {
 //go:generate impgen handlers.Router --dependency
 
 func TestRouterDependency(t *testing.T) {
-    mock, imp := MockRouter(t)
+    mock, expect := MockRouter(t)
 
     go processRequests(mock)
 
-    imp.Expect("/api/users").
+    expect.ArgsEqual("/api/users").
         Return(handlerFunc)
 }
 ```
@@ -368,12 +370,12 @@ func TestRouterDependency(t *testing.T) {
 //go:generate impgen cache.Cache[T] --dependency
 
 func TestGenericCache(t *testing.T) {
-    mock, imp := MockCache[User](t)
+    mock, expect := MockCache[User](t)
     service := NewCachingService(mock)
 
     go service.GetCached("user:123")
 
-    imp.Get.Expect("user:123").
+    expect.Get.ArgsEqual("user:123").
         Return(User{ID: 123}, true)
 }
 ```
@@ -383,15 +385,17 @@ func TestGenericCache(t *testing.T) {
 ```go
 //go:generate impgen io.ReadCloser --dependency
 
+// Note: import "github.com/toejough/imptest/match" for matchers
+
 func TestReadCloser(t *testing.T) {
-    mock, imp := MockReadCloser(t)
+    mock, expect := MockReadCloser(t)
 
     go processFile(mock)
 
     // Methods from embedded interfaces are accessible
-    imp.Read.Match(imptest.Any).
+    expect.Read.ArgsShould(match.BeAny).
         Return(10, nil)
-    imp.Close.Expect().
+    expect.Close.Called().
         Return(nil)
 }
 ```
@@ -464,11 +468,13 @@ imptest handles various parameter and return type patterns:
 When testing with function parameters, use matchers since Go functions cannot be compared:
 
 ```go
-// DON'T use Expect for functions
-// mock.Map.Expect(items, mapFunc)  // Will hang!
+import "github.com/toejough/imptest/match"
+
+// DON'T use ArgsEqual for functions
+// expect.Map.ArgsEqual(items, mapFunc)  // Will hang!
 
 // DO use matchers
-mock.Map.Match(items, imptest.Any).
+expect.Map.ArgsShould(items, match.BeAny).
     Return(result)
 ```
 
@@ -481,8 +487,8 @@ mock.Map.Match(items, imptest.Any).
 By default, imptest expects calls in the exact order you specify:
 
 ```go
-imp.First.Expect(1).Return(1)
-imp.Second.Expect(2).Return(2)
+expect.First.ArgsEqual(1).Return(1)
+expect.Second.ArgsEqual(2).Return(2)
 // Calls MUST arrive as: First, then Second
 ```
 
@@ -493,16 +499,16 @@ If calls arrive out of order, the test fails immediately.
 For concurrent code where call order is non-deterministic, use `Eventually` with `imptest.Wait(t)`:
 
 ```go
-mock, imp := MockService(t)
+mock, expect := MockService(t)
 
 go func() { mock.TaskA("a") }()
 go func() { mock.TaskB("b") }()
 go func() { mock.TaskC("c") }()
 
 // Register async expectations (non-blocking)
-imp.TaskA.Eventually.Expect("a").Return()
-imp.TaskB.Eventually.Expect("b").Return()
-imp.TaskC.Eventually.Expect("c").Return()
+expect.Eventually.TaskA.ArgsEqual("a").Return()
+expect.Eventually.TaskB.ArgsEqual("b").Return()
+expect.Eventually.TaskC.ArgsEqual("c").Return()
 
 // Block until all expectations are satisfied
 imptest.Wait(t)
@@ -521,8 +527,8 @@ call1 := StartMyFunc(t, MyFunc, arg1)
 call2 := StartMyFunc(t, MyFunc, arg2)
 
 // Non-blocking expectations on wrapper calls
-call1.Eventually.ExpectReturn(expected1)
-call2.Eventually.ExpectReturn(expected2)
+call1.Eventually.ReturnsEqual(expected1)
+call2.Eventually.ReturnsEqual(expected2)
 
 // Wait for all to complete
 imptest.Wait(t)

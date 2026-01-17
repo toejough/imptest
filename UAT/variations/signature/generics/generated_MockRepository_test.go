@@ -12,6 +12,14 @@ import (
 type RepositoryImp[T any] struct {
 	Save *RepositoryMockSaveMethod[T]
 	Get  *RepositoryMockGetMethod[T]
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *RepositoryImpEventually[T]
+}
+
+// RepositoryImpEventually holds async method wrappers for Repository.
+type RepositoryImpEventually[T any] struct {
+	Save *RepositoryMockSaveMethod[T]
+	Get  *RepositoryMockGetMethod[T]
 }
 
 // RepositoryMockGetArgs holds typed arguments for Get.
@@ -40,19 +48,17 @@ func (c *RepositoryMockGetCall[T]) Return(result0 T, result1 error) {
 // RepositoryMockGetMethod wraps DependencyMethod with typed returns.
 type RepositoryMockGetMethod[T any] struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *RepositoryMockGetMethod[T]
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *RepositoryMockGetMethod[T]) Expect(id string) *RepositoryMockGetCall[T] {
-	call := m.DependencyMethod.Expect(id)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *RepositoryMockGetMethod[T]) ArgsEqual(id string) *RepositoryMockGetCall[T] {
+	call := m.DependencyMethod.ArgsEqual(id)
 	return &RepositoryMockGetCall[T]{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *RepositoryMockGetMethod[T]) Match(matchers ...any) *RepositoryMockGetCall[T] {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *RepositoryMockGetMethod[T]) ArgsShould(matchers ...any) *RepositoryMockGetCall[T] {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &RepositoryMockGetCall[T]{DependencyCall: call}
 }
 
@@ -82,19 +88,17 @@ func (c *RepositoryMockSaveCall[T]) Return(result0 error) {
 // RepositoryMockSaveMethod wraps DependencyMethod with typed returns.
 type RepositoryMockSaveMethod[T any] struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *RepositoryMockSaveMethod[T]
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *RepositoryMockSaveMethod[T]) Expect(item T) *RepositoryMockSaveCall[T] {
-	call := m.DependencyMethod.Expect(item)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *RepositoryMockSaveMethod[T]) ArgsEqual(item T) *RepositoryMockSaveCall[T] {
+	call := m.DependencyMethod.ArgsEqual(item)
 	return &RepositoryMockSaveCall[T]{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *RepositoryMockSaveMethod[T]) Match(matchers ...any) *RepositoryMockSaveCall[T] {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *RepositoryMockSaveMethod[T]) ArgsShould(matchers ...any) *RepositoryMockSaveCall[T] {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &RepositoryMockSaveCall[T]{DependencyCall: call}
 }
 
@@ -104,6 +108,10 @@ func MockRepository[T any](t _imptest.TestReporter) (generics.Repository[T], *Re
 	imp := &RepositoryImp[T]{
 		Save: newRepositoryMockSaveMethod[T](_imptest.NewDependencyMethod(ctrl, "Save")),
 		Get:  newRepositoryMockGetMethod[T](_imptest.NewDependencyMethod(ctrl, "Get")),
+	}
+	imp.Eventually = &RepositoryImpEventually[T]{
+		Save: newRepositoryMockSaveMethod[T](_imptest.NewDependencyMethod(ctrl, "Save").AsEventually()),
+		Get:  newRepositoryMockGetMethod[T](_imptest.NewDependencyMethod(ctrl, "Get").AsEventually()),
 	}
 	mock := &mockRepositoryImpl[T]{ctrl: ctrl}
 	return mock, imp
@@ -167,16 +175,12 @@ func (impl *mockRepositoryImpl[T]) Save(item T) error {
 	return result1
 }
 
-// newRepositoryMockGetMethod creates a typed method wrapper with Eventually initialized.
+// newRepositoryMockGetMethod creates a typed method wrapper.
 func newRepositoryMockGetMethod[T any](dm *_imptest.DependencyMethod) *RepositoryMockGetMethod[T] {
-	m := &RepositoryMockGetMethod[T]{DependencyMethod: dm}
-	m.Eventually = &RepositoryMockGetMethod[T]{DependencyMethod: dm.Eventually}
-	return m
+	return &RepositoryMockGetMethod[T]{DependencyMethod: dm}
 }
 
-// newRepositoryMockSaveMethod creates a typed method wrapper with Eventually initialized.
+// newRepositoryMockSaveMethod creates a typed method wrapper.
 func newRepositoryMockSaveMethod[T any](dm *_imptest.DependencyMethod) *RepositoryMockSaveMethod[T] {
-	m := &RepositoryMockSaveMethod[T]{DependencyMethod: dm}
-	m.Eventually = &RepositoryMockSaveMethod[T]{DependencyMethod: dm.Eventually}
-	return m
+	return &RepositoryMockSaveMethod[T]{DependencyMethod: dm}
 }

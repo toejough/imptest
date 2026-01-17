@@ -24,7 +24,7 @@ func TestTypedReturn(t *testing.T) {
 		}()
 
 		// Use typed Return - should compile with correct types
-		call := imp.Store.Expect("key", "value")
+		call := imp.Store.ArgsEqual("key", "value")
 		call.Return(42, nil) // Correct types: int, error
 
 		// Verify the mock received the call
@@ -45,7 +45,7 @@ func TestTypedReturn(t *testing.T) {
 
 		// Use typed Return with error
 		testErr := errors.New("storage failure")
-		call := imp.Store.Expect("foo", "bar")
+		call := imp.Store.ArgsEqual("foo", "bar")
 		call.Return(0, testErr) // Correct types: int, error
 	})
 
@@ -60,7 +60,7 @@ func TestTypedReturn(t *testing.T) {
 		}()
 
 		// Use typed Return for single return value
-		call := imp.Add.Expect(5, 3)
+		call := imp.Add.ArgsEqual(5, 3)
 		call.Return(8) // Correct type: int
 	})
 
@@ -75,7 +75,7 @@ func TestTypedReturn(t *testing.T) {
 		}()
 
 		// Use typed Return for bool return
-		call := imp.Notify.Expect("alert", 1, 2, 3)
+		call := imp.Notify.ArgsEqual("alert", 1, 2, 3)
 		call.Return(true) // Correct type: bool
 	})
 }

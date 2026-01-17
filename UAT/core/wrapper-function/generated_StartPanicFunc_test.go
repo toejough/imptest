@@ -16,8 +16,8 @@ type StartPanicFuncCallHandle struct {
 	Eventually *StartPanicFuncCallHandleEventually
 }
 
-// ExpectCompletes verifies the function completes without panicking.
-func (h *StartPanicFuncCallHandle) ExpectCompletes() {
+// Completes verifies the function completes without panicking.
+func (h *StartPanicFuncCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -26,8 +26,8 @@ func (h *StartPanicFuncCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartPanicFuncCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartPanicFuncCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -42,8 +42,8 @@ func (h *StartPanicFuncCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartPanicFuncCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartPanicFuncCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -63,13 +63,13 @@ type StartPanicFuncCallHandleEventually struct {
 	h *StartPanicFuncCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartPanicFuncCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartPanicFuncCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartPanicFuncCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartPanicFuncCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

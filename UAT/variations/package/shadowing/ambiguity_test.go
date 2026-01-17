@@ -30,6 +30,6 @@ func TestImportInference(t *testing.T) {
 		_ = mock.GetElapsed()
 	}()
 
-	imp.Wait.Expect(100).Return(nil)
-	imp.GetElapsed.Expect().Return(42)
+	imp.Wait.ArgsEqual(100).Return(nil)
+	imp.GetElapsed.Called().Return(42)
 }

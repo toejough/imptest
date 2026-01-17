@@ -33,19 +33,19 @@ func (c *ValidatorMockCall) Return(result0 error) {
 // ValidatorMockMethod wraps DependencyMethod with typed returns.
 type ValidatorMockMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
+	// Eventually provides async version of this function for concurrent code.
 	Eventually *ValidatorMockMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ValidatorMockMethod) Expect(data string) *ValidatorMockCall {
-	call := m.DependencyMethod.Expect(data)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ValidatorMockMethod) ArgsEqual(data string) *ValidatorMockCall {
+	call := m.DependencyMethod.ArgsEqual(data)
 	return &ValidatorMockCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ValidatorMockMethod) Match(matchers ...any) *ValidatorMockCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ValidatorMockMethod) ArgsShould(matchers ...any) *ValidatorMockCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ValidatorMockCall{DependencyCall: call}
 }
 
@@ -80,6 +80,6 @@ func MockValidator(t _imptest.TestReporter) (func(data string) error, *Validator
 // newValidatorMockMethod creates a typed method wrapper with Eventually initialized.
 func newValidatorMockMethod(dm *_imptest.DependencyMethod) *ValidatorMockMethod {
 	m := &ValidatorMockMethod{DependencyMethod: dm}
-	m.Eventually = &ValidatorMockMethod{DependencyMethod: dm.Eventually}
+	m.Eventually = &ValidatorMockMethod{DependencyMethod: dm.AsEventually()}
 	return m
 }

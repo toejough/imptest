@@ -22,7 +22,7 @@ func TestDotImportedProcessor(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := imp.Process.Expect("input data")
+	call := imp.Process.ArgsEqual("input data")
 	call.Return("processed data")
 
 	// Verify args
@@ -49,7 +49,7 @@ func TestDotImportedStorage(t *testing.T) {
 		}()
 
 		// Verify the mock received the call
-		call := imp.Save.Expect("key1", "value1")
+		call := imp.Save.ArgsEqual("key1", "value1")
 		call.Return(nil)
 
 		// Verify args can be retrieved
@@ -74,7 +74,7 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Inject error return
 		testErr := errors.New("save failed")
-		call := imp.Save.Expect("bad_key", "bad_value")
+		call := imp.Save.ArgsEqual("bad_key", "bad_value")
 		call.Return(testErr)
 	})
 
@@ -88,7 +88,7 @@ func TestDotImportedStorage(t *testing.T) {
 		}()
 
 		// Verify and inject return values
-		call := imp.Load.Expect("key2")
+		call := imp.Load.ArgsEqual("key2")
 		call.Return("loaded_value", nil)
 
 		// Verify args
@@ -109,7 +109,7 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Inject error return
 		testErr := errors.New("not found")
-		call := imp.Load.Expect("missing_key")
+		call := imp.Load.ArgsEqual("missing_key")
 		call.Return("", testErr)
 	})
 }

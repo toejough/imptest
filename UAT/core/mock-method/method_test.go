@@ -32,7 +32,7 @@ func TestMethodMock(t *testing.T) {
 	}()
 
 	// Verify the mock was called with expected argument
-	call := imp.Expect(inputValue)
+	call := imp.ArgsEqual(inputValue)
 	args := call.GetArgs()
 
 	if args.N != inputValue {
@@ -56,7 +56,7 @@ func TestMethodMockMatchers(t *testing.T) {
 	}()
 
 	// Use matchers for flexible argument matching
-	call := imp.Match(999)
+	call := imp.ArgsShould(999)
 	call.Return(expectedReturn)
 }
 
@@ -84,6 +84,6 @@ func TestMultipleMethodMocks(t *testing.T) {
 	}()
 
 	// Verify both mocks independently
-	addImp.Eventually.Expect(addInput).Return(addReturn)
-	incImp.Eventually.Match().Return(incReturn)
+	addImp.Eventually.ArgsEqual(addInput).Return(addReturn)
+	incImp.AsEventually().Called().Return(incReturn)
 }

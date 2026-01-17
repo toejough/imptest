@@ -26,20 +26,20 @@ func TestBasicMocking(t *testing.T) {
 	// Interactive Control Pattern: Expect -> Inject -> Resolve
 
 	// 1. Intercept 'Add' and provide a return value via Return.
-	imp.Add.Expect(1, 2).Return(3)
+	imp.Add.ArgsEqual(1, 2).Return(3)
 
 	// 2. Intercept 'Store' and provide multiple return values via Return.
-	imp.Store.Expect("foo", "bar").Return(100, nil)
+	imp.Store.ArgsEqual("foo", "bar").Return(100, nil)
 
 	// 3. Intercept 'Log' (void method) and signal completion via Return with no args.
-	imp.Log.Expect("action performed").Return()
+	imp.Log.ArgsEqual("action performed").Return()
 
 	// 4. Intercept 'Notify' (variadic) and provide a return value.
-	// Note: Variadic arguments are passed normally to Expect.
-	imp.Notify.Expect("alert", 1, 2, 3).Return(true)
+	// Note: Variadic arguments are passed normally to ArgsEqual.
+	imp.Notify.ArgsEqual("alert", 1, 2, 3).Return(true)
 
 	// 5. Intercept 'Finish' (no args) and provide a return value.
-	imp.Finish.Expect().Return(true)
+	imp.Finish.Called().Return(true)
 }
 
 // You can also use --name to specify a custom base name (CustomOps here, which becomes MockCustomOps).

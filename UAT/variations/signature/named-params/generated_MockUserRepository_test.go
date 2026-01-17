@@ -15,6 +15,16 @@ type UserRepositoryImp struct {
 	SaveUser   *UserRepositoryMockSaveUserMethod
 	DeleteUser *UserRepositoryMockDeleteUserMethod
 	CountUsers *UserRepositoryMockCountUsersMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *UserRepositoryImpEventually
+}
+
+// UserRepositoryImpEventually holds async method wrappers for UserRepository.
+type UserRepositoryImpEventually struct {
+	GetUser    *UserRepositoryMockGetUserMethod
+	SaveUser   *UserRepositoryMockSaveUserMethod
+	DeleteUser *UserRepositoryMockDeleteUserMethod
+	CountUsers *UserRepositoryMockCountUsersMethod
 }
 
 // UserRepositoryMockCountUsersArgs holds typed arguments for CountUsers.
@@ -43,19 +53,17 @@ func (c *UserRepositoryMockCountUsersCall) Return(result0 int, result1 error) {
 // UserRepositoryMockCountUsersMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockCountUsersMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *UserRepositoryMockCountUsersMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockCountUsersMethod) Expect(ctx context.Context) *UserRepositoryMockCountUsersCall {
-	call := m.DependencyMethod.Expect(ctx)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockCountUsersMethod) ArgsEqual(ctx context.Context) *UserRepositoryMockCountUsersCall {
+	call := m.DependencyMethod.ArgsEqual(ctx)
 	return &UserRepositoryMockCountUsersCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockCountUsersMethod) Match(matchers ...any) *UserRepositoryMockCountUsersCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockCountUsersMethod) ArgsShould(matchers ...any) *UserRepositoryMockCountUsersCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &UserRepositoryMockCountUsersCall{DependencyCall: call}
 }
 
@@ -87,19 +95,17 @@ func (c *UserRepositoryMockDeleteUserCall) Return(result0 error) {
 // UserRepositoryMockDeleteUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockDeleteUserMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *UserRepositoryMockDeleteUserMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockDeleteUserMethod) Expect(ctx context.Context, userID int) *UserRepositoryMockDeleteUserCall {
-	call := m.DependencyMethod.Expect(ctx, userID)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockDeleteUserMethod) ArgsEqual(ctx context.Context, userID int) *UserRepositoryMockDeleteUserCall {
+	call := m.DependencyMethod.ArgsEqual(ctx, userID)
 	return &UserRepositoryMockDeleteUserCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockDeleteUserMethod) Match(matchers ...any) *UserRepositoryMockDeleteUserCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockDeleteUserMethod) ArgsShould(matchers ...any) *UserRepositoryMockDeleteUserCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &UserRepositoryMockDeleteUserCall{DependencyCall: call}
 }
 
@@ -131,19 +137,17 @@ func (c *UserRepositoryMockGetUserCall) Return(result0 named.User, result1 error
 // UserRepositoryMockGetUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockGetUserMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *UserRepositoryMockGetUserMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockGetUserMethod) Expect(ctx context.Context, userID int) *UserRepositoryMockGetUserCall {
-	call := m.DependencyMethod.Expect(ctx, userID)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockGetUserMethod) ArgsEqual(ctx context.Context, userID int) *UserRepositoryMockGetUserCall {
+	call := m.DependencyMethod.ArgsEqual(ctx, userID)
 	return &UserRepositoryMockGetUserCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockGetUserMethod) Match(matchers ...any) *UserRepositoryMockGetUserCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockGetUserMethod) ArgsShould(matchers ...any) *UserRepositoryMockGetUserCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &UserRepositoryMockGetUserCall{DependencyCall: call}
 }
 
@@ -175,19 +179,17 @@ func (c *UserRepositoryMockSaveUserCall) Return(result0 named.User, result1 erro
 // UserRepositoryMockSaveUserMethod wraps DependencyMethod with typed returns.
 type UserRepositoryMockSaveUserMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *UserRepositoryMockSaveUserMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockSaveUserMethod) Expect(ctx context.Context, user named.User) *UserRepositoryMockSaveUserCall {
-	call := m.DependencyMethod.Expect(ctx, user)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockSaveUserMethod) ArgsEqual(ctx context.Context, user named.User) *UserRepositoryMockSaveUserCall {
+	call := m.DependencyMethod.ArgsEqual(ctx, user)
 	return &UserRepositoryMockSaveUserCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockSaveUserMethod) Match(matchers ...any) *UserRepositoryMockSaveUserCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockSaveUserMethod) ArgsShould(matchers ...any) *UserRepositoryMockSaveUserCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &UserRepositoryMockSaveUserCall{DependencyCall: call}
 }
 
@@ -199,6 +201,12 @@ func MockUserRepository(t _imptest.TestReporter) (named.UserRepository, *UserRep
 		SaveUser:   newUserRepositoryMockSaveUserMethod(_imptest.NewDependencyMethod(ctrl, "SaveUser")),
 		DeleteUser: newUserRepositoryMockDeleteUserMethod(_imptest.NewDependencyMethod(ctrl, "DeleteUser")),
 		CountUsers: newUserRepositoryMockCountUsersMethod(_imptest.NewDependencyMethod(ctrl, "CountUsers")),
+	}
+	imp.Eventually = &UserRepositoryImpEventually{
+		GetUser:    newUserRepositoryMockGetUserMethod(_imptest.NewDependencyMethod(ctrl, "GetUser").AsEventually()),
+		SaveUser:   newUserRepositoryMockSaveUserMethod(_imptest.NewDependencyMethod(ctrl, "SaveUser").AsEventually()),
+		DeleteUser: newUserRepositoryMockDeleteUserMethod(_imptest.NewDependencyMethod(ctrl, "DeleteUser").AsEventually()),
+		CountUsers: newUserRepositoryMockCountUsersMethod(_imptest.NewDependencyMethod(ctrl, "CountUsers").AsEventually()),
 	}
 	mock := &mockUserRepositoryImpl{ctrl: ctrl}
 	return mock, imp
@@ -322,30 +330,22 @@ func (impl *mockUserRepositoryImpl) SaveUser(ctx context.Context, user named.Use
 	return result1, result2
 }
 
-// newUserRepositoryMockCountUsersMethod creates a typed method wrapper with Eventually initialized.
+// newUserRepositoryMockCountUsersMethod creates a typed method wrapper.
 func newUserRepositoryMockCountUsersMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockCountUsersMethod {
-	m := &UserRepositoryMockCountUsersMethod{DependencyMethod: dm}
-	m.Eventually = &UserRepositoryMockCountUsersMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &UserRepositoryMockCountUsersMethod{DependencyMethod: dm}
 }
 
-// newUserRepositoryMockDeleteUserMethod creates a typed method wrapper with Eventually initialized.
+// newUserRepositoryMockDeleteUserMethod creates a typed method wrapper.
 func newUserRepositoryMockDeleteUserMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockDeleteUserMethod {
-	m := &UserRepositoryMockDeleteUserMethod{DependencyMethod: dm}
-	m.Eventually = &UserRepositoryMockDeleteUserMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &UserRepositoryMockDeleteUserMethod{DependencyMethod: dm}
 }
 
-// newUserRepositoryMockGetUserMethod creates a typed method wrapper with Eventually initialized.
+// newUserRepositoryMockGetUserMethod creates a typed method wrapper.
 func newUserRepositoryMockGetUserMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockGetUserMethod {
-	m := &UserRepositoryMockGetUserMethod{DependencyMethod: dm}
-	m.Eventually = &UserRepositoryMockGetUserMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &UserRepositoryMockGetUserMethod{DependencyMethod: dm}
 }
 
-// newUserRepositoryMockSaveUserMethod creates a typed method wrapper with Eventually initialized.
+// newUserRepositoryMockSaveUserMethod creates a typed method wrapper.
 func newUserRepositoryMockSaveUserMethod(dm *_imptest.DependencyMethod) *UserRepositoryMockSaveUserMethod {
-	m := &UserRepositoryMockSaveUserMethod{DependencyMethod: dm}
-	m.Eventually = &UserRepositoryMockSaveUserMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &UserRepositoryMockSaveUserMethod{DependencyMethod: dm}
 }

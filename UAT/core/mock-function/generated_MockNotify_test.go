@@ -30,19 +30,19 @@ func (c *NotifyMockCall) GetArgs() NotifyMockArgs {
 // NotifyMockMethod wraps DependencyMethod with typed returns.
 type NotifyMockMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
+	// Eventually provides async version of this function for concurrent code.
 	Eventually *NotifyMockMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *NotifyMockMethod) Expect(userID int, message string) *NotifyMockCall {
-	call := m.DependencyMethod.Expect(userID, message)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *NotifyMockMethod) ArgsEqual(userID int, message string) *NotifyMockCall {
+	call := m.DependencyMethod.ArgsEqual(userID, message)
 	return &NotifyMockCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *NotifyMockMethod) Match(matchers ...any) *NotifyMockCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *NotifyMockMethod) ArgsShould(matchers ...any) *NotifyMockCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &NotifyMockCall{DependencyCall: call}
 }
 
@@ -69,6 +69,6 @@ func MockNotify(t _imptest.TestReporter) (func(userID int, message string), *Not
 // newNotifyMockMethod creates a typed method wrapper with Eventually initialized.
 func newNotifyMockMethod(dm *_imptest.DependencyMethod) *NotifyMockMethod {
 	m := &NotifyMockMethod{DependencyMethod: dm}
-	m.Eventually = &NotifyMockMethod{DependencyMethod: dm.Eventually}
+	m.Eventually = &NotifyMockMethod{DependencyMethod: dm.AsEventually()}
 	return m
 }

@@ -5,14 +5,6 @@ import (
 	"reflect"
 )
 
-// Exported variables.
-var (
-	// Any is a matcher that matches any value.
-	// Useful when you don't care about a particular argument or return value.
-	//nolint:gochecknoglobals // Intentional exported constant-like value
-	Any Matcher = anyMatcher{}
-)
-
 // Matcher defines the interface for flexible value matching.
 // Compatible with gomega.GomegaMatcher via duck typing - any type
 // implementing Match and FailureMessage will work.
@@ -46,49 +38,4 @@ func MatchValue(actual, expected any) (bool, string) {
 	}
 
 	return false, fmt.Sprintf("expected %v, got %v", expected, actual)
-}
-
-// Satisfies returns a matcher that uses a predicate function to check for a match.
-// The predicate should return nil if the value matches, or an error describing
-// the mismatch if it does not.
-func Satisfies[T any](predicate func(T) error) Matcher {
-	return &satisfiesMatcher[T]{predicate: predicate}
-}
-
-// anyMatcher is the implementation of the Any matcher.
-type anyMatcher struct{}
-
-// FailureMessage returns an empty string since Any always matches.
-func (anyMatcher) FailureMessage(any) string {
-	return ""
-}
-
-// Match always returns true - matches any value.
-func (anyMatcher) Match(any) (bool, error) {
-	return true, nil
-}
-
-type satisfiesMatcher[T any] struct {
-	predicate func(T) error
-	lastErr   error
-}
-
-func (m *satisfiesMatcher[T]) FailureMessage(actual any) string {
-	if m.lastErr != nil {
-		return fmt.Sprintf("value %v does not satisfy predicate: %v", actual, m.lastErr)
-	}
-
-	return fmt.Sprintf("value %v does not satisfy predicate", actual)
-}
-
-func (m *satisfiesMatcher[T]) Match(actual any) (bool, error) {
-	val, ok := actual.(T)
-
-	if !ok {
-		return false, fmt.Errorf("%w: expected %T, got %T", errTypeMismatch, *new(T), actual)
-	}
-
-	m.lastErr = m.predicate(val)
-
-	return m.lastErr == nil, nil
 }

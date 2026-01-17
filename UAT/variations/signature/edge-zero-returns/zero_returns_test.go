@@ -13,7 +13,7 @@ func TestV2_ProcessData(t *testing.T) {
 	t.Parallel()
 
 	// Start the zero-return function
-	StartProcessData(t, zeroreturns.ProcessData, "test data", 42).ExpectCompletes()
+	StartProcessData(t, zeroreturns.ProcessData, "test data", 42).Completes()
 }
 
 // TestV2_ProcessData_MultipleArgs tests with various argument combinations.
@@ -35,7 +35,7 @@ func TestV2_ProcessData_MultipleArgs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			StartProcessData(t, zeroreturns.ProcessData, tc.data, tc.count).ExpectCompletes()
+			StartProcessData(t, zeroreturns.ProcessData, tc.data, tc.count).Completes()
 		})
 	}
 }
@@ -49,5 +49,5 @@ func TestV2_ProcessData_Panic(t *testing.T) {
 		panic("test panic")
 	}
 
-	StartProcessData(t, panicFunc, "test", 42).ExpectPanic("test panic")
+	StartProcessData(t, panicFunc, "test", 42).PanicEquals("test panic")
 }

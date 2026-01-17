@@ -14,6 +14,16 @@ type ChannelHandlerImp struct {
 	ReceiveOnly   *ChannelHandlerMockReceiveOnlyMethod
 	Bidirectional *ChannelHandlerMockBidirectionalMethod
 	ReturnChannel *_imptest.DependencyMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *ChannelHandlerImpEventually
+}
+
+// ChannelHandlerImpEventually holds async method wrappers for ChannelHandler.
+type ChannelHandlerImpEventually struct {
+	SendOnly      *ChannelHandlerMockSendOnlyMethod
+	ReceiveOnly   *ChannelHandlerMockReceiveOnlyMethod
+	Bidirectional *ChannelHandlerMockBidirectionalMethod
+	ReturnChannel *_imptest.DependencyMethod
 }
 
 // ChannelHandlerMockBidirectionalArgs holds typed arguments for Bidirectional.
@@ -42,19 +52,17 @@ func (c *ChannelHandlerMockBidirectionalCall) Return(result0 bool) {
 // ChannelHandlerMockBidirectionalMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockBidirectionalMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ChannelHandlerMockBidirectionalMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ChannelHandlerMockBidirectionalMethod) Expect(ch chan bool) *ChannelHandlerMockBidirectionalCall {
-	call := m.DependencyMethod.Expect(ch)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ChannelHandlerMockBidirectionalMethod) ArgsEqual(ch chan bool) *ChannelHandlerMockBidirectionalCall {
+	call := m.DependencyMethod.ArgsEqual(ch)
 	return &ChannelHandlerMockBidirectionalCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ChannelHandlerMockBidirectionalMethod) Match(matchers ...any) *ChannelHandlerMockBidirectionalCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ChannelHandlerMockBidirectionalMethod) ArgsShould(matchers ...any) *ChannelHandlerMockBidirectionalCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ChannelHandlerMockBidirectionalCall{DependencyCall: call}
 }
 
@@ -84,19 +92,17 @@ func (c *ChannelHandlerMockReceiveOnlyCall) Return(result0 string, result1 error
 // ChannelHandlerMockReceiveOnlyMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockReceiveOnlyMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ChannelHandlerMockReceiveOnlyMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ChannelHandlerMockReceiveOnlyMethod) Expect(ch <-chan string) *ChannelHandlerMockReceiveOnlyCall {
-	call := m.DependencyMethod.Expect(ch)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ChannelHandlerMockReceiveOnlyMethod) ArgsEqual(ch <-chan string) *ChannelHandlerMockReceiveOnlyCall {
+	call := m.DependencyMethod.ArgsEqual(ch)
 	return &ChannelHandlerMockReceiveOnlyCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ChannelHandlerMockReceiveOnlyMethod) Match(matchers ...any) *ChannelHandlerMockReceiveOnlyCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ChannelHandlerMockReceiveOnlyMethod) ArgsShould(matchers ...any) *ChannelHandlerMockReceiveOnlyCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ChannelHandlerMockReceiveOnlyCall{DependencyCall: call}
 }
 
@@ -136,19 +142,17 @@ func (c *ChannelHandlerMockSendOnlyCall) Return(result0 error) {
 // ChannelHandlerMockSendOnlyMethod wraps DependencyMethod with typed returns.
 type ChannelHandlerMockSendOnlyMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ChannelHandlerMockSendOnlyMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ChannelHandlerMockSendOnlyMethod) Expect(ch chan<- int) *ChannelHandlerMockSendOnlyCall {
-	call := m.DependencyMethod.Expect(ch)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ChannelHandlerMockSendOnlyMethod) ArgsEqual(ch chan<- int) *ChannelHandlerMockSendOnlyCall {
+	call := m.DependencyMethod.ArgsEqual(ch)
 	return &ChannelHandlerMockSendOnlyCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ChannelHandlerMockSendOnlyMethod) Match(matchers ...any) *ChannelHandlerMockSendOnlyCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ChannelHandlerMockSendOnlyMethod) ArgsShould(matchers ...any) *ChannelHandlerMockSendOnlyCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ChannelHandlerMockSendOnlyCall{DependencyCall: call}
 }
 
@@ -160,6 +164,12 @@ func MockChannelHandler(t _imptest.TestReporter) (channels.ChannelHandler, *Chan
 		ReceiveOnly:   newChannelHandlerMockReceiveOnlyMethod(_imptest.NewDependencyMethod(ctrl, "ReceiveOnly")),
 		Bidirectional: newChannelHandlerMockBidirectionalMethod(_imptest.NewDependencyMethod(ctrl, "Bidirectional")),
 		ReturnChannel: _imptest.NewDependencyMethod(ctrl, "ReturnChannel"),
+	}
+	imp.Eventually = &ChannelHandlerImpEventually{
+		SendOnly:      newChannelHandlerMockSendOnlyMethod(_imptest.NewDependencyMethod(ctrl, "SendOnly").AsEventually()),
+		ReceiveOnly:   newChannelHandlerMockReceiveOnlyMethod(_imptest.NewDependencyMethod(ctrl, "ReceiveOnly").AsEventually()),
+		Bidirectional: newChannelHandlerMockBidirectionalMethod(_imptest.NewDependencyMethod(ctrl, "Bidirectional").AsEventually()),
+		ReturnChannel: _imptest.NewDependencyMethod(ctrl, "ReturnChannel").AsEventually(),
 	}
 	mock := &mockChannelHandlerImpl{ctrl: ctrl}
 	return mock, imp
@@ -269,23 +279,17 @@ func (impl *mockChannelHandlerImpl) SendOnly(ch chan<- int) error {
 	return result1
 }
 
-// newChannelHandlerMockBidirectionalMethod creates a typed method wrapper with Eventually initialized.
+// newChannelHandlerMockBidirectionalMethod creates a typed method wrapper.
 func newChannelHandlerMockBidirectionalMethod(dm *_imptest.DependencyMethod) *ChannelHandlerMockBidirectionalMethod {
-	m := &ChannelHandlerMockBidirectionalMethod{DependencyMethod: dm}
-	m.Eventually = &ChannelHandlerMockBidirectionalMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ChannelHandlerMockBidirectionalMethod{DependencyMethod: dm}
 }
 
-// newChannelHandlerMockReceiveOnlyMethod creates a typed method wrapper with Eventually initialized.
+// newChannelHandlerMockReceiveOnlyMethod creates a typed method wrapper.
 func newChannelHandlerMockReceiveOnlyMethod(dm *_imptest.DependencyMethod) *ChannelHandlerMockReceiveOnlyMethod {
-	m := &ChannelHandlerMockReceiveOnlyMethod{DependencyMethod: dm}
-	m.Eventually = &ChannelHandlerMockReceiveOnlyMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ChannelHandlerMockReceiveOnlyMethod{DependencyMethod: dm}
 }
 
-// newChannelHandlerMockSendOnlyMethod creates a typed method wrapper with Eventually initialized.
+// newChannelHandlerMockSendOnlyMethod creates a typed method wrapper.
 func newChannelHandlerMockSendOnlyMethod(dm *_imptest.DependencyMethod) *ChannelHandlerMockSendOnlyMethod {
-	m := &ChannelHandlerMockSendOnlyMethod{DependencyMethod: dm}
-	m.Eventually = &ChannelHandlerMockSendOnlyMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ChannelHandlerMockSendOnlyMethod{DependencyMethod: dm}
 }

@@ -34,7 +34,7 @@ func TestDependencyWithNamedParams(t *testing.T) {
 	}()
 
 	// Verify mock handles named parameters and returns correctly
-	imp.GetUser.Expect(ctx, 123).
+	imp.GetUser.ArgsEqual(ctx, 123).
 		Return(named.User{ID: 123, Name: "Alice"}, nil)
 }
 
@@ -50,11 +50,11 @@ func TestFunctionWithNamedParams(t *testing.T) {
 	call := StartProcessUser(t, named.ProcessUser, ctx, 456, mockRepo)
 
 	// Handle the repository call
-	repoImp.GetUser.Expect(ctx, 456).
+	repoImp.GetUser.ArgsEqual(ctx, 456).
 		Return(named.User{ID: 456, Name: "Bob"}, nil)
 
 	// Verify the wrapper received correct return values
-	call.ExpectReturn(named.User{ID: 456, Name: "Bob"}, nil)
+	call.ReturnsEqual(named.User{ID: 456, Name: "Bob"}, nil)
 }
 
 // TestMultipleMethods demonstrates that mocks handle multiple methods
@@ -82,15 +82,15 @@ func TestMultipleMethods(t *testing.T) {
 	}()
 
 	// Handle SaveUser
-	imp.SaveUser.Expect(ctx, named.User{ID: 789, Name: "Charlie"}).
+	imp.SaveUser.ArgsEqual(ctx, named.User{ID: 789, Name: "Charlie"}).
 		Return(named.User{ID: 789, Name: "Charlie"}, nil)
 
 	// Handle DeleteUser
-	imp.DeleteUser.Expect(ctx, 789).
+	imp.DeleteUser.ArgsEqual(ctx, 789).
 		Return(nil)
 
 	// Handle CountUsers
-	imp.CountUsers.Expect(ctx).
+	imp.CountUsers.ArgsEqual(ctx).
 		Return(3, nil)
 }
 
@@ -103,5 +103,5 @@ func TestTargetWithNamedReturns(t *testing.T) {
 	calc := named.Calculator{}
 
 	// Execute and verify named returns (quotient, remainder, err)
-	StartCalculatorDivide(t, calc.Divide, 10, 3).ExpectReturn(3, 1, nil)
+	StartCalculatorDivide(t, calc.Divide, 10, 3).ReturnsEqual(3, 1, nil)
 }

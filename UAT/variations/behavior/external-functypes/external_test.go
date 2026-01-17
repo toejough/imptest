@@ -30,5 +30,5 @@ func TestHttpHandlerFunc(t *testing.T) {
 	recorder := httptest.NewRecorder()
 
 	// Start the handler in a goroutine and verify completion
-	StartHandlerFunc(t, handler, recorder, req).ExpectCompletes()
+	StartHandlerFunc(t, handler, recorder, req).Completes()
 }

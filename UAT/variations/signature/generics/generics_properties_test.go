@@ -29,11 +29,11 @@ func TestProcessItem_Int_Property(t *testing.T) {
 		call := StartProcessItem[int](t, generics.ProcessItem[int], repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
-		repoImp.Get.Expect(key).Return(value, nil)
-		repoImp.Save.Expect(value * multiplier).Return(nil)
+		repoImp.Get.ArgsEqual(key).Return(value, nil)
+		repoImp.Save.ArgsEqual(value * multiplier).Return(nil)
 
 		// Property: Function returns nil on success
-		call.ExpectReturn(nil)
+		call.ReturnsEqual(nil)
 	})
 }
 
@@ -58,10 +58,10 @@ func TestProcessItem_String_Property(t *testing.T) {
 		call := StartProcessItem[string](t, generics.ProcessItem[string], repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
-		repoImp.Get.Expect(key).Return(value, nil)
-		repoImp.Save.Expect(value + suffix).Return(nil)
+		repoImp.Get.ArgsEqual(key).Return(value, nil)
+		repoImp.Save.ArgsEqual(value + suffix).Return(nil)
 
 		// Property: Function returns nil on success
-		call.ExpectReturn(nil)
+		call.ReturnsEqual(nil)
 	})
 }

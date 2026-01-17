@@ -16,8 +16,8 @@ type StartSideEffectFuncCallHandle struct {
 	Eventually *StartSideEffectFuncCallHandleEventually
 }
 
-// ExpectCompletes verifies the function completes without panicking.
-func (h *StartSideEffectFuncCallHandle) ExpectCompletes() {
+// Completes verifies the function completes without panicking.
+func (h *StartSideEffectFuncCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -26,8 +26,8 @@ func (h *StartSideEffectFuncCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartSideEffectFuncCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartSideEffectFuncCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -42,8 +42,8 @@ func (h *StartSideEffectFuncCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartSideEffectFuncCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartSideEffectFuncCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -63,13 +63,13 @@ type StartSideEffectFuncCallHandleEventually struct {
 	h *StartSideEffectFuncCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartSideEffectFuncCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartSideEffectFuncCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartSideEffectFuncCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartSideEffectFuncCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

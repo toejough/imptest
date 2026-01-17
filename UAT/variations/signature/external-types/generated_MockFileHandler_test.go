@@ -15,6 +15,15 @@ type FileHandlerImp struct {
 	ReadAll  *FileHandlerMockReadAllMethod
 	OpenFile *FileHandlerMockOpenFileMethod
 	Stats    *FileHandlerMockStatsMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *FileHandlerImpEventually
+}
+
+// FileHandlerImpEventually holds async method wrappers for FileHandler.
+type FileHandlerImpEventually struct {
+	ReadAll  *FileHandlerMockReadAllMethod
+	OpenFile *FileHandlerMockOpenFileMethod
+	Stats    *FileHandlerMockStatsMethod
 }
 
 // FileHandlerMockOpenFileArgs holds typed arguments for OpenFile.
@@ -45,19 +54,17 @@ func (c *FileHandlerMockOpenFileCall) Return(result0 *os.File, result1 error) {
 // FileHandlerMockOpenFileMethod wraps DependencyMethod with typed returns.
 type FileHandlerMockOpenFileMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *FileHandlerMockOpenFileMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *FileHandlerMockOpenFileMethod) Expect(path string, mode os.FileMode) *FileHandlerMockOpenFileCall {
-	call := m.DependencyMethod.Expect(path, mode)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *FileHandlerMockOpenFileMethod) ArgsEqual(path string, mode os.FileMode) *FileHandlerMockOpenFileCall {
+	call := m.DependencyMethod.ArgsEqual(path, mode)
 	return &FileHandlerMockOpenFileCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *FileHandlerMockOpenFileMethod) Match(matchers ...any) *FileHandlerMockOpenFileCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *FileHandlerMockOpenFileMethod) ArgsShould(matchers ...any) *FileHandlerMockOpenFileCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &FileHandlerMockOpenFileCall{DependencyCall: call}
 }
 
@@ -87,19 +94,17 @@ func (c *FileHandlerMockReadAllCall) Return(result0 []byte, result1 error) {
 // FileHandlerMockReadAllMethod wraps DependencyMethod with typed returns.
 type FileHandlerMockReadAllMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *FileHandlerMockReadAllMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *FileHandlerMockReadAllMethod) Expect(r io.Reader) *FileHandlerMockReadAllCall {
-	call := m.DependencyMethod.Expect(r)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *FileHandlerMockReadAllMethod) ArgsEqual(r io.Reader) *FileHandlerMockReadAllCall {
+	call := m.DependencyMethod.ArgsEqual(r)
 	return &FileHandlerMockReadAllCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *FileHandlerMockReadAllMethod) Match(matchers ...any) *FileHandlerMockReadAllCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *FileHandlerMockReadAllMethod) ArgsShould(matchers ...any) *FileHandlerMockReadAllCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &FileHandlerMockReadAllCall{DependencyCall: call}
 }
 
@@ -129,19 +134,17 @@ func (c *FileHandlerMockStatsCall) Return(result0 os.FileInfo, result1 error) {
 // FileHandlerMockStatsMethod wraps DependencyMethod with typed returns.
 type FileHandlerMockStatsMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *FileHandlerMockStatsMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *FileHandlerMockStatsMethod) Expect(path string) *FileHandlerMockStatsCall {
-	call := m.DependencyMethod.Expect(path)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *FileHandlerMockStatsMethod) ArgsEqual(path string) *FileHandlerMockStatsCall {
+	call := m.DependencyMethod.ArgsEqual(path)
 	return &FileHandlerMockStatsCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *FileHandlerMockStatsMethod) Match(matchers ...any) *FileHandlerMockStatsCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *FileHandlerMockStatsMethod) ArgsShould(matchers ...any) *FileHandlerMockStatsCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &FileHandlerMockStatsCall{DependencyCall: call}
 }
 
@@ -152,6 +155,11 @@ func MockFileHandler(t _imptest.TestReporter) (externalimports.FileHandler, *Fil
 		ReadAll:  newFileHandlerMockReadAllMethod(_imptest.NewDependencyMethod(ctrl, "ReadAll")),
 		OpenFile: newFileHandlerMockOpenFileMethod(_imptest.NewDependencyMethod(ctrl, "OpenFile")),
 		Stats:    newFileHandlerMockStatsMethod(_imptest.NewDependencyMethod(ctrl, "Stats")),
+	}
+	imp.Eventually = &FileHandlerImpEventually{
+		ReadAll:  newFileHandlerMockReadAllMethod(_imptest.NewDependencyMethod(ctrl, "ReadAll").AsEventually()),
+		OpenFile: newFileHandlerMockOpenFileMethod(_imptest.NewDependencyMethod(ctrl, "OpenFile").AsEventually()),
+		Stats:    newFileHandlerMockStatsMethod(_imptest.NewDependencyMethod(ctrl, "Stats").AsEventually()),
 	}
 	mock := &mockFileHandlerImpl{ctrl: ctrl}
 	return mock, imp
@@ -252,23 +260,17 @@ func (impl *mockFileHandlerImpl) Stats(path string) (os.FileInfo, error) {
 	return result1, result2
 }
 
-// newFileHandlerMockOpenFileMethod creates a typed method wrapper with Eventually initialized.
+// newFileHandlerMockOpenFileMethod creates a typed method wrapper.
 func newFileHandlerMockOpenFileMethod(dm *_imptest.DependencyMethod) *FileHandlerMockOpenFileMethod {
-	m := &FileHandlerMockOpenFileMethod{DependencyMethod: dm}
-	m.Eventually = &FileHandlerMockOpenFileMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &FileHandlerMockOpenFileMethod{DependencyMethod: dm}
 }
 
-// newFileHandlerMockReadAllMethod creates a typed method wrapper with Eventually initialized.
+// newFileHandlerMockReadAllMethod creates a typed method wrapper.
 func newFileHandlerMockReadAllMethod(dm *_imptest.DependencyMethod) *FileHandlerMockReadAllMethod {
-	m := &FileHandlerMockReadAllMethod{DependencyMethod: dm}
-	m.Eventually = &FileHandlerMockReadAllMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &FileHandlerMockReadAllMethod{DependencyMethod: dm}
 }
 
-// newFileHandlerMockStatsMethod creates a typed method wrapper with Eventually initialized.
+// newFileHandlerMockStatsMethod creates a typed method wrapper.
 func newFileHandlerMockStatsMethod(dm *_imptest.DependencyMethod) *FileHandlerMockStatsMethod {
-	m := &FileHandlerMockStatsMethod{DependencyMethod: dm}
-	m.Eventually = &FileHandlerMockStatsMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &FileHandlerMockStatsMethod{DependencyMethod: dm}
 }

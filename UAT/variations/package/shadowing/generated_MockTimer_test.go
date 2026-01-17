@@ -12,6 +12,14 @@ import (
 type TimerImp struct {
 	Wait       *TimerMockWaitMethod
 	GetElapsed *_imptest.DependencyMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *TimerImpEventually
+}
+
+// TimerImpEventually holds async method wrappers for Timer.
+type TimerImpEventually struct {
+	Wait       *TimerMockWaitMethod
+	GetElapsed *_imptest.DependencyMethod
 }
 
 // TimerMockGetElapsedCall wraps DependencyCall with typed GetArgs and Return.
@@ -50,19 +58,17 @@ func (c *TimerMockWaitCall) Return(result0 error) {
 // TimerMockWaitMethod wraps DependencyMethod with typed returns.
 type TimerMockWaitMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *TimerMockWaitMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *TimerMockWaitMethod) Expect(seconds int) *TimerMockWaitCall {
-	call := m.DependencyMethod.Expect(seconds)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *TimerMockWaitMethod) ArgsEqual(seconds int) *TimerMockWaitCall {
+	call := m.DependencyMethod.ArgsEqual(seconds)
 	return &TimerMockWaitCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *TimerMockWaitMethod) Match(matchers ...any) *TimerMockWaitCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *TimerMockWaitMethod) ArgsShould(matchers ...any) *TimerMockWaitCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &TimerMockWaitCall{DependencyCall: call}
 }
 
@@ -72,6 +78,10 @@ func MockTimer(t _imptest.TestReporter) (time.Timer, *TimerImp) {
 	imp := &TimerImp{
 		Wait:       newTimerMockWaitMethod(_imptest.NewDependencyMethod(ctrl, "Wait")),
 		GetElapsed: _imptest.NewDependencyMethod(ctrl, "GetElapsed"),
+	}
+	imp.Eventually = &TimerImpEventually{
+		Wait:       newTimerMockWaitMethod(_imptest.NewDependencyMethod(ctrl, "Wait").AsEventually()),
+		GetElapsed: _imptest.NewDependencyMethod(ctrl, "GetElapsed").AsEventually(),
 	}
 	mock := &mockTimerImpl{ctrl: ctrl}
 	return mock, imp
@@ -128,9 +138,7 @@ func (impl *mockTimerImpl) Wait(seconds int) error {
 	return result1
 }
 
-// newTimerMockWaitMethod creates a typed method wrapper with Eventually initialized.
+// newTimerMockWaitMethod creates a typed method wrapper.
 func newTimerMockWaitMethod(dm *_imptest.DependencyMethod) *TimerMockWaitMethod {
-	m := &TimerMockWaitMethod{DependencyMethod: dm}
-	m.Eventually = &TimerMockWaitMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &TimerMockWaitMethod{DependencyMethod: dm}
 }

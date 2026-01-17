@@ -12,6 +12,14 @@ import (
 type ReadCloserImp struct {
 	Read  *ReadCloserMockReadMethod
 	Close *_imptest.DependencyMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *ReadCloserImpEventually
+}
+
+// ReadCloserImpEventually holds async method wrappers for ReadCloser.
+type ReadCloserImpEventually struct {
+	Read  *ReadCloserMockReadMethod
+	Close *_imptest.DependencyMethod
 }
 
 // ReadCloserMockCloseCall wraps DependencyCall with typed GetArgs and Return.
@@ -50,19 +58,17 @@ func (c *ReadCloserMockReadCall) Return(result0 int, result1 error) {
 // ReadCloserMockReadMethod wraps DependencyMethod with typed returns.
 type ReadCloserMockReadMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ReadCloserMockReadMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ReadCloserMockReadMethod) Expect(p []byte) *ReadCloserMockReadCall {
-	call := m.DependencyMethod.Expect(p)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ReadCloserMockReadMethod) ArgsEqual(p []byte) *ReadCloserMockReadCall {
+	call := m.DependencyMethod.ArgsEqual(p)
 	return &ReadCloserMockReadCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ReadCloserMockReadMethod) Match(matchers ...any) *ReadCloserMockReadCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ReadCloserMockReadMethod) ArgsShould(matchers ...any) *ReadCloserMockReadCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ReadCloserMockReadCall{DependencyCall: call}
 }
 
@@ -72,6 +78,10 @@ func MockReadCloser(t _imptest.TestReporter) (embedded.ReadCloser, *ReadCloserIm
 	imp := &ReadCloserImp{
 		Read:  newReadCloserMockReadMethod(_imptest.NewDependencyMethod(ctrl, "Read")),
 		Close: _imptest.NewDependencyMethod(ctrl, "Close"),
+	}
+	imp.Eventually = &ReadCloserImpEventually{
+		Read:  newReadCloserMockReadMethod(_imptest.NewDependencyMethod(ctrl, "Read").AsEventually()),
+		Close: _imptest.NewDependencyMethod(ctrl, "Close").AsEventually(),
 	}
 	mock := &mockReadCloserImpl{ctrl: ctrl}
 	return mock, imp
@@ -135,9 +145,7 @@ func (impl *mockReadCloserImpl) Read(p []byte) (int, error) {
 	return result1, result2
 }
 
-// newReadCloserMockReadMethod creates a typed method wrapper with Eventually initialized.
+// newReadCloserMockReadMethod creates a typed method wrapper.
 func newReadCloserMockReadMethod(dm *_imptest.DependencyMethod) *ReadCloserMockReadMethod {
-	m := &ReadCloserMockReadMethod{DependencyMethod: dm}
-	m.Eventually = &ReadCloserMockReadMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ReadCloserMockReadMethod{DependencyMethod: dm}
 }

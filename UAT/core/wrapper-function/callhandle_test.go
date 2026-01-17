@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
 )
 
@@ -41,9 +42,9 @@ func TestCallHandle_ConcurrentCalls(t *testing.T) {
 	call3 := StartSlowAddFunc(t, slowAdd, 100, 200, 10*time.Millisecond)
 
 	// Despite finish order (3, 2, 1), each handle should track its own result
-	call1.ExpectReturn(3)
-	call2.ExpectReturn(30)
-	call3.ExpectReturn(300)
+	call1.ReturnsEqual(3)
+	call2.ReturnsEqual(30)
+	call3.ReturnsEqual(300)
 }
 
 // TestCallHandle_EventuallyExpectPanic verifies async Eventually with panic expectations.
@@ -53,7 +54,7 @@ func TestCallHandle_EventuallyExpectPanic(t *testing.T) {
 	call := StartPanicWithMessage(t, callable.PanicWithMessage, "expected panic")
 
 	// Register panic expectation (NON-BLOCKING)
-	call.Eventually.ExpectPanic("expected panic")
+	call.Eventually.PanicEquals("expected panic")
 
 	// Wait for expectation to be satisfied
 	imptest.Wait(t)
@@ -79,10 +80,10 @@ func TestCallHandle_EventuallyExpectReturns(t *testing.T) {
 	call3 := StartSlowAddFunc(t, slowAdd, 100, 200, 10*time.Millisecond)
 
 	// Register expectations (NON-BLOCKING) - this is the key difference from current API
-	// With regular ExpectReturn, we'd block on call1 before moving to call2
-	call1.Eventually.ExpectReturn(3)
-	call2.Eventually.ExpectReturn(30)
-	call3.Eventually.ExpectReturn(300)
+	// With regular ReturnsEqual, we'd block on call1 before moving to call2
+	call1.Eventually.ReturnsEqual(3)
+	call2.Eventually.ReturnsEqual(30)
+	call3.Eventually.ReturnsEqual(300)
 
 	// Wait for all expectations to be satisfied
 	imptest.Wait(t)
@@ -103,9 +104,9 @@ func TestCallHandle_ExpectCallsWaitForResponse(t *testing.T) {
 
 	call := StartSlowFuncFunc(t, slowFunc)
 
-	// ExpectReturn should wait internally - no need to call WaitForResponse first
+	// ReturnsEqual should wait internally - no need to call WaitForResponse first
 	// If this fails (times out or gets wrong value), the Expect method didn't wait properly
-	call.ExpectReturn(42)
+	call.ReturnsEqual(42)
 }
 
 // TestCallHandle_ExpectReturnMatch verifies ExpectReturnMatch method works.
@@ -122,20 +123,20 @@ func TestCallHandle_ExpectReturnMatch(t *testing.T) {
 
 	call := StartProcessFunc(t, process, 10)
 
-	// Should be able to use matchers (using Any() matcher)
-	call.ExpectReturnMatch(
-		imptest.Any,
-		imptest.Any,
+	// Should be able to use matchers (using BeAny matcher)
+	call.ReturnsShould(
+		match.BeAny,
+		match.BeAny,
 	)
 }
 
 // TestCallHandle_HasExpectMethods verifies call handles have proper Expect* methods.
 //
 // REQUIREMENT: Call handles must have these methods:
-// - ExpectReturn(...)
-// - ExpectReturnMatch(...)
-// - ExpectPanic(...)
-// - ExpectPanicMatch(...)
+// - ReturnsEqual(...)
+// - ReturnsShould(...)
+// - PanicEquals(...)
+// - PanicShould(...)
 func TestCallHandle_HasExpectMethods(t *testing.T) {
 	t.Parallel()
 
@@ -143,8 +144,8 @@ func TestCallHandle_HasExpectMethods(t *testing.T) {
 
 	call := StartMultiplyFunc(t, multiply, 5, 7)
 
-	// ExpectReturn should work
-	call.ExpectReturn(35)
+	// ReturnsEqual should work
+	call.ReturnsEqual(35)
 }
 
 // TestCallHandle_InterleavedStarts verifies starting calls in sequence doesn't break independence.
@@ -162,8 +163,8 @@ func TestCallHandle_InterleavedStarts(t *testing.T) {
 	call2 := StartSlowMultiplyFunc(t, slowMultiply, 20, 10*time.Millisecond)
 
 	// Verify in order started (not finish order)
-	call1.ExpectReturn(20)
-	call2.ExpectReturn(40)
+	call1.ReturnsEqual(20)
+	call2.ReturnsEqual(40)
 }
 
 // TestCallHandle_ManualFieldAccess verifies manual access to Returned/Panic fields.
@@ -238,7 +239,7 @@ func TestCallHandle_MultipleReturns(t *testing.T) {
 	}
 
 	call := StartComputeFunc(t, compute, 21)
-	call.ExpectReturn(42, "computed", true)
+	call.ReturnsEqual(42, "computed", true)
 }
 
 // TestCallHandle_NoReturns verifies handles work with functions that have no returns.
@@ -276,20 +277,20 @@ func TestCallHandle_PanicAndReturnDifferentCalls(t *testing.T) {
 	callReturn := StartConditionalFunc(t, conditional, 5)
 
 	// One should panic, one should return - independent verification
-	callPanic.ExpectPanic("negative value")
-	callReturn.ExpectReturn(50)
+	callPanic.PanicEquals("negative value")
+	callReturn.ReturnsEqual(50)
 }
 
 // TestCallHandle_PanicCapture verifies panic handling with call handles.
 //
-// REQUIREMENT: Call handles must support ExpectPanic() and ExpectPanicMatch().
+// REQUIREMENT: Call handles must support PanicEquals() and PanicShould().
 func TestCallHandle_PanicCapture(t *testing.T) {
 	t.Parallel()
 
 	panicFunc := func() { panic("boom") }
 
 	call := StartPanicFunc(t, panicFunc)
-	call.ExpectPanic("boom")
+	call.PanicEquals("boom")
 }
 
 // TestCallHandle_PanicMatches verifies panic matching with matchers.
@@ -297,8 +298,8 @@ func TestCallHandle_PanicMatches(t *testing.T) {
 	t.Parallel()
 
 	call := StartPanicWithMessage(t, callable.PanicWithMessage, "critical error")
-	// Use Any() matcher to accept any panic value
-	call.ExpectPanicMatch(imptest.Any)
+	// Use BeAny matcher to accept any panic value
+	call.PanicShould(match.BeAny)
 }
 
 // TestCallHandle_UniqueHandles verifies that each Start() call returns a unique call handle.
@@ -321,6 +322,6 @@ func TestCallHandle_UniqueHandles(t *testing.T) {
 	}
 
 	// Each handle should independently verify its own results
-	call1.ExpectReturn(30)
-	call2.ExpectReturn(70)
+	call1.ReturnsEqual(30)
+	call2.ReturnsEqual(70)
 }

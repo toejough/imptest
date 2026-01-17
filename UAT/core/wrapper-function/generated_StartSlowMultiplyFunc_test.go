@@ -18,8 +18,8 @@ type StartSlowMultiplyFuncCallHandle struct {
 	Eventually *StartSlowMultiplyFuncCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartSlowMultiplyFuncCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartSlowMultiplyFuncCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *StartSlowMultiplyFuncCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartSlowMultiplyFuncCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartSlowMultiplyFuncCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *StartSlowMultiplyFuncCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartSlowMultiplyFuncCallHandle) ExpectReturn(v0 int) {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartSlowMultiplyFuncCallHandle) ReturnsEqual(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -65,8 +65,8 @@ func (h *StartSlowMultiplyFuncCallHandle) ExpectReturn(v0 int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartSlowMultiplyFuncCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartSlowMultiplyFuncCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -88,13 +88,13 @@ type StartSlowMultiplyFuncCallHandleEventually struct {
 	h *StartSlowMultiplyFuncCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartSlowMultiplyFuncCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartSlowMultiplyFuncCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartSlowMultiplyFuncCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartSlowMultiplyFuncCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

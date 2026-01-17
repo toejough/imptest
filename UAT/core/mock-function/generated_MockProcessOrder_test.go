@@ -37,19 +37,19 @@ func (c *ProcessOrderMockCall) Return(result0 *mockfunction.Order, result1 error
 // ProcessOrderMockMethod wraps DependencyMethod with typed returns.
 type ProcessOrderMockMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
+	// Eventually provides async version of this function for concurrent code.
 	Eventually *ProcessOrderMockMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ProcessOrderMockMethod) Expect(ctx context.Context, orderID int) *ProcessOrderMockCall {
-	call := m.DependencyMethod.Expect(ctx, orderID)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ProcessOrderMockMethod) ArgsEqual(ctx context.Context, orderID int) *ProcessOrderMockCall {
+	call := m.DependencyMethod.ArgsEqual(ctx, orderID)
 	return &ProcessOrderMockCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ProcessOrderMockMethod) Match(matchers ...any) *ProcessOrderMockCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ProcessOrderMockMethod) ArgsShould(matchers ...any) *ProcessOrderMockCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ProcessOrderMockCall{DependencyCall: call}
 }
 
@@ -91,6 +91,6 @@ func MockProcessOrder(t _imptest.TestReporter) (func(ctx context.Context, orderI
 // newProcessOrderMockMethod creates a typed method wrapper with Eventually initialized.
 func newProcessOrderMockMethod(dm *_imptest.DependencyMethod) *ProcessOrderMockMethod {
 	m := &ProcessOrderMockMethod{DependencyMethod: dm}
-	m.Eventually = &ProcessOrderMockMethod{DependencyMethod: dm.Eventually}
+	m.Eventually = &ProcessOrderMockMethod{DependencyMethod: dm.AsEventually()}
 	return m
 }

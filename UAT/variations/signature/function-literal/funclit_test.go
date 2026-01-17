@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 	funclit "github.com/toejough/imptest/UAT/variations/signature/function-literal"
 )
 
@@ -36,7 +36,7 @@ func TestDependencyWithFunctionLiterals(t *testing.T) {
 
 	// Verify mock handles function literal parameter correctly
 	// Note: Function literals can't be compared with ==, so use matcher
-	imp.Transform.Match(items, imptest.Any).
+	imp.Transform.ArgsShould(items, match.BeAny).
 		Return([]int{2, 4, 6}, nil)
 }
 
@@ -53,7 +53,7 @@ func TestDependencyWithPredicate(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Filter.Match(items, imptest.Any).
+	imp.Filter.ArgsShould(items, match.BeAny).
 		Return([]int{2, 4})
 }
 
@@ -71,7 +71,7 @@ func TestDependencyWithReducer(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Reduce.Match(items, imptest.Any, imptest.Any).
+	imp.Reduce.ArgsShould(items, match.BeAny, match.BeAny).
 		Return(10)
 }
 
@@ -82,7 +82,7 @@ func TestFunctionWithPredicate(t *testing.T) {
 	items := []int{1, 2, 3, 4, 5, 6}
 	isOdd := func(x int) bool { return x%2 == 1 }
 
-	StartFilter(t, funclit.Filter, items, isOdd).ExpectReturn([]int{1, 3, 5})
+	StartFilter(t, funclit.Filter, items, isOdd).ReturnsEqual([]int{1, 3, 5})
 }
 
 // TestFunctionWithTransform demonstrates wrapping standalone functions
@@ -93,7 +93,7 @@ func TestFunctionWithTransform(t *testing.T) {
 	items := []int{1, 2, 3}
 	double := func(x int) int { return x * 2 }
 
-	StartMap(t, funclit.Map, items, double).ExpectReturn([]int{2, 4, 6})
+	StartMap(t, funclit.Map, items, double).ReturnsEqual([]int{2, 4, 6})
 }
 
 // TestMultipleFunctionLiterals demonstrates handling multiple function literal
@@ -113,7 +113,7 @@ func TestMultipleFunctionLiterals(t *testing.T) {
 		_ = err
 	}()
 
-	imp.Transform.Match(items, imptest.Any).
+	imp.Transform.ArgsShould(items, match.BeAny).
 		Return([]int{3, 6, 9, 12, 15}, nil)
 
 	// Second call: Filter on same mock
@@ -124,7 +124,7 @@ func TestMultipleFunctionLiterals(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Filter.Match(items, imptest.Any).
+	imp.Filter.ArgsShould(items, match.BeAny).
 		Return([]int{12, 15})
 }
 
@@ -141,7 +141,7 @@ func TestTargetWithCallback(t *testing.T) {
 	}
 
 	// Execute and verify
-	StartExecutorRun(t, executor.Run, callback).ExpectReturn(nil)
+	StartExecutorRun(t, executor.Run, callback).ReturnsEqual(nil)
 
 	if !callbackCalled {
 		t.Error("expected callback to be called")
@@ -158,5 +158,5 @@ func TestTargetWithCallbackError(t *testing.T) {
 		return expectedErr
 	}
 
-	StartExecutorRun(t, executor.Run, callback).ExpectReturn(expectedErr)
+	StartExecutorRun(t, executor.Run, callback).ReturnsEqual(expectedErr)
 }

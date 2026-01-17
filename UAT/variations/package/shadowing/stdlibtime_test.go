@@ -19,7 +19,7 @@ func TestStdlibTimeTypes(t *testing.T) {
 		_ = mock.ScheduleAt("task1", scheduledTime)
 	}()
 
-	imp.ScheduleAt.Expect("task1", scheduledTime).Return(nil)
+	imp.ScheduleAt.ArgsEqual("task1", scheduledTime).Return(nil)
 
 	// Test time.Duration as parameter
 	delay := 5 * time.Minute
@@ -28,7 +28,7 @@ func TestStdlibTimeTypes(t *testing.T) {
 		_ = mock.Delay("task2", delay)
 	}()
 
-	imp.Delay.Expect("task2", delay).Return(nil)
+	imp.Delay.ArgsEqual("task2", delay).Return(nil)
 
 	// Test time.Time as return value
 	expectedTime := time.Date(2025, 12, 28, 10, 30, 0, 0, time.UTC)
@@ -37,12 +37,12 @@ func TestStdlibTimeTypes(t *testing.T) {
 		_, _ = mock.NextRun()
 	}()
 
-	imp.NextRun.Expect().Return(expectedTime, nil)
+	imp.NextRun.Called().Return(expectedTime, nil)
 
 	// Test time.Duration as return value
 	go func() {
 		_ = mock.GetInterval("task3")
 	}()
 
-	imp.GetInterval.Expect("task3").Return(10 * time.Second)
+	imp.GetInterval.ArgsEqual("task3").Return(10 * time.Second)
 }

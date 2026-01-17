@@ -12,6 +12,14 @@ import (
 type DataProcessorImp struct {
 	ProcessSlice *DataProcessorMockProcessSliceMethod
 	ProcessMap   *DataProcessorMockProcessMapMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *DataProcessorImpEventually
+}
+
+// DataProcessorImpEventually holds async method wrappers for DataProcessor.
+type DataProcessorImpEventually struct {
+	ProcessSlice *DataProcessorMockProcessSliceMethod
+	ProcessMap   *DataProcessorMockProcessMapMethod
 }
 
 // DataProcessorMockProcessMapArgs holds typed arguments for ProcessMap.
@@ -40,19 +48,17 @@ func (c *DataProcessorMockProcessMapCall) Return(result0 bool) {
 // DataProcessorMockProcessMapMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessMapMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *DataProcessorMockProcessMapMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockProcessMapMethod) Expect(config map[string]int) *DataProcessorMockProcessMapCall {
-	call := m.DependencyMethod.Expect(config)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockProcessMapMethod) ArgsEqual(config map[string]int) *DataProcessorMockProcessMapCall {
+	call := m.DependencyMethod.ArgsEqual(config)
 	return &DataProcessorMockProcessMapCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockProcessMapMethod) Match(matchers ...any) *DataProcessorMockProcessMapCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockProcessMapMethod) ArgsShould(matchers ...any) *DataProcessorMockProcessMapCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &DataProcessorMockProcessMapCall{DependencyCall: call}
 }
 
@@ -82,19 +88,17 @@ func (c *DataProcessorMockProcessSliceCall) Return(result0 int) {
 // DataProcessorMockProcessSliceMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessSliceMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *DataProcessorMockProcessSliceMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockProcessSliceMethod) Expect(data []string) *DataProcessorMockProcessSliceCall {
-	call := m.DependencyMethod.Expect(data)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockProcessSliceMethod) ArgsEqual(data []string) *DataProcessorMockProcessSliceCall {
+	call := m.DependencyMethod.ArgsEqual(data)
 	return &DataProcessorMockProcessSliceCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockProcessSliceMethod) Match(matchers ...any) *DataProcessorMockProcessSliceCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockProcessSliceMethod) ArgsShould(matchers ...any) *DataProcessorMockProcessSliceCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &DataProcessorMockProcessSliceCall{DependencyCall: call}
 }
 
@@ -104,6 +108,10 @@ func MockDataProcessor(t _imptest.TestReporter) (noncomparable.DataProcessor, *D
 	imp := &DataProcessorImp{
 		ProcessSlice: newDataProcessorMockProcessSliceMethod(_imptest.NewDependencyMethod(ctrl, "ProcessSlice")),
 		ProcessMap:   newDataProcessorMockProcessMapMethod(_imptest.NewDependencyMethod(ctrl, "ProcessMap")),
+	}
+	imp.Eventually = &DataProcessorImpEventually{
+		ProcessSlice: newDataProcessorMockProcessSliceMethod(_imptest.NewDependencyMethod(ctrl, "ProcessSlice").AsEventually()),
+		ProcessMap:   newDataProcessorMockProcessMapMethod(_imptest.NewDependencyMethod(ctrl, "ProcessMap").AsEventually()),
 	}
 	mock := &mockDataProcessorImpl{ctrl: ctrl}
 	return mock, imp
@@ -160,16 +168,12 @@ func (impl *mockDataProcessorImpl) ProcessSlice(data []string) int {
 	return result1
 }
 
-// newDataProcessorMockProcessMapMethod creates a typed method wrapper with Eventually initialized.
+// newDataProcessorMockProcessMapMethod creates a typed method wrapper.
 func newDataProcessorMockProcessMapMethod(dm *_imptest.DependencyMethod) *DataProcessorMockProcessMapMethod {
-	m := &DataProcessorMockProcessMapMethod{DependencyMethod: dm}
-	m.Eventually = &DataProcessorMockProcessMapMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &DataProcessorMockProcessMapMethod{DependencyMethod: dm}
 }
 
-// newDataProcessorMockProcessSliceMethod creates a typed method wrapper with Eventually initialized.
+// newDataProcessorMockProcessSliceMethod creates a typed method wrapper.
 func newDataProcessorMockProcessSliceMethod(dm *_imptest.DependencyMethod) *DataProcessorMockProcessSliceMethod {
-	m := &DataProcessorMockProcessSliceMethod{DependencyMethod: dm}
-	m.Eventually = &DataProcessorMockProcessSliceMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &DataProcessorMockProcessSliceMethod{DependencyMethod: dm}
 }

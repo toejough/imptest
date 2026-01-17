@@ -15,6 +15,16 @@ type SchedulerImp struct {
 	Delay       *SchedulerMockDelayMethod
 	NextRun     *_imptest.DependencyMethod
 	GetInterval *SchedulerMockGetIntervalMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *SchedulerImpEventually
+}
+
+// SchedulerImpEventually holds async method wrappers for Scheduler.
+type SchedulerImpEventually struct {
+	ScheduleAt  *SchedulerMockScheduleAtMethod
+	Delay       *SchedulerMockDelayMethod
+	NextRun     *_imptest.DependencyMethod
+	GetInterval *SchedulerMockGetIntervalMethod
 }
 
 // SchedulerMockDelayArgs holds typed arguments for Delay.
@@ -45,19 +55,17 @@ func (c *SchedulerMockDelayCall) Return(result0 error) {
 // SchedulerMockDelayMethod wraps DependencyMethod with typed returns.
 type SchedulerMockDelayMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *SchedulerMockDelayMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *SchedulerMockDelayMethod) Expect(taskID string, duration time.Duration) *SchedulerMockDelayCall {
-	call := m.DependencyMethod.Expect(taskID, duration)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *SchedulerMockDelayMethod) ArgsEqual(taskID string, duration time.Duration) *SchedulerMockDelayCall {
+	call := m.DependencyMethod.ArgsEqual(taskID, duration)
 	return &SchedulerMockDelayCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *SchedulerMockDelayMethod) Match(matchers ...any) *SchedulerMockDelayCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *SchedulerMockDelayMethod) ArgsShould(matchers ...any) *SchedulerMockDelayCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &SchedulerMockDelayCall{DependencyCall: call}
 }
 
@@ -87,19 +95,17 @@ func (c *SchedulerMockGetIntervalCall) Return(result0 time.Duration) {
 // SchedulerMockGetIntervalMethod wraps DependencyMethod with typed returns.
 type SchedulerMockGetIntervalMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *SchedulerMockGetIntervalMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *SchedulerMockGetIntervalMethod) Expect(taskID string) *SchedulerMockGetIntervalCall {
-	call := m.DependencyMethod.Expect(taskID)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *SchedulerMockGetIntervalMethod) ArgsEqual(taskID string) *SchedulerMockGetIntervalCall {
+	call := m.DependencyMethod.ArgsEqual(taskID)
 	return &SchedulerMockGetIntervalCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *SchedulerMockGetIntervalMethod) Match(matchers ...any) *SchedulerMockGetIntervalCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *SchedulerMockGetIntervalMethod) ArgsShould(matchers ...any) *SchedulerMockGetIntervalCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &SchedulerMockGetIntervalCall{DependencyCall: call}
 }
 
@@ -141,19 +147,17 @@ func (c *SchedulerMockScheduleAtCall) Return(result0 error) {
 // SchedulerMockScheduleAtMethod wraps DependencyMethod with typed returns.
 type SchedulerMockScheduleAtMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *SchedulerMockScheduleAtMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *SchedulerMockScheduleAtMethod) Expect(taskID string, when time.Time) *SchedulerMockScheduleAtCall {
-	call := m.DependencyMethod.Expect(taskID, when)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *SchedulerMockScheduleAtMethod) ArgsEqual(taskID string, when time.Time) *SchedulerMockScheduleAtCall {
+	call := m.DependencyMethod.ArgsEqual(taskID, when)
 	return &SchedulerMockScheduleAtCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *SchedulerMockScheduleAtMethod) Match(matchers ...any) *SchedulerMockScheduleAtCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *SchedulerMockScheduleAtMethod) ArgsShould(matchers ...any) *SchedulerMockScheduleAtCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &SchedulerMockScheduleAtCall{DependencyCall: call}
 }
 
@@ -165,6 +169,12 @@ func MockScheduler(t _imptest.TestReporter) (timeconflict.Scheduler, *SchedulerI
 		Delay:       newSchedulerMockDelayMethod(_imptest.NewDependencyMethod(ctrl, "Delay")),
 		NextRun:     _imptest.NewDependencyMethod(ctrl, "NextRun"),
 		GetInterval: newSchedulerMockGetIntervalMethod(_imptest.NewDependencyMethod(ctrl, "GetInterval")),
+	}
+	imp.Eventually = &SchedulerImpEventually{
+		ScheduleAt:  newSchedulerMockScheduleAtMethod(_imptest.NewDependencyMethod(ctrl, "ScheduleAt").AsEventually()),
+		Delay:       newSchedulerMockDelayMethod(_imptest.NewDependencyMethod(ctrl, "Delay").AsEventually()),
+		NextRun:     _imptest.NewDependencyMethod(ctrl, "NextRun").AsEventually(),
+		GetInterval: newSchedulerMockGetIntervalMethod(_imptest.NewDependencyMethod(ctrl, "GetInterval").AsEventually()),
 	}
 	mock := &mockSchedulerImpl{ctrl: ctrl}
 	return mock, imp
@@ -274,23 +284,17 @@ func (impl *mockSchedulerImpl) ScheduleAt(taskID string, when time.Time) error {
 	return result1
 }
 
-// newSchedulerMockDelayMethod creates a typed method wrapper with Eventually initialized.
+// newSchedulerMockDelayMethod creates a typed method wrapper.
 func newSchedulerMockDelayMethod(dm *_imptest.DependencyMethod) *SchedulerMockDelayMethod {
-	m := &SchedulerMockDelayMethod{DependencyMethod: dm}
-	m.Eventually = &SchedulerMockDelayMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &SchedulerMockDelayMethod{DependencyMethod: dm}
 }
 
-// newSchedulerMockGetIntervalMethod creates a typed method wrapper with Eventually initialized.
+// newSchedulerMockGetIntervalMethod creates a typed method wrapper.
 func newSchedulerMockGetIntervalMethod(dm *_imptest.DependencyMethod) *SchedulerMockGetIntervalMethod {
-	m := &SchedulerMockGetIntervalMethod{DependencyMethod: dm}
-	m.Eventually = &SchedulerMockGetIntervalMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &SchedulerMockGetIntervalMethod{DependencyMethod: dm}
 }
 
-// newSchedulerMockScheduleAtMethod creates a typed method wrapper with Eventually initialized.
+// newSchedulerMockScheduleAtMethod creates a typed method wrapper.
 func newSchedulerMockScheduleAtMethod(dm *_imptest.DependencyMethod) *SchedulerMockScheduleAtMethod {
-	m := &SchedulerMockScheduleAtMethod{DependencyMethod: dm}
-	m.Eventually = &SchedulerMockScheduleAtMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &SchedulerMockScheduleAtMethod{DependencyMethod: dm}
 }

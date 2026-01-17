@@ -11,6 +11,13 @@ import (
 // ComplexServiceImp holds method wrappers for setting expectations on ComplexService.
 type ComplexServiceImp struct {
 	Process *ComplexServiceMockProcessMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *ComplexServiceImpEventually
+}
+
+// ComplexServiceImpEventually holds async method wrappers for ComplexService.
+type ComplexServiceImpEventually struct {
+	Process *ComplexServiceMockProcessMethod
 }
 
 // ComplexServiceMockProcessArgs holds typed arguments for Process.
@@ -39,19 +46,17 @@ func (c *ComplexServiceMockProcessCall) Return(result0 bool) {
 // ComplexServiceMockProcessMethod wraps DependencyMethod with typed returns.
 type ComplexServiceMockProcessMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ComplexServiceMockProcessMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ComplexServiceMockProcessMethod) Expect(d matching.Data) *ComplexServiceMockProcessCall {
-	call := m.DependencyMethod.Expect(d)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ComplexServiceMockProcessMethod) ArgsEqual(d matching.Data) *ComplexServiceMockProcessCall {
+	call := m.DependencyMethod.ArgsEqual(d)
 	return &ComplexServiceMockProcessCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ComplexServiceMockProcessMethod) Match(matchers ...any) *ComplexServiceMockProcessCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ComplexServiceMockProcessMethod) ArgsShould(matchers ...any) *ComplexServiceMockProcessCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ComplexServiceMockProcessCall{DependencyCall: call}
 }
 
@@ -60,6 +65,9 @@ func MockComplexService(t _imptest.TestReporter) (matching.ComplexService, *Comp
 	ctrl := _imptest.GetOrCreateImp(t)
 	imp := &ComplexServiceImp{
 		Process: newComplexServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
+	}
+	imp.Eventually = &ComplexServiceImpEventually{
+		Process: newComplexServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process").AsEventually()),
 	}
 	mock := &mockComplexServiceImpl{ctrl: ctrl}
 	return mock, imp
@@ -93,9 +101,7 @@ func (impl *mockComplexServiceImpl) Process(d matching.Data) bool {
 	return result1
 }
 
-// newComplexServiceMockProcessMethod creates a typed method wrapper with Eventually initialized.
+// newComplexServiceMockProcessMethod creates a typed method wrapper.
 func newComplexServiceMockProcessMethod(dm *_imptest.DependencyMethod) *ComplexServiceMockProcessMethod {
-	m := &ComplexServiceMockProcessMethod{DependencyMethod: dm}
-	m.Eventually = &ComplexServiceMockProcessMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ComplexServiceMockProcessMethod{DependencyMethod: dm}
 }

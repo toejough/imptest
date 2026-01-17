@@ -8,7 +8,7 @@ import (
 	"io/fs"
 	"testing"
 
-	imptest "github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 	visitor "github.com/toejough/imptest/UAT/variations/behavior/callbacks"
 )
 
@@ -22,7 +22,7 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	wrapperCall := StartCountFiles(t, visitor.CountFiles, mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call without Eventually to see if that's the issue
-	call := imp.Walk.Match("/test", imptest.Any)
+	call := imp.Walk.ArgsShould("/test", match.BeAny)
 
 	// V2 Pattern: Extract the callback from args using the typed wrapper
 	args := call.GetArgs()
@@ -39,7 +39,7 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	call.Return(nil)
 
 	// Verify the function completed successfully
-	wrapperCall.ExpectReturn(1, nil)
+	wrapperCall.ReturnsEqual(1, nil)
 }
 
 func TestCallbackPanicSupport(t *testing.T) {
@@ -56,7 +56,7 @@ func TestCallbackPanicSupport(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for the Walk call
-	call := imp.Walk.Eventually.Match("/test", imptest.Any)
+	call := imp.Eventually.Walk.ArgsShould("/test", match.BeAny)
 
 	// V2 Pattern: Extract callback and invoke it, catching the panic
 	rawArgs := call.RawArgs()
@@ -95,7 +95,7 @@ func TestCountFiles(t *testing.T) {
 	wrapperCall := StartCountFiles(t, visitor.CountFiles, mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call
-	call := imp.Walk.Eventually.Match("/test", imptest.Any)
+	call := imp.Eventually.Walk.ArgsShould("/test", match.BeAny)
 
 	// V2 Pattern: Extract the callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
@@ -127,7 +127,7 @@ func TestCountFiles(t *testing.T) {
 	call.Return(nil)
 
 	// Verify the results - should count only the 2 non-directory entries
-	wrapperCall.ExpectReturn(2, nil)
+	wrapperCall.ReturnsEqual(2, nil)
 }
 
 func TestWalkWithNamedType(t *testing.T) {
@@ -144,7 +144,7 @@ func TestWalkWithNamedType(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for and verify the WalkWithNamedType call
-	call := imp.WalkWithNamedType.Eventually.Match("/data", imptest.Any)
+	call := imp.Eventually.WalkWithNamedType.ArgsShould("/data", match.BeAny)
 
 	// V2 Pattern: Extract callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()

@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 )
 
 // TestSamePackageInterfaces tests that interfaces using other interfaces
@@ -34,9 +34,9 @@ func TestSamePackageInterfaces(t *testing.T) {
 	// Note: The mock's Process method doesn't actually call source.GetData() or sink.PutData(),
 	// it just receives the interface values as arguments and waits for the test to inject a return.
 	go func() {
-		procImp.Process.Match(
-			imptest.Any,
-			imptest.Any,
+		procImp.Process.ArgsShould(
+			match.BeAny,
+			match.BeAny,
 		).Return(testErr)
 	}()
 
@@ -66,8 +66,8 @@ func TestTransformReturnsInterface(t *testing.T) {
 
 	// Set up processor to return a different source
 	go func() {
-		procImp.Transform.Match(
-			imptest.Any,
+		procImp.Transform.ArgsShould(
+			match.BeAny,
 		).Return(expectedOutput, nil)
 	}()
 

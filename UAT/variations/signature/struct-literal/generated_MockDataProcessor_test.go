@@ -14,6 +14,16 @@ type DataProcessorImp struct {
 	Transform *DataProcessorMockTransformMethod
 	GetConfig *_imptest.DependencyMethod
 	Apply     *DataProcessorMockApplyMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *DataProcessorImpEventually
+}
+
+// DataProcessorImpEventually holds async method wrappers for DataProcessor.
+type DataProcessorImpEventually struct {
+	Process   *DataProcessorMockProcessMethod
+	Transform *DataProcessorMockTransformMethod
+	GetConfig *_imptest.DependencyMethod
+	Apply     *DataProcessorMockApplyMethod
 }
 
 // DataProcessorMockApplyArgs holds typed arguments for Apply.
@@ -42,19 +52,17 @@ func (c *DataProcessorMockApplyCall) Return(result0 struct{ Status int }) {
 // DataProcessorMockApplyMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockApplyMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *DataProcessorMockApplyMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockApplyMethod) Expect(req struct{ Method string }) *DataProcessorMockApplyCall {
-	call := m.DependencyMethod.Expect(req)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockApplyMethod) ArgsEqual(req struct{ Method string }) *DataProcessorMockApplyCall {
+	call := m.DependencyMethod.ArgsEqual(req)
 	return &DataProcessorMockApplyCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockApplyMethod) Match(matchers ...any) *DataProcessorMockApplyCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockApplyMethod) ArgsShould(matchers ...any) *DataProcessorMockApplyCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &DataProcessorMockApplyCall{DependencyCall: call}
 }
 
@@ -97,19 +105,17 @@ func (c *DataProcessorMockProcessCall) Return(result0 error) {
 // DataProcessorMockProcessMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *DataProcessorMockProcessMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockProcessMethod) Expect(cfg struct{ Timeout int }) *DataProcessorMockProcessCall {
-	call := m.DependencyMethod.Expect(cfg)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockProcessMethod) ArgsEqual(cfg struct{ Timeout int }) *DataProcessorMockProcessCall {
+	call := m.DependencyMethod.ArgsEqual(cfg)
 	return &DataProcessorMockProcessCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockProcessMethod) Match(matchers ...any) *DataProcessorMockProcessCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockProcessMethod) ArgsShould(matchers ...any) *DataProcessorMockProcessCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &DataProcessorMockProcessCall{DependencyCall: call}
 }
 
@@ -145,22 +151,20 @@ func (c *DataProcessorMockTransformCall) Return(result0 string, result1 error) {
 // DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
 type DataProcessorMockTransformMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *DataProcessorMockTransformMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockTransformMethod) Expect(opts struct {
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockTransformMethod) ArgsEqual(opts struct {
 	Debug bool
 	Level int
 }) *DataProcessorMockTransformCall {
-	call := m.DependencyMethod.Expect(opts)
+	call := m.DependencyMethod.ArgsEqual(opts)
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockTransformMethod) Match(matchers ...any) *DataProcessorMockTransformCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockTransformMethod) ArgsShould(matchers ...any) *DataProcessorMockTransformCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
@@ -172,6 +176,12 @@ func MockDataProcessor(t _imptest.TestReporter) (structlit.DataProcessor, *DataP
 		Transform: newDataProcessorMockTransformMethod(_imptest.NewDependencyMethod(ctrl, "Transform")),
 		GetConfig: _imptest.NewDependencyMethod(ctrl, "GetConfig"),
 		Apply:     newDataProcessorMockApplyMethod(_imptest.NewDependencyMethod(ctrl, "Apply")),
+	}
+	imp.Eventually = &DataProcessorImpEventually{
+		Process:   newDataProcessorMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process").AsEventually()),
+		Transform: newDataProcessorMockTransformMethod(_imptest.NewDependencyMethod(ctrl, "Transform").AsEventually()),
+		GetConfig: _imptest.NewDependencyMethod(ctrl, "GetConfig").AsEventually(),
+		Apply:     newDataProcessorMockApplyMethod(_imptest.NewDependencyMethod(ctrl, "Apply").AsEventually()),
 	}
 	mock := &mockDataProcessorImpl{ctrl: ctrl}
 	return mock, imp
@@ -293,23 +303,17 @@ func (impl *mockDataProcessorImpl) Transform(opts struct {
 	return result1, result2
 }
 
-// newDataProcessorMockApplyMethod creates a typed method wrapper with Eventually initialized.
+// newDataProcessorMockApplyMethod creates a typed method wrapper.
 func newDataProcessorMockApplyMethod(dm *_imptest.DependencyMethod) *DataProcessorMockApplyMethod {
-	m := &DataProcessorMockApplyMethod{DependencyMethod: dm}
-	m.Eventually = &DataProcessorMockApplyMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &DataProcessorMockApplyMethod{DependencyMethod: dm}
 }
 
-// newDataProcessorMockProcessMethod creates a typed method wrapper with Eventually initialized.
+// newDataProcessorMockProcessMethod creates a typed method wrapper.
 func newDataProcessorMockProcessMethod(dm *_imptest.DependencyMethod) *DataProcessorMockProcessMethod {
-	m := &DataProcessorMockProcessMethod{DependencyMethod: dm}
-	m.Eventually = &DataProcessorMockProcessMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &DataProcessorMockProcessMethod{DependencyMethod: dm}
 }
 
-// newDataProcessorMockTransformMethod creates a typed method wrapper with Eventually initialized.
+// newDataProcessorMockTransformMethod creates a typed method wrapper.
 func newDataProcessorMockTransformMethod(dm *_imptest.DependencyMethod) *DataProcessorMockTransformMethod {
-	m := &DataProcessorMockTransformMethod{DependencyMethod: dm}
-	m.Eventually = &DataProcessorMockTransformMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &DataProcessorMockTransformMethod{DependencyMethod: dm}
 }

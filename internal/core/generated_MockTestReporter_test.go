@@ -12,6 +12,14 @@ import (
 type TestReporterImp struct {
 	Helper *_imptest.DependencyMethod
 	Fatalf *TestReporterMockFatalfMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *TestReporterImpEventually
+}
+
+// TestReporterImpEventually holds async method wrappers for TestReporter.
+type TestReporterImpEventually struct {
+	Helper *_imptest.DependencyMethod
+	Fatalf *TestReporterMockFatalfMethod
 }
 
 // TestReporterMockFatalfArgs holds typed arguments for Fatalf.
@@ -37,23 +45,21 @@ func (c *TestReporterMockFatalfCall) GetArgs() TestReporterMockFatalfArgs {
 // TestReporterMockFatalfMethod wraps DependencyMethod with typed returns.
 type TestReporterMockFatalfMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *TestReporterMockFatalfMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *TestReporterMockFatalfMethod) Expect(format string, args ...any) *TestReporterMockFatalfCall {
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *TestReporterMockFatalfMethod) ArgsEqual(format string, args ...any) *TestReporterMockFatalfCall {
 	callArgs := []any{format}
 	for _, v := range args {
 		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.Expect(callArgs...)
+	call := m.DependencyMethod.ArgsEqual(callArgs...)
 	return &TestReporterMockFatalfCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *TestReporterMockFatalfMethod) Match(matchers ...any) *TestReporterMockFatalfCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *TestReporterMockFatalfMethod) ArgsShould(matchers ...any) *TestReporterMockFatalfCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &TestReporterMockFatalfCall{DependencyCall: call}
 }
 
@@ -63,6 +69,10 @@ func MockTestReporter(t _imptest.TestReporter) (core.TestReporter, *TestReporter
 	imp := &TestReporterImp{
 		Helper: _imptest.NewDependencyMethod(ctrl, "Helper"),
 		Fatalf: newTestReporterMockFatalfMethod(_imptest.NewDependencyMethod(ctrl, "Fatalf")),
+	}
+	imp.Eventually = &TestReporterImpEventually{
+		Helper: _imptest.NewDependencyMethod(ctrl, "Helper").AsEventually(),
+		Fatalf: newTestReporterMockFatalfMethod(_imptest.NewDependencyMethod(ctrl, "Fatalf").AsEventually()),
 	}
 	mock := &mockTestReporterImpl{ctrl: ctrl}
 	return mock, imp
@@ -107,9 +117,7 @@ func (impl *mockTestReporterImpl) Helper() {
 
 }
 
-// newTestReporterMockFatalfMethod creates a typed method wrapper with Eventually initialized.
+// newTestReporterMockFatalfMethod creates a typed method wrapper.
 func newTestReporterMockFatalfMethod(dm *_imptest.DependencyMethod) *TestReporterMockFatalfMethod {
-	m := &TestReporterMockFatalfMethod{DependencyMethod: dm}
-	m.Eventually = &TestReporterMockFatalfMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &TestReporterMockFatalfMethod{DependencyMethod: dm}
 }

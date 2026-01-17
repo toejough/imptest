@@ -13,6 +13,14 @@ import (
 type TreeWalkerImp struct {
 	Walk              *TreeWalkerMockWalkMethod
 	WalkWithNamedType *TreeWalkerMockWalkWithNamedTypeMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *TreeWalkerImpEventually
+}
+
+// TreeWalkerImpEventually holds async method wrappers for TreeWalker.
+type TreeWalkerImpEventually struct {
+	Walk              *TreeWalkerMockWalkMethod
+	WalkWithNamedType *TreeWalkerMockWalkWithNamedTypeMethod
 }
 
 // TreeWalkerMockWalkArgs holds typed arguments for Walk.
@@ -43,19 +51,17 @@ func (c *TreeWalkerMockWalkCall) Return(result0 error) {
 // TreeWalkerMockWalkMethod wraps DependencyMethod with typed returns.
 type TreeWalkerMockWalkMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *TreeWalkerMockWalkMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *TreeWalkerMockWalkMethod) Expect(root string, fn func(string, fs.DirEntry, error) error) *TreeWalkerMockWalkCall {
-	call := m.DependencyMethod.Expect(root, fn)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *TreeWalkerMockWalkMethod) ArgsEqual(root string, fn func(string, fs.DirEntry, error) error) *TreeWalkerMockWalkCall {
+	call := m.DependencyMethod.ArgsEqual(root, fn)
 	return &TreeWalkerMockWalkCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *TreeWalkerMockWalkMethod) Match(matchers ...any) *TreeWalkerMockWalkCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *TreeWalkerMockWalkMethod) ArgsShould(matchers ...any) *TreeWalkerMockWalkCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &TreeWalkerMockWalkCall{DependencyCall: call}
 }
 
@@ -87,19 +93,17 @@ func (c *TreeWalkerMockWalkWithNamedTypeCall) Return(result0 error) {
 // TreeWalkerMockWalkWithNamedTypeMethod wraps DependencyMethod with typed returns.
 type TreeWalkerMockWalkWithNamedTypeMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *TreeWalkerMockWalkWithNamedTypeMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *TreeWalkerMockWalkWithNamedTypeMethod) Expect(root string, fn visitor.WalkFunc) *TreeWalkerMockWalkWithNamedTypeCall {
-	call := m.DependencyMethod.Expect(root, fn)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *TreeWalkerMockWalkWithNamedTypeMethod) ArgsEqual(root string, fn visitor.WalkFunc) *TreeWalkerMockWalkWithNamedTypeCall {
+	call := m.DependencyMethod.ArgsEqual(root, fn)
 	return &TreeWalkerMockWalkWithNamedTypeCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *TreeWalkerMockWalkWithNamedTypeMethod) Match(matchers ...any) *TreeWalkerMockWalkWithNamedTypeCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *TreeWalkerMockWalkWithNamedTypeMethod) ArgsShould(matchers ...any) *TreeWalkerMockWalkWithNamedTypeCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &TreeWalkerMockWalkWithNamedTypeCall{DependencyCall: call}
 }
 
@@ -109,6 +113,10 @@ func MockTreeWalker(t _imptest.TestReporter) (visitor.TreeWalker, *TreeWalkerImp
 	imp := &TreeWalkerImp{
 		Walk:              newTreeWalkerMockWalkMethod(_imptest.NewDependencyMethod(ctrl, "Walk")),
 		WalkWithNamedType: newTreeWalkerMockWalkWithNamedTypeMethod(_imptest.NewDependencyMethod(ctrl, "WalkWithNamedType")),
+	}
+	imp.Eventually = &TreeWalkerImpEventually{
+		Walk:              newTreeWalkerMockWalkMethod(_imptest.NewDependencyMethod(ctrl, "Walk").AsEventually()),
+		WalkWithNamedType: newTreeWalkerMockWalkWithNamedTypeMethod(_imptest.NewDependencyMethod(ctrl, "WalkWithNamedType").AsEventually()),
 	}
 	mock := &mockTreeWalkerImpl{ctrl: ctrl}
 	return mock, imp
@@ -165,16 +173,12 @@ func (impl *mockTreeWalkerImpl) WalkWithNamedType(root string, fn visitor.WalkFu
 	return result1
 }
 
-// newTreeWalkerMockWalkMethod creates a typed method wrapper with Eventually initialized.
+// newTreeWalkerMockWalkMethod creates a typed method wrapper.
 func newTreeWalkerMockWalkMethod(dm *_imptest.DependencyMethod) *TreeWalkerMockWalkMethod {
-	m := &TreeWalkerMockWalkMethod{DependencyMethod: dm}
-	m.Eventually = &TreeWalkerMockWalkMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &TreeWalkerMockWalkMethod{DependencyMethod: dm}
 }
 
-// newTreeWalkerMockWalkWithNamedTypeMethod creates a typed method wrapper with Eventually initialized.
+// newTreeWalkerMockWalkWithNamedTypeMethod creates a typed method wrapper.
 func newTreeWalkerMockWalkWithNamedTypeMethod(dm *_imptest.DependencyMethod) *TreeWalkerMockWalkWithNamedTypeMethod {
-	m := &TreeWalkerMockWalkWithNamedTypeMethod{DependencyMethod: dm}
-	m.Eventually = &TreeWalkerMockWalkWithNamedTypeMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &TreeWalkerMockWalkWithNamedTypeMethod{DependencyMethod: dm}
 }

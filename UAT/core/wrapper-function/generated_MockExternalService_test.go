@@ -12,6 +12,14 @@ import (
 type ExternalServiceImp struct {
 	FetchData *ExternalServiceMockFetchDataMethod
 	Process   *ExternalServiceMockProcessMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *ExternalServiceImpEventually
+}
+
+// ExternalServiceImpEventually holds async method wrappers for ExternalService.
+type ExternalServiceImpEventually struct {
+	FetchData *ExternalServiceMockFetchDataMethod
+	Process   *ExternalServiceMockProcessMethod
 }
 
 // ExternalServiceMockFetchDataArgs holds typed arguments for FetchData.
@@ -40,19 +48,17 @@ func (c *ExternalServiceMockFetchDataCall) Return(result0 string, result1 error)
 // ExternalServiceMockFetchDataMethod wraps DependencyMethod with typed returns.
 type ExternalServiceMockFetchDataMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ExternalServiceMockFetchDataMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ExternalServiceMockFetchDataMethod) Expect(id int) *ExternalServiceMockFetchDataCall {
-	call := m.DependencyMethod.Expect(id)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ExternalServiceMockFetchDataMethod) ArgsEqual(id int) *ExternalServiceMockFetchDataCall {
+	call := m.DependencyMethod.ArgsEqual(id)
 	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ExternalServiceMockFetchDataMethod) Match(matchers ...any) *ExternalServiceMockFetchDataCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ExternalServiceMockFetchDataMethod) ArgsShould(matchers ...any) *ExternalServiceMockFetchDataCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
 }
 
@@ -82,19 +88,17 @@ func (c *ExternalServiceMockProcessCall) Return(result0 string) {
 // ExternalServiceMockProcessMethod wraps DependencyMethod with typed returns.
 type ExternalServiceMockProcessMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ExternalServiceMockProcessMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ExternalServiceMockProcessMethod) Expect(data string) *ExternalServiceMockProcessCall {
-	call := m.DependencyMethod.Expect(data)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ExternalServiceMockProcessMethod) ArgsEqual(data string) *ExternalServiceMockProcessCall {
+	call := m.DependencyMethod.ArgsEqual(data)
 	return &ExternalServiceMockProcessCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ExternalServiceMockProcessMethod) Match(matchers ...any) *ExternalServiceMockProcessCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ExternalServiceMockProcessMethod) ArgsShould(matchers ...any) *ExternalServiceMockProcessCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ExternalServiceMockProcessCall{DependencyCall: call}
 }
 
@@ -104,6 +108,10 @@ func MockExternalService(t _imptest.TestReporter) (callable.ExternalService, *Ex
 	imp := &ExternalServiceImp{
 		FetchData: newExternalServiceMockFetchDataMethod(_imptest.NewDependencyMethod(ctrl, "FetchData")),
 		Process:   newExternalServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
+	}
+	imp.Eventually = &ExternalServiceImpEventually{
+		FetchData: newExternalServiceMockFetchDataMethod(_imptest.NewDependencyMethod(ctrl, "FetchData").AsEventually()),
+		Process:   newExternalServiceMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process").AsEventually()),
 	}
 	mock := &mockExternalServiceImpl{ctrl: ctrl}
 	return mock, imp
@@ -167,16 +175,12 @@ func (impl *mockExternalServiceImpl) Process(data string) string {
 	return result1
 }
 
-// newExternalServiceMockFetchDataMethod creates a typed method wrapper with Eventually initialized.
+// newExternalServiceMockFetchDataMethod creates a typed method wrapper.
 func newExternalServiceMockFetchDataMethod(dm *_imptest.DependencyMethod) *ExternalServiceMockFetchDataMethod {
-	m := &ExternalServiceMockFetchDataMethod{DependencyMethod: dm}
-	m.Eventually = &ExternalServiceMockFetchDataMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ExternalServiceMockFetchDataMethod{DependencyMethod: dm}
 }
 
-// newExternalServiceMockProcessMethod creates a typed method wrapper with Eventually initialized.
+// newExternalServiceMockProcessMethod creates a typed method wrapper.
 func newExternalServiceMockProcessMethod(dm *_imptest.DependencyMethod) *ExternalServiceMockProcessMethod {
-	m := &ExternalServiceMockProcessMethod{DependencyMethod: dm}
-	m.Eventually = &ExternalServiceMockProcessMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ExternalServiceMockProcessMethod{DependencyMethod: dm}
 }

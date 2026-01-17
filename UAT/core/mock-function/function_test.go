@@ -17,7 +17,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
 )
 
@@ -40,7 +40,7 @@ func TestMockFunction_ComplexTypes(t *testing.T) {
 		resultChan <- result
 	}()
 
-	imp.Match(imptest.Any, imptest.Any, imptest.Any).
+	imp.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
 		Return(order, nil)
 
 	result := <-resultChan
@@ -60,8 +60,8 @@ func TestMockFunction_Eventually(t *testing.T) {
 	go func() { _ = mock("input2") }()
 
 	// Match calls in any order using Eventually
-	imp.Eventually.Expect("input2").Return(nil)
-	imp.Eventually.Expect("input1").Return(nil)
+	imp.Eventually.ArgsEqual("input2").Return(nil)
+	imp.Eventually.ArgsEqual("input1").Return(nil)
 }
 
 // TestMockFunction_GetArgs demonstrates accessing typed arguments.
@@ -74,7 +74,7 @@ func TestMockFunction_GetArgs(t *testing.T) {
 		_ = mock(123.45, "EUR")
 	}()
 
-	call := imp.Match(imptest.Any, imptest.Any)
+	call := imp.ArgsShould(match.BeAny, match.BeAny)
 
 	// Access typed arguments
 	args := call.GetArgs()
@@ -105,7 +105,7 @@ func TestMockFunction_NoError(t *testing.T) {
 		resultChan <- mock(amount, currency)
 	}()
 
-	imp.Expect(amount, currency).Return(expected)
+	imp.ArgsEqual(amount, currency).Return(expected)
 
 	result := <-resultChan
 	if result != expected {
@@ -131,7 +131,7 @@ func TestMockFunction_NoReturns(t *testing.T) {
 	}()
 
 	// For void functions, still need to call Return to unblock the mock
-	imp.Expect(userID, message).Return()
+	imp.ArgsEqual(userID, message).Return()
 
 	<-done
 }
@@ -150,7 +150,7 @@ func TestMockFunction_Simple(t *testing.T) {
 		resultChan <- mock(testData)
 	}()
 
-	imp.Expect(testData).Return(nil)
+	imp.ArgsEqual(testData).Return(nil)
 
 	err := <-resultChan
 	if err != nil {
@@ -175,7 +175,7 @@ func TestMockFunction_WithError(t *testing.T) {
 		resultChan <- err
 	}()
 
-	imp.Expect(ctx, orderID).Return(nil, expectedErr)
+	imp.ArgsEqual(ctx, orderID).Return(nil, expectedErr)
 
 	err := <-resultChan
 	if !errors.Is(err, expectedErr) {
@@ -201,7 +201,7 @@ func TestMockFunction_WithMatchers(t *testing.T) {
 	}()
 
 	// Use matchers instead of exact values
-	imp.Match(imptest.Any, imptest.Any).
+	imp.ArgsShould(match.BeAny, match.BeAny).
 		Return(expectedOrder, nil)
 
 	order := <-resultChan
@@ -243,7 +243,7 @@ func TestMockFunction_WithReturns(t *testing.T) {
 	}()
 
 	// Set up expectation and inject return values
-	imp.Expect(ctx, orderID).Return(expectedOrder, nil)
+	imp.ArgsEqual(ctx, orderID).Return(expectedOrder, nil)
 
 	// Verify results
 	result := <-resultChan

@@ -17,8 +17,8 @@ type StartProcessFuncCallHandle struct {
 	Eventually *StartProcessFuncCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartProcessFuncCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartProcessFuncCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *StartProcessFuncCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartProcessFuncCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartProcessFuncCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *StartProcessFuncCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartProcessFuncCallHandle) ExpectReturn(v0 string, v1 error) {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartProcessFuncCallHandle) ReturnsEqual(v0 string, v1 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -67,8 +67,8 @@ func (h *StartProcessFuncCallHandle) ExpectReturn(v0 string, v1 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartProcessFuncCallHandle) ExpectReturnMatch(v0 any, v1 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartProcessFuncCallHandle) ReturnsShould(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -94,13 +94,13 @@ type StartProcessFuncCallHandleEventually struct {
 	h *StartProcessFuncCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartProcessFuncCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartProcessFuncCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartProcessFuncCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartProcessFuncCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

@@ -17,8 +17,8 @@ type StartGetDefaultsCallHandle struct {
 	Eventually *StartGetDefaultsCallHandleEventually
 }
 
-// ExpectPanic verifies the function panics with the expected value.
-func (h *StartGetDefaultsCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the function panics with the expected value.
+func (h *StartGetDefaultsCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *StartGetDefaultsCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
-func (h *StartGetDefaultsCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the function panics with a value matching the given matcher.
+func (h *StartGetDefaultsCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *StartGetDefaultsCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturn verifies the function returned the expected values.
-func (h *StartGetDefaultsCallHandle) ExpectReturn(v0 struct {
+// ReturnsEqual verifies the function returned the expected values.
+func (h *StartGetDefaultsCallHandle) ReturnsEqual(v0 struct {
 	MaxRetries int
 	Timeout    int
 }) {
@@ -67,8 +67,8 @@ func (h *StartGetDefaultsCallHandle) ExpectReturn(v0 struct {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartGetDefaultsCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartGetDefaultsCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -90,13 +90,13 @@ type StartGetDefaultsCallHandleEventually struct {
 	h *StartGetDefaultsCallHandle
 }
 
-// ExpectPanic registers an async expectation for a panic value.
-func (e *StartGetDefaultsCallHandleEventually) ExpectPanic(value any) {
+// PanicEquals registers an async expectation for a panic value.
+func (e *StartGetDefaultsCallHandleEventually) PanicEquals(value any) {
 	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturn registers an async expectation for return values.
-func (e *StartGetDefaultsCallHandleEventually) ExpectReturn(values ...any) {
+// ReturnsEqual registers an async expectation for return values.
+func (e *StartGetDefaultsCallHandleEventually) ReturnsEqual(values ...any) {
 	e.ensureStarted().ExpectReturn(values...)
 }
 

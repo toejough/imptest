@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/toejough/imptest"
+	"github.com/toejough/imptest/match"
 	// Import for impgen to resolve the package.
 	_ "github.com/toejough/imptest/UAT/variations/signature/external-functype"
 )
@@ -44,7 +44,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	}()
 
 	// Expect the Wrap call and inject the wrapped handler
-	call := imp.Wrap.Eventually.Match(imptest.Any)
+	call := imp.Eventually.Wrap.ArgsShould(match.BeAny)
 	call.Return(wrappedHandler)
 
 	// Wait for the result

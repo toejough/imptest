@@ -23,8 +23,8 @@ type StartLoggerWrapperLogCallHandle struct {
 	*_imptest.CallableController[StartLoggerWrapperLogReturns]
 }
 
-// ExpectCompletes verifies the method completes without panicking.
-func (h *StartLoggerWrapperLogCallHandle) ExpectCompletes() {
+// Completes verifies the method completes without panicking.
+func (h *StartLoggerWrapperLogCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *StartLoggerWrapperLogCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the method panics with the expected value.
-func (h *StartLoggerWrapperLogCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the method panics with the expected value.
+func (h *StartLoggerWrapperLogCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *StartLoggerWrapperLogCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
-func (h *StartLoggerWrapperLogCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the method panics with a value matching the given matcher.
+func (h *StartLoggerWrapperLogCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -65,8 +65,8 @@ func (h *StartLoggerWrapperLogCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturn verifies the method returned the expected values.
-func (h *StartLoggerWrapperLogCallHandle) ExpectReturn(v0 error) {
+// ReturnsEqual verifies the method returned the expected values.
+func (h *StartLoggerWrapperLogCallHandle) ReturnsEqual(v0 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -80,8 +80,8 @@ func (h *StartLoggerWrapperLogCallHandle) ExpectReturn(v0 error) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartLoggerWrapperLogCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartLoggerWrapperLogCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -107,8 +107,8 @@ type StartLoggerWrapperLogWithContextCallHandle struct {
 	*_imptest.CallableController[StartLoggerWrapperLogWithContextReturns]
 }
 
-// ExpectCompletes verifies the method completes without panicking.
-func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectCompletes() {
+// Completes verifies the method completes without panicking.
+func (h *StartLoggerWrapperLogWithContextCallHandle) Completes() {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -117,8 +117,8 @@ func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanic verifies the method panics with the expected value.
-func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectPanic(expected any) {
+// PanicEquals verifies the method panics with the expected value.
+func (h *StartLoggerWrapperLogWithContextCallHandle) PanicEquals(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -133,8 +133,8 @@ func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectPanic(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
-func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectPanicMatch(matcher any) {
+// PanicShould verifies the method panics with a value matching the given matcher.
+func (h *StartLoggerWrapperLogWithContextCallHandle) PanicShould(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -149,8 +149,8 @@ func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectPanicMatch(matcher an
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturn verifies the method returned the expected values.
-func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectReturn(v0 error) {
+// ReturnsEqual verifies the method returned the expected values.
+func (h *StartLoggerWrapperLogWithContextCallHandle) ReturnsEqual(v0 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -164,8 +164,8 @@ func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectReturn(v0 error) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnMatch verifies the return values match the given matchers.
-func (h *StartLoggerWrapperLogWithContextCallHandle) ExpectReturnMatch(v0 any) {
+// ReturnsShould verifies the return values match the given matchers.
+func (h *StartLoggerWrapperLogWithContextCallHandle) ReturnsShould(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 

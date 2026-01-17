@@ -12,6 +12,14 @@ import (
 type StorageImp struct {
 	Save *StorageMockSaveMethod
 	Load *StorageMockLoadMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *StorageImpEventually
+}
+
+// StorageImpEventually holds async method wrappers for Storage.
+type StorageImpEventually struct {
+	Save *StorageMockSaveMethod
+	Load *StorageMockLoadMethod
 }
 
 // StorageMockLoadArgs holds typed arguments for Load.
@@ -40,19 +48,17 @@ func (c *StorageMockLoadCall) Return(result0 string, result1 error) {
 // StorageMockLoadMethod wraps DependencyMethod with typed returns.
 type StorageMockLoadMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *StorageMockLoadMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *StorageMockLoadMethod) Expect(key string) *StorageMockLoadCall {
-	call := m.DependencyMethod.Expect(key)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *StorageMockLoadMethod) ArgsEqual(key string) *StorageMockLoadCall {
+	call := m.DependencyMethod.ArgsEqual(key)
 	return &StorageMockLoadCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *StorageMockLoadMethod) Match(matchers ...any) *StorageMockLoadCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *StorageMockLoadMethod) ArgsShould(matchers ...any) *StorageMockLoadCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &StorageMockLoadCall{DependencyCall: call}
 }
 
@@ -84,19 +90,17 @@ func (c *StorageMockSaveCall) Return(result0 error) {
 // StorageMockSaveMethod wraps DependencyMethod with typed returns.
 type StorageMockSaveMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *StorageMockSaveMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *StorageMockSaveMethod) Expect(key string, value string) *StorageMockSaveCall {
-	call := m.DependencyMethod.Expect(key, value)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *StorageMockSaveMethod) ArgsEqual(key string, value string) *StorageMockSaveCall {
+	call := m.DependencyMethod.ArgsEqual(key, value)
 	return &StorageMockSaveCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *StorageMockSaveMethod) Match(matchers ...any) *StorageMockSaveCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *StorageMockSaveMethod) ArgsShould(matchers ...any) *StorageMockSaveCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &StorageMockSaveCall{DependencyCall: call}
 }
 
@@ -106,6 +110,10 @@ func MockStorage(t _imptest.TestReporter) (helpers.Storage, *StorageImp) {
 	imp := &StorageImp{
 		Save: newStorageMockSaveMethod(_imptest.NewDependencyMethod(ctrl, "Save")),
 		Load: newStorageMockLoadMethod(_imptest.NewDependencyMethod(ctrl, "Load")),
+	}
+	imp.Eventually = &StorageImpEventually{
+		Save: newStorageMockSaveMethod(_imptest.NewDependencyMethod(ctrl, "Save").AsEventually()),
+		Load: newStorageMockLoadMethod(_imptest.NewDependencyMethod(ctrl, "Load").AsEventually()),
 	}
 	mock := &mockStorageImpl{ctrl: ctrl}
 	return mock, imp
@@ -169,16 +177,12 @@ func (impl *mockStorageImpl) Save(key string, value string) error {
 	return result1
 }
 
-// newStorageMockLoadMethod creates a typed method wrapper with Eventually initialized.
+// newStorageMockLoadMethod creates a typed method wrapper.
 func newStorageMockLoadMethod(dm *_imptest.DependencyMethod) *StorageMockLoadMethod {
-	m := &StorageMockLoadMethod{DependencyMethod: dm}
-	m.Eventually = &StorageMockLoadMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &StorageMockLoadMethod{DependencyMethod: dm}
 }
 
-// newStorageMockSaveMethod creates a typed method wrapper with Eventually initialized.
+// newStorageMockSaveMethod creates a typed method wrapper.
 func newStorageMockSaveMethod(dm *_imptest.DependencyMethod) *StorageMockSaveMethod {
-	m := &StorageMockSaveMethod{DependencyMethod: dm}
-	m.Eventually = &StorageMockSaveMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &StorageMockSaveMethod{DependencyMethod: dm}
 }

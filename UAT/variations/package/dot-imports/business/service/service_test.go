@@ -21,7 +21,7 @@ func TestUserServiceDeleteUser(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := imp.Delete.Expect("user999")
+	call := imp.Delete.ArgsEqual("user999")
 	call.Return(nil)
 
 	// Verify args
@@ -46,7 +46,7 @@ func TestUserServiceGetUser(t *testing.T) {
 	}()
 
 	// Verify and inject return values
-	call := imp.Load.Expect("user789")
+	call := imp.Load.ArgsEqual("user789")
 	call.Return(expectedData, nil)
 
 	// Verify args
@@ -73,7 +73,7 @@ func TestUserServiceSaveUser(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := imp.Save.Expect("user123", userData)
+	call := imp.Save.ArgsEqual("user123", userData)
 	call.Return(nil)
 
 	// Verify args
@@ -99,7 +99,7 @@ func TestUserServiceSaveUserError(t *testing.T) {
 	}()
 
 	// Inject error return
-	call := imp.Save.Expect("user456", userData)
+	call := imp.Save.ArgsEqual("user456", userData)
 	call.Return(expectedErr)
 }
 

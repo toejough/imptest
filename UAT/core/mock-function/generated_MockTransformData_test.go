@@ -38,19 +38,19 @@ func (c *TransformDataMockCall) Return(result0 *mockfunction.Order, result1 erro
 // TransformDataMockMethod wraps DependencyMethod with typed returns.
 type TransformDataMockMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
+	// Eventually provides async version of this function for concurrent code.
 	Eventually *TransformDataMockMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *TransformDataMockMethod) Expect(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) *TransformDataMockCall {
-	call := m.DependencyMethod.Expect(items, lookup, processor)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *TransformDataMockMethod) ArgsEqual(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) *TransformDataMockCall {
+	call := m.DependencyMethod.ArgsEqual(items, lookup, processor)
 	return &TransformDataMockCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *TransformDataMockMethod) Match(matchers ...any) *TransformDataMockCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *TransformDataMockMethod) ArgsShould(matchers ...any) *TransformDataMockCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &TransformDataMockCall{DependencyCall: call}
 }
 
@@ -92,6 +92,6 @@ func MockTransformData(t _imptest.TestReporter) (func(items []*mockfunction.Orde
 // newTransformDataMockMethod creates a typed method wrapper with Eventually initialized.
 func newTransformDataMockMethod(dm *_imptest.DependencyMethod) *TransformDataMockMethod {
 	m := &TransformDataMockMethod{DependencyMethod: dm}
-	m.Eventually = &TransformDataMockMethod{DependencyMethod: dm.Eventually}
+	m.Eventually = &TransformDataMockMethod{DependencyMethod: dm.AsEventually()}
 	return m
 }

@@ -15,6 +15,17 @@ type CustomOpsImp struct {
 	Log    *CustomOpsMockLogMethod
 	Notify *CustomOpsMockNotifyMethod
 	Finish *_imptest.DependencyMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *CustomOpsImpEventually
+}
+
+// CustomOpsImpEventually holds async method wrappers for Ops.
+type CustomOpsImpEventually struct {
+	Add    *CustomOpsMockAddMethod
+	Store  *CustomOpsMockStoreMethod
+	Log    *CustomOpsMockLogMethod
+	Notify *CustomOpsMockNotifyMethod
+	Finish *_imptest.DependencyMethod
 }
 
 // CustomOpsMockAddArgs holds typed arguments for Add.
@@ -45,19 +56,17 @@ func (c *CustomOpsMockAddCall) Return(result0 int) {
 // CustomOpsMockAddMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockAddMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *CustomOpsMockAddMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *CustomOpsMockAddMethod) Expect(a int, b int) *CustomOpsMockAddCall {
-	call := m.DependencyMethod.Expect(a, b)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockAddMethod) ArgsEqual(a int, b int) *CustomOpsMockAddCall {
+	call := m.DependencyMethod.ArgsEqual(a, b)
 	return &CustomOpsMockAddCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *CustomOpsMockAddMethod) Match(matchers ...any) *CustomOpsMockAddCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockAddMethod) ArgsShould(matchers ...any) *CustomOpsMockAddCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &CustomOpsMockAddCall{DependencyCall: call}
 }
 
@@ -92,19 +101,17 @@ func (c *CustomOpsMockLogCall) GetArgs() CustomOpsMockLogArgs {
 // CustomOpsMockLogMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockLogMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *CustomOpsMockLogMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *CustomOpsMockLogMethod) Expect(message string) *CustomOpsMockLogCall {
-	call := m.DependencyMethod.Expect(message)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockLogMethod) ArgsEqual(message string) *CustomOpsMockLogCall {
+	call := m.DependencyMethod.ArgsEqual(message)
 	return &CustomOpsMockLogCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *CustomOpsMockLogMethod) Match(matchers ...any) *CustomOpsMockLogCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockLogMethod) ArgsShould(matchers ...any) *CustomOpsMockLogCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &CustomOpsMockLogCall{DependencyCall: call}
 }
 
@@ -136,23 +143,21 @@ func (c *CustomOpsMockNotifyCall) Return(result0 bool) {
 // CustomOpsMockNotifyMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockNotifyMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *CustomOpsMockNotifyMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *CustomOpsMockNotifyMethod) Expect(message string, ids ...int) *CustomOpsMockNotifyCall {
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockNotifyMethod) ArgsEqual(message string, ids ...int) *CustomOpsMockNotifyCall {
 	callArgs := []any{message}
 	for _, v := range ids {
 		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.Expect(callArgs...)
+	call := m.DependencyMethod.ArgsEqual(callArgs...)
 	return &CustomOpsMockNotifyCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *CustomOpsMockNotifyMethod) Match(matchers ...any) *CustomOpsMockNotifyCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockNotifyMethod) ArgsShould(matchers ...any) *CustomOpsMockNotifyCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &CustomOpsMockNotifyCall{DependencyCall: call}
 }
 
@@ -184,19 +189,17 @@ func (c *CustomOpsMockStoreCall) Return(result0 int, result1 error) {
 // CustomOpsMockStoreMethod wraps DependencyMethod with typed returns.
 type CustomOpsMockStoreMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *CustomOpsMockStoreMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *CustomOpsMockStoreMethod) Expect(key string, value any) *CustomOpsMockStoreCall {
-	call := m.DependencyMethod.Expect(key, value)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *CustomOpsMockStoreMethod) ArgsEqual(key string, value any) *CustomOpsMockStoreCall {
+	call := m.DependencyMethod.ArgsEqual(key, value)
 	return &CustomOpsMockStoreCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *CustomOpsMockStoreMethod) Match(matchers ...any) *CustomOpsMockStoreCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *CustomOpsMockStoreMethod) ArgsShould(matchers ...any) *CustomOpsMockStoreCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &CustomOpsMockStoreCall{DependencyCall: call}
 }
 
@@ -209,6 +212,13 @@ func MockCustomOps(t _imptest.TestReporter) (basic.Ops, *CustomOpsImp) {
 		Log:    newCustomOpsMockLogMethod(_imptest.NewDependencyMethod(ctrl, "Log")),
 		Notify: newCustomOpsMockNotifyMethod(_imptest.NewDependencyMethod(ctrl, "Notify")),
 		Finish: _imptest.NewDependencyMethod(ctrl, "Finish"),
+	}
+	imp.Eventually = &CustomOpsImpEventually{
+		Add:    newCustomOpsMockAddMethod(_imptest.NewDependencyMethod(ctrl, "Add").AsEventually()),
+		Store:  newCustomOpsMockStoreMethod(_imptest.NewDependencyMethod(ctrl, "Store").AsEventually()),
+		Log:    newCustomOpsMockLogMethod(_imptest.NewDependencyMethod(ctrl, "Log").AsEventually()),
+		Notify: newCustomOpsMockNotifyMethod(_imptest.NewDependencyMethod(ctrl, "Notify").AsEventually()),
+		Finish: _imptest.NewDependencyMethod(ctrl, "Finish").AsEventually(),
 	}
 	mock := &mockCustomOpsImpl{ctrl: ctrl}
 	return mock, imp
@@ -337,30 +347,22 @@ func (impl *mockCustomOpsImpl) Store(key string, value any) (int, error) {
 	return result1, result2
 }
 
-// newCustomOpsMockAddMethod creates a typed method wrapper with Eventually initialized.
+// newCustomOpsMockAddMethod creates a typed method wrapper.
 func newCustomOpsMockAddMethod(dm *_imptest.DependencyMethod) *CustomOpsMockAddMethod {
-	m := &CustomOpsMockAddMethod{DependencyMethod: dm}
-	m.Eventually = &CustomOpsMockAddMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &CustomOpsMockAddMethod{DependencyMethod: dm}
 }
 
-// newCustomOpsMockLogMethod creates a typed method wrapper with Eventually initialized.
+// newCustomOpsMockLogMethod creates a typed method wrapper.
 func newCustomOpsMockLogMethod(dm *_imptest.DependencyMethod) *CustomOpsMockLogMethod {
-	m := &CustomOpsMockLogMethod{DependencyMethod: dm}
-	m.Eventually = &CustomOpsMockLogMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &CustomOpsMockLogMethod{DependencyMethod: dm}
 }
 
-// newCustomOpsMockNotifyMethod creates a typed method wrapper with Eventually initialized.
+// newCustomOpsMockNotifyMethod creates a typed method wrapper.
 func newCustomOpsMockNotifyMethod(dm *_imptest.DependencyMethod) *CustomOpsMockNotifyMethod {
-	m := &CustomOpsMockNotifyMethod{DependencyMethod: dm}
-	m.Eventually = &CustomOpsMockNotifyMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &CustomOpsMockNotifyMethod{DependencyMethod: dm}
 }
 
-// newCustomOpsMockStoreMethod creates a typed method wrapper with Eventually initialized.
+// newCustomOpsMockStoreMethod creates a typed method wrapper.
 func newCustomOpsMockStoreMethod(dm *_imptest.DependencyMethod) *CustomOpsMockStoreMethod {
-	m := &CustomOpsMockStoreMethod{DependencyMethod: dm}
-	m.Eventually = &CustomOpsMockStoreMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &CustomOpsMockStoreMethod{DependencyMethod: dm}
 }

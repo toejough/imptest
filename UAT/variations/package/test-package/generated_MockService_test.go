@@ -12,6 +12,14 @@ import (
 type ServiceImp struct {
 	Execute  *ServiceMockExecuteMethod
 	Validate *ServiceMockValidateMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *ServiceImpEventually
+}
+
+// ServiceImpEventually holds async method wrappers for Service.
+type ServiceImpEventually struct {
+	Execute  *ServiceMockExecuteMethod
+	Validate *ServiceMockValidateMethod
 }
 
 // ServiceMockExecuteArgs holds typed arguments for Execute.
@@ -40,19 +48,17 @@ func (c *ServiceMockExecuteCall) Return(result0 string, result1 error) {
 // ServiceMockExecuteMethod wraps DependencyMethod with typed returns.
 type ServiceMockExecuteMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ServiceMockExecuteMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ServiceMockExecuteMethod) Expect(input string) *ServiceMockExecuteCall {
-	call := m.DependencyMethod.Expect(input)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ServiceMockExecuteMethod) ArgsEqual(input string) *ServiceMockExecuteCall {
+	call := m.DependencyMethod.ArgsEqual(input)
 	return &ServiceMockExecuteCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ServiceMockExecuteMethod) Match(matchers ...any) *ServiceMockExecuteCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ServiceMockExecuteMethod) ArgsShould(matchers ...any) *ServiceMockExecuteCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ServiceMockExecuteCall{DependencyCall: call}
 }
 
@@ -82,19 +88,17 @@ func (c *ServiceMockValidateCall) Return(result0 bool) {
 // ServiceMockValidateMethod wraps DependencyMethod with typed returns.
 type ServiceMockValidateMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ServiceMockValidateMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ServiceMockValidateMethod) Expect(input string) *ServiceMockValidateCall {
-	call := m.DependencyMethod.Expect(input)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ServiceMockValidateMethod) ArgsEqual(input string) *ServiceMockValidateCall {
+	call := m.DependencyMethod.ArgsEqual(input)
 	return &ServiceMockValidateCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ServiceMockValidateMethod) Match(matchers ...any) *ServiceMockValidateCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ServiceMockValidateMethod) ArgsShould(matchers ...any) *ServiceMockValidateCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ServiceMockValidateCall{DependencyCall: call}
 }
 
@@ -104,6 +108,10 @@ func MockService(t _imptest.TestReporter) (testpkgimport.Service, *ServiceImp) {
 	imp := &ServiceImp{
 		Execute:  newServiceMockExecuteMethod(_imptest.NewDependencyMethod(ctrl, "Execute")),
 		Validate: newServiceMockValidateMethod(_imptest.NewDependencyMethod(ctrl, "Validate")),
+	}
+	imp.Eventually = &ServiceImpEventually{
+		Execute:  newServiceMockExecuteMethod(_imptest.NewDependencyMethod(ctrl, "Execute").AsEventually()),
+		Validate: newServiceMockValidateMethod(_imptest.NewDependencyMethod(ctrl, "Validate").AsEventually()),
 	}
 	mock := &mockServiceImpl{ctrl: ctrl}
 	return mock, imp
@@ -167,16 +175,12 @@ func (impl *mockServiceImpl) Validate(input string) bool {
 	return result1
 }
 
-// newServiceMockExecuteMethod creates a typed method wrapper with Eventually initialized.
+// newServiceMockExecuteMethod creates a typed method wrapper.
 func newServiceMockExecuteMethod(dm *_imptest.DependencyMethod) *ServiceMockExecuteMethod {
-	m := &ServiceMockExecuteMethod{DependencyMethod: dm}
-	m.Eventually = &ServiceMockExecuteMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ServiceMockExecuteMethod{DependencyMethod: dm}
 }
 
-// newServiceMockValidateMethod creates a typed method wrapper with Eventually initialized.
+// newServiceMockValidateMethod creates a typed method wrapper.
 func newServiceMockValidateMethod(dm *_imptest.DependencyMethod) *ServiceMockValidateMethod {
-	m := &ServiceMockValidateMethod{DependencyMethod: dm}
-	m.Eventually = &ServiceMockValidateMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ServiceMockValidateMethod{DependencyMethod: dm}
 }

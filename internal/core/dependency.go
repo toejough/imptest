@@ -85,36 +85,34 @@ type DependencyMethod struct {
 	imp        *Imp
 	methodName string
 	eventually bool
-
-	// Eventually is the async version of this method.
-	// Use this for concurrent code where calls may arrive out of order.
-	// Example: imp.Add.Eventually.Expect(1, 2)
-	Eventually *DependencyMethod
 }
 
-// NewDependencyMethod creates a new DependencyMethod.
+// NewDependencyMethod creates a new DependencyMethod in synchronous mode.
 // This is used by generated mock code.
 func NewDependencyMethod(imp *Imp, methodName string) *DependencyMethod {
-	depMethod := &DependencyMethod{
+	return &DependencyMethod{
 		imp:        imp,
 		methodName: methodName,
 		eventually: false,
 	}
-	// Initialize the Eventually field as a copy with eventually mode enabled
-	depMethod.Eventually = &DependencyMethod{
-		imp:        imp,
-		methodName: methodName,
-		eventually: true,
-	}
-
-	return depMethod
 }
 
-// Expect waits for a call to this method with exactly the specified arguments.
+// AsEventually returns a copy of this DependencyMethod configured for async mode.
+// In async mode, expectation methods return immediately (non-blocking) and register
+// pending expectations that are matched when calls arrive.
+func (dm *DependencyMethod) AsEventually() *DependencyMethod {
+	return &DependencyMethod{
+		imp:        dm.imp,
+		methodName: dm.methodName,
+		eventually: true,
+	}
+}
+
+// ArgsEqual waits for a call to this method with exactly the specified arguments.
 // Uses reflection-based DeepEqual for argument matching. Returns detailed error messages
 // when arguments don't match.
 // In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
-func (dm *DependencyMethod) Expect(args ...any) *DependencyCall {
+func (dm *DependencyMethod) ArgsEqual(args ...any) *DependencyCall {
 	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(args) {
 			//nolint:err113 // validation error with dynamic context
@@ -146,10 +144,10 @@ func (dm *DependencyMethod) Expect(args ...any) *DependencyCall {
 	return newDependencyCall(call)
 }
 
-// ExpectCalled waits for a call to this method with any arguments.
+// Called waits for a call to this method with any arguments.
 // Use when you only care that the method was called, not what arguments were passed.
 // In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
-func (dm *DependencyMethod) ExpectCalled() *DependencyCall {
+func (dm *DependencyMethod) Called() *DependencyCall {
 	// Always matches - accepts any arguments
 	validator := func(_ []any) error {
 		return nil
@@ -170,11 +168,11 @@ func (dm *DependencyMethod) ExpectCalled() *DependencyCall {
 	return newDependencyCall(call)
 }
 
-// Match waits for a call to this method with arguments matching the given matchers.
+// ArgsShould waits for a call to this method with arguments matching the given matchers.
 // Each matcher should implement the Matcher interface (compatible with gomega matchers).
 // Returns detailed error messages when matchers don't match.
 // In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
-func (dm *DependencyMethod) Match(matchers ...any) *DependencyCall {
+func (dm *DependencyMethod) ArgsShould(matchers ...any) *DependencyCall {
 	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(matchers) {
 			//nolint:err113 // validation error with dynamic context

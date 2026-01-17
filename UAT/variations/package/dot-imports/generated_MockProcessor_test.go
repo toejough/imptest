@@ -11,6 +11,13 @@ import (
 // ProcessorImp holds method wrappers for setting expectations on Processor.
 type ProcessorImp struct {
 	Process *ProcessorMockProcessMethod
+	// Eventually provides async versions of all methods for concurrent code.
+	Eventually *ProcessorImpEventually
+}
+
+// ProcessorImpEventually holds async method wrappers for Processor.
+type ProcessorImpEventually struct {
+	Process *ProcessorMockProcessMethod
 }
 
 // ProcessorMockProcessArgs holds typed arguments for Process.
@@ -39,19 +46,17 @@ func (c *ProcessorMockProcessCall) Return(result0 string) {
 // ProcessorMockProcessMethod wraps DependencyMethod with typed returns.
 type ProcessorMockProcessMethod struct {
 	*_imptest.DependencyMethod
-	// Eventually is the async version of this method for concurrent code.
-	Eventually *ProcessorMockProcessMethod
 }
 
-// Expect waits for a call with exactly the specified arguments.
-func (m *ProcessorMockProcessMethod) Expect(input string) *ProcessorMockProcessCall {
-	call := m.DependencyMethod.Expect(input)
+// ArgsEqual waits for a call with exactly the specified arguments.
+func (m *ProcessorMockProcessMethod) ArgsEqual(input string) *ProcessorMockProcessCall {
+	call := m.DependencyMethod.ArgsEqual(input)
 	return &ProcessorMockProcessCall{DependencyCall: call}
 }
 
-// Match waits for a call with arguments matching the given matchers.
-func (m *ProcessorMockProcessMethod) Match(matchers ...any) *ProcessorMockProcessCall {
-	call := m.DependencyMethod.Match(matchers...)
+// ArgsShould waits for a call with arguments matching the given matchers.
+func (m *ProcessorMockProcessMethod) ArgsShould(matchers ...any) *ProcessorMockProcessCall {
+	call := m.DependencyMethod.ArgsShould(matchers...)
 	return &ProcessorMockProcessCall{DependencyCall: call}
 }
 
@@ -60,6 +65,9 @@ func MockProcessor(t _imptest.TestReporter) (helpers.Processor, *ProcessorImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
 	imp := &ProcessorImp{
 		Process: newProcessorMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process")),
+	}
+	imp.Eventually = &ProcessorImpEventually{
+		Process: newProcessorMockProcessMethod(_imptest.NewDependencyMethod(ctrl, "Process").AsEventually()),
 	}
 	mock := &mockProcessorImpl{ctrl: ctrl}
 	return mock, imp
@@ -93,9 +101,7 @@ func (impl *mockProcessorImpl) Process(input string) string {
 	return result1
 }
 
-// newProcessorMockProcessMethod creates a typed method wrapper with Eventually initialized.
+// newProcessorMockProcessMethod creates a typed method wrapper.
 func newProcessorMockProcessMethod(dm *_imptest.DependencyMethod) *ProcessorMockProcessMethod {
-	m := &ProcessorMockProcessMethod{DependencyMethod: dm}
-	m.Eventually = &ProcessorMockProcessMethod{DependencyMethod: dm.Eventually}
-	return m
+	return &ProcessorMockProcessMethod{DependencyMethod: dm}
 }
