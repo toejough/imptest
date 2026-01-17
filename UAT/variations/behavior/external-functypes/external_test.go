@@ -25,13 +25,10 @@ func TestHttpHandlerFunc(t *testing.T) {
 		_, _ = w.Write([]byte("Hello, World!"))
 	}
 
-	// Wrap the handler for testing
-	wrapper := WrapHandlerFunc(t, handler)
-
 	// Create test request and recorder
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	recorder := httptest.NewRecorder()
 
 	// Start the handler in a goroutine and verify completion
-	wrapper.Start(recorder, req).ExpectCompletes()
+	StartHandlerFunc(t, handler, recorder, req).ExpectCompletes()
 }

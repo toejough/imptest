@@ -9,6 +9,18 @@ import (
 )
 
 //go:generate impgen callable.PanicWithMessage --target
+//go:generate impgen callable.SlowAddFunc --target
+//go:generate impgen callable.SlowFuncFunc --target
+//go:generate impgen callable.ProcessFunc --target
+//go:generate impgen callable.MultiplyFunc --target
+//go:generate impgen callable.SlowMultiplyFunc --target
+//go:generate impgen callable.DivideFunc --target
+//go:generate impgen callable.PanicIntFunc --target
+//go:generate impgen callable.ComputeFunc --target
+//go:generate impgen callable.SideEffectFunc --target
+//go:generate impgen callable.ConditionalFunc --target
+//go:generate impgen callable.PanicFunc --target
+//go:generate impgen callable.AddFunc --target
 
 // TestCallHandle_ConcurrentCalls verifies multiple goroutines can be managed independently.
 //
@@ -21,13 +33,12 @@ func TestCallHandle_ConcurrentCalls(t *testing.T) {
 		time.Sleep(delay)
 		return a + b
 	}
-	wrapper := WrapSlowAdd(t, slowAdd)
 
 	// Start 3 concurrent calls with different delays
 	// call3 finishes first (10ms), call2 second (20ms), call1 last (30ms)
-	call1 := wrapper.Start(1, 2, 30*time.Millisecond)
-	call2 := wrapper.Start(10, 20, 20*time.Millisecond)
-	call3 := wrapper.Start(100, 200, 10*time.Millisecond)
+	call1 := StartSlowAddFunc(t, slowAdd, 1, 2, 30*time.Millisecond)
+	call2 := StartSlowAddFunc(t, slowAdd, 10, 20, 20*time.Millisecond)
+	call3 := StartSlowAddFunc(t, slowAdd, 100, 200, 10*time.Millisecond)
 
 	// Despite finish order (3, 2, 1), each handle should track its own result
 	call1.ExpectReturn(3)
@@ -39,9 +50,7 @@ func TestCallHandle_ConcurrentCalls(t *testing.T) {
 func TestCallHandle_EventuallyExpectPanic(t *testing.T) {
 	t.Parallel()
 
-	wrapper := WrapPanicWithMessage(t, callable.PanicWithMessage)
-
-	call := wrapper.Start("expected panic")
+	call := StartPanicWithMessage(t, callable.PanicWithMessage, "expected panic")
 
 	// Register panic expectation (NON-BLOCKING)
 	call.Eventually.ExpectPanic("expected panic")
@@ -63,12 +72,11 @@ func TestCallHandle_EventuallyExpectReturns(t *testing.T) {
 		time.Sleep(delay)
 		return a + b
 	}
-	wrapper := WrapSlowAdd(t, slowAdd)
 
 	// Start multiple calls
-	call1 := wrapper.Start(1, 2, 30*time.Millisecond)
-	call2 := wrapper.Start(10, 20, 20*time.Millisecond)
-	call3 := wrapper.Start(100, 200, 10*time.Millisecond)
+	call1 := StartSlowAddFunc(t, slowAdd, 1, 2, 30*time.Millisecond)
+	call2 := StartSlowAddFunc(t, slowAdd, 10, 20, 20*time.Millisecond)
+	call3 := StartSlowAddFunc(t, slowAdd, 100, 200, 10*time.Millisecond)
 
 	// Register expectations (NON-BLOCKING) - this is the key difference from current API
 	// With regular ExpectReturn, we'd block on call1 before moving to call2
@@ -92,9 +100,8 @@ func TestCallHandle_ExpectCallsWaitForResponse(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 		return 42
 	}
-	wrapper := WrapSlowFunc(t, slowFunc)
 
-	call := wrapper.Start()
+	call := StartSlowFuncFunc(t, slowFunc)
 
 	// ExpectReturn should wait internally - no need to call WaitForResponse first
 	// If this fails (times out or gets wrong value), the Expect method didn't wait properly
@@ -112,9 +119,8 @@ func TestCallHandle_ExpectReturnMatch(t *testing.T) {
 
 		return "processed", nil
 	}
-	wrapper := WrapProcess(t, process)
 
-	call := wrapper.Start(10)
+	call := StartProcessFunc(t, process, 10)
 
 	// Should be able to use matchers (using Any() matcher)
 	call.ExpectReturnMatch(
@@ -134,9 +140,8 @@ func TestCallHandle_HasExpectMethods(t *testing.T) {
 	t.Parallel()
 
 	multiply := func(a, b int) int { return a * b }
-	wrapper := WrapMultiply(t, multiply)
 
-	call := wrapper.Start(5, 7)
+	call := StartMultiplyFunc(t, multiply, 5, 7)
 
 	// ExpectReturn should work
 	call.ExpectReturn(35)
@@ -151,11 +156,10 @@ func TestCallHandle_InterleavedStarts(t *testing.T) {
 		time.Sleep(delay)
 		return a * 2
 	}
-	wrapper := WrapSlowMultiply(t, slowMultiply)
 
 	// Start call1, then call2, but call2 finishes first
-	call1 := wrapper.Start(10, 100*time.Millisecond)
-	call2 := wrapper.Start(20, 10*time.Millisecond)
+	call1 := StartSlowMultiplyFunc(t, slowMultiply, 10, 100*time.Millisecond)
+	call2 := StartSlowMultiplyFunc(t, slowMultiply, 20, 10*time.Millisecond)
 
 	// Verify in order started (not finish order)
 	call1.ExpectReturn(20)
@@ -178,9 +182,8 @@ func TestCallHandle_ManualFieldAccess(t *testing.T) {
 
 		return a / b, true
 	}
-	wrapper := WrapDivide(t, divide)
 
-	call := wrapper.Start(10, 2)
+	call := StartDivideFunc(t, divide, 10, 2)
 
 	// WaitForResponse should be available for manual waiting
 	call.WaitForResponse()
@@ -207,9 +210,8 @@ func TestCallHandle_ManualPanicFieldAccess(t *testing.T) {
 	t.Parallel()
 
 	panicFunc := func() int { panic("error") }
-	wrapper := WrapPanicInt(t, panicFunc)
 
-	call := wrapper.Start()
+	call := StartPanicIntFunc(t, panicFunc)
 	call.WaitForResponse()
 
 	// After panic, Panicked field should be set
@@ -234,9 +236,8 @@ func TestCallHandle_MultipleReturns(t *testing.T) {
 	compute := func(x int) (int, string, bool) {
 		return x * 2, "computed", true
 	}
-	wrapper := WrapCompute(t, compute)
 
-	call := wrapper.Start(21)
+	call := StartComputeFunc(t, compute, 21)
 	call.ExpectReturn(42, "computed", true)
 }
 
@@ -248,9 +249,8 @@ func TestCallHandle_NoReturns(t *testing.T) {
 	sideEffect := func(x int) {
 		_ = x // do something
 	}
-	wrapper := WrapSideEffect(t, sideEffect)
 
-	call := wrapper.Start(100)
+	call := StartSideEffectFunc(t, sideEffect, 100)
 
 	// Should have WaitForResponse even if no return values
 	call.WaitForResponse()
@@ -271,10 +271,9 @@ func TestCallHandle_PanicAndReturnDifferentCalls(t *testing.T) {
 
 		return x * 10
 	}
-	wrapper := WrapConditional(t, conditional)
 
-	callPanic := wrapper.Start(-5)
-	callReturn := wrapper.Start(5)
+	callPanic := StartConditionalFunc(t, conditional, -5)
+	callReturn := StartConditionalFunc(t, conditional, 5)
 
 	// One should panic, one should return - independent verification
 	callPanic.ExpectPanic("negative value")
@@ -288,9 +287,8 @@ func TestCallHandle_PanicCapture(t *testing.T) {
 	t.Parallel()
 
 	panicFunc := func() { panic("boom") }
-	wrapper := WrapPanic(t, panicFunc)
 
-	call := wrapper.Start()
+	call := StartPanicFunc(t, panicFunc)
 	call.ExpectPanic("boom")
 }
 
@@ -298,9 +296,7 @@ func TestCallHandle_PanicCapture(t *testing.T) {
 func TestCallHandle_PanicMatches(t *testing.T) {
 	t.Parallel()
 
-	wrapper := WrapPanicWithMessage(t, callable.PanicWithMessage)
-
-	call := wrapper.Start("critical error")
+	call := StartPanicWithMessage(t, callable.PanicWithMessage, "critical error")
 	// Use Any() matcher to accept any panic value
 	call.ExpectPanicMatch(imptest.Any)
 }
@@ -314,11 +310,10 @@ func TestCallHandle_UniqueHandles(t *testing.T) {
 
 	// Simple addition function for testing
 	add := func(a, b int) int { return a + b }
-	wrapper := WrapAdd(t, add)
 
 	// Start two calls - each should return a different handle
-	call1 := wrapper.Start(10, 20)
-	call2 := wrapper.Start(30, 40)
+	call1 := StartAddFunc(t, add, 10, 20)
+	call2 := StartAddFunc(t, add, 30, 40)
 
 	// Verify they are different objects (not same pointer)
 	if call1 == call2 {

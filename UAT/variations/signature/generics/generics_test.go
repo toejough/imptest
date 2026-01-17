@@ -22,13 +22,9 @@ func TestGenericCallable(t *testing.T) {
 
 	repoMock, repoImp := MockRepository[int](t)
 
-	// Initialize the callable wrapper implementation for a specific instantiation of the generic function.
-	// NewProcessItemImp is generic.
-	logicImp := WrapProcessItem[int](t, generics.ProcessItem[int])
-
-	// Start the function.
+	// Start the generic function with a specific type instantiation.
 	transformer := func(i int) int { return i * 2 }
-	call := logicImp.Start(repoMock, "456", transformer)
+	call := StartProcessItem[int](t, generics.ProcessItem[int], repoMock, "456", transformer)
 
 	//nolint:nilaway // false positive: repoImp assigned above
 	repoImp.Get.Expect("456").Return(21, nil)
@@ -73,9 +69,8 @@ func TestProcessItem_Error(t *testing.T) {
 	t.Run("Get error", func(t *testing.T) {
 		t.Parallel()
 		repoMock, repoImp := MockRepository[string](t)
-		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		call := logicImp.Start(repoMock, "123", func(s string) string { return s })
+		call := StartProcessItem[string](t, generics.ProcessItem[string], repoMock, "123", func(s string) string { return s })
 
 		repoImp.Get.Expect("123").Return("", errTest)
 
@@ -91,9 +86,8 @@ func TestProcessItem_Error(t *testing.T) {
 	t.Run("Save error", func(t *testing.T) {
 		t.Parallel()
 		repoMock, repoImp := MockRepository[string](t)
-		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		call := logicImp.Start(repoMock, "123", func(s string) string { return s })
+		call := StartProcessItem[string](t, generics.ProcessItem[string], repoMock, "123", func(s string) string { return s })
 
 		repoImp.Get.Expect("123").Return("data", nil)
 		repoImp.Save.Expect("data").Return(errTest)

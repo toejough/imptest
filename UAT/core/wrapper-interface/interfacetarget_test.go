@@ -39,7 +39,7 @@ func TestWrapLogger_BasicUsage(t *testing.T) {
 	t.Parallel()
 
 	logger := &ConsoleLogger{}
-	wrapper := WrapLogger(t, logger)
+	wrapper := StartLogger(t, logger)
 
 	// Start() returns call handle, ExpectReturn() verifies and waits
 	wrapper.Log.Start("test message").ExpectReturn(nil)
@@ -50,7 +50,7 @@ func TestWrapLogger_WithContext(t *testing.T) {
 	t.Parallel()
 
 	logger := &ConsoleLogger{}
-	wrapper := WrapLogger(t, logger)
+	wrapper := StartLogger(t, logger)
 
 	ctx := context.Background()
 	wrapper.LogWithContext.Start(ctx, "context message").ExpectReturn(nil)

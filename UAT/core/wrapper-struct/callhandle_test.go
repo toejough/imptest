@@ -15,7 +15,7 @@ func TestStructWrapper_CallHandleHasExpectMethods(t *testing.T) {
 	t.Parallel()
 
 	counter := calculator.NewCounter(10)
-	wrapper := WrapCounter(t, counter)
+	wrapper := StartCounter(t, counter)
 
 	call := wrapper.AddAmount.Start(5)
 
@@ -28,7 +28,7 @@ func TestStructWrapper_CallHandleHasReturnedField(t *testing.T) {
 	t.Parallel()
 
 	counter := calculator.NewCounter(0)
-	wrapper := WrapCounter(t, counter)
+	wrapper := StartCounter(t, counter)
 
 	call := wrapper.Increment.Start()
 
@@ -54,9 +54,9 @@ func TestStructWrapper_ConcurrentCalls(t *testing.T) {
 	counter1 := calculator.NewCounter(0)
 	counter2 := calculator.NewCounter(100)
 	counter3 := calculator.NewCounter(1000)
-	wrapper1 := WrapCounter(t, counter1)
-	wrapper2 := WrapCounter(t, counter2)
-	wrapper3 := WrapCounter(t, counter3)
+	wrapper1 := StartCounter(t, counter1)
+	wrapper2 := StartCounter(t, counter2)
+	wrapper3 := StartCounter(t, counter3)
 
 	// Start 3 concurrent calls on different counters
 	call1 := wrapper1.AddAmount.Start(1)
@@ -74,7 +74,7 @@ func TestStructWrapper_ExpectReturnMatch(t *testing.T) {
 	t.Parallel()
 
 	counter := calculator.NewCounter(5)
-	wrapper := WrapCounter(t, counter)
+	wrapper := StartCounter(t, counter)
 
 	call := wrapper.AddAmount.Start(10)
 
@@ -89,7 +89,7 @@ func TestStructWrapper_NoGetCallsMethod(t *testing.T) {
 	t.Parallel()
 
 	counter := calculator.NewCounter(0)
-	wrapper := WrapCounter(t, counter)
+	wrapper := StartCounter(t, counter)
 
 	// Type assertion to check if GetCalls exists
 	type getCaller interface {
@@ -111,7 +111,7 @@ func TestStructWrapper_StartReturnsUniqueCallHandles(t *testing.T) {
 	t.Parallel()
 
 	counter := calculator.NewCounter(0)
-	wrapper := WrapCounter(t, counter)
+	wrapper := StartCounter(t, counter)
 
 	// Start first call and wait for it to complete
 	call1 := wrapper.Increment.Start()
@@ -149,7 +149,7 @@ func TestUnifiedPattern_FunctionInterfaceStructSameAPI(t *testing.T) {
 
 	// Struct wrapper (Counter)
 	counter := calculator.NewCounter(3)
-	structWrapper := WrapCounter(t, counter)
+	structWrapper := StartCounter(t, counter)
 	structCall := structWrapper.GetValue.Start()
 
 	// All should have identical API

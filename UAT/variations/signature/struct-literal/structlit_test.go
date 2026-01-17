@@ -91,19 +91,15 @@ func TestFunctionWithStructLiteralParam(t *testing.T) {
 		Timeout int
 	}{APIKey: "test-key", Timeout: 30}
 
-	wrapper := WrapValidateRequest(t, structlit.ValidateRequest)
-
-	wrapper.Start(req).ExpectReturn(nil)
+	StartValidateRequest(t, structlit.ValidateRequest, req).ExpectReturn(nil)
 }
 
 // TestFunctionWithStructLiteralReturn tests wrapping function with struct literal return.
 func TestFunctionWithStructLiteralReturn(t *testing.T) {
 	t.Parallel()
 
-	wrapper := WrapGetDefaults(t, structlit.GetDefaults)
-
 	// Verify the function can be called and returns a struct literal
-	wrapper.Start().ExpectReturnMatch(imptest.Any)
+	StartGetDefaults(t, structlit.GetDefaults).ExpectReturnMatch(imptest.Any)
 }
 
 // TestMethodWithStructLiteralReturn tests wrapping method with struct literal return.
@@ -111,8 +107,7 @@ func TestMethodWithStructLiteralReturn(t *testing.T) {
 	t.Parallel()
 
 	mgr := structlit.ConfigManager{}
-	wrapper := WrapConfigManagerLoad(t, mgr.Load)
 
 	// Verify the method can be called and returns a struct literal
-	wrapper.Start("/etc/config").ExpectReturnMatch(imptest.Any)
+	StartConfigManagerLoad(t, mgr.Load, "/etc/config").ExpectReturnMatch(imptest.Any)
 }

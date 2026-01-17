@@ -34,11 +34,10 @@ func TestBusinessLogic(t *testing.T) {
 	// Initialize the mock implementation dependency and the callable wrapper using v2 API.
 	// Returns (mock, imp) where mock implements the interface and imp sets expectations.
 	mockSvc, svcImp := MockExternalService(t)
-	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
 	// Start the business logic in a goroutine.
 	// We pass the mock implementation and the input arguments.
-	call := wrapper.Start(mockSvc, 42)
+	call := StartBusinessLogic(t, callable.BusinessLogic, mockSvc, 42)
 
 	// 1. Expect call to FetchData and provide response.
 	svcImp.FetchData.Expect(42).Return("raw data", nil)
@@ -59,9 +58,8 @@ func TestBusinessLogicError(t *testing.T) {
 	t.Parallel()
 
 	mockSvc, svcImp := MockExternalService(t)
-	wrapper := WrapBusinessLogic(t, callable.BusinessLogic)
 
-	call := wrapper.Start(mockSvc, 99)
+	call := StartBusinessLogic(t, callable.BusinessLogic, mockSvc, 99)
 
 	// Simulate an error from the service.
 	svcImp.FetchData.Expect(99).Return("", errNotFound)
@@ -83,11 +81,8 @@ func TestCalculatorAdd(t *testing.T) {
 
 	calc := callable.NewCalculator(2)
 
-	// Wrap the Add method for testing using v2 API
-	wrapper := WrapCalculatorAdd(t, calc.Add)
-
-	// Start the method with test arguments
-	wrapper.Start(5, 3).ExpectReturn(8)
+	// Start the method with test arguments using v2 API
+	StartCalculatorAdd(t, calc.Add, 5, 3).ExpectReturn(8)
 }
 
 // TestCalculatorDivide demonstrates wrapping a method with multiple return values.
@@ -96,11 +91,8 @@ func TestCalculatorDivide(t *testing.T) {
 
 	calc := callable.NewCalculator(1)
 
-	// Wrap the Divide method using v2 API
-	wrapper := WrapCalculatorDivide(t, calc.Divide)
-
-	// Test successful division
-	wrapper.Start(10, 2).ExpectReturn(5, true)
+	// Test successful division using v2 API
+	StartCalculatorDivide(t, calc.Divide, 10, 2).ExpectReturn(5, true)
 }
 
 // TestCalculatorDivideByZero demonstrates testing error conditions.
@@ -109,11 +101,8 @@ func TestCalculatorDivideByZero(t *testing.T) {
 
 	calc := callable.NewCalculator(1)
 
-	// Wrap the Divide method using v2 API
-	wrapper := WrapCalculatorDivide(t, calc.Divide)
-
-	// Test division by zero returns false
-	wrapper.Start(10, 0).ExpectReturn(0, false)
+	// Test division by zero returns false using v2 API
+	StartCalculatorDivide(t, calc.Divide, 10, 0).ExpectReturn(0, false)
 }
 
 // TestCalculatorMultiply demonstrates wrapping a method that uses receiver state.
@@ -123,11 +112,8 @@ func TestCalculatorMultiply(t *testing.T) {
 	// Create calculator with multiplier=3
 	calc := callable.NewCalculator(3)
 
-	// Wrap the Multiply method using v2 API
-	wrapper := WrapCalculatorMultiply(t, calc.Multiply)
-
-	// Test that it correctly applies the multiplier
-	wrapper.Start(7).ExpectReturn(21)
+	// Test that it correctly applies the multiplier using v2 API
+	StartCalculatorMultiply(t, calc.Multiply, 7).ExpectReturn(21)
 }
 
 // TestCalculatorProcessValuePanic demonstrates testing panic behavior.
@@ -138,11 +124,8 @@ func TestCalculatorProcessValuePanic(
 
 	calc := callable.NewCalculator(5)
 
-	// Wrap the ProcessValue method using v2 API
-	wrapper := WrapCalculatorProcessValue(t, calc.ProcessValue)
-
-	// Test that negative values cause a panic
-	wrapper.Start(-1).ExpectPanic("negative values not supported")
+	// Test that negative values cause a panic using v2 API
+	StartCalculatorProcessValue(t, calc.ProcessValue, -1).ExpectPanic("negative values not supported")
 }
 
 // TestCalculatorProcessValueSuccess demonstrates normal execution path.
@@ -153,11 +136,8 @@ func TestCalculatorProcessValueSuccess(
 
 	calc := callable.NewCalculator(5)
 
-	// Wrap the ProcessValue method using v2 API
-	wrapper := WrapCalculatorProcessValue(t, calc.ProcessValue)
-
-	// Test normal case: (3 * 5) + 10 = 25
-	wrapper.Start(3).ExpectReturn(25)
+	// Test normal case: (3 * 5) + 10 = 25 using v2 API
+	StartCalculatorProcessValue(t, calc.ProcessValue, 3).ExpectReturn(25)
 }
 
 // unexported variables.

@@ -46,11 +46,8 @@ func TestFunctionWithNamedParams(t *testing.T) {
 	ctx := context.Background()
 	mockRepo, repoImp := MockUserRepository(t)
 
-	// Wrap the ProcessUser function for testing
-	wrapper := WrapProcessUser(t, named.ProcessUser)
-
-	// Start the wrapped function
-	call := wrapper.Start(ctx, 456, mockRepo)
+	// Start the function under test
+	call := StartProcessUser(t, named.ProcessUser, ctx, 456, mockRepo)
 
 	// Handle the repository call
 	repoImp.GetUser.Expect(ctx, 456).
@@ -105,9 +102,6 @@ func TestTargetWithNamedReturns(t *testing.T) {
 	// Create calculator instance
 	calc := named.Calculator{}
 
-	// Wrap the Divide method for testing
-	wrapper := WrapCalculatorDivide(t, calc.Divide)
-
 	// Execute and verify named returns (quotient, remainder, err)
-	wrapper.Start(10, 3).ExpectReturn(3, 1, nil)
+	StartCalculatorDivide(t, calc.Divide, 10, 3).ExpectReturn(3, 1, nil)
 }

@@ -1,3 +1,5 @@
+//go:generate impgen zeroreturns.ProcessData --target
+
 package zeroreturns_test
 
 import (
@@ -10,8 +12,8 @@ import (
 func TestV2_ProcessData(t *testing.T) {
 	t.Parallel()
 
-	// Wrap and start the zero-return function
-	WrapProcessData(t, zeroreturns.ProcessData).Start("test data", 42).ExpectCompletes()
+	// Start the zero-return function
+	StartProcessData(t, zeroreturns.ProcessData, "test data", 42).ExpectCompletes()
 }
 
 // TestV2_ProcessData_MultipleArgs tests with various argument combinations.
@@ -33,7 +35,7 @@ func TestV2_ProcessData_MultipleArgs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			WrapProcessData(t, zeroreturns.ProcessData).Start(tc.data, tc.count).ExpectCompletes()
+			StartProcessData(t, zeroreturns.ProcessData, tc.data, tc.count).ExpectCompletes()
 		})
 	}
 }
@@ -47,5 +49,5 @@ func TestV2_ProcessData_Panic(t *testing.T) {
 		panic("test panic")
 	}
 
-	WrapProcessData(t, panicFunc).Start("test", 42).ExpectPanic("test panic")
+	StartProcessData(t, panicFunc, "test", 42).ExpectPanic("test panic")
 }

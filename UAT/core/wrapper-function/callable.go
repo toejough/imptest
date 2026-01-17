@@ -1,7 +1,10 @@
 // Package callable demonstrates wrapping functions and struct methods for testing.
 package callable
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Calculator provides arithmetic operations.
 // In real applications, methods might have side effects (logging, metrics, database calls)
@@ -73,6 +76,46 @@ func PanicWithMessage(msg string) {
 		panic(msg)
 	}
 }
+
+// Function type definitions for testing CallHandle behavior.
+// These define signatures used in callhandle_test.go.
+type (
+	// SlowAddFunc adds two integers with a delay for concurrent testing.
+	SlowAddFunc func(a, b int, delay time.Duration) int
+
+	// SlowFuncFunc is a no-arg function that returns int with potential delay.
+	SlowFuncFunc func() int
+
+	// ProcessFunc processes an int and returns string+error.
+	ProcessFunc func(x int) (string, error)
+
+	// MultiplyFunc multiplies two integers.
+	MultiplyFunc func(a, b int) int
+
+	// SlowMultiplyFunc multiplies with delay for concurrent testing.
+	SlowMultiplyFunc func(a int, delay time.Duration) int
+
+	// DivideFunc divides and returns result with success flag.
+	DivideFunc func(a, b int) (int, bool)
+
+	// PanicIntFunc is a func that returns int and may panic.
+	PanicIntFunc func() int
+
+	// ComputeFunc computes and returns multiple values.
+	ComputeFunc func(x int) (int, string, bool)
+
+	// SideEffectFunc performs side effects with no return.
+	SideEffectFunc func(x int)
+
+	// ConditionalFunc conditionally panics or returns.
+	ConditionalFunc func(x int) int
+
+	// PanicFunc is a no-arg function that may panic.
+	PanicFunc func()
+
+	// AddFunc adds two integers.
+	AddFunc func(a, b int) int
+)
 
 // unexported constants.
 const (

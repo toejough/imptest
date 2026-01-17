@@ -47,6 +47,7 @@ type Imp struct {
 
 	pendingMu           sync.Mutex
 	pendingExpectations []*PendingExpectation
+	cleanupRegistered   bool
 }
 
 // NewImp creates a new Imp coordinator.
@@ -92,11 +93,19 @@ func (i *Imp) GetCallEventually(methodName string, validator func([]any) error) 
 // GetCallOrdered waits for a call matching both the method name and argument validator,
 // but fails fast if a non-matching call arrives first. The validator returns nil for
 // matching args, or an error describing why they didn't match.
+//
+// If there are any pending Eventually expectations, this method waits for them
+// to be satisfied first. This ensures that expectations written sequentially
+// in test code are satisfied in order.
 func (i *Imp) GetCallOrdered(
 	timeout time.Duration,
 	methodName string,
 	validator func([]any) error,
 ) *GenericCall {
+	// Wait for any pending Eventually expectations to be satisfied first
+	// This ensures sequential test code behaves sequentially
+	i.Wait()
+
 	combinedValidator := func(call *GenericCall) error {
 		if call.MethodName != methodName {
 			//nolint:err113 // validation error with dynamic context
@@ -124,6 +133,9 @@ func (i *Imp) Helper() {
 // Returns the expectation for chaining Return/Panic.
 // Also scans the queue for an existing match (in case the call arrived before
 // the expectation was registered).
+//
+// On the first call, if the TestReporter supports Cleanup (like *testing.T),
+// an automatic Wait() is registered to run when the test completes.
 func (i *Imp) RegisterPendingExpectation(
 	methodName string,
 	validator func([]any) error,
@@ -136,6 +148,18 @@ func (i *Imp) RegisterPendingExpectation(
 	}
 
 	i.pendingMu.Lock()
+
+	// Register auto-Wait cleanup on first Eventually expectation
+	if !i.cleanupRegistered {
+		if cr, ok := i.t.(cleanupRegistrar); ok {
+			cr.Cleanup(func() {
+				i.Wait()
+			})
+
+			i.cleanupRegistered = true
+		}
+	}
+
 	i.pendingExpectations = append(i.pendingExpectations, pending)
 	i.pendingMu.Unlock()
 

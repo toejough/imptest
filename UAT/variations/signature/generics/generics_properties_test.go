@@ -19,15 +19,14 @@ func TestProcessItem_Int_Property(t *testing.T) {
 		value := rapid.Int().Draw(rt, "value")
 		multiplier := rapid.IntRange(1, 100).Draw(rt, "multiplier")
 
-		// Create mock and wrapper
+		// Create mock and start the function
 		repo, repoImp := MockRepository[int](t)
-		wrapper := WrapProcessItem[int](t, generics.ProcessItem[int])
 
 		// Define transformer
 		transformer := func(v int) int { return v * multiplier }
 
 		// Start the function
-		call := wrapper.Start(repo, key, transformer)
+		call := StartProcessItem[int](t, generics.ProcessItem[int], repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
 		repoImp.Get.Expect(key).Return(value, nil)
@@ -49,15 +48,14 @@ func TestProcessItem_String_Property(t *testing.T) {
 		value := rapid.String().Draw(rt, "value")
 		suffix := rapid.String().Draw(rt, "suffix")
 
-		// Create mock and wrapper
+		// Create mock and start the function
 		repo, repoImp := MockRepository[string](t)
-		wrapper := WrapProcessItem[string](t, generics.ProcessItem[string])
 
 		// Define transformer
 		transformer := func(s string) string { return s + suffix }
 
 		// Start the function
-		call := wrapper.Start(repo, key, transformer)
+		call := StartProcessItem[string](t, generics.ProcessItem[string], repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
 		repoImp.Get.Expect(key).Return(value, nil)

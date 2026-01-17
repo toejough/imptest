@@ -29,7 +29,7 @@ func TestDetermineGeneratedTypeName(t *testing.T) {
 			name:          "target mode",
 			mode:          generate.NamingModeTarget,
 			interfaceName: "Calculator",
-			want:          "WrapCalculator",
+			want:          "StartCalculator",
 		},
 		{
 			name:          "dependency mode",
@@ -53,7 +53,7 @@ func TestDetermineGeneratedTypeName(t *testing.T) {
 			name:          "target mode with dots",
 			mode:          generate.NamingModeTarget,
 			interfaceName: "Calculator.Add",
-			want:          "WrapCalculatorAdd",
+			want:          "StartCalculatorAdd",
 		},
 		{
 			name:          "dependency mode with dots",

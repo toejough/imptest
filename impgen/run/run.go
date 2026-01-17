@@ -272,7 +272,7 @@ func determineGeneratedTypeName(mode generate.NamingMode, localInterfaceName str
 
 	switch mode {
 	case generate.NamingModeTarget:
-		return "Wrap" + typeName
+		return "Start" + typeName
 	case generate.NamingModeDependency:
 		return "Mock" + typeName
 	case generate.NamingModeDefault:

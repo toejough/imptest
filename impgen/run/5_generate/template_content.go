@@ -387,13 +387,24 @@ func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectPanic(value any)
 }
 
 `
-	tmplTargetConstructor = `// {{.WrapName}} wraps a function for testing.
-func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}}Handle{{.TypeParamsUse}} {
-	return &{{.WrapperType}}Handle{{.TypeParamsUse}}{
-		t:          t,
-		controller: {{.PkgImptest}}.NewTargetController(t),
-		callable:   fn,
+	tmplTargetConstructor = `// {{.WrapName}} starts the wrapped function in a goroutine for testing.
+func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}{{if .Params}}, {{.Params}}{{end}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
+	handle := &{{.CallHandleType}}{{.TypeParamsUse}}{
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](t),
+		controller:         {{.PkgImptest}}.NewTargetController(t),
 	}
+	handle.Eventually = &{{.CallHandleType}}Eventually{{.TypeParamsUse}}{h: handle}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				handle.PanicChan <- r
+			}
+		}()
+		{{if .HasResults}}{{.ResultVars}} := fn({{.ParamNames}})
+		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}fn({{.ParamNames}})
+		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{}{{end}}
+	}()
+	return handle
 }
 
 `
@@ -493,33 +504,9 @@ type {{.ReturnsType}}Return{{.TypeParamsDecl}} struct {
 	{{end}}{{end}}}
 
 `
-	tmplTargetStartMethod = `// Start executes the wrapped function in a goroutine.
-func (w *{{.WrapperType}}Handle{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
-	handle := &{{.CallHandleType}}{{.TypeParamsUse}}{
-		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](w.t),
-		controller:         w.controller,
-	}
-	handle.Eventually = &{{.CallHandleType}}Eventually{{.TypeParamsUse}}{h: handle}
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				handle.PanicChan <- r
-			}
-		}()
-		{{if .HasResults}}{{.ResultVars}} := w.callable({{.ParamNames}})
-		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
-		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{}{{end}}
-	}()
-	return handle
-}
+	// tmplTargetStartMethod is no longer used - Start logic is now in tmplTargetConstructor.
+	tmplTargetStartMethod = ``
 
-`
-	tmplTargetWrapperStruct = `// {{.WrapperType}}Handle is the test handle for a wrapped function.
-type {{.WrapperType}}Handle{{.TypeParamsDecl}} struct {
-	t          {{.PkgImptest}}.TestReporter
-	controller *{{.PkgImptest}}.TargetController
-	callable   {{.FuncSig}}
-}
-
-`
+	// tmplTargetWrapperStruct is no longer used - wrapper handle removed in API simplification.
+	tmplTargetWrapperStruct = ``
 )

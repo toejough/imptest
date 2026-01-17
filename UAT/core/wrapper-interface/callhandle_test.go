@@ -18,7 +18,7 @@ func TestInterfaceWrapper_CallHandleHasExpectMethods(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(2)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.Add.Start(5, 7)
 
@@ -34,7 +34,7 @@ func TestInterfaceWrapper_CallHandleHasReturnedField(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(1)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.Divide.Start(10, 2)
 
@@ -66,7 +66,7 @@ func TestInterfaceWrapper_ConcurrentCalls(t *testing.T) {
 
 	// Use Calculator for concurrent calls test
 	calc := handlers.NewCalculatorImpl(0)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Start 3 concurrent calls
 	call1 := wrapper.Add.Start(1, 1)
@@ -84,7 +84,7 @@ func TestInterfaceWrapper_ExpectReturnMatch(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(2)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.Divide.Start(10, 2)
 
@@ -100,7 +100,7 @@ func TestInterfaceWrapper_MultipleReturns(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(1)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.Divide.Start(20, 4)
 	call.ExpectReturn(5, true)
@@ -113,7 +113,7 @@ func TestInterfaceWrapper_MultiplyMethod(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(3)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Call Multiply directly to ensure coverage
 	wrapper.Multiply.Start(7).ExpectReturn(21)
@@ -128,7 +128,7 @@ func TestInterfaceWrapper_NoGetCallsMethod(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(10)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Type assertion to check if GetCalls exists
 	type getCaller interface {
@@ -149,7 +149,7 @@ func TestInterfaceWrapper_PanicCapture(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(5)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.ProcessValue.Start(-1)
 	call.ExpectPanic("negative values not supported")
@@ -162,7 +162,7 @@ func TestInterfaceWrapper_PanicFieldAccess(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(5)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	call := wrapper.ProcessValue.Start(-1)
 	call.WaitForResponse()
@@ -193,7 +193,7 @@ func TestInterfaceWrapper_StartReturnsUniqueCallHandles(t *testing.T) {
 	t.Parallel()
 
 	calc := handlers.NewCalculatorImpl(10)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Start two calls to the same method - each should return different handle
 	call1 := wrapper.Add.Start(5, 3)

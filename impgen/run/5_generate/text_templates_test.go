@@ -57,9 +57,11 @@ type templateWriteTest struct {
 }
 
 // allTemplateWriteTests returns test cases for all template Write functions.
-// WriteTargetWaitMethod is intentionally omitted - template has empty content and won't panic.
-// WriteFuncDepMockStruct is intentionally omitted - template has empty content
-// (two-return style doesn't need Handle struct).
+// The following are intentionally omitted - templates have empty content and won't panic:
+// - WriteTargetWaitMethod
+// - WriteFuncDepMockStruct (two-return style doesn't need Handle struct)
+// - WriteTargetStartMethod (flattened API - Start logic moved into constructor)
+// - WriteTargetWrapperStruct (flattened API - wrapper handle removed)
 func allTemplateWriteTests() []templateWriteTest {
 	methodNames := []string{
 		"WriteDepArgsStruct", "WriteDepCallWrapper", "WriteDepConstructor", "WriteDepHeader",
@@ -72,8 +74,7 @@ func allTemplateWriteTests() []templateWriteTest {
 		"WriteInterfaceTargetMethodWrapperFunc", "WriteInterfaceTargetMethodWrapperStruct",
 		"WriteInterfaceTargetWrapperStruct", "WriteTargetCallHandleStruct", "WriteTargetConstructor",
 		"WriteTargetExpectCompletes", "WriteTargetExpectPanic", "WriteTargetExpectReturns",
-		"WriteTargetHeader", "WriteTargetReturnsStruct", "WriteTargetStartMethod",
-		"WriteTargetWrapperStruct",
+		"WriteTargetHeader", "WriteTargetReturnsStruct",
 	}
 
 	tests := make([]templateWriteTest, 0, len(methodNames))

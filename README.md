@@ -46,7 +46,7 @@ func Test_PrintSum(t *testing.T) {
     mock, mockImp := MockIntOps(t)
 
     // Start the function under test
-    wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
+    wrapper := StartPrintSum(t, run.PrintSum, 10, 32, mock)
 
     // Expect calls in order, inject responses
     mockImp.Add.Expect(10, 32).Return(42)
@@ -62,7 +62,7 @@ func Test_PrintSum(t *testing.T) {
 
 1. A `//go:generate` directive created a type-safe mock (`MockIntOps`) from the interface, providing interactive control
    over dependency behavior
-1. A `//go:generate` directive created a type-safe wrapper (`WrapPrintSum`) for the function under test, enabling return
+1. A `//go:generate` directive created a type-safe wrapper (`StartPrintSum`) for the function under test, enabling return
    value and panic validation
 1. The test controlled the dependency interactively—each `Expect` call waited for the actual call
 1. Results were injected on-demand with `Return`, simulating the desired behavior
@@ -80,7 +80,7 @@ func Test_PrintSum_Flexible(t *testing.T) {
     t.Parallel()
 
     mock, mockImp := MockIntOps(t)
-    wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
+    wrapper := StartPrintSum(t, run.PrintSum,10, 32, mock)
 
     // Flexible matching with gomega-style matchers
     mockImp.Add.Match(
@@ -101,15 +101,15 @@ func Test_PrintSum_Flexible(t *testing.T) {
 
 ## Key Concepts
 
-| Concept                   | Description                                                                                                               |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Interface Mocks**       | Generate type-safe mocks from any interface with `//go:generate impgen <package.Interface> --dependency`                  |
-| **Callable Wrappers**     | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target`                         |
-| **Two-Return Pattern**    | Mocks return `(mock, imp)`: `mock` is the interface, `imp` holds method expectations                                      |
-| **Two-Step Matching**     | Access methods via `imp.X`, then specify matching mode (`Expect()` or `Match()`)                                          |
-| **Type Safety**           | `Expect(int, int)` is compile-time checked; `Match(matcher, matcher)` accepts matchers                                    |
-| **Concurrent Support**    | Use `.Eventually` for async expectations, then `imptest.Wait(t)` to block until satisfied                                 |
-| **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
+| Concept                   | Description                                                                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Interface Mocks**       | Generate type-safe mocks from any interface with `//go:generate impgen <package.Interface> --dependency`                          |
+| **Callable Wrappers**     | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target`. Generates `StartXxx` function. |
+| **Two-Return Pattern**    | Mocks return `(mock, imp)`: `mock` is the interface, `imp` holds method expectations                                              |
+| **Two-Step Matching**     | Access methods via `imp.X`, then specify matching mode (`Expect()` or `Match()`)                                                  |
+| **Type Safety**           | `Expect(int, int)` is compile-time checked; `Match(matcher, matcher)` accepts matchers                                            |
+| **Concurrent Support**    | Use `.Eventually` for async expectations, then `imptest.Wait(t)` to block until satisfied                                         |
+| **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string`         |
 
 ## Examples
 
@@ -136,7 +136,7 @@ func Test_Concurrent(t *testing.T) {
 ```go
 func Test_PrintSum_Panic(t *testing.T) {
     mock, mockImp := MockIntOps(t)
-    wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
+    wrapper := StartPrintSum(t, run.PrintSum,10, 32, mock)
 
     // Inject a panic
     mockImp.Add.Expect(10, 32).Panic("math overflow")
@@ -201,7 +201,7 @@ When a dependency returns a channel, inject one you control:
 
 func Test_ChannelReturn(t *testing.T) {
     mock, mockImp := MockEventSource(t)
-    wrapper := WrapProcessEvents(t, ProcessEvents).Start(mock)
+    wrapper := StartProcessEvents(t, ProcessEvents,mock)
 
     // Create a channel the test controls
     eventChan := make(chan Event)
@@ -398,8 +398,8 @@ func TestProcessUser_Imptest(t *testing.T) {
     // ✅ Generated mock, no manual implementation
     mock, mockImp := MockExternalService(t)
 
-    // ✅ Wrap function for return value validation
-    wrapper := WrapProcessUser(t, ProcessUser).Start(mock, 42)
+    // ✅ Start function for return value validation
+    wrapper := StartProcessUser(t, ProcessUser,mock, 42)
 
     // ✅ Interactive control: expect calls and inject responses
     mockImp.FetchData.Expect(42).Return("test data", nil)
@@ -423,10 +423,10 @@ func Add(a, b int) int {
 func TestAdd_Simple(t *testing.T) {
     t.Parallel()
 
-    // ✅ Wrap function and validate returns in one line
+    // ✅ Start function and validate returns in one line
     // ✅ Args are type-safe and checked at compile time - your IDE can autocomplete them or inform you of mismatches!
     // ✅ Panics are caught cleanly and reported in failure messages
-    WrapAdd(t, Add).Start(2, 3).ExpectReturn(5)
+    StartAdd(t, Add,2, 3).ExpectReturn(5)
 }
 ```
 

@@ -63,9 +63,8 @@ Use `--target` when you want to **test a function or method** by:
 
 func TestProcessOrder(t *testing.T) {
     mock, imp := MockPaymentService(t)
-    wrapper := WrapProcessOrder(t, orders.ProcessOrder)
 
-    call := wrapper.Start(mock, order)
+    call := StartProcessOrder(t, orders.ProcessOrder, mock, order)
 
     imp.Charge.Expect(order.Amount).
         Return(receipt, nil)
@@ -111,34 +110,42 @@ func TestUserService(t *testing.T) {
 
 | Symbol Type | Directive Example | Generated | UAT |
 |-------------|-------------------|-----------|-----|
-| Function | `impgen pkg.MyFunc --target` | `WrapMyFunc` | [wrapper-function](../UAT/core/wrapper-function/) |
-| Struct method | `impgen pkg.Calculator.Add --target` | `WrapCalculatorAdd` | [wrapper-function](../UAT/core/wrapper-function/) |
-| Struct (all methods) | `impgen pkg.Calculator --target` | `WrapCalculator` | [wrapper-struct](../UAT/core/wrapper-struct/) |
-| Interface | `impgen pkg.Logger --target` | `WrapLogger` | [wrapper-interface](../UAT/core/wrapper-interface/) |
-| Function type | `impgen pkg.HandlerFunc --target` | `WrapHandlerFunc` | [wrapper-functype](../UAT/core/wrapper-functype/) |
+| Function | `impgen pkg.MyFunc --target` | `StartMyFunc` | [wrapper-function](../UAT/core/wrapper-function/) |
+| Struct method | `impgen pkg.Calculator.Add --target` | `StartCalculatorAdd` | [wrapper-function](../UAT/core/wrapper-function/) |
+| Struct (all methods) | `impgen pkg.Calculator --target` | `StartCalculator` | [wrapper-struct](../UAT/core/wrapper-struct/) |
+| Interface | `impgen pkg.Logger --target` | `StartLogger` | [wrapper-interface](../UAT/core/wrapper-interface/) |
+| Function type | `impgen pkg.HandlerFunc --target` | `StartHandlerFunc` | [wrapper-functype](../UAT/core/wrapper-functype/) |
 
 #### API Pattern
 
-All wrappers follow the same pattern:
-
+**Function/method/functype wrappers** (flattened API):
 ```go
-// 1. Create wrapper with testing.T and the callable
-wrapper := WrapMyFunc(t, pkg.MyFunc)
+// 1. Start execution directly with args (returns a call handle)
+call := StartMyFunc(t, pkg.MyFunc, arg1, arg2, ...)
 
-// 2. Start execution (returns a call handle)
-call := wrapper.Start(arg1, arg2, ...)
-
-// 3. Handle any dependency interactions (see Mock Pattern)
+// 2. Handle any dependency interactions (see Mock Pattern)
 imp.DepMethod.Expect(...).Return(...)
 
-// 4. Verify the result
+// 3. Verify the result
 call.ExpectReturn(expectedReturn1, expectedReturn2)
 // or
 call.ExpectPanic("expected panic message")
 
-// For async verification on wrappers:
+// For async verification:
 call.Eventually.ExpectReturn(expected)
 imptest.Wait(t)  // blocks until satisfied
+```
+
+**Struct/interface wrappers** (multi-method):
+```go
+// 1. Create wrapper with testing.T and the implementation
+wrapper := StartCalculator(t, impl)
+
+// 2. Start a method (returns a call handle)
+call := wrapper.Add.Start(10, 20)
+
+// 3. Verify the result
+call.ExpectReturn(30)
 ```
 
 #### Wrapper Examples
@@ -150,9 +157,8 @@ imptest.Wait(t)  // blocks until satisfied
 
 func TestProcessOrder(t *testing.T) {
     mock, imp := MockExternalService(t)
-    wrapper := WrapProcessOrder(t, orders.ProcessOrder)
 
-    call := wrapper.Start(mock, 42)
+    call := StartProcessOrder(t, orders.ProcessOrder, mock, 42)
 
     imp.FetchData.Expect(42).
         Return("data", nil)
@@ -168,9 +174,8 @@ func TestProcessOrder(t *testing.T) {
 
 func TestCalculatorAdd(t *testing.T) {
     calc := calculator.NewCalculator()
-    wrapper := WrapCalculatorAdd(t, calc.Add)
 
-    call := wrapper.Start(10, 20)
+    call := StartCalculatorAdd(t, calc.Add, 10, 20)
     call.ExpectReturn(30)
 }
 ```
@@ -182,7 +187,7 @@ func TestCalculatorAdd(t *testing.T) {
 
 func TestCalculator(t *testing.T) {
     calc := calculator.NewCalculator()
-    wrapper := WrapCalculator(t, calc)
+    wrapper := StartCalculator(t, calc)
 
     addCall := wrapper.Add.Start(10, 20)
     addCall.ExpectReturn(30)
@@ -199,7 +204,7 @@ func TestCalculator(t *testing.T) {
 
 func TestLogger(t *testing.T) {
     impl := handlers.NewConsoleLogger()
-    wrapper := WrapLogger(t, impl)
+    wrapper := StartLogger(t, impl)
 
     infoCall := wrapper.Info.Start("test message")
     infoCall.ExpectReturn()
@@ -218,9 +223,8 @@ func TestWalkFunc(t *testing.T) {
     myWalker := func(path string, info os.FileInfo) error {
         return nil
     }
-    wrapper := WrapWalkFunc(t, myWalker)
 
-    call := wrapper.Start("/path", mockFileInfo)
+    call := StartWalkFunc(t, myWalker, "/path", mockFileInfo)
     call.ExpectReturn(nil)
 }
 ```
@@ -231,9 +235,7 @@ func TestWalkFunc(t *testing.T) {
 //go:generate impgen safety.UnsafeRunner --target
 
 func TestUnsafeRunnerPanics(t *testing.T) {
-    wrapper := WrapUnsafeRunner(t, safety.UnsafeRunner)
-
-    call := wrapper.Start(10, 0)  // Division by zero
+    call := StartUnsafeRunner(t, safety.UnsafeRunner, 10, 0)  // Division by zero
     call.ExpectPanic("division by zero")
 }
 ```
@@ -515,9 +517,8 @@ imptest.Wait(t)
 **Target wrappers also support Eventually:**
 
 ```go
-wrapper := WrapMyFunc(t, MyFunc)
-call1 := wrapper.Start(arg1)
-call2 := wrapper.Start(arg2)
+call1 := StartMyFunc(t, MyFunc, arg1)
+call2 := StartMyFunc(t, MyFunc, arg2)
 
 // Non-blocking expectations on wrapper calls
 call1.Eventually.ExpectReturn(expected1)

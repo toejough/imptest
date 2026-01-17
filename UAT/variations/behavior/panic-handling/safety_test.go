@@ -16,10 +16,9 @@ func TestPropagatePanic(t *testing.T) {
 	t.Parallel()
 
 	depMock, depImp := MockCriticalDependency(t)
-	wrapper := WrapUnsafeRunner(t, safety.UnsafeRunner)
 
 	// Start UnsafeRunner.
-	call := wrapper.Start(depMock)
+	call := StartUnsafeRunner(t, safety.UnsafeRunner, depMock)
 
 	// Inject a panic into the dependency call.
 	depImp.DoWork.Expect().Panic("fatal error")
@@ -44,10 +43,9 @@ func TestRecoverFromPanic(t *testing.T) {
 	t.Parallel()
 
 	depMock, depImp := MockCriticalDependency(t)
-	wrapper := WrapSafeRunner(t, safety.SafeRunner)
 
 	// Start SafeRunner.
-	call := wrapper.Start(depMock)
+	call := StartSafeRunner(t, safety.SafeRunner, depMock)
 
 	// Requirement: Inject a panic into the dependency call.
 	depImp.DoWork.Expect().Panic("boom")

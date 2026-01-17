@@ -146,15 +146,29 @@ func (dm *DependencyMethod) Expect(args ...any) *DependencyCall {
 	return newDependencyCall(call)
 }
 
-// MatchAny waits for a call to this method with any arguments.
-// Use when you don't care about the argument values.
+// ExpectCalled waits for a call to this method with any arguments.
+// Use when you only care that the method was called, not what arguments were passed.
 // In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
+func (dm *DependencyMethod) ExpectCalled() *DependencyCall {
+	// Always matches - accepts any arguments
+	validator := func(_ []any) error {
+		return nil
+	}
 
-// Always matches
+	if dm.eventually {
+		// Async mode - register pending expectation and return immediately
+		pending := dm.imp.RegisterPendingExpectation(dm.methodName, validator)
 
-// Async mode - register pending expectation and return immediately
+		return &DependencyCall{
+			pending: pending,
+		}
+	}
 
-// Synchronous mode - block until call arrives
+	// Synchronous mode - block until call arrives
+	call := dm.imp.GetCallOrdered(0, dm.methodName, validator)
+
+	return newDependencyCall(call)
+}
 
 // Match waits for a call to this method with arguments matching the given matchers.
 // Each matcher should implement the Matcher interface (compatible with gomega matchers).

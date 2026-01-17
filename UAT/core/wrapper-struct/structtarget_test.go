@@ -10,7 +10,7 @@
 //
 // Expected behavior (similar to interface wrapping in UAT-32):
 // - `impgen Calculator --target` should generate `WrapCalculator` function
-// - `WrapCalculator(t, calc)` returns a wrapper with method interceptors
+// - `StartCalculator(t, calc)` returns a wrapper with method interceptors
 // - Each method on the struct gets its own interceptor (Add, Multiply, Divide, Process)
 // - Calls are intercepted and recorded while still delegating to the original struct
 package calculator_test
@@ -37,7 +37,7 @@ func TestWrapCalculator_BasicWrapping(t *testing.T) {
 
 	// Wrap the entire Calculator struct to intercept all method calls
 	// This is the key test: Can impgen wrap a struct with --target?
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Call Add through the wrapped struct
 	// Expected: wrapper.Add should exist and intercept the call
@@ -50,7 +50,7 @@ func TestWrapCalculator_ErrorHandling(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(2, 0)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Test error path with negative input - Process returns error
 	call1 := wrapper.Process.Start(-5)
@@ -78,7 +78,7 @@ func TestWrapCalculator_MethodInteraction(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(3, 10)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Call Process, which internally calls Multiply and Add
 	// Process(5): Multiply(5) = 15, Add(15, 5) = 30
@@ -99,7 +99,7 @@ func TestWrapCalculator_MultipleMethodCalls(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(3, 5)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Call multiple different methods through the wrapped struct
 	// All should be intercepted independently
@@ -120,7 +120,7 @@ func TestWrapCalculator_MultipleReturnValues(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(1, 0)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Test successful division
 	wrapper.Divide.Start(50, 5).ExpectReturn(10, true)
@@ -135,7 +135,7 @@ func TestWrapCalculator_RepeatedCalls(t *testing.T) {
 	t.Parallel()
 
 	calc := calculator.NewCalculator(1, 0)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Make multiple calls to the same method - each returns unique handle
 	wrapper.Add.Start(1, 2).ExpectReturn(3)  // 1 + 2 + 0 = 3
@@ -150,7 +150,7 @@ func TestWrapCalculator_StatePreservation(t *testing.T) {
 
 	// Create calculator with specific multiplier and offset
 	calc := calculator.NewCalculator(5, 100)
-	wrapper := WrapCalculator(t, calc)
+	wrapper := StartCalculator(t, calc)
 
 	// Test that methods use the correct state values
 	// Multiply: 10 * multiplier=5 = 50

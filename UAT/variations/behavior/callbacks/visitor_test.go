@@ -15,12 +15,11 @@ import (
 func TestCallbackMatcherSupport(t *testing.T) {
 	t.Parallel()
 
-	// V2 Pattern: Create mock and wrap the function under test
+	// V2 Pattern: Create mock and start the function under test
 	mock, imp := MockTreeWalker(t)
-	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
 	// Start the function under test in a goroutine
-	wrapperCall := wrapper.Start(mock, "/test")
+	wrapperCall := StartCountFiles(t, visitor.CountFiles, mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call without Eventually to see if that's the issue
 	call := imp.Walk.Match("/test", imptest.Any)
@@ -89,12 +88,11 @@ func TestCallbackPanicSupport(t *testing.T) {
 func TestCountFiles(t *testing.T) {
 	t.Parallel()
 
-	// V2 Pattern: Create mock and wrap function under test
+	// V2 Pattern: Create mock and start function under test
 	mock, imp := MockTreeWalker(t)
-	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
 	// Start the code under test
-	wrapperCall := wrapper.Start(mock, "/test")
+	wrapperCall := StartCountFiles(t, visitor.CountFiles, mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call
 	call := imp.Walk.Eventually.Match("/test", imptest.Any)
