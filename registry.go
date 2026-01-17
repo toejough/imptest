@@ -2,6 +2,7 @@ package imptest
 
 import (
 	"sync"
+	"time"
 
 	"github.com/toejough/imptest/internal/core"
 )
@@ -33,6 +34,14 @@ func GetOrCreateImp(t TestReporter) *Imp {
 	}
 
 	return imp
+}
+
+// SetTimeout configures the timeout for all blocking operations in the test.
+// A duration of 0 means no timeout (block forever).
+//
+// If no Imp has been created for t yet, one is created.
+func SetTimeout(t TestReporter, d time.Duration) {
+	GetOrCreateImp(t).SetTimeout(d)
 }
 
 // Wait blocks until all async expectations registered under t are satisfied.

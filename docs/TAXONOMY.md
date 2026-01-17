@@ -62,12 +62,12 @@ Use `--target` when you want to **test a function or method** by:
 //go:generate impgen orders.ProcessOrder --target
 
 func TestProcessOrder(t *testing.T) {
-    h := MockPaymentService(t)
+    mock, imp := MockPaymentService(t)
     wrapper := WrapProcessOrder(t, orders.ProcessOrder)
 
-    call := wrapper.Start(h.Mock, order)
+    call := wrapper.Start(mock, order)
 
-    h.Method.Charge.ExpectCalledWithExactly(order.Amount).
+    imp.Charge.ExpectCalledWithExactly(order.Amount).
         InjectReturnValues(receipt, nil)
 
     call.ExpectReturnsEqual(expectedResult, nil)
@@ -87,12 +87,12 @@ Use `--dependency` when you want to **mock a dependency** by:
 //go:generate impgen storage.Repository --dependency
 
 func TestUserService(t *testing.T) {
-    h := MockRepository(t)
-    service := NewUserService(h.Mock)
+    mock, imp := MockRepository(t)
+    service := NewUserService(mock)
 
     go service.GetUser(123)
 
-    h.Method.FindByID.ExpectCalledWithExactly(123).
+    imp.FindByID.ExpectCalledWithExactly(123).
         InjectReturnValues(User{ID: 123, Name: "Alice"}, nil)
 }
 ```
@@ -129,7 +129,7 @@ wrapper := WrapMyFunc(t, pkg.MyFunc)
 call := wrapper.Start(arg1, arg2, ...)
 
 // 3. Handle any dependency interactions (see Mock Pattern)
-h.Method.DepMethod.ExpectCalledWithExactly(...).InjectReturnValues(...)
+imp.DepMethod.ExpectCalledWithExactly(...).InjectReturnValues(...)
 
 // 4. Verify the result
 call.ExpectReturnsEqual(expectedReturn1, expectedReturn2)
@@ -138,7 +138,7 @@ call.ExpectPanicEquals("expected panic message")
 
 // For async verification on wrappers:
 call.Eventually.ExpectReturnsEqual(expected)
-wrapper.Controller.Wait()  // blocks until satisfied
+imptest.Wait(t)  // blocks until satisfied
 ```
 
 #### Wrapper Examples
@@ -149,12 +149,12 @@ wrapper.Controller.Wait()  // blocks until satisfied
 //go:generate impgen orders.ProcessOrder --target
 
 func TestProcessOrder(t *testing.T) {
-    h := MockExternalService(t)
+    mock, imp := MockExternalService(t)
     wrapper := WrapProcessOrder(t, orders.ProcessOrder)
 
-    call := wrapper.Start(h.Mock, 42)
+    call := wrapper.Start(mock, 42)
 
-    h.Method.FetchData.ExpectCalledWithExactly(42).
+    imp.FetchData.ExpectCalledWithExactly(42).
         InjectReturnValues("data", nil)
 
     call.ExpectReturnsEqual("Result: data", nil)
@@ -263,24 +263,24 @@ func TestUnsafeRunnerPanics(t *testing.T) {
 All mocks follow the same pattern:
 
 ```go
-// 1. Create mock with testing.T (returns test handle)
-h := MockService(t)
+// 1. Create mock with testing.T (returns mock and expectation handle)
+mock, imp := MockService(t)
 
-// 2. Pass h.Mock (the interface implementation) to code under test
-go myFunction(h.Mock)
+// 2. Pass mock (the interface implementation) to code under test
+go myFunction(mock)
 
 // 3. For each expected call (in Ordered mode):
-h.Method.MethodName.ExpectCalledWithExactly(arg1, arg2).
+imp.MethodName.ExpectCalledWithExactly(arg1, arg2).
     InjectReturnValues(ret1, ret2)
 
 // Or with matchers for flexible matching:
-h.Method.MethodName.ExpectCalledWithMatches(imptest.Any(), expectedArg2).
+imp.MethodName.ExpectCalledWithMatches(imptest.Any(), expectedArg2).
     InjectReturnValues(ret1, ret2)
 
-// For concurrent code, use Eventually with h.Controller.Wait():
-h.Method.MethodName.Eventually.ExpectCalledWithExactly(arg1, arg2).
+// For concurrent code, use Eventually with imptest.Wait(t):
+imp.MethodName.Eventually.ExpectCalledWithExactly(arg1, arg2).
     InjectReturnValues(ret1, ret2)
-h.Controller.Wait()  // blocks until all Eventually expectations satisfied
+imptest.Wait(t)  // blocks until all Eventually expectations satisfied
 ```
 
 #### Mock Examples
@@ -291,12 +291,12 @@ h.Controller.Wait()  // blocks until all Eventually expectations satisfied
 //go:generate impgen storage.Repository --dependency
 
 func TestUserService(t *testing.T) {
-    h := MockRepository(t)
-    service := NewUserService(h.Mock)
+    mock, imp := MockRepository(t)
+    service := NewUserService(mock)
 
     go service.GetUser(123)
 
-    h.Method.FindByID.ExpectCalledWithExactly(123).
+    imp.FindByID.ExpectCalledWithExactly(123).
         InjectReturnValues(User{ID: 123}, nil)
 }
 ```
@@ -307,12 +307,12 @@ func TestUserService(t *testing.T) {
 //go:generate impgen logger.Logger --dependency
 
 func TestWithVariadic(t *testing.T) {
-    h := MockLogger(t)
+    mock, imp := MockLogger(t)
 
-    go doWork(h.Mock)
+    go doWork(mock)
 
     // Variadic args passed normally
-    h.Method.Logf.ExpectCalledWithExactly("format: %s %d", "hello", 42).
+    imp.Logf.ExpectCalledWithExactly("format: %s %d", "hello", 42).
         InjectReturnValues()
 }
 ```
@@ -321,12 +321,12 @@ func TestWithVariadic(t *testing.T) {
 
 ```go
 func TestErrorPath(t *testing.T) {
-    h := MockRepository(t)
-    service := NewUserService(h.Mock)
+    mock, imp := MockRepository(t)
+    service := NewUserService(mock)
 
     go service.GetUser(999)
 
-    h.Method.FindByID.ExpectCalledWithExactly(999).
+    imp.FindByID.ExpectCalledWithExactly(999).
         InjectReturnValues(User{}, ErrNotFound)
 }
 ```
@@ -335,12 +335,12 @@ func TestErrorPath(t *testing.T) {
 
 ```go
 func TestPanicRecovery(t *testing.T) {
-    h := MockRepository(t)
-    service := NewUserService(h.Mock)
+    mock, imp := MockRepository(t)
+    service := NewUserService(mock)
 
     go service.GetUser(123)
 
-    h.Method.FindByID.ExpectCalledWithExactly(123).
+    imp.FindByID.ExpectCalledWithExactly(123).
         InjectPanicValue("database connection lost")
 }
 ```
@@ -351,11 +351,11 @@ func TestPanicRecovery(t *testing.T) {
 //go:generate impgen handlers.Router --dependency
 
 func TestRouterDependency(t *testing.T) {
-    h := MockRouter(t)
+    mock, imp := MockRouter(t)
 
-    go processRequests(h.Mock)
+    go processRequests(mock)
 
-    h.Method.ExpectCalledWithExactly("/api/users").
+    imp.ExpectCalledWithExactly("/api/users").
         InjectReturnValues(handlerFunc)
 }
 ```
@@ -366,12 +366,12 @@ func TestRouterDependency(t *testing.T) {
 //go:generate impgen cache.Cache[T] --dependency
 
 func TestGenericCache(t *testing.T) {
-    h := MockCache[User](t)
-    service := NewCachingService(h.Mock)
+    mock, imp := MockCache[User](t)
+    service := NewCachingService(mock)
 
     go service.GetCached("user:123")
 
-    h.Method.Get.ExpectCalledWithExactly("user:123").
+    imp.Get.ExpectCalledWithExactly("user:123").
         InjectReturnValues(User{ID: 123}, true)
 }
 ```
@@ -382,14 +382,14 @@ func TestGenericCache(t *testing.T) {
 //go:generate impgen io.ReadCloser --dependency
 
 func TestReadCloser(t *testing.T) {
-    h := MockReadCloser(t)
+    mock, imp := MockReadCloser(t)
 
-    go processFile(h.Mock)
+    go processFile(mock)
 
     // Methods from embedded interfaces are accessible
-    h.Method.Read.ExpectCalledWithMatches(imptest.Any()).
+    imp.Read.ExpectCalledWithMatches(imptest.Any()).
         InjectReturnValues(10, nil)
-    h.Method.Close.ExpectCalledWithExactly().
+    imp.Close.ExpectCalledWithExactly().
         InjectReturnValues(nil)
 }
 ```
@@ -479,8 +479,8 @@ mock.Map.ExpectCalledWithMatches(items, imptest.Any()).
 By default, imptest expects calls in the exact order you specify:
 
 ```go
-h.Method.First.ExpectCalledWithExactly(1).InjectReturnValues(1)
-h.Method.Second.ExpectCalledWithExactly(2).InjectReturnValues(2)
+imp.First.ExpectCalledWithExactly(1).InjectReturnValues(1)
+imp.Second.ExpectCalledWithExactly(2).InjectReturnValues(2)
 // Calls MUST arrive as: First, then Second
 ```
 
@@ -488,29 +488,29 @@ If calls arrive out of order, the test fails immediately.
 
 #### Eventually Mode (Async)
 
-For concurrent code where call order is non-deterministic, use `Eventually` with `h.Controller.Wait()`:
+For concurrent code where call order is non-deterministic, use `Eventually` with `imptest.Wait(t)`:
 
 ```go
-h := MockService(t)
+mock, imp := MockService(t)
 
-go func() { h.Mock.TaskA("a") }()
-go func() { h.Mock.TaskB("b") }()
-go func() { h.Mock.TaskC("c") }()
+go func() { mock.TaskA("a") }()
+go func() { mock.TaskB("b") }()
+go func() { mock.TaskC("c") }()
 
 // Register async expectations (non-blocking)
-h.Method.TaskA.Eventually.ExpectCalledWithExactly("a").InjectReturnValues()
-h.Method.TaskB.Eventually.ExpectCalledWithExactly("b").InjectReturnValues()
-h.Method.TaskC.Eventually.ExpectCalledWithExactly("c").InjectReturnValues()
+imp.TaskA.Eventually.ExpectCalledWithExactly("a").InjectReturnValues()
+imp.TaskB.Eventually.ExpectCalledWithExactly("b").InjectReturnValues()
+imp.TaskC.Eventually.ExpectCalledWithExactly("c").InjectReturnValues()
 
 // Block until all expectations are satisfied
-h.Controller.Wait()
+imptest.Wait(t)
 ```
 
 **Key points:**
 - `Eventually` expectations are **non-blocking** - they register and return immediately
-- `h.Controller.Wait()` blocks until **all** Eventually expectations are matched
+- `imptest.Wait(t)` blocks until **all** Eventually expectations are matched
 - Calls that don't match any pending expectation are queued for later matching
-- Use `h.Controller.SetTimeout(d)` to configure timeout for all blocking operations
+- Use `imptest.SetTimeout(t, d)` to configure timeout for all blocking operations
 
 **Target wrappers also support Eventually:**
 
@@ -524,7 +524,7 @@ call1.Eventually.ExpectReturnsEqual(expected1)
 call2.Eventually.ExpectReturnsEqual(expected2)
 
 // Wait for all to complete
-wrapper.Controller.Wait()
+imptest.Wait(t)
 ```
 
 **UAT**: [ordered](../UAT/variations/concurrency/ordered/), [eventually](../UAT/variations/concurrency/eventually/)

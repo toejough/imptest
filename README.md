@@ -42,14 +42,11 @@ import (
 func Test_PrintSum(t *testing.T) {
     t.Parallel()
 
-    // Create a shared controller - coordinates all mocks and wrappers
-    imp := imptest.GetOrCreateImp(t)
-
     // Create the dependency mock (returns mock and expectation handle)
     mock, mockImp := MockIntOps(t)
 
     // Start the function under test
-    wrapper := WrapPrintSum(imp, run.PrintSum).Start(10, 32, mock)
+    wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
 
     // Expect calls in order, inject responses
     mockImp.Add.ExpectCalledWithExactly(10, 32).InjectReturnValues(42)
@@ -82,9 +79,8 @@ import "github.com/toejough/imptest"
 func Test_PrintSum_Flexible(t *testing.T) {
     t.Parallel()
 
-    imp := imptest.GetOrCreateImp(t)
     mock, mockImp := MockIntOps(t)
-    wrapper := WrapPrintSum(imp, run.PrintSum).Start(10, 32, mock)
+    wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
 
     // Flexible matching with gomega-style matchers
     mockImp.Add.ExpectCalledWithMatches(
@@ -139,9 +135,8 @@ func Test_Concurrent(t *testing.T) {
 
 ```go
 func Test_PrintSum_Panic(t *testing.T) {
-    imp := imptest.GetOrCreateImp(t)
     mock, mockImp := MockIntOps(t)
-    wrapper := WrapPrintSum(imp, run.PrintSum).Start(10, 32, mock)
+    wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
 
     // Inject a panic
     mockImp.Add.ExpectCalledWithExactly(10, 32).InjectPanicValue("math overflow")
@@ -205,9 +200,8 @@ When a dependency returns a channel, inject one you control:
 // Interface: type EventSource interface { Events() <-chan Event }
 
 func Test_ChannelReturn(t *testing.T) {
-    imp := imptest.GetOrCreateImp(t)
     mock, mockImp := MockEventSource(t)
-    wrapper := WrapProcessEvents(imp, ProcessEvents).Start(mock)
+    wrapper := WrapProcessEvents(t, ProcessEvents).Start(mock)
 
     // Create a channel the test controls
     eventChan := make(chan Event)
@@ -401,14 +395,11 @@ func TestProcessUser_Other(t *testing.T) {
 func TestProcessUser_Imptest(t *testing.T) {
     t.Parallel()
 
-    // ✅ Shared controller coordinates mocks and wrappers
-    imp := imptest.GetOrCreateImp(t)
-
     // ✅ Generated mock, no manual implementation
     mock, mockImp := MockExternalService(t)
 
     // ✅ Wrap function for return value validation
-    wrapper := WrapProcessUser(imp, ProcessUser).Start(mock, 42)
+    wrapper := WrapProcessUser(t, ProcessUser).Start(mock, 42)
 
     // ✅ Interactive control: expect calls and inject responses
     mockImp.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("test data", nil)

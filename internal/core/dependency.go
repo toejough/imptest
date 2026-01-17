@@ -17,40 +17,13 @@ type DependencyArgs struct {
 // This type wraps a GenericCall from the Controller and provides the v2 API.
 // In async mode (Eventually()), it wraps a PendingExpectation instead.
 type DependencyCall struct {
-	imp     *Imp
 	call    *GenericCall        // set in synchronous mode
 	pending *PendingExpectation // set in async mode (Eventually)
 }
 
 // GetArgs returns the arguments passed to the mock method in this call.
-func (dc *DependencyCall) GetArgs() *DependencyArgs {
-	dc.imp.Helper()
 
-	// Build the args struct from the call's args
-	result := &DependencyArgs{}
-
-	if len(dc.call.Args) > 0 {
-		result.A1 = dc.call.Args[0]
-	}
-
-	if len(dc.call.Args) > minArgsForA2 {
-		result.A2 = dc.call.Args[1]
-	}
-
-	if len(dc.call.Args) > minArgsForA3 {
-		result.A3 = dc.call.Args[2]
-	}
-
-	if len(dc.call.Args) > minArgsForA4 {
-		result.A4 = dc.call.Args[3]
-	}
-
-	if len(dc.call.Args) > minArgsForA5 {
-		result.A5 = dc.call.Args[4]
-	}
-
-	return result
-}
+// Build the args struct from the call's args
 
 // InjectPanicValue specifies that the mock should panic with the given value.
 // This sends a panic response to the mock's response channel, unblocking it.
@@ -163,7 +136,6 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 		pending := dm.imp.RegisterPendingExpectation(dm.methodName, validator)
 
 		return &DependencyCall{
-			imp:     dm.imp,
 			pending: pending,
 		}
 	}
@@ -171,7 +143,7 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 	// Synchronous mode - block until call arrives
 	call := dm.imp.GetCallOrdered(0, dm.methodName, validator)
 
-	return newDependencyCall(dm.imp, call)
+	return newDependencyCall(call)
 }
 
 // ExpectCalledWithMatches waits for a call to this method with arguments matching the given matchers.
@@ -205,7 +177,6 @@ func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *Dependency
 		pending := dm.imp.RegisterPendingExpectation(dm.methodName, validator)
 
 		return &DependencyCall{
-			imp:     dm.imp,
 			pending: pending,
 		}
 	}
@@ -213,23 +184,13 @@ func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *Dependency
 	// Synchronous mode - block until call arrives
 	call := dm.imp.GetCallOrdered(0, dm.methodName, validator)
 
-	return newDependencyCall(dm.imp, call)
+	return newDependencyCall(call)
 }
-
-// unexported constants.
-const (
-	// Argument position constants for DependencyArgs fields.
-	minArgsForA2 = 1
-	minArgsForA3 = 2
-	minArgsForA4 = 3
-	minArgsForA5 = 4
-)
 
 // newDependencyCall creates a DependencyCall from a GenericCall.
 // This is called by generated mock code after receiving a call from the Controller.
-func newDependencyCall(imp *Imp, call *GenericCall) *DependencyCall {
+func newDependencyCall(call *GenericCall) *DependencyCall {
 	return &DependencyCall{
-		imp:  imp,
 		call: call,
 	}
 }

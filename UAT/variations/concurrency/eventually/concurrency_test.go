@@ -137,14 +137,14 @@ func TestExplicitReversedExpectation(t *testing.T) {
 	}
 }
 
-// TestSetTimeoutAPI verifies SetTimeout can be called on the Imp.
+// TestSetTimeoutAPI verifies SetTimeout can be called via imptest.SetTimeout.
 func TestSetTimeoutAPI(t *testing.T) {
 	t.Parallel()
 
 	mock, imp := MockSlowService(t)
 
-	// SetTimeout is callable on the Imp
-	imptest.GetOrCreateImp(t).SetTimeout(5 * time.Second)
+	// SetTimeout is callable at package level
+	imptest.SetTimeout(t, 5*time.Second)
 
 	go func() {
 		_ = mock.DoA(1)

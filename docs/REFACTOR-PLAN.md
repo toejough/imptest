@@ -50,11 +50,12 @@ func Test_PrintSum(t *testing.T) {
 
 ## Decisions
 
-- **Export `GetOrCreateImp`?** - Yes (changed from original "no"). Generated code needs to call it, and keeping it internal would require awkward workarounds.
+- **Export `GetOrCreateImp`?** - Yes (changed from original "no"). Generated code needs to call it, and keeping it internal would require awkward workarounds. However, user-facing documentation does not show it—users interact only with `MockX(t)` and `WrapX(t)`.
 - **Backward compatibility?** - No. Remove `NewImp()` outright. Document the new way.
 - **Generated type names?** - `*IntOpsImp` - fits the style/character of the repo.
 - **Function mocks?** - Yes, `mockFn, imp := MockMyFunc(t)` with `imp.ExpectCalledWith...` directly.
 - **Use `TestReporter` vs `*testing.T`?** - Use `TestReporter` interface for flexibility (supports `*testing.T`, `*testing.B`, and test doubles).
+- **SetTimeout API?** - Added `imptest.SetTimeout(t, d)` as package-level function (mirrors `Wait(t)` pattern).
 
 ---
 
@@ -103,7 +104,7 @@ Each phase follows this cycle:
 - [x] Property: concurrent access to registry is safe (`TestGetOrCreateImp_ConcurrentAccess`, `TestGetOrCreateImp_ConcurrentAccess_Rapid`)
 - [x] Additional: `Wait(t)` returns immediately with no expectations (`TestWait_NoExpectations_ReturnsImmediately`)
 
-**Docs**: Updated README.md examples to use `GetOrCreateImp(t)` instead of `NewImp(t)`.
+**Docs**: Initially updated README.md examples to use `GetOrCreateImp(t)`. Later removed from user-facing docs—users don't need to call it directly (generated mocks/wrappers handle it internally).
 
 ---
 

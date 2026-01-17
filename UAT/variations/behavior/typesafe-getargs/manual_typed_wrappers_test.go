@@ -6,13 +6,13 @@ import (
 	typesafeargs "github.com/toejough/imptest/UAT/variations/behavior/typesafe-getargs"
 )
 
-// CalculatorAddArgs holds typed arguments for Add method
+// CalculatorAddArgs holds typed arguments for Add method.
 type CalculatorAddArgs struct {
 	A int
 	B int
 }
 
-// CalculatorAddCall wraps DependencyCall with typed GetArgs
+// CalculatorAddCall wraps DependencyCall with typed GetArgs.
 type CalculatorAddCall struct {
 	*imptest.DependencyCall
 }
@@ -26,7 +26,7 @@ func (c *CalculatorAddCall) GetArgs() CalculatorAddArgs {
 	}
 }
 
-// CalculatorAddMethod wraps DependencyMethod with typed return
+// CalculatorAddMethod wraps DependencyMethod with typed return.
 type CalculatorAddMethod struct {
 	*imptest.DependencyMethod
 
@@ -44,34 +44,26 @@ func (m *CalculatorAddMethod) ExpectCalledWithMatches(matchers ...any) *Calculat
 	return &CalculatorAddCall{DependencyCall: call}
 }
 
-// TypesafeCalculatorMockHandle is the test handle for Calculator.
-type TypesafeCalculatorMockHandle struct {
-	Mock       typesafeargs.Calculator
-	Method     *TypesafeCalculatorMockMethods
-	Controller *imptest.Imp
-}
-
-// TypesafeCalculatorMockMethods holds method wrappers for setting expectations.
-type TypesafeCalculatorMockMethods struct {
+// TypesafeCalculatorImp holds method wrappers for setting expectations.
+type TypesafeCalculatorImp struct {
 	Add      *CalculatorAddMethod
 	Multiply *imptest.DependencyMethod // For now, only Add is typed
 	Store    *imptest.DependencyMethod
 }
 
-func NewTypesafeCalculatorMock(t imptest.TestReporter) *TypesafeCalculatorMockHandle {
+// NewTypesafeCalculatorMock creates a mock Calculator and returns (mock, expectation handle).
+func NewTypesafeCalculatorMock(
+	t imptest.TestReporter,
+) (typesafeargs.Calculator, *TypesafeCalculatorImp) {
 	ctrl := imptest.GetOrCreateImp(t)
-	methods := &TypesafeCalculatorMockMethods{
+	imp := &TypesafeCalculatorImp{
 		Add:      newCalculatorAddMethod(imptest.NewDependencyMethod(ctrl, "Add")),
 		Multiply: imptest.NewDependencyMethod(ctrl, "Multiply"),
 		Store:    imptest.NewDependencyMethod(ctrl, "Store"),
 	}
-	handle := &TypesafeCalculatorMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	handle.Mock = &mockCalculatorImpl{handle: handle}
+	mock := &mockCalculatorImpl{ctrl: ctrl}
 
-	return handle
+	return mock, imp
 }
 
 // unexported constants.
@@ -80,7 +72,7 @@ const (
 )
 
 type mockCalculatorImpl struct {
-	handle *TypesafeCalculatorMockHandle
+	ctrl *imptest.Imp
 }
 
 func (impl *mockCalculatorImpl) Add(a, b int) int {
@@ -89,7 +81,7 @@ func (impl *mockCalculatorImpl) Add(a, b int) int {
 		Args:         []any{a, b},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == responseTypePanic {
@@ -113,7 +105,7 @@ func (impl *mockCalculatorImpl) Multiply(x, y int) int {
 		Args:         []any{x, y},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == responseTypePanic {
@@ -137,7 +129,7 @@ func (impl *mockCalculatorImpl) Store(key string, value any) error {
 		Args:         []any{key, value},
 		ResponseChan: make(chan imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 
 	resp := <-call.ResponseChan
 	if resp.Type == responseTypePanic {

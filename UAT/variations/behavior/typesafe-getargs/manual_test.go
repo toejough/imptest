@@ -4,18 +4,18 @@ import (
 	"testing"
 )
 
-// TestManualTypeSafeGetArgs tests the manually created typed wrappers
+// TestManualTypeSafeGetArgs tests the manually created typed wrappers.
 func TestManualTypeSafeGetArgs(t *testing.T) {
 	t.Parallel()
 
-	calc := NewTypesafeCalculatorMock(t)
+	mock, imp := NewTypesafeCalculatorMock(t)
 
 	go func() {
-		_ = calc.Mock.Add(10, 20)
+		_ = mock.Add(10, 20)
 	}()
 
 	// Use the typed wrapper
-	call := calc.Method.Add.Eventually.ExpectCalledWithExactly(10, 20)
+	call := imp.Add.Eventually.ExpectCalledWithExactly(10, 20)
 
 	// GetArgs should return typed struct - no casting!
 	args := call.GetArgs()
