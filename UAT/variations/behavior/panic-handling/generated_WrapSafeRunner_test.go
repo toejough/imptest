@@ -18,8 +18,8 @@ type WrapSafeRunnerCallHandle struct {
 	Eventually *WrapSafeRunnerCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapSafeRunnerCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapSafeRunnerCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *WrapSafeRunnerCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapSafeRunnerCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapSafeRunnerCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *WrapSafeRunnerCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapSafeRunnerCallHandle) ExpectReturnsEqual(v0 bool) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapSafeRunnerCallHandle) ExpectReturn(v0 bool) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -65,8 +65,8 @@ func (h *WrapSafeRunnerCallHandle) ExpectReturnsEqual(v0 bool) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapSafeRunnerCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapSafeRunnerCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -88,14 +88,14 @@ type WrapSafeRunnerCallHandleEventually struct {
 	h *WrapSafeRunnerCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapSafeRunnerCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapSafeRunnerCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapSafeRunnerCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapSafeRunnerCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapSafeRunnerCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -116,22 +116,16 @@ type WrapSafeRunnerReturnsReturn struct {
 
 // WrapSafeRunnerWrapperHandle is the test handle for a wrapped function.
 type WrapSafeRunnerWrapperHandle struct {
-	Method     *WrapSafeRunnerWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapSafeRunnerWrapperMethod wraps a function for testing.
-type WrapSafeRunnerWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(safety.CriticalDependency) bool
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapSafeRunnerWrapperMethod) Start(dep safety.CriticalDependency) *WrapSafeRunnerCallHandle {
+func (w *WrapSafeRunnerWrapperHandle) Start(dep safety.CriticalDependency) *WrapSafeRunnerCallHandle {
 	handle := &WrapSafeRunnerCallHandle{
-		CallableController: _imptest.NewCallableController[WrapSafeRunnerReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapSafeRunnerReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapSafeRunnerCallHandleEventually{h: handle}
 	go func() {
@@ -140,7 +134,7 @@ func (m *WrapSafeRunnerWrapperMethod) Start(dep safety.CriticalDependency) *Wrap
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(dep)
+		ret0 := w.callable(dep)
 		handle.ReturnChan <- WrapSafeRunnerReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -148,13 +142,9 @@ func (m *WrapSafeRunnerWrapperMethod) Start(dep safety.CriticalDependency) *Wrap
 
 // WrapSafeRunner wraps a function for testing.
 func WrapSafeRunner(t _imptest.TestReporter, fn func(safety.CriticalDependency) bool) *WrapSafeRunnerWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapSafeRunnerWrapperHandle{
-		Method: &WrapSafeRunnerWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

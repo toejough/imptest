@@ -11,7 +11,7 @@ import (
 //
 // Key Requirements Met:
 //  1. Panic Propagation: Verify that panics triggered in dependencies
-//     actually reach the caller using ExpectPanicEquals.
+//     actually reach the caller using ExpectPanic.
 func TestPropagatePanic(t *testing.T) {
 	t.Parallel()
 
@@ -19,13 +19,13 @@ func TestPropagatePanic(t *testing.T) {
 	wrapper := WrapUnsafeRunner(t, safety.UnsafeRunner)
 
 	// Start UnsafeRunner.
-	call := wrapper.Method.Start(depMock)
+	call := wrapper.Start(depMock)
 
 	// Inject a panic into the dependency call.
 	depImp.DoWork.Expect().Panic("fatal error")
 
 	// Requirement: Verify that the panic was propagated through the runner.
-	call.ExpectPanicEquals("fatal error")
+	call.ExpectPanic("fatal error")
 }
 
 //go:generate impgen safety.CriticalDependency --dependency
@@ -47,11 +47,11 @@ func TestRecoverFromPanic(t *testing.T) {
 	wrapper := WrapSafeRunner(t, safety.SafeRunner)
 
 	// Start SafeRunner.
-	call := wrapper.Method.Start(depMock)
+	call := wrapper.Start(depMock)
 
 	// Requirement: Inject a panic into the dependency call.
 	depImp.DoWork.Expect().Panic("boom")
 
 	// Requirement: Verify that SafeRunner recovered and returned false.
-	call.ExpectReturnsEqual(false)
+	call.ExpectReturn(false)
 }

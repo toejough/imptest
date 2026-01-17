@@ -20,7 +20,7 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
 	// Start the function under test in a goroutine
-	wrapperCall := wrapper.Method.Start(mock, "/test")
+	wrapperCall := wrapper.Start(mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call without Eventually to see if that's the issue
 	call := imp.Walk.Match("/test", imptest.Any)
@@ -40,7 +40,7 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	call.Return(nil)
 
 	// Verify the function completed successfully
-	wrapperCall.ExpectReturnsEqual(1, nil)
+	wrapperCall.ExpectReturn(1, nil)
 }
 
 func TestCallbackPanicSupport(t *testing.T) {
@@ -94,7 +94,7 @@ func TestCountFiles(t *testing.T) {
 	wrapper := WrapCountFiles(t, visitor.CountFiles)
 
 	// Start the code under test
-	wrapperCall := wrapper.Method.Start(mock, "/test")
+	wrapperCall := wrapper.Start(mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call
 	call := imp.Walk.Eventually.Match("/test", imptest.Any)
@@ -129,7 +129,7 @@ func TestCountFiles(t *testing.T) {
 	call.Return(nil)
 
 	// Verify the results - should count only the 2 non-directory entries
-	wrapperCall.ExpectReturnsEqual(2, nil)
+	wrapperCall.ExpectReturn(2, nil)
 }
 
 func TestWalkWithNamedType(t *testing.T) {

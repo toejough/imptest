@@ -17,8 +17,8 @@ type WrapFilterCallHandle struct {
 	Eventually *WrapFilterCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapFilterCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapFilterCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapFilterCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapFilterCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapFilterCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapFilterCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapFilterCallHandle) ExpectReturnsEqual(v0 []int) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapFilterCallHandle) ExpectReturn(v0 []int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +64,8 @@ func (h *WrapFilterCallHandle) ExpectReturnsEqual(v0 []int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapFilterCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapFilterCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -87,14 +87,14 @@ type WrapFilterCallHandleEventually struct {
 	h *WrapFilterCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapFilterCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapFilterCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapFilterCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapFilterCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapFilterCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -115,22 +115,16 @@ type WrapFilterReturnsReturn struct {
 
 // WrapFilterWrapperHandle is the test handle for a wrapped function.
 type WrapFilterWrapperHandle struct {
-	Method     *WrapFilterWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapFilterWrapperMethod wraps a function for testing.
-type WrapFilterWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func([]int, func(int) bool) []int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapFilterWrapperMethod) Start(items []int, predicate func(int) bool) *WrapFilterCallHandle {
+func (w *WrapFilterWrapperHandle) Start(items []int, predicate func(int) bool) *WrapFilterCallHandle {
 	handle := &WrapFilterCallHandle{
-		CallableController: _imptest.NewCallableController[WrapFilterReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapFilterReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapFilterCallHandleEventually{h: handle}
 	go func() {
@@ -139,7 +133,7 @@ func (m *WrapFilterWrapperMethod) Start(items []int, predicate func(int) bool) *
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(items, predicate)
+		ret0 := w.callable(items, predicate)
 		handle.ReturnChan <- WrapFilterReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -147,13 +141,9 @@ func (m *WrapFilterWrapperMethod) Start(items []int, predicate func(int) bool) *
 
 // WrapFilter wraps a function for testing.
 func WrapFilter(t _imptest.TestReporter, fn func([]int, func(int) bool) []int) *WrapFilterWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapFilterWrapperHandle{
-		Method: &WrapFilterWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

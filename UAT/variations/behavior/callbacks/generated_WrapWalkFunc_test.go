@@ -18,8 +18,8 @@ type WrapWalkFuncCallHandle struct {
 	Eventually *WrapWalkFuncCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapWalkFuncCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapWalkFuncCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *WrapWalkFuncCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapWalkFuncCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapWalkFuncCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *WrapWalkFuncCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapWalkFuncCallHandle) ExpectReturnsEqual(v0 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapWalkFuncCallHandle) ExpectReturn(v0 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -65,8 +65,8 @@ func (h *WrapWalkFuncCallHandle) ExpectReturnsEqual(v0 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapWalkFuncCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapWalkFuncCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -88,14 +88,14 @@ type WrapWalkFuncCallHandleEventually struct {
 	h *WrapWalkFuncCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapWalkFuncCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapWalkFuncCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapWalkFuncCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapWalkFuncCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapWalkFuncCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -116,22 +116,16 @@ type WrapWalkFuncReturnsReturn struct {
 
 // WrapWalkFuncWrapperHandle is the test handle for a wrapped function.
 type WrapWalkFuncWrapperHandle struct {
-	Method     *WrapWalkFuncWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapWalkFuncWrapperMethod wraps a function for testing.
-type WrapWalkFuncWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(string, fs.DirEntry, error) error
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapWalkFuncWrapperMethod) Start(path string, d fs.DirEntry, err error) *WrapWalkFuncCallHandle {
+func (w *WrapWalkFuncWrapperHandle) Start(path string, d fs.DirEntry, err error) *WrapWalkFuncCallHandle {
 	handle := &WrapWalkFuncCallHandle{
-		CallableController: _imptest.NewCallableController[WrapWalkFuncReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapWalkFuncReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapWalkFuncCallHandleEventually{h: handle}
 	go func() {
@@ -140,7 +134,7 @@ func (m *WrapWalkFuncWrapperMethod) Start(path string, d fs.DirEntry, err error)
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(path, d, err)
+		ret0 := w.callable(path, d, err)
 		handle.ReturnChan <- WrapWalkFuncReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -148,13 +142,9 @@ func (m *WrapWalkFuncWrapperMethod) Start(path string, d fs.DirEntry, err error)
 
 // WrapWalkFunc wraps a function for testing.
 func WrapWalkFunc(t _imptest.TestReporter, fn func(string, fs.DirEntry, error) error) *WrapWalkFuncWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapWalkFuncWrapperHandle{
-		Method: &WrapWalkFuncWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

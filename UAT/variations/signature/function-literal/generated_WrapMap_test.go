@@ -17,8 +17,8 @@ type WrapMapCallHandle struct {
 	Eventually *WrapMapCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapMapCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapMapCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapMapCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapMapCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapMapCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapMapCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapMapCallHandle) ExpectReturnsEqual(v0 []int) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapMapCallHandle) ExpectReturn(v0 []int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +64,8 @@ func (h *WrapMapCallHandle) ExpectReturnsEqual(v0 []int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapMapCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapMapCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -87,14 +87,14 @@ type WrapMapCallHandleEventually struct {
 	h *WrapMapCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapMapCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapMapCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapMapCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapMapCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapMapCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -115,22 +115,16 @@ type WrapMapReturnsReturn struct {
 
 // WrapMapWrapperHandle is the test handle for a wrapped function.
 type WrapMapWrapperHandle struct {
-	Method     *WrapMapWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapMapWrapperMethod wraps a function for testing.
-type WrapMapWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func([]int, func(int) int) []int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapMapWrapperMethod) Start(items []int, transform func(int) int) *WrapMapCallHandle {
+func (w *WrapMapWrapperHandle) Start(items []int, transform func(int) int) *WrapMapCallHandle {
 	handle := &WrapMapCallHandle{
-		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapMapReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapMapCallHandleEventually{h: handle}
 	go func() {
@@ -139,7 +133,7 @@ func (m *WrapMapWrapperMethod) Start(items []int, transform func(int) int) *Wrap
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(items, transform)
+		ret0 := w.callable(items, transform)
 		handle.ReturnChan <- WrapMapReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -147,13 +141,9 @@ func (m *WrapMapWrapperMethod) Start(items []int, transform func(int) int) *Wrap
 
 // WrapMap wraps a function for testing.
 func WrapMap(t _imptest.TestReporter, fn func([]int, func(int) int) []int) *WrapMapWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapMapWrapperHandle{
-		Method: &WrapMapWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

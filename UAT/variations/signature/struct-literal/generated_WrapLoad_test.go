@@ -13,8 +13,8 @@ type WrapLoadCallHandle struct {
 	*_imptest.CallableController[WrapLoadReturnsReturn]
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapLoadCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapLoadCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -29,8 +29,8 @@ func (h *WrapLoadCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapLoadCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapLoadCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -45,8 +45,8 @@ func (h *WrapLoadCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapLoadCallHandle) ExpectReturnsEqual(v0 struct {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapLoadCallHandle) ExpectReturn(v0 struct {
 	Host string
 	Port int
 	TLS  bool
@@ -64,8 +64,8 @@ func (h *WrapLoadCallHandle) ExpectReturnsEqual(v0 struct {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapLoadCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapLoadCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 

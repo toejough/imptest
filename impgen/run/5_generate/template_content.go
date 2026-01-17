@@ -201,10 +201,9 @@ func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) Match(matchers ...any) *{
 	tmplInterfaceTargetConstructor = `// {{.WrapName}} creates a new wrapper for the given {{.InterfaceType}} implementation.
 func {{.WrapName}}(t *testing.T, {{.ImplName}} {{if .IsStructType}}*{{end}}{{.InterfaceType}}) *{{.WrapperType}}Handle {
 	h := &{{.WrapperType}}Handle{
-		impl:   {{.ImplName}},
-		Method: &{{.WrapperType}}Methods{},
+		impl: {{.ImplName}},
 	}
-{{range .Methods}}	h.Method.{{.MethodName}} = {{.WrapName}}(t, func({{.Params}}){{if .HasResults}} {{.ReturnsType}}{{end}} {
+{{range .Methods}}	h.{{.MethodName}} = {{.WrapName}}(t, func({{.Params}}){{if .HasResults}} {{.ReturnsType}}{{end}} {
 {{if .HasResults}}		{{.ResultVars}} := h.impl.{{.MethodName}}({{.ParamNames}})
 		return {{.ReturnsType}}{ {{.ReturnAssignments}} }
 {{else}}		h.impl.{{.MethodName}}({{.ParamNames}})
@@ -244,8 +243,8 @@ func (h *{{.CallHandleType}}) ExpectCompletes() {
 }
 
 `
-	tmplInterfaceTargetMethodExpectPanic = `// ExpectPanicEquals verifies the method panics with the expected value.
-func (h *{{.CallHandleType}}) ExpectPanicEquals(expected any) {
+	tmplInterfaceTargetMethodExpectPanic = `// ExpectPanic verifies the method panics with the expected value.
+func (h *{{.CallHandleType}}) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -260,8 +259,8 @@ func (h *{{.CallHandleType}}) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
-func (h *{{.CallHandleType}}) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
+func (h *{{.CallHandleType}}) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -277,8 +276,8 @@ func (h *{{.CallHandleType}}) ExpectPanicMatches(matcher any) {
 }
 
 `
-	tmplInterfaceTargetMethodExpectReturns = `// ExpectReturnsEqual verifies the method returned the expected values.
-func (h *{{.CallHandleType}}) ExpectReturnsEqual({{.ExpectedParams}}) {
+	tmplInterfaceTargetMethodExpectReturns = `// ExpectReturn verifies the method returned the expected values.
+func (h *{{.CallHandleType}}) ExpectReturn({{.ExpectedParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -292,8 +291,8 @@ func (h *{{.CallHandleType}}) ExpectReturnsEqual({{.ExpectedParams}}) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *{{.CallHandleType}}) ExpectReturnsMatch({{.MatcherParams}}) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *{{.CallHandleType}}) ExpectReturnMatch({{.MatcherParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -347,14 +346,9 @@ func (w *{{.WrapperType}}) Start({{.Params}}) *{{.CallHandleType}} {
 `
 	tmplInterfaceTargetWrapperStruct = `// {{.WrapperType}}Handle wraps an implementation of {{.InterfaceType}} to intercept method calls.
 type {{.WrapperType}}Handle struct {
-	Method *{{.WrapperType}}Methods
-	impl   {{if .IsStructType}}*{{end}}{{.InterfaceType}}
-}
-
-// {{.WrapperType}}Methods holds method wrappers for all intercepted methods.
-type {{.WrapperType}}Methods struct {
 {{range .Methods}}	{{.MethodName}} *{{.WrapperType}}
-{{end}}}
+{{end}}	impl {{if .IsStructType}}*{{end}}{{.InterfaceType}}
+}
 
 `
 	tmplTargetCallHandleStruct = `// {{.CallHandleType}} represents a single call to the wrapped function.
@@ -382,27 +376,23 @@ func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ensureStarted() *{{.Pk
 	return e.h.pendingCompletion
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *{{.CallHandleType}}Eventually{{.TypeParamsUse}}) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
 `
 	tmplTargetConstructor = `// {{.WrapName}} wraps a function for testing.
 func {{.WrapName}}{{.TypeParamsDecl}}(t {{.PkgImptest}}.TestReporter, fn {{.FuncSig}}) *{{.WrapperType}}Handle{{.TypeParamsUse}} {
-	ctrl := {{.PkgImptest}}.NewTargetController(t)
 	return &{{.WrapperType}}Handle{{.TypeParamsUse}}{
-		Method: &{{.WrapperType}}Method{{.TypeParamsUse}}{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: {{.PkgImptest}}.NewTargetController(t),
+		callable:   fn,
 	}
 }
 
@@ -418,8 +408,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectCompletes() {
 }
 
 `
-	tmplTargetExpectPanic = `// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicEquals(expected any) {
+	tmplTargetExpectPanic = `// ExpectPanic verifies the function panics with the expected value.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -434,8 +424,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicEquals(expected any) 
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -451,8 +441,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectPanicMatches(matcher any) 
 }
 
 `
-	tmplTargetExpectReturns = `// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturnsEqual({{.ExpectedParams}}) {
+	tmplTargetExpectReturns = `// ExpectReturn verifies the function returned the expected values.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturn({{.ExpectedParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -466,8 +456,8 @@ func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturnsEqual({{.ExpectedPa
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturnsMatch({{.MatcherParams}}) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *{{.CallHandleType}}{{.TypeParamsUse}}) ExpectReturnMatch({{.MatcherParams}}) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -504,10 +494,10 @@ type {{.ReturnsType}}Return{{.TypeParamsDecl}} struct {
 
 `
 	tmplTargetStartMethod = `// Start executes the wrapped function in a goroutine.
-func (m *{{.WrapperType}}Method{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
+func (w *{{.WrapperType}}Handle{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHandleType}}{{.TypeParamsUse}} {
 	handle := &{{.CallHandleType}}{{.TypeParamsUse}}{
-		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](m.t),
-		controller:         m.controller,
+		CallableController: {{.PkgImptest}}.NewCallableController[{{.ReturnsType}}Return{{.TypeParamsUse}}](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &{{.CallHandleType}}Eventually{{.TypeParamsUse}}{h: handle}
 	go func() {
@@ -516,8 +506,8 @@ func (m *{{.WrapperType}}Method{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHa
 				handle.PanicChan <- r
 			}
 		}()
-		{{if .HasResults}}{{.ResultVars}} := m.callable({{.ParamNames}})
-		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}m.callable({{.ParamNames}})
+		{{if .HasResults}}{{.ResultVars}} := w.callable({{.ParamNames}})
+		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{ {{.ReturnAssignments}} }{{else}}w.callable({{.ParamNames}})
 		handle.ReturnChan <- {{.ReturnsType}}Return{{.TypeParamsUse}}{}{{end}}
 	}()
 	return handle
@@ -526,12 +516,6 @@ func (m *{{.WrapperType}}Method{{.TypeParamsUse}}) Start({{.Params}}) *{{.CallHa
 `
 	tmplTargetWrapperStruct = `// {{.WrapperType}}Handle is the test handle for a wrapped function.
 type {{.WrapperType}}Handle{{.TypeParamsDecl}} struct {
-	Method     *{{.WrapperType}}Method{{.TypeParamsUse}}
-	Controller *{{.PkgImptest}}.TargetController
-}
-
-// {{.WrapperType}}Method wraps a function for testing.
-type {{.WrapperType}}Method{{.TypeParamsDecl}} struct {
 	t          {{.PkgImptest}}.TestReporter
 	controller *{{.PkgImptest}}.TargetController
 	callable   {{.FuncSig}}

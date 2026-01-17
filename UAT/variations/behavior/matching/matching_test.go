@@ -51,7 +51,7 @@ func TestAdvancedMatching(t *testing.T) {
 //  1. Extensibility: Use familiar libraries like Gomega without imptest having a hard
 //     dependency on them.
 //  2. Duck Typing: Any object implementing Match(any) (bool, error) and FailureMessage(any) string
-//     can be used directly in Match or ExpectReturnsMatch.
+//     can be used directly in Match or ExpectReturnMatch.
 func TestGomegaIntegration(t *testing.T) {
 	t.Parallel()
 

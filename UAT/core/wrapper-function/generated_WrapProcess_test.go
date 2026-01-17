@@ -16,10 +16,6 @@ type WrapProcessReturnsReturn struct {
 
 // WrapProcessWrapper wraps a function for testing.
 type WrapProcessWrapperHandle struct {
-	Method *WrapProcessWrapperMethod
-}
-
-type WrapProcessWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(x int) (string, error)
 }
@@ -30,7 +26,7 @@ type WrapProcessCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapProcessWrapperMethod) Start(x int) *WrapProcessCallHandle {
+func (w *WrapProcessWrapperHandle) Start(x int) *WrapProcessCallHandle {
 	handle := &WrapProcessCallHandle{
 		CallableController: _imptest.NewCallableController[WrapProcessReturnsReturn](w.t),
 	}
@@ -46,8 +42,8 @@ func (w *WrapProcessWrapperMethod) Start(x int) *WrapProcessCallHandle {
 	return handle
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapProcessCallHandle) ExpectReturnsEqual(v0 string, v1 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapProcessCallHandle) ExpectReturn(v0 string, v1 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +60,8 @@ func (h *WrapProcessCallHandle) ExpectReturnsEqual(v0 string, v1 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapProcessCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapProcessCallHandle) ExpectReturnMatch(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -86,8 +82,8 @@ func (h *WrapProcessCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapProcessCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapProcessCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -102,8 +98,8 @@ func (h *WrapProcessCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapProcessCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapProcessCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -121,9 +117,7 @@ func (h *WrapProcessCallHandle) ExpectPanicMatches(matcher any) {
 // WrapProcess wraps a function for testing.
 func WrapProcess(t _imptest.TestReporter, fn func(x int) (string, error)) *WrapProcessWrapperHandle {
 	return &WrapProcessWrapperHandle{
-		Method: &WrapProcessWrapperMethod{
-			t:        t,
-			callable: fn,
-		},
+		t:        t,
+		callable: fn,
 	}
 }

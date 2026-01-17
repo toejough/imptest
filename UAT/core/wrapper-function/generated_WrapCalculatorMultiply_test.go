@@ -17,8 +17,8 @@ type WrapCalculatorMultiplyCallHandle struct {
 	Eventually *WrapCalculatorMultiplyCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapCalculatorMultiplyCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapCalculatorMultiplyCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapCalculatorMultiplyCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapCalculatorMultiplyCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapCalculatorMultiplyCallHandle) ExpectReturnsEqual(v0 int) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectReturn(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +64,8 @@ func (h *WrapCalculatorMultiplyCallHandle) ExpectReturnsEqual(v0 int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapCalculatorMultiplyCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorMultiplyCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -87,14 +87,14 @@ type WrapCalculatorMultiplyCallHandleEventually struct {
 	h *WrapCalculatorMultiplyCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapCalculatorMultiplyCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapCalculatorMultiplyCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapCalculatorMultiplyCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapCalculatorMultiplyCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapCalculatorMultiplyCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -115,22 +115,16 @@ type WrapCalculatorMultiplyReturnsReturn struct {
 
 // WrapCalculatorMultiplyWrapperHandle is the test handle for a wrapped function.
 type WrapCalculatorMultiplyWrapperHandle struct {
-	Method     *WrapCalculatorMultiplyWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapCalculatorMultiplyWrapperMethod wraps a function for testing.
-type WrapCalculatorMultiplyWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(int) int
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapCalculatorMultiplyWrapperMethod) Start(value int) *WrapCalculatorMultiplyCallHandle {
+func (w *WrapCalculatorMultiplyWrapperHandle) Start(value int) *WrapCalculatorMultiplyCallHandle {
 	handle := &WrapCalculatorMultiplyCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapCalculatorMultiplyReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapCalculatorMultiplyCallHandleEventually{h: handle}
 	go func() {
@@ -139,7 +133,7 @@ func (m *WrapCalculatorMultiplyWrapperMethod) Start(value int) *WrapCalculatorMu
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(value)
+		ret0 := w.callable(value)
 		handle.ReturnChan <- WrapCalculatorMultiplyReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -147,13 +141,9 @@ func (m *WrapCalculatorMultiplyWrapperMethod) Start(value int) *WrapCalculatorMu
 
 // WrapCalculatorMultiply wraps a function for testing.
 func WrapCalculatorMultiply(t _imptest.TestReporter, fn func(int) int) *WrapCalculatorMultiplyWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapCalculatorMultiplyWrapperHandle{
-		Method: &WrapCalculatorMultiplyWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

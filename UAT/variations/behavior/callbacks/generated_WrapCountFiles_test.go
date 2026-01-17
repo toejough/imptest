@@ -18,8 +18,8 @@ type WrapCountFilesCallHandle struct {
 	Eventually *WrapCountFilesCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapCountFilesCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapCountFilesCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *WrapCountFilesCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapCountFilesCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapCountFilesCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *WrapCountFilesCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapCountFilesCallHandle) ExpectReturnsEqual(v0 int, v1 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapCountFilesCallHandle) ExpectReturn(v0 int, v1 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -68,8 +68,8 @@ func (h *WrapCountFilesCallHandle) ExpectReturnsEqual(v0 int, v1 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapCountFilesCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapCountFilesCallHandle) ExpectReturnMatch(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -95,14 +95,14 @@ type WrapCountFilesCallHandleEventually struct {
 	h *WrapCountFilesCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapCountFilesCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapCountFilesCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapCountFilesCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapCountFilesCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapCountFilesCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -124,22 +124,16 @@ type WrapCountFilesReturnsReturn struct {
 
 // WrapCountFilesWrapperHandle is the test handle for a wrapped function.
 type WrapCountFilesWrapperHandle struct {
-	Method     *WrapCountFilesWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapCountFilesWrapperMethod wraps a function for testing.
-type WrapCountFilesWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(visitor.TreeWalker, string) (int, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapCountFilesWrapperMethod) Start(walker visitor.TreeWalker, root string) *WrapCountFilesCallHandle {
+func (w *WrapCountFilesWrapperHandle) Start(walker visitor.TreeWalker, root string) *WrapCountFilesCallHandle {
 	handle := &WrapCountFilesCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCountFilesReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapCountFilesReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapCountFilesCallHandleEventually{h: handle}
 	go func() {
@@ -148,7 +142,7 @@ func (m *WrapCountFilesWrapperMethod) Start(walker visitor.TreeWalker, root stri
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1 := m.callable(walker, root)
+		ret0, ret1 := w.callable(walker, root)
 		handle.ReturnChan <- WrapCountFilesReturnsReturn{Result0: ret0, Result1: ret1}
 	}()
 	return handle
@@ -156,13 +150,9 @@ func (m *WrapCountFilesWrapperMethod) Start(walker visitor.TreeWalker, root stri
 
 // WrapCountFiles wraps a function for testing.
 func WrapCountFiles(t _imptest.TestReporter, fn func(visitor.TreeWalker, string) (int, error)) *WrapCountFilesWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapCountFilesWrapperHandle{
-		Method: &WrapCountFilesWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

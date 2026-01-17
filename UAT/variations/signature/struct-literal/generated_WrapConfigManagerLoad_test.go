@@ -17,8 +17,8 @@ type WrapConfigManagerLoadCallHandle struct {
 	Eventually *WrapConfigManagerLoadCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapConfigManagerLoadCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapConfigManagerLoadCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapConfigManagerLoadCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapConfigManagerLoadCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapConfigManagerLoadCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapConfigManagerLoadCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapConfigManagerLoadCallHandle) ExpectReturnsEqual(v0 struct {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapConfigManagerLoadCallHandle) ExpectReturn(v0 struct {
 	Host string
 	Port int
 	TLS  bool
@@ -68,8 +68,8 @@ func (h *WrapConfigManagerLoadCallHandle) ExpectReturnsEqual(v0 struct {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapConfigManagerLoadCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapConfigManagerLoadCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -91,14 +91,14 @@ type WrapConfigManagerLoadCallHandleEventually struct {
 	h *WrapConfigManagerLoadCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapConfigManagerLoadCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapConfigManagerLoadCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapConfigManagerLoadCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapConfigManagerLoadCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapConfigManagerLoadCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -123,12 +123,6 @@ type WrapConfigManagerLoadReturnsReturn struct {
 
 // WrapConfigManagerLoadWrapperHandle is the test handle for a wrapped function.
 type WrapConfigManagerLoadWrapperHandle struct {
-	Method     *WrapConfigManagerLoadWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapConfigManagerLoadWrapperMethod wraps a function for testing.
-type WrapConfigManagerLoadWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(string) struct {
@@ -139,10 +133,10 @@ type WrapConfigManagerLoadWrapperMethod struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapConfigManagerLoadWrapperMethod) Start(arg1 string) *WrapConfigManagerLoadCallHandle {
+func (w *WrapConfigManagerLoadWrapperHandle) Start(arg1 string) *WrapConfigManagerLoadCallHandle {
 	handle := &WrapConfigManagerLoadCallHandle{
-		CallableController: _imptest.NewCallableController[WrapConfigManagerLoadReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapConfigManagerLoadReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapConfigManagerLoadCallHandleEventually{h: handle}
 	go func() {
@@ -151,7 +145,7 @@ func (m *WrapConfigManagerLoadWrapperMethod) Start(arg1 string) *WrapConfigManag
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(arg1)
+		ret0 := w.callable(arg1)
 		handle.ReturnChan <- WrapConfigManagerLoadReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -163,13 +157,9 @@ func WrapConfigManagerLoad(t _imptest.TestReporter, fn func(string) struct {
 	Port int
 	TLS  bool
 }) *WrapConfigManagerLoadWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapConfigManagerLoadWrapperHandle{
-		Method: &WrapConfigManagerLoadWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

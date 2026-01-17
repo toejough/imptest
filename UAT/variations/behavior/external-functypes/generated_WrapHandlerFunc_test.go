@@ -27,8 +27,8 @@ func (h *WrapHandlerFuncCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapHandlerFuncCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapHandlerFuncCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -43,8 +43,8 @@ func (h *WrapHandlerFuncCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapHandlerFuncCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapHandlerFuncCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,14 +64,14 @@ type WrapHandlerFuncCallHandleEventually struct {
 	h *WrapHandlerFuncCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapHandlerFuncCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapHandlerFuncCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapHandlerFuncCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapHandlerFuncCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapHandlerFuncCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -91,22 +91,16 @@ type WrapHandlerFuncReturnsReturn struct {
 
 // WrapHandlerFuncWrapperHandle is the test handle for a wrapped function.
 type WrapHandlerFuncWrapperHandle struct {
-	Method     *WrapHandlerFuncWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapHandlerFuncWrapperMethod wraps a function for testing.
-type WrapHandlerFuncWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(http.ResponseWriter, *http.Request)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapHandlerFuncWrapperMethod) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncCallHandle {
+func (w *WrapHandlerFuncWrapperHandle) Start(arg1 http.ResponseWriter, arg2 *http.Request) *WrapHandlerFuncCallHandle {
 	handle := &WrapHandlerFuncCallHandle{
-		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapHandlerFuncReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapHandlerFuncCallHandleEventually{h: handle}
 	go func() {
@@ -115,7 +109,7 @@ func (m *WrapHandlerFuncWrapperMethod) Start(arg1 http.ResponseWriter, arg2 *htt
 				handle.PanicChan <- r
 			}
 		}()
-		m.callable(arg1, arg2)
+		w.callable(arg1, arg2)
 		handle.ReturnChan <- WrapHandlerFuncReturnsReturn{}
 	}()
 	return handle
@@ -123,13 +117,9 @@ func (m *WrapHandlerFuncWrapperMethod) Start(arg1 http.ResponseWriter, arg2 *htt
 
 // WrapHandlerFunc wraps a function for testing.
 func WrapHandlerFunc(t _imptest.TestReporter, fn func(http.ResponseWriter, *http.Request)) *WrapHandlerFuncWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapHandlerFuncWrapperHandle{
-		Method: &WrapHandlerFuncWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

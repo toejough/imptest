@@ -84,7 +84,7 @@ func TestFunctionWithPredicate(t *testing.T) {
 
 	wrapper := WrapFilter(t, funclit.Filter)
 
-	wrapper.Method.Start(items, isOdd).ExpectReturnsEqual([]int{1, 3, 5})
+	wrapper.Start(items, isOdd).ExpectReturn([]int{1, 3, 5})
 }
 
 // TestFunctionWithTransform demonstrates wrapping standalone functions
@@ -97,7 +97,7 @@ func TestFunctionWithTransform(t *testing.T) {
 
 	wrapper := WrapMap(t, funclit.Map)
 
-	wrapper.Method.Start(items, double).ExpectReturnsEqual([]int{2, 4, 6})
+	wrapper.Start(items, double).ExpectReturn([]int{2, 4, 6})
 }
 
 // TestMultipleFunctionLiterals demonstrates handling multiple function literal
@@ -148,7 +148,7 @@ func TestTargetWithCallback(t *testing.T) {
 	wrapper := WrapExecutorRun(t, executor.Run)
 
 	// Execute and verify
-	wrapper.Method.Start(callback).ExpectReturnsEqual(nil)
+	wrapper.Start(callback).ExpectReturn(nil)
 
 	if !callbackCalled {
 		t.Error("expected callback to be called")
@@ -167,5 +167,5 @@ func TestTargetWithCallbackError(t *testing.T) {
 
 	wrapper := WrapExecutorRun(t, executor.Run)
 
-	wrapper.Method.Start(callback).ExpectReturnsEqual(expectedErr)
+	wrapper.Start(callback).ExpectReturn(expectedErr)
 }

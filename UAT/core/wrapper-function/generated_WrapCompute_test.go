@@ -17,10 +17,6 @@ type WrapComputeReturnsReturn struct {
 
 // WrapComputeWrapper wraps a function for testing.
 type WrapComputeWrapperHandle struct {
-	Method *WrapComputeWrapperMethod
-}
-
-type WrapComputeWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(x int) (int, string, bool)
 }
@@ -31,7 +27,7 @@ type WrapComputeCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapComputeWrapperMethod) Start(x int) *WrapComputeCallHandle {
+func (w *WrapComputeWrapperHandle) Start(x int) *WrapComputeCallHandle {
 	handle := &WrapComputeCallHandle{
 		CallableController: _imptest.NewCallableController[WrapComputeReturnsReturn](w.t),
 	}
@@ -47,8 +43,8 @@ func (w *WrapComputeWrapperMethod) Start(x int) *WrapComputeCallHandle {
 	return handle
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapComputeCallHandle) ExpectReturnsEqual(v0 int, v1 string, v2 bool) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapComputeCallHandle) ExpectReturn(v0 int, v1 string, v2 bool) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -68,8 +64,8 @@ func (h *WrapComputeCallHandle) ExpectReturnsEqual(v0 int, v1 string, v2 bool) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapComputeCallHandle) ExpectReturnsMatch(v0 any, v1 any, v2 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapComputeCallHandle) ExpectReturnMatch(v0 any, v1 any, v2 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -94,8 +90,8 @@ func (h *WrapComputeCallHandle) ExpectReturnsMatch(v0 any, v1 any, v2 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapComputeCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapComputeCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -110,8 +106,8 @@ func (h *WrapComputeCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapComputeCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapComputeCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -129,9 +125,7 @@ func (h *WrapComputeCallHandle) ExpectPanicMatches(matcher any) {
 // WrapCompute wraps a function for testing.
 func WrapCompute(t _imptest.TestReporter, fn func(x int) (int, string, bool)) *WrapComputeWrapperHandle {
 	return &WrapComputeWrapperHandle{
-		Method: &WrapComputeWrapperMethod{
-			t:        t,
-			callable: fn,
-		},
+		t:        t,
+		callable: fn,
 	}
 }

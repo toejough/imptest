@@ -50,14 +50,14 @@ func TestFunctionWithNamedParams(t *testing.T) {
 	wrapper := WrapProcessUser(t, named.ProcessUser)
 
 	// Start the wrapped function
-	call := wrapper.Method.Start(ctx, 456, mockRepo)
+	call := wrapper.Start(ctx, 456, mockRepo)
 
 	// Handle the repository call
 	repoImp.GetUser.Expect(ctx, 456).
 		Return(named.User{ID: 456, Name: "Bob"}, nil)
 
 	// Verify the wrapper received correct return values
-	call.ExpectReturnsEqual(named.User{ID: 456, Name: "Bob"}, nil)
+	call.ExpectReturn(named.User{ID: 456, Name: "Bob"}, nil)
 }
 
 // TestMultipleMethods demonstrates that mocks handle multiple methods
@@ -109,5 +109,5 @@ func TestTargetWithNamedReturns(t *testing.T) {
 	wrapper := WrapCalculatorDivide(t, calc.Divide)
 
 	// Execute and verify named returns (quotient, remainder, err)
-	wrapper.Method.Start(10, 3).ExpectReturnsEqual(3, 1, nil)
+	wrapper.Start(10, 3).ExpectReturn(3, 1, nil)
 }

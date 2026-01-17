@@ -26,8 +26,8 @@ func (w *WrapProcessDataWrapper) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (w *WrapProcessDataWrapper) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (w *WrapProcessDataWrapper) ExpectPanic(expected any) {
 	w.T.Helper()
 	w.WaitForResponse()
 
@@ -42,8 +42,8 @@ func (w *WrapProcessDataWrapper) ExpectPanicEquals(expected any) {
 	w.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (w *WrapProcessDataWrapper) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (w *WrapProcessDataWrapper) ExpectPanicMatch(matcher any) {
 	w.T.Helper()
 	w.WaitForResponse()
 

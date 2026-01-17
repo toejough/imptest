@@ -13,8 +13,9 @@ import (
 
 // WrapLoggerWrapperHandle wraps an implementation of handlers.Logger to intercept method calls.
 type WrapLoggerWrapperHandle struct {
-	Method *WrapLoggerWrapperMethods
-	impl   handlers.Logger
+	Log            *WrapLoggerWrapperLogWrapper
+	LogWithContext *WrapLoggerWrapperLogWithContextWrapper
+	impl           handlers.Logger
 }
 
 // WrapLoggerWrapperLogCallHandle represents a single call to the wrapped method.
@@ -32,8 +33,8 @@ func (h *WrapLoggerWrapperLogCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the method panics with the expected value.
-func (h *WrapLoggerWrapperLogCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the method panics with the expected value.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -48,8 +49,8 @@ func (h *WrapLoggerWrapperLogCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
-func (h *WrapLoggerWrapperLogCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +65,8 @@ func (h *WrapLoggerWrapperLogCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the method returned the expected values.
-func (h *WrapLoggerWrapperLogCallHandle) ExpectReturnsEqual(v0 error) {
+// ExpectReturn verifies the method returned the expected values.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectReturn(v0 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -79,8 +80,8 @@ func (h *WrapLoggerWrapperLogCallHandle) ExpectReturnsEqual(v0 error) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapLoggerWrapperLogCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapLoggerWrapperLogCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -116,8 +117,8 @@ func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the method panics with the expected value.
-func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the method panics with the expected value.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -132,8 +133,8 @@ func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanicEquals(expected a
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
-func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -148,8 +149,8 @@ func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectPanicMatches(matcher a
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the method returned the expected values.
-func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectReturnsEqual(v0 error) {
+// ExpectReturn verifies the method returned the expected values.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectReturn(v0 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -163,8 +164,8 @@ func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectReturnsEqual(v0 error)
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapLoggerWrapperLogWithContextCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -229,23 +230,16 @@ func (w *WrapLoggerWrapperLogWrapper) Start(msg string) *WrapLoggerWrapperLogCal
 	return handle
 }
 
-// WrapLoggerWrapperMethods holds method wrappers for all intercepted methods.
-type WrapLoggerWrapperMethods struct {
-	Log            *WrapLoggerWrapperLogWrapper
-	LogWithContext *WrapLoggerWrapperLogWithContextWrapper
-}
-
 // WrapLogger creates a new wrapper for the given handlers.Logger implementation.
 func WrapLogger(t *testing.T, impl handlers.Logger) *WrapLoggerWrapperHandle {
 	h := &WrapLoggerWrapperHandle{
-		impl:   impl,
-		Method: &WrapLoggerWrapperMethods{},
+		impl: impl,
 	}
-	h.Method.Log = wrapWrapLoggerWrapperLog(t, func(msg string) WrapLoggerWrapperLogReturns {
+	h.Log = wrapWrapLoggerWrapperLog(t, func(msg string) WrapLoggerWrapperLogReturns {
 		r0 := h.impl.Log(msg)
 		return WrapLoggerWrapperLogReturns{Result0: r0}
 	})
-	h.Method.LogWithContext = wrapWrapLoggerWrapperLogWithContext(t, func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns {
+	h.LogWithContext = wrapWrapLoggerWrapperLogWithContext(t, func(ctx context.Context, msg string) WrapLoggerWrapperLogWithContextReturns {
 		r0 := h.impl.LogWithContext(ctx, msg)
 		return WrapLoggerWrapperLogWithContextReturns{Result0: r0}
 	})

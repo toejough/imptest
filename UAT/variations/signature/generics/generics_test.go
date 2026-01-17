@@ -28,7 +28,7 @@ func TestGenericCallable(t *testing.T) {
 
 	// Start the function.
 	transformer := func(i int) int { return i * 2 }
-	call := logicImp.Method.Start(repoMock, "456", transformer)
+	call := logicImp.Start(repoMock, "456", transformer)
 
 	//nolint:nilaway // false positive: repoImp assigned above
 	repoImp.Get.Expect("456").Return(21, nil)
@@ -36,7 +36,7 @@ func TestGenericCallable(t *testing.T) {
 	repoImp.Save.Expect(42).Return(nil)
 
 	// Verify it returned successfully (nil error).
-	call.ExpectReturnsEqual(nil)
+	call.ExpectReturn(nil)
 }
 
 // TestGenericMocking demonstrates how imptest supports generic interfaces.
@@ -75,11 +75,11 @@ func TestProcessItem_Error(t *testing.T) {
 		repoMock, repoImp := MockRepository[string](t)
 		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		call := logicImp.Method.Start(repoMock, "123", func(s string) string { return s })
+		call := logicImp.Start(repoMock, "123", func(s string) string { return s })
 
 		repoImp.Get.Expect("123").Return("", errTest)
 
-		call.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
+		call.ExpectReturnMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {
 				return fmt.Errorf("expected error %w, got %w", errTest, err)
 			}
@@ -93,12 +93,12 @@ func TestProcessItem_Error(t *testing.T) {
 		repoMock, repoImp := MockRepository[string](t)
 		logicImp := WrapProcessItem[string](t, generics.ProcessItem[string])
 
-		call := logicImp.Method.Start(repoMock, "123", func(s string) string { return s })
+		call := logicImp.Start(repoMock, "123", func(s string) string { return s })
 
 		repoImp.Get.Expect("123").Return("data", nil)
 		repoImp.Save.Expect("data").Return(errTest)
 
-		call.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
+		call.ExpectReturnMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {
 				return fmt.Errorf("expected error %w, got %w", errTest, err)
 			}

@@ -19,8 +19,8 @@ type WrapProcessUserCallHandle struct {
 	Eventually *WrapProcessUserCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapProcessUserCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapProcessUserCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -35,8 +35,8 @@ func (h *WrapProcessUserCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapProcessUserCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapProcessUserCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -51,8 +51,8 @@ func (h *WrapProcessUserCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapProcessUserCallHandle) ExpectReturnsEqual(v0 named.User, v1 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapProcessUserCallHandle) ExpectReturn(v0 named.User, v1 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -69,8 +69,8 @@ func (h *WrapProcessUserCallHandle) ExpectReturnsEqual(v0 named.User, v1 error) 
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapProcessUserCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapProcessUserCallHandle) ExpectReturnMatch(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -96,14 +96,14 @@ type WrapProcessUserCallHandleEventually struct {
 	h *WrapProcessUserCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapProcessUserCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapProcessUserCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapProcessUserCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapProcessUserCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapProcessUserCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -125,22 +125,16 @@ type WrapProcessUserReturnsReturn struct {
 
 // WrapProcessUserWrapperHandle is the test handle for a wrapped function.
 type WrapProcessUserWrapperHandle struct {
-	Method     *WrapProcessUserWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapProcessUserWrapperMethod wraps a function for testing.
-type WrapProcessUserWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(context.Context, int, named.UserRepository) (named.User, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapProcessUserWrapperMethod) Start(ctx context.Context, userID int, repo named.UserRepository) *WrapProcessUserCallHandle {
+func (w *WrapProcessUserWrapperHandle) Start(ctx context.Context, userID int, repo named.UserRepository) *WrapProcessUserCallHandle {
 	handle := &WrapProcessUserCallHandle{
-		CallableController: _imptest.NewCallableController[WrapProcessUserReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapProcessUserReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapProcessUserCallHandleEventually{h: handle}
 	go func() {
@@ -149,7 +143,7 @@ func (m *WrapProcessUserWrapperMethod) Start(ctx context.Context, userID int, re
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1 := m.callable(ctx, userID, repo)
+		ret0, ret1 := w.callable(ctx, userID, repo)
 		handle.ReturnChan <- WrapProcessUserReturnsReturn{Result0: ret0, Result1: ret1}
 	}()
 	return handle
@@ -157,13 +151,9 @@ func (m *WrapProcessUserWrapperMethod) Start(ctx context.Context, userID int, re
 
 // WrapProcessUser wraps a function for testing.
 func WrapProcessUser(t _imptest.TestReporter, fn func(context.Context, int, named.UserRepository) (named.User, error)) *WrapProcessUserWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapProcessUserWrapperHandle{
-		Method: &WrapProcessUserWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

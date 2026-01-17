@@ -15,10 +15,6 @@ type WrapConditionalReturnsReturn struct {
 
 // WrapConditionalWrapper wraps a function for testing.
 type WrapConditionalWrapperHandle struct {
-	Method *WrapConditionalWrapperMethod
-}
-
-type WrapConditionalWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(x int) int
 }
@@ -29,7 +25,7 @@ type WrapConditionalCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapConditionalWrapperMethod) Start(x int) *WrapConditionalCallHandle {
+func (w *WrapConditionalWrapperHandle) Start(x int) *WrapConditionalCallHandle {
 	handle := &WrapConditionalCallHandle{
 		CallableController: _imptest.NewCallableController[WrapConditionalReturnsReturn](w.t),
 	}
@@ -45,8 +41,8 @@ func (w *WrapConditionalWrapperMethod) Start(x int) *WrapConditionalCallHandle {
 	return handle
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapConditionalCallHandle) ExpectReturnsEqual(v0 int) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapConditionalCallHandle) ExpectReturn(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -60,8 +56,8 @@ func (h *WrapConditionalCallHandle) ExpectReturnsEqual(v0 int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapConditionalCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapConditionalCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -78,8 +74,8 @@ func (h *WrapConditionalCallHandle) ExpectReturnsMatch(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapConditionalCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapConditionalCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -94,8 +90,8 @@ func (h *WrapConditionalCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapConditionalCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapConditionalCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -113,9 +109,7 @@ func (h *WrapConditionalCallHandle) ExpectPanicMatches(matcher any) {
 // WrapConditional wraps a function for testing.
 func WrapConditional(t _imptest.TestReporter, fn func(x int) int) *WrapConditionalWrapperHandle {
 	return &WrapConditionalWrapperHandle{
-		Method: &WrapConditionalWrapperMethod{
-			t:        t,
-			callable: fn,
-		},
+		t:        t,
+		callable: fn,
 	}
 }

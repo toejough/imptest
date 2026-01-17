@@ -331,12 +331,12 @@ type PendingCompletion struct {
 	panickedVal any
 }
 
-// ExpectReturnsMatch registers an expectation that the call returns values matching the matchers.
+// ExpectReturnMatch registers an expectation that the call returns values matching the matchers.
 
 // If already completed, check now
 
-// ExpectPanicEquals registers an expectation that the call panics with the given value.
-func (pc *PendingCompletion) ExpectPanicEquals(value any) {
+// ExpectPanic registers an expectation that the call panics with the given value.
+func (pc *PendingCompletion) ExpectPanic(value any) {
 	pc.mu.Lock()
 	pc.expectPanic = true
 	pc.expectedPanicVal = value
@@ -352,8 +352,8 @@ func (pc *PendingCompletion) ExpectPanicEquals(value any) {
 	}
 }
 
-// ExpectReturnsEqual registers an expectation that the call returns the given values.
-func (pc *PendingCompletion) ExpectReturnsEqual(values ...any) {
+// ExpectReturn registers an expectation that the call returns the given values.
+func (pc *PendingCompletion) ExpectReturn(values ...any) {
 	pc.mu.Lock()
 	pc.expectReturn = true
 	pc.expectedReturnVals = values
@@ -369,7 +369,7 @@ func (pc *PendingCompletion) ExpectReturnsEqual(values ...any) {
 	}
 }
 
-// ExpectPanicMatches registers an expectation that the call panics with a value matching the matcher.
+// ExpectPanicMatch registers an expectation that the call panics with a value matching the matcher.
 
 // If already completed, check now
 

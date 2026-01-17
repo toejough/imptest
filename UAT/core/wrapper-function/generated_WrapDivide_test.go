@@ -16,10 +16,6 @@ type WrapDivideReturnsReturn struct {
 
 // WrapDivideWrapper wraps a function for testing.
 type WrapDivideWrapperHandle struct {
-	Method *WrapDivideWrapperMethod
-}
-
-type WrapDivideWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(a, b int) (int, bool)
 }
@@ -30,7 +26,7 @@ type WrapDivideCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapDivideWrapperMethod) Start(a, b int) *WrapDivideCallHandle {
+func (w *WrapDivideWrapperHandle) Start(a, b int) *WrapDivideCallHandle {
 	handle := &WrapDivideCallHandle{
 		CallableController: _imptest.NewCallableController[WrapDivideReturnsReturn](w.t),
 	}
@@ -46,8 +42,8 @@ func (w *WrapDivideWrapperMethod) Start(a, b int) *WrapDivideCallHandle {
 	return handle
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapDivideCallHandle) ExpectReturnsEqual(v0 int, v1 bool) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapDivideCallHandle) ExpectReturn(v0 int, v1 bool) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +60,8 @@ func (h *WrapDivideCallHandle) ExpectReturnsEqual(v0 int, v1 bool) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapDivideCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapDivideCallHandle) ExpectReturnMatch(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -86,8 +82,8 @@ func (h *WrapDivideCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapDivideCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapDivideCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -102,8 +98,8 @@ func (h *WrapDivideCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapDivideCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapDivideCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -121,9 +117,7 @@ func (h *WrapDivideCallHandle) ExpectPanicMatches(matcher any) {
 // WrapDivide wraps a function for testing.
 func WrapDivide(t _imptest.TestReporter, fn func(a, b int) (int, bool)) *WrapDivideWrapperHandle {
 	return &WrapDivideWrapperHandle{
-		Method: &WrapDivideWrapperMethod{
-			t:        t,
-			callable: fn,
-		},
+		t:        t,
+		callable: fn,
 	}
 }

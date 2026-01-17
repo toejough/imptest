@@ -21,7 +21,7 @@ func Test_PrintSum(t *testing.T) {
     h.Method.Add.Expect(10, 32).Return(42)
     h.Method.Format.Expect(42).Return("42")
 
-    wrapper.ExpectReturnsEqual(10, 32, "42")
+    wrapper.ExpectReturn(10, 32, "42")
 }
 
 // AFTER
@@ -33,7 +33,7 @@ func Test_PrintSum(t *testing.T) {
     imp.Add.Expect(10, 32).Return(42)
     imp.Format.Expect(42).Return("42")
 
-    wrapper.ExpectReturnsEqual(10, 32, "42")
+    wrapper.ExpectReturn(10, 32, "42")
 }
 ```
 
@@ -233,6 +233,6 @@ func Test_Example(t *testing.T) {
 -   h.Controller.Wait()
 +   imptest.Wait(t)
 
-    wrapper.ExpectReturnsEqual(expected)
+    wrapper.ExpectReturn(expected)
 }
 ```

@@ -54,7 +54,7 @@ func Test_PrintSum(t *testing.T) {
     mockImp.Print.Expect("42").Return()
 
     // Validate return values
-    wrapper.ExpectReturnsEqual(10, 32, "42")
+    wrapper.ExpectReturn(10, 32, "42")
 }
 ```
 
@@ -66,7 +66,7 @@ func Test_PrintSum(t *testing.T) {
    value and panic validation
 1. The test controls the dependency interactively—each `Expect` call waits for the actual call
 1. Results are injected on-demand with `Return`, simulating any behavior you want
-1. Return values are validated with `ExpectReturnsEqual`
+1. Return values are validated with `ExpectReturn`
 
 ## Flexible Matching with Gomega
 
@@ -91,7 +91,7 @@ func Test_PrintSum_Flexible(t *testing.T) {
     mockImp.Format.Match(imptest.Any).Return("42")
     mockImp.Print.Match(imptest.Any).Return()
 
-    wrapper.ExpectReturnsMatch(
+    wrapper.ExpectReturnMatch(
         Equal(10),
         Equal(32),
         ContainSubstring("4"),
@@ -142,7 +142,7 @@ func Test_PrintSum_Panic(t *testing.T) {
     mockImp.Add.Expect(10, 32).Panic("math overflow")
 
     // Expect the function to panic with matching value
-    wrapper.ExpectPanicMatches(ContainSubstring("overflow"))
+    wrapper.ExpectPanicMatch(ContainSubstring("overflow"))
 }
 ```
 
@@ -214,7 +214,7 @@ func Test_ChannelReturn(t *testing.T) {
     eventChan <- Event{Type: "data", Payload: "hello"}
     close(eventChan) // Signal completion
 
-    wrapper.ExpectReturnsEqual(2, nil) // Processed 2 events
+    wrapper.ExpectReturn(2, nil) // Processed 2 events
 }
 ```
 
@@ -406,7 +406,7 @@ func TestProcessUser_Imptest(t *testing.T) {
     mockImp.Process.Expect("test data").Return("processed")
 
     // ✅ Validate return values (can use gomega matchers too!)
-    wrapper.ExpectReturnsEqual("processed", nil)
+    wrapper.ExpectReturn("processed", nil)
 }
 ```
 
@@ -426,7 +426,7 @@ func TestAdd_Simple(t *testing.T) {
     // ✅ Wrap function and validate returns in one line
     // ✅ Args are type-safe and checked at compile time - your IDE can autocomplete them or inform you of mismatches!
     // ✅ Panics are caught cleanly and reported in failure messages
-    WrapAdd(t, Add).Start(2, 3).ExpectReturnsEqual(5)
+    WrapAdd(t, Add).Start(2, 3).ExpectReturn(5)
 }
 ```
 

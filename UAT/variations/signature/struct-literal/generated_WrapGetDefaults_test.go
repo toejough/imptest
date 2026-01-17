@@ -17,8 +17,8 @@ type WrapGetDefaultsCallHandle struct {
 	Eventually *WrapGetDefaultsCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapGetDefaultsCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapGetDefaultsCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapGetDefaultsCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapGetDefaultsCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapGetDefaultsCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapGetDefaultsCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapGetDefaultsCallHandle) ExpectReturnsEqual(v0 struct {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapGetDefaultsCallHandle) ExpectReturn(v0 struct {
 	MaxRetries int
 	Timeout    int
 }) {
@@ -67,8 +67,8 @@ func (h *WrapGetDefaultsCallHandle) ExpectReturnsEqual(v0 struct {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapGetDefaultsCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapGetDefaultsCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -90,14 +90,14 @@ type WrapGetDefaultsCallHandleEventually struct {
 	h *WrapGetDefaultsCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapGetDefaultsCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapGetDefaultsCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapGetDefaultsCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapGetDefaultsCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapGetDefaultsCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -121,12 +121,6 @@ type WrapGetDefaultsReturnsReturn struct {
 
 // WrapGetDefaultsWrapperHandle is the test handle for a wrapped function.
 type WrapGetDefaultsWrapperHandle struct {
-	Method     *WrapGetDefaultsWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapGetDefaultsWrapperMethod wraps a function for testing.
-type WrapGetDefaultsWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func() struct {
@@ -136,10 +130,10 @@ type WrapGetDefaultsWrapperMethod struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapGetDefaultsWrapperMethod) Start() *WrapGetDefaultsCallHandle {
+func (w *WrapGetDefaultsWrapperHandle) Start() *WrapGetDefaultsCallHandle {
 	handle := &WrapGetDefaultsCallHandle{
-		CallableController: _imptest.NewCallableController[WrapGetDefaultsReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapGetDefaultsReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapGetDefaultsCallHandleEventually{h: handle}
 	go func() {
@@ -148,7 +142,7 @@ func (m *WrapGetDefaultsWrapperMethod) Start() *WrapGetDefaultsCallHandle {
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable()
+		ret0 := w.callable()
 		handle.ReturnChan <- WrapGetDefaultsReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -159,13 +153,9 @@ func WrapGetDefaults(t _imptest.TestReporter, fn func() struct {
 	MaxRetries int
 	Timeout    int
 }) *WrapGetDefaultsWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapGetDefaultsWrapperHandle{
-		Method: &WrapGetDefaultsWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

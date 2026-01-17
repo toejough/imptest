@@ -26,8 +26,8 @@ func (h *WrapPanicWithMessageCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapPanicWithMessageCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapPanicWithMessageCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -42,8 +42,8 @@ func (h *WrapPanicWithMessageCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapPanicWithMessageCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapPanicWithMessageCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -63,14 +63,14 @@ type WrapPanicWithMessageCallHandleEventually struct {
 	h *WrapPanicWithMessageCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapPanicWithMessageCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapPanicWithMessageCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapPanicWithMessageCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapPanicWithMessageCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapPanicWithMessageCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -90,22 +90,16 @@ type WrapPanicWithMessageReturnsReturn struct {
 
 // WrapPanicWithMessageWrapperHandle is the test handle for a wrapped function.
 type WrapPanicWithMessageWrapperHandle struct {
-	Method     *WrapPanicWithMessageWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapPanicWithMessageWrapperMethod wraps a function for testing.
-type WrapPanicWithMessageWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(string)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapPanicWithMessageWrapperMethod) Start(msg string) *WrapPanicWithMessageCallHandle {
+func (w *WrapPanicWithMessageWrapperHandle) Start(msg string) *WrapPanicWithMessageCallHandle {
 	handle := &WrapPanicWithMessageCallHandle{
-		CallableController: _imptest.NewCallableController[WrapPanicWithMessageReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapPanicWithMessageReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapPanicWithMessageCallHandleEventually{h: handle}
 	go func() {
@@ -114,7 +108,7 @@ func (m *WrapPanicWithMessageWrapperMethod) Start(msg string) *WrapPanicWithMess
 				handle.PanicChan <- r
 			}
 		}()
-		m.callable(msg)
+		w.callable(msg)
 		handle.ReturnChan <- WrapPanicWithMessageReturnsReturn{}
 	}()
 	return handle
@@ -122,13 +116,9 @@ func (m *WrapPanicWithMessageWrapperMethod) Start(msg string) *WrapPanicWithMess
 
 // WrapPanicWithMessage wraps a function for testing.
 func WrapPanicWithMessage(t _imptest.TestReporter, fn func(string)) *WrapPanicWithMessageWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapPanicWithMessageWrapperHandle{
-		Method: &WrapPanicWithMessageWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

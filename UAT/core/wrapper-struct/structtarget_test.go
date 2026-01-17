@@ -41,7 +41,7 @@ func TestWrapCalculator_BasicWrapping(t *testing.T) {
 
 	// Call Add through the wrapped struct
 	// Expected: wrapper.Add should exist and intercept the call
-	wrapper.Method.Add.Start(5, 3).ExpectReturnsEqual(18)
+	wrapper.Add.Start(5, 3).ExpectReturn(18)
 }
 
 // TestWrapCalculator_ErrorHandling demonstrates wrapping methods that return errors.
@@ -53,7 +53,7 @@ func TestWrapCalculator_ErrorHandling(t *testing.T) {
 	wrapper := WrapCalculator(t, calc)
 
 	// Test error path with negative input - Process returns error
-	call1 := wrapper.Method.Process.Start(-5)
+	call1 := wrapper.Process.Start(-5)
 	call1.WaitForResponse()
 
 	result1 := call1.Returned.Result0
@@ -68,7 +68,7 @@ func TestWrapCalculator_ErrorHandling(t *testing.T) {
 	}
 
 	// Test success path - Process should: Multiply(10) = 20, Add(20, 5) = 25 (no offset)
-	wrapper.Method.Process.Start(10).ExpectReturnsEqual("Result: 25", nil)
+	wrapper.Process.Start(10).ExpectReturn("Result: 25", nil)
 }
 
 // TestWrapCalculator_MethodInteraction demonstrates wrapping a method that calls other methods.
@@ -82,7 +82,7 @@ func TestWrapCalculator_MethodInteraction(t *testing.T) {
 
 	// Call Process, which internally calls Multiply and Add
 	// Process(5): Multiply(5) = 15, Add(15, 5) = 30
-	wrapper.Method.Process.Start(5).ExpectReturnsEqual("Result: 30", nil)
+	wrapper.Process.Start(5).ExpectReturn("Result: 30", nil)
 
 	// Note: The internal calls to Multiply and Add from within Process
 	// will NOT be intercepted because they're called on the original struct (c),
@@ -105,13 +105,13 @@ func TestWrapCalculator_MultipleMethodCalls(t *testing.T) {
 	// All should be intercepted independently
 
 	// Test Add: 10 + 20 + offset=5 = 35
-	wrapper.Method.Add.Start(10, 20).ExpectReturnsEqual(35)
+	wrapper.Add.Start(10, 20).ExpectReturn(35)
 
 	// Test Multiply: 7 * multiplier=3 = 21
-	wrapper.Method.Multiply.Start(7).ExpectReturnsEqual(21)
+	wrapper.Multiply.Start(7).ExpectReturn(21)
 
 	// Test Divide: 100 / 4 = 25, true
-	wrapper.Method.Divide.Start(100, 4).ExpectReturnsEqual(25, true)
+	wrapper.Divide.Start(100, 4).ExpectReturn(25, true)
 }
 
 // TestWrapCalculator_MultipleReturnValues demonstrates wrapping methods with multiple return values.
@@ -123,10 +123,10 @@ func TestWrapCalculator_MultipleReturnValues(t *testing.T) {
 	wrapper := WrapCalculator(t, calc)
 
 	// Test successful division
-	wrapper.Method.Divide.Start(50, 5).ExpectReturnsEqual(10, true)
+	wrapper.Divide.Start(50, 5).ExpectReturn(10, true)
 
 	// Test division by zero
-	wrapper.Method.Divide.Start(50, 0).ExpectReturnsEqual(0, false)
+	wrapper.Divide.Start(50, 0).ExpectReturn(0, false)
 }
 
 // TestWrapCalculator_RepeatedCalls demonstrates that multiple calls to the same method are recorded.
@@ -138,9 +138,9 @@ func TestWrapCalculator_RepeatedCalls(t *testing.T) {
 	wrapper := WrapCalculator(t, calc)
 
 	// Make multiple calls to the same method - each returns unique handle
-	wrapper.Method.Add.Start(1, 2).ExpectReturnsEqual(3)  // 1 + 2 + 0 = 3
-	wrapper.Method.Add.Start(3, 4).ExpectReturnsEqual(7)  // 3 + 4 + 0 = 7
-	wrapper.Method.Add.Start(5, 6).ExpectReturnsEqual(11) // 5 + 6 + 0 = 11
+	wrapper.Add.Start(1, 2).ExpectReturn(3)  // 1 + 2 + 0 = 3
+	wrapper.Add.Start(3, 4).ExpectReturn(7)  // 3 + 4 + 0 = 7
+	wrapper.Add.Start(5, 6).ExpectReturn(11) // 5 + 6 + 0 = 11
 }
 
 // TestWrapCalculator_StatePreservation demonstrates that the wrapped struct maintains state.
@@ -154,8 +154,8 @@ func TestWrapCalculator_StatePreservation(t *testing.T) {
 
 	// Test that methods use the correct state values
 	// Multiply: 10 * multiplier=5 = 50
-	wrapper.Method.Multiply.Start(10).ExpectReturnsEqual(50)
+	wrapper.Multiply.Start(10).ExpectReturn(50)
 
 	// Add: 10 + 20 + offset=100 = 130
-	wrapper.Method.Add.Start(10, 20).ExpectReturnsEqual(130)
+	wrapper.Add.Start(10, 20).ExpectReturn(130)
 }

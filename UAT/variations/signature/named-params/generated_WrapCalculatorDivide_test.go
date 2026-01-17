@@ -17,8 +17,8 @@ type WrapCalculatorDivideCallHandle struct {
 	Eventually *WrapCalculatorDivideCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapCalculatorDivideCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapCalculatorDivideCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapCalculatorDivideCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapCalculatorDivideCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapCalculatorDivideCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapCalculatorDivideCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapCalculatorDivideCallHandle) ExpectReturnsEqual(v0 int, v1 int, v2 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapCalculatorDivideCallHandle) ExpectReturn(v0 int, v1 int, v2 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -70,8 +70,8 @@ func (h *WrapCalculatorDivideCallHandle) ExpectReturnsEqual(v0 int, v1 int, v2 e
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapCalculatorDivideCallHandle) ExpectReturnsMatch(v0 any, v1 any, v2 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorDivideCallHandle) ExpectReturnMatch(v0 any, v1 any, v2 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -101,14 +101,14 @@ type WrapCalculatorDivideCallHandleEventually struct {
 	h *WrapCalculatorDivideCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapCalculatorDivideCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapCalculatorDivideCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapCalculatorDivideCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapCalculatorDivideCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapCalculatorDivideCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -131,22 +131,16 @@ type WrapCalculatorDivideReturnsReturn struct {
 
 // WrapCalculatorDivideWrapperHandle is the test handle for a wrapped function.
 type WrapCalculatorDivideWrapperHandle struct {
-	Method     *WrapCalculatorDivideWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapCalculatorDivideWrapperMethod wraps a function for testing.
-type WrapCalculatorDivideWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(int, int) (int, int, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapCalculatorDivideWrapperMethod) Start(dividend int, divisor int) *WrapCalculatorDivideCallHandle {
+func (w *WrapCalculatorDivideWrapperHandle) Start(dividend int, divisor int) *WrapCalculatorDivideCallHandle {
 	handle := &WrapCalculatorDivideCallHandle{
-		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapCalculatorDivideReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapCalculatorDivideCallHandleEventually{h: handle}
 	go func() {
@@ -155,7 +149,7 @@ func (m *WrapCalculatorDivideWrapperMethod) Start(dividend int, divisor int) *Wr
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1, ret2 := m.callable(dividend, divisor)
+		ret0, ret1, ret2 := w.callable(dividend, divisor)
 		handle.ReturnChan <- WrapCalculatorDivideReturnsReturn{Result0: ret0, Result1: ret1, Result2: ret2}
 	}()
 	return handle
@@ -163,13 +157,9 @@ func (m *WrapCalculatorDivideWrapperMethod) Start(dividend int, divisor int) *Wr
 
 // WrapCalculatorDivide wraps a function for testing.
 func WrapCalculatorDivide(t _imptest.TestReporter, fn func(int, int) (int, int, error)) *WrapCalculatorDivideWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapCalculatorDivideWrapperHandle{
-		Method: &WrapCalculatorDivideWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

@@ -18,8 +18,8 @@ type WrapBusinessLogicCallHandle struct {
 	Eventually *WrapBusinessLogicCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapBusinessLogicCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapBusinessLogicCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -34,8 +34,8 @@ func (h *WrapBusinessLogicCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapBusinessLogicCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapBusinessLogicCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -50,8 +50,8 @@ func (h *WrapBusinessLogicCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapBusinessLogicCallHandle) ExpectReturnsEqual(v0 string, v1 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapBusinessLogicCallHandle) ExpectReturn(v0 string, v1 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -68,8 +68,8 @@ func (h *WrapBusinessLogicCallHandle) ExpectReturnsEqual(v0 string, v1 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapBusinessLogicCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapBusinessLogicCallHandle) ExpectReturnMatch(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -95,14 +95,14 @@ type WrapBusinessLogicCallHandleEventually struct {
 	h *WrapBusinessLogicCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapBusinessLogicCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapBusinessLogicCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapBusinessLogicCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapBusinessLogicCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapBusinessLogicCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -124,22 +124,16 @@ type WrapBusinessLogicReturnsReturn struct {
 
 // WrapBusinessLogicWrapperHandle is the test handle for a wrapped function.
 type WrapBusinessLogicWrapperHandle struct {
-	Method     *WrapBusinessLogicWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapBusinessLogicWrapperMethod wraps a function for testing.
-type WrapBusinessLogicWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(callable.ExternalService, int) (string, error)
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapBusinessLogicWrapperMethod) Start(svc callable.ExternalService, id int) *WrapBusinessLogicCallHandle {
+func (w *WrapBusinessLogicWrapperHandle) Start(svc callable.ExternalService, id int) *WrapBusinessLogicCallHandle {
 	handle := &WrapBusinessLogicCallHandle{
-		CallableController: _imptest.NewCallableController[WrapBusinessLogicReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapBusinessLogicReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapBusinessLogicCallHandleEventually{h: handle}
 	go func() {
@@ -148,7 +142,7 @@ func (m *WrapBusinessLogicWrapperMethod) Start(svc callable.ExternalService, id 
 				handle.PanicChan <- r
 			}
 		}()
-		ret0, ret1 := m.callable(svc, id)
+		ret0, ret1 := w.callable(svc, id)
 		handle.ReturnChan <- WrapBusinessLogicReturnsReturn{Result0: ret0, Result1: ret1}
 	}()
 	return handle
@@ -156,13 +150,9 @@ func (m *WrapBusinessLogicWrapperMethod) Start(svc callable.ExternalService, id 
 
 // WrapBusinessLogic wraps a function for testing.
 func WrapBusinessLogic(t _imptest.TestReporter, fn func(callable.ExternalService, int) (string, error)) *WrapBusinessLogicWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapBusinessLogicWrapperHandle{
-		Method: &WrapBusinessLogicWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

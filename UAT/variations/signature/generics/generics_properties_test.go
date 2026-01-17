@@ -27,14 +27,14 @@ func TestProcessItem_Int_Property(t *testing.T) {
 		transformer := func(v int) int { return v * multiplier }
 
 		// Start the function
-		call := wrapper.Method.Start(repo, key, transformer)
+		call := wrapper.Start(repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
 		repoImp.Get.Expect(key).Return(value, nil)
 		repoImp.Save.Expect(value * multiplier).Return(nil)
 
 		// Property: Function returns nil on success
-		call.ExpectReturnsEqual(nil)
+		call.ExpectReturn(nil)
 	})
 }
 
@@ -57,13 +57,13 @@ func TestProcessItem_String_Property(t *testing.T) {
 		transformer := func(s string) string { return s + suffix }
 
 		// Start the function
-		call := wrapper.Method.Start(repo, key, transformer)
+		call := wrapper.Start(repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
 		repoImp.Get.Expect(key).Return(value, nil)
 		repoImp.Save.Expect(value + suffix).Return(nil)
 
 		// Property: Function returns nil on success
-		call.ExpectReturnsEqual(nil)
+		call.ExpectReturn(nil)
 	})
 }

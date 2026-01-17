@@ -17,10 +17,6 @@ type WrapSlowMultiplyReturnsReturn struct {
 
 // WrapSlowMultiplyWrapper wraps a function for testing.
 type WrapSlowMultiplyWrapperHandle struct {
-	Method *WrapSlowMultiplyWrapperMethod
-}
-
-type WrapSlowMultiplyWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func(a int, delay time.Duration) int
 }
@@ -31,7 +27,7 @@ type WrapSlowMultiplyCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapSlowMultiplyWrapperMethod) Start(a int, delay time.Duration) *WrapSlowMultiplyCallHandle {
+func (w *WrapSlowMultiplyWrapperHandle) Start(a int, delay time.Duration) *WrapSlowMultiplyCallHandle {
 	handle := &WrapSlowMultiplyCallHandle{
 		CallableController: _imptest.NewCallableController[WrapSlowMultiplyReturnsReturn](w.t),
 	}
@@ -47,8 +43,8 @@ func (w *WrapSlowMultiplyWrapperMethod) Start(a int, delay time.Duration) *WrapS
 	return handle
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapSlowMultiplyCallHandle) ExpectReturnsEqual(v0 int) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapSlowMultiplyCallHandle) ExpectReturn(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -62,8 +58,8 @@ func (h *WrapSlowMultiplyCallHandle) ExpectReturnsEqual(v0 int) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapSlowMultiplyCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapSlowMultiplyCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -80,8 +76,8 @@ func (h *WrapSlowMultiplyCallHandle) ExpectReturnsMatch(v0 any) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapSlowMultiplyCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapSlowMultiplyCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -96,8 +92,8 @@ func (h *WrapSlowMultiplyCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapSlowMultiplyCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapSlowMultiplyCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -115,9 +111,7 @@ func (h *WrapSlowMultiplyCallHandle) ExpectPanicMatches(matcher any) {
 // WrapSlowMultiply wraps a function for testing.
 func WrapSlowMultiply(t _imptest.TestReporter, fn func(a int, delay time.Duration) int) *WrapSlowMultiplyWrapperHandle {
 	return &WrapSlowMultiplyWrapperHandle{
-		Method: &WrapSlowMultiplyWrapperMethod{
-			t:        t,
-			callable: fn,
-		},
+		t:        t,
+		callable: fn,
 	}
 }

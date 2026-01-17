@@ -47,5 +47,5 @@ func TestV2_ProcessData_Panic(t *testing.T) {
 		panic("test panic")
 	}
 
-	WrapProcessData(t, panicFunc).Start("test", 42).ExpectPanicEquals("test panic")
+	WrapProcessData(t, panicFunc).Start("test", 42).ExpectPanic("test panic")
 }

@@ -25,8 +25,8 @@ func (h *WrapCalculatorWrapperAddCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the method panics with the expected value.
-func (h *WrapCalculatorWrapperAddCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the method panics with the expected value.
+func (h *WrapCalculatorWrapperAddCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -41,8 +41,8 @@ func (h *WrapCalculatorWrapperAddCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
-func (h *WrapCalculatorWrapperAddCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
+func (h *WrapCalculatorWrapperAddCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -57,8 +57,8 @@ func (h *WrapCalculatorWrapperAddCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the method returned the expected values.
-func (h *WrapCalculatorWrapperAddCallHandle) ExpectReturnsEqual(v0 int) {
+// ExpectReturn verifies the method returned the expected values.
+func (h *WrapCalculatorWrapperAddCallHandle) ExpectReturn(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -72,8 +72,8 @@ func (h *WrapCalculatorWrapperAddCallHandle) ExpectReturnsEqual(v0 int) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapCalculatorWrapperAddCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorWrapperAddCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -131,8 +131,8 @@ func (h *WrapCalculatorWrapperDivideCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the method panics with the expected value.
-func (h *WrapCalculatorWrapperDivideCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the method panics with the expected value.
+func (h *WrapCalculatorWrapperDivideCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -147,8 +147,8 @@ func (h *WrapCalculatorWrapperDivideCallHandle) ExpectPanicEquals(expected any) 
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
-func (h *WrapCalculatorWrapperDivideCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
+func (h *WrapCalculatorWrapperDivideCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -163,8 +163,8 @@ func (h *WrapCalculatorWrapperDivideCallHandle) ExpectPanicMatches(matcher any) 
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the method returned the expected values.
-func (h *WrapCalculatorWrapperDivideCallHandle) ExpectReturnsEqual(v0 int, v1 bool) {
+// ExpectReturn verifies the method returned the expected values.
+func (h *WrapCalculatorWrapperDivideCallHandle) ExpectReturn(v0 int, v1 bool) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -181,8 +181,8 @@ func (h *WrapCalculatorWrapperDivideCallHandle) ExpectReturnsEqual(v0 int, v1 bo
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapCalculatorWrapperDivideCallHandle) ExpectReturnsMatch(v0 any, v1 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorWrapperDivideCallHandle) ExpectReturnMatch(v0 any, v1 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -232,16 +232,11 @@ func (w *WrapCalculatorWrapperDivideWrapper) Start(numerator int, denominator in
 
 // WrapCalculatorWrapperHandle wraps an implementation of handlers.Calculator to intercept method calls.
 type WrapCalculatorWrapperHandle struct {
-	Method *WrapCalculatorWrapperMethods
-	impl   handlers.Calculator
-}
-
-// WrapCalculatorWrapperMethods holds method wrappers for all intercepted methods.
-type WrapCalculatorWrapperMethods struct {
 	Add          *WrapCalculatorWrapperAddWrapper
 	Divide       *WrapCalculatorWrapperDivideWrapper
 	Multiply     *WrapCalculatorWrapperMultiplyWrapper
 	ProcessValue *WrapCalculatorWrapperProcessValueWrapper
+	impl         handlers.Calculator
 }
 
 // WrapCalculatorWrapperMultiplyCallHandle represents a single call to the wrapped method.
@@ -259,8 +254,8 @@ func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the method panics with the expected value.
-func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the method panics with the expected value.
+func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -275,8 +270,8 @@ func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectPanicEquals(expected any
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
-func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
+func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -291,8 +286,8 @@ func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectPanicMatches(matcher any
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the method returned the expected values.
-func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectReturnsEqual(v0 int) {
+// ExpectReturn verifies the method returned the expected values.
+func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectReturn(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -306,8 +301,8 @@ func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectReturnsEqual(v0 int) {
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorWrapperMultiplyCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -365,8 +360,8 @@ func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectCompletes() {
 	}
 }
 
-// ExpectPanicEquals verifies the method panics with the expected value.
-func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the method panics with the expected value.
+func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -381,8 +376,8 @@ func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectPanicEquals(expected
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the method panics with a value matching the given matcher.
-func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the method panics with a value matching the given matcher.
+func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -397,8 +392,8 @@ func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectPanicMatches(matcher
 	h.T.Fatalf("expected method to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the method returned the expected values.
-func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectReturnsEqual(v0 int) {
+// ExpectReturn verifies the method returned the expected values.
+func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectReturn(v0 int) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -412,8 +407,8 @@ func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectReturnsEqual(v0 int)
 	h.T.Fatalf("expected method to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapCalculatorWrapperProcessValueCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -459,22 +454,21 @@ func (w *WrapCalculatorWrapperProcessValueWrapper) Start(value int) *WrapCalcula
 // WrapCalculator creates a new wrapper for the given handlers.Calculator implementation.
 func WrapCalculator(t *testing.T, impl handlers.Calculator) *WrapCalculatorWrapperHandle {
 	h := &WrapCalculatorWrapperHandle{
-		impl:   impl,
-		Method: &WrapCalculatorWrapperMethods{},
+		impl: impl,
 	}
-	h.Method.Add = wrapWrapCalculatorWrapperAdd(t, func(a int, b int) WrapCalculatorWrapperAddReturns {
+	h.Add = wrapWrapCalculatorWrapperAdd(t, func(a int, b int) WrapCalculatorWrapperAddReturns {
 		r0 := h.impl.Add(a, b)
 		return WrapCalculatorWrapperAddReturns{Result0: r0}
 	})
-	h.Method.Divide = wrapWrapCalculatorWrapperDivide(t, func(numerator int, denominator int) WrapCalculatorWrapperDivideReturns {
+	h.Divide = wrapWrapCalculatorWrapperDivide(t, func(numerator int, denominator int) WrapCalculatorWrapperDivideReturns {
 		r0, r1 := h.impl.Divide(numerator, denominator)
 		return WrapCalculatorWrapperDivideReturns{Result0: r0, Result1: r1}
 	})
-	h.Method.Multiply = wrapWrapCalculatorWrapperMultiply(t, func(value int) WrapCalculatorWrapperMultiplyReturns {
+	h.Multiply = wrapWrapCalculatorWrapperMultiply(t, func(value int) WrapCalculatorWrapperMultiplyReturns {
 		r0 := h.impl.Multiply(value)
 		return WrapCalculatorWrapperMultiplyReturns{Result0: r0}
 	})
-	h.Method.ProcessValue = wrapWrapCalculatorWrapperProcessValue(t, func(value int) WrapCalculatorWrapperProcessValueReturns {
+	h.ProcessValue = wrapWrapCalculatorWrapperProcessValue(t, func(value int) WrapCalculatorWrapperProcessValueReturns {
 		r0 := h.impl.ProcessValue(value)
 		return WrapCalculatorWrapperProcessValueReturns{Result0: r0}
 	})

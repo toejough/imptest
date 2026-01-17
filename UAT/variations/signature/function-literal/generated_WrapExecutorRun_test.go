@@ -17,8 +17,8 @@ type WrapExecutorRunCallHandle struct {
 	Eventually *WrapExecutorRunCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapExecutorRunCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapExecutorRunCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapExecutorRunCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapExecutorRunCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapExecutorRunCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapExecutorRunCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapExecutorRunCallHandle) ExpectReturnsEqual(v0 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapExecutorRunCallHandle) ExpectReturn(v0 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +64,8 @@ func (h *WrapExecutorRunCallHandle) ExpectReturnsEqual(v0 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapExecutorRunCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapExecutorRunCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -87,14 +87,14 @@ type WrapExecutorRunCallHandleEventually struct {
 	h *WrapExecutorRunCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapExecutorRunCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapExecutorRunCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapExecutorRunCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapExecutorRunCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapExecutorRunCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -115,22 +115,16 @@ type WrapExecutorRunReturnsReturn struct {
 
 // WrapExecutorRunWrapperHandle is the test handle for a wrapped function.
 type WrapExecutorRunWrapperHandle struct {
-	Method     *WrapExecutorRunWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapExecutorRunWrapperMethod wraps a function for testing.
-type WrapExecutorRunWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(func() error) error
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapExecutorRunWrapperMethod) Start(callback func() error) *WrapExecutorRunCallHandle {
+func (w *WrapExecutorRunWrapperHandle) Start(callback func() error) *WrapExecutorRunCallHandle {
 	handle := &WrapExecutorRunCallHandle{
-		CallableController: _imptest.NewCallableController[WrapExecutorRunReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapExecutorRunReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapExecutorRunCallHandleEventually{h: handle}
 	go func() {
@@ -139,7 +133,7 @@ func (m *WrapExecutorRunWrapperMethod) Start(callback func() error) *WrapExecuto
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(callback)
+		ret0 := w.callable(callback)
 		handle.ReturnChan <- WrapExecutorRunReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -147,13 +141,9 @@ func (m *WrapExecutorRunWrapperMethod) Start(callback func() error) *WrapExecuto
 
 // WrapExecutorRun wraps a function for testing.
 func WrapExecutorRun(t _imptest.TestReporter, fn func(func() error) error) *WrapExecutorRunWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapExecutorRunWrapperHandle{
-		Method: &WrapExecutorRunWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

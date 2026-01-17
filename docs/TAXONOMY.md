@@ -70,7 +70,7 @@ func TestProcessOrder(t *testing.T) {
     imp.Charge.Expect(order.Amount).
         Return(receipt, nil)
 
-    call.ExpectReturnsEqual(expectedResult, nil)
+    call.ExpectReturn(expectedResult, nil)
 }
 ```
 
@@ -132,12 +132,12 @@ call := wrapper.Start(arg1, arg2, ...)
 imp.DepMethod.Expect(...).Return(...)
 
 // 4. Verify the result
-call.ExpectReturnsEqual(expectedReturn1, expectedReturn2)
+call.ExpectReturn(expectedReturn1, expectedReturn2)
 // or
-call.ExpectPanicEquals("expected panic message")
+call.ExpectPanic("expected panic message")
 
 // For async verification on wrappers:
-call.Eventually.ExpectReturnsEqual(expected)
+call.Eventually.ExpectReturn(expected)
 imptest.Wait(t)  // blocks until satisfied
 ```
 
@@ -157,7 +157,7 @@ func TestProcessOrder(t *testing.T) {
     imp.FetchData.Expect(42).
         Return("data", nil)
 
-    call.ExpectReturnsEqual("Result: data", nil)
+    call.ExpectReturn("Result: data", nil)
 }
 ```
 
@@ -171,7 +171,7 @@ func TestCalculatorAdd(t *testing.T) {
     wrapper := WrapCalculatorAdd(t, calc.Add)
 
     call := wrapper.Start(10, 20)
-    call.ExpectReturnsEqual(30)
+    call.ExpectReturn(30)
 }
 ```
 
@@ -185,10 +185,10 @@ func TestCalculator(t *testing.T) {
     wrapper := WrapCalculator(t, calc)
 
     addCall := wrapper.Add.Start(10, 20)
-    addCall.ExpectReturnsEqual(30)
+    addCall.ExpectReturn(30)
 
     mulCall := wrapper.Multiply.Start(5, 6)
-    mulCall.ExpectReturnsEqual(30)
+    mulCall.ExpectReturn(30)
 }
 ```
 
@@ -202,10 +202,10 @@ func TestLogger(t *testing.T) {
     wrapper := WrapLogger(t, impl)
 
     infoCall := wrapper.Info.Start("test message")
-    infoCall.ExpectReturnsEqual()
+    infoCall.ExpectReturn()
 
     warnCall := wrapper.Warn.Start("warning!")
-    warnCall.ExpectReturnsEqual()
+    warnCall.ExpectReturn()
 }
 ```
 
@@ -221,7 +221,7 @@ func TestWalkFunc(t *testing.T) {
     wrapper := WrapWalkFunc(t, myWalker)
 
     call := wrapper.Start("/path", mockFileInfo)
-    call.ExpectReturnsEqual(nil)
+    call.ExpectReturn(nil)
 }
 ```
 
@@ -234,7 +234,7 @@ func TestUnsafeRunnerPanics(t *testing.T) {
     wrapper := WrapUnsafeRunner(t, safety.UnsafeRunner)
 
     call := wrapper.Start(10, 0)  // Division by zero
-    call.ExpectPanicEquals("division by zero")
+    call.ExpectPanic("division by zero")
 }
 ```
 
@@ -516,12 +516,12 @@ imptest.Wait(t)
 
 ```go
 wrapper := WrapMyFunc(t, MyFunc)
-call1 := wrapper.Method.Start(arg1)
-call2 := wrapper.Method.Start(arg2)
+call1 := wrapper.Start(arg1)
+call2 := wrapper.Start(arg2)
 
 // Non-blocking expectations on wrapper calls
-call1.Eventually.ExpectReturnsEqual(expected1)
-call2.Eventually.ExpectReturnsEqual(expected2)
+call1.Eventually.ExpectReturn(expected1)
+call2.Eventually.ExpectReturn(expected2)
 
 // Wait for all to complete
 imptest.Wait(t)

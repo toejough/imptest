@@ -17,8 +17,8 @@ type WrapValidateRequestCallHandle struct {
 	Eventually *WrapValidateRequestCallHandleEventually
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapValidateRequestCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapValidateRequestCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -33,8 +33,8 @@ func (h *WrapValidateRequestCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapValidateRequestCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapValidateRequestCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -49,8 +49,8 @@ func (h *WrapValidateRequestCallHandle) ExpectPanicMatches(matcher any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectReturnsEqual verifies the function returned the expected values.
-func (h *WrapValidateRequestCallHandle) ExpectReturnsEqual(v0 error) {
+// ExpectReturn verifies the function returned the expected values.
+func (h *WrapValidateRequestCallHandle) ExpectReturn(v0 error) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -64,8 +64,8 @@ func (h *WrapValidateRequestCallHandle) ExpectReturnsEqual(v0 error) {
 	h.T.Fatalf("expected function to return, but it panicked with: %v", h.Panicked)
 }
 
-// ExpectReturnsMatch verifies the return values match the given matchers.
-func (h *WrapValidateRequestCallHandle) ExpectReturnsMatch(v0 any) {
+// ExpectReturnMatch verifies the return values match the given matchers.
+func (h *WrapValidateRequestCallHandle) ExpectReturnMatch(v0 any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -87,14 +87,14 @@ type WrapValidateRequestCallHandleEventually struct {
 	h *WrapValidateRequestCallHandle
 }
 
-// ExpectPanicEquals registers an async expectation for a panic value.
-func (e *WrapValidateRequestCallHandleEventually) ExpectPanicEquals(value any) {
-	e.ensureStarted().ExpectPanicEquals(value)
+// ExpectPanic registers an async expectation for a panic value.
+func (e *WrapValidateRequestCallHandleEventually) ExpectPanic(value any) {
+	e.ensureStarted().ExpectPanic(value)
 }
 
-// ExpectReturnsEqual registers an async expectation for return values.
-func (e *WrapValidateRequestCallHandleEventually) ExpectReturnsEqual(values ...any) {
-	e.ensureStarted().ExpectReturnsEqual(values...)
+// ExpectReturn registers an async expectation for return values.
+func (e *WrapValidateRequestCallHandleEventually) ExpectReturn(values ...any) {
+	e.ensureStarted().ExpectReturn(values...)
 }
 
 func (e *WrapValidateRequestCallHandleEventually) ensureStarted() *_imptest.PendingCompletion {
@@ -115,12 +115,6 @@ type WrapValidateRequestReturnsReturn struct {
 
 // WrapValidateRequestWrapperHandle is the test handle for a wrapped function.
 type WrapValidateRequestWrapperHandle struct {
-	Method     *WrapValidateRequestWrapperMethod
-	Controller *_imptest.TargetController
-}
-
-// WrapValidateRequestWrapperMethod wraps a function for testing.
-type WrapValidateRequestWrapperMethod struct {
 	t          _imptest.TestReporter
 	controller *_imptest.TargetController
 	callable   func(struct {
@@ -130,13 +124,13 @@ type WrapValidateRequestWrapperMethod struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (m *WrapValidateRequestWrapperMethod) Start(req struct {
+func (w *WrapValidateRequestWrapperHandle) Start(req struct {
 	APIKey  string
 	Timeout int
 }) *WrapValidateRequestCallHandle {
 	handle := &WrapValidateRequestCallHandle{
-		CallableController: _imptest.NewCallableController[WrapValidateRequestReturnsReturn](m.t),
-		controller:         m.controller,
+		CallableController: _imptest.NewCallableController[WrapValidateRequestReturnsReturn](w.t),
+		controller:         w.controller,
 	}
 	handle.Eventually = &WrapValidateRequestCallHandleEventually{h: handle}
 	go func() {
@@ -145,7 +139,7 @@ func (m *WrapValidateRequestWrapperMethod) Start(req struct {
 				handle.PanicChan <- r
 			}
 		}()
-		ret0 := m.callable(req)
+		ret0 := w.callable(req)
 		handle.ReturnChan <- WrapValidateRequestReturnsReturn{Result0: ret0}
 	}()
 	return handle
@@ -156,13 +150,9 @@ func WrapValidateRequest(t _imptest.TestReporter, fn func(struct {
 	APIKey  string
 	Timeout int
 }) error) *WrapValidateRequestWrapperHandle {
-	ctrl := _imptest.NewTargetController(t)
 	return &WrapValidateRequestWrapperHandle{
-		Method: &WrapValidateRequestWrapperMethod{
-			t:          t,
-			controller: ctrl,
-			callable:   fn,
-		},
-		Controller: ctrl,
+		t:          t,
+		controller: _imptest.NewTargetController(t),
+		callable:   fn,
 	}
 }

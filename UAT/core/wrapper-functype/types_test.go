@@ -13,7 +13,7 @@ import (
 // According to the design, wrapping a function type should:
 // 1. Create a WrapWalkFunc(t, fn) constructor
 // 2. Allow calling Start(args...) to invoke the function
-// 3. Allow expecting return values with ExpectReturnsEqual/ExpectReturnsMatch
+// 3. Allow expecting return values with ExpectReturn/ExpectReturnMatch
 func TestWrapFunctionType(t *testing.T) {
 	t.Parallel()
 
@@ -29,10 +29,10 @@ func TestWrapFunctionType(t *testing.T) {
 	wrapped := WrapWalkFunc(t, testFn)
 
 	// Start the function with test arguments
-	returns := wrapped.Method.Start("/test", "info")
+	returns := wrapped.Start("/test", "info")
 
 	// Expect the function to return nil (no error)
-	returns.ExpectReturnsEqual(nil)
+	returns.ExpectReturn(nil)
 }
 
 // TestWrapFunctionTypeWithError verifies error handling.
@@ -45,8 +45,8 @@ func TestWrapFunctionTypeWithError(t *testing.T) {
 	}
 
 	wrapped := WrapWalkFunc(t, testFn)
-	returns := wrapped.Method.Start("/error", "info")
+	returns := wrapped.Start("/error", "info")
 
 	// Should match the expected error
-	returns.ExpectReturnsEqual(expectedErr)
+	returns.ExpectReturn(expectedErr)
 }

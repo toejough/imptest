@@ -12,10 +12,6 @@ type WrapPanicReturnsReturn struct {
 
 // WrapPanicWrapper wraps a function for testing.
 type WrapPanicWrapperHandle struct {
-	Method *WrapPanicWrapperMethod
-}
-
-type WrapPanicWrapperMethod struct {
 	t        _imptest.TestReporter
 	callable func()
 }
@@ -26,7 +22,7 @@ type WrapPanicCallHandle struct {
 }
 
 // Start executes the wrapped function in a goroutine.
-func (w *WrapPanicWrapperMethod) Start() *WrapPanicCallHandle {
+func (w *WrapPanicWrapperHandle) Start() *WrapPanicCallHandle {
 	handle := &WrapPanicCallHandle{
 		CallableController: _imptest.NewCallableController[WrapPanicReturnsReturn](w.t),
 	}
@@ -42,8 +38,8 @@ func (w *WrapPanicWrapperMethod) Start() *WrapPanicCallHandle {
 	return handle
 }
 
-// ExpectPanicEquals verifies the function panics with the expected value.
-func (h *WrapPanicCallHandle) ExpectPanicEquals(expected any) {
+// ExpectPanic verifies the function panics with the expected value.
+func (h *WrapPanicCallHandle) ExpectPanic(expected any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -58,8 +54,8 @@ func (h *WrapPanicCallHandle) ExpectPanicEquals(expected any) {
 	h.T.Fatalf("expected function to panic, but it returned")
 }
 
-// ExpectPanicMatches verifies the function panics with a value matching the given matcher.
-func (h *WrapPanicCallHandle) ExpectPanicMatches(matcher any) {
+// ExpectPanicMatch verifies the function panics with a value matching the given matcher.
+func (h *WrapPanicCallHandle) ExpectPanicMatch(matcher any) {
 	h.T.Helper()
 	h.WaitForResponse()
 
@@ -77,9 +73,7 @@ func (h *WrapPanicCallHandle) ExpectPanicMatches(matcher any) {
 // WrapPanic wraps a function for testing.
 func WrapPanic(t _imptest.TestReporter, fn func()) *WrapPanicWrapperHandle {
 	return &WrapPanicWrapperHandle{
-		Method: &WrapPanicWrapperMethod{
-			t:        t,
-			callable: fn,
-		},
+		t:        t,
+		callable: fn,
 	}
 }
