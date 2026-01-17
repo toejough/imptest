@@ -33,7 +33,7 @@ block-size = 2
 # ignore-decls should work for conventional declarations like 't *testing.T' but doesn't
 # See: https://github.com/blizzy78/varnamelen/issues/5
 # Using ignore-names as workaround
-ignore-names = ['t', 'b', 'rt', 'a']
+ignore-names = ['t', 'b', 'rt', 'a', 'g', 'wg', 'mu']
 
 [linters.settings.unused]
 field-writes-are-uses = false

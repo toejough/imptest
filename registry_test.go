@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/onsi/gomega"
+	. "github.com/onsi/gomega" //nolint:revive // dot import preferred for test readability
 	"pgregory.net/rapid"
 
 	"github.com/toejough/imptest"
@@ -17,7 +17,7 @@ import (
 func TestCleanup_RemovesEntryAfterTestCompletes(t *testing.T) {
 	t.Parallel()
 
-	expect := gomega.NewWithT(t)
+	g := NewWithT(t)
 
 	// Run in a subtest to isolate cleanup behavior
 	t.Run("subtest", func(t *testing.T) {
@@ -25,7 +25,7 @@ func TestCleanup_RemovesEntryAfterTestCompletes(t *testing.T) {
 
 		// Creating an Imp should succeed and not be nil
 		capturedImp := imptest.GetOrCreateImp(t)
-		expect.Expect(capturedImp).NotTo(gomega.BeNil())
+		g.Expect(capturedImp).NotTo(BeNil())
 		// Cleanup is registered via t.Cleanup() and will run when this subtest exits
 	})
 }
@@ -35,29 +35,29 @@ func TestCleanup_RemovesEntryAfterTestCompletes(t *testing.T) {
 func TestGetOrCreateImp_ConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
-	expect := gomega.NewWithT(t)
+	g := NewWithT(t)
 
 	const numGoroutines = 100
 
 	results := make([]*imptest.Imp, numGoroutines)
 
-	var waitGroup sync.WaitGroup
+	var wg sync.WaitGroup
 
-	waitGroup.Add(numGoroutines)
+	wg.Add(numGoroutines)
 
 	for i := range numGoroutines {
 		go func(idx int) {
-			defer waitGroup.Done()
+			defer wg.Done()
 
 			results[idx] = imptest.GetOrCreateImp(t)
 		}(i)
 	}
 
-	waitGroup.Wait()
+	wg.Wait()
 
 	// All results should be the same Imp
 	for i := 1; i < numGoroutines; i++ {
-		expect.Expect(results[i]).To(gomega.BeIdenticalTo(results[0]),
+		g.Expect(results[i]).To(BeIdenticalTo(results[0]),
 			"concurrent calls with same t should return same Imp")
 	}
 }
@@ -71,19 +71,19 @@ func TestGetOrCreateImp_ConcurrentAccess_Rapid(t *testing.T) {
 		numGoroutines := rapid.IntRange(2, 50).Draw(rt, "numGoroutines")
 		results := make([]*imptest.Imp, numGoroutines)
 
-		var waitGroup sync.WaitGroup
+		var wg sync.WaitGroup
 
-		waitGroup.Add(numGoroutines)
+		wg.Add(numGoroutines)
 
 		for i := range numGoroutines {
 			go func(idx int) {
-				defer waitGroup.Done()
+				defer wg.Done()
 
 				results[idx] = imptest.GetOrCreateImp(t)
 			}(i)
 		}
 
-		waitGroup.Wait()
+		wg.Wait()
 
 		// All should be identical
 		for i := 1; i < numGoroutines; i++ {
@@ -99,23 +99,23 @@ func TestGetOrCreateImp_ConcurrentAccess_Rapid(t *testing.T) {
 func TestGetOrCreateImp_DifferentT_ReturnsDifferentImp(t *testing.T) {
 	t.Parallel()
 
-	expect := gomega.NewWithT(t)
+	g := NewWithT(t)
 
 	// Store results from subtests - use a sync.Map for thread safety
 	results := make(map[string]*imptest.Imp)
 
-	var resultsMutex sync.Mutex
+	var mu sync.Mutex
 
 	t.Run("subtest1", func(t *testing.T) {
 		t.Parallel()
 
 		imp := imptest.GetOrCreateImp(t)
 
-		resultsMutex.Lock()
+		mu.Lock()
 
 		results["sub1"] = imp
 
-		resultsMutex.Unlock()
+		mu.Unlock()
 	})
 
 	t.Run("subtest2", func(t *testing.T) {
@@ -123,21 +123,21 @@ func TestGetOrCreateImp_DifferentT_ReturnsDifferentImp(t *testing.T) {
 
 		imp := imptest.GetOrCreateImp(t)
 
-		resultsMutex.Lock()
+		mu.Lock()
 
 		results["sub2"] = imp
 
-		resultsMutex.Unlock()
+		mu.Unlock()
 	})
 
 	// After t.Run returns for parallel subtests, subtests are queued but not complete.
 	// Go's test framework waits for all subtests to complete before the parent exits.
 	// We use t.Cleanup to verify after subtests complete.
 	t.Cleanup(func() {
-		resultsMutex.Lock()
-		defer resultsMutex.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
-		expect.Expect(results["sub1"]).NotTo(gomega.BeIdenticalTo(results["sub2"]),
+		g.Expect(results["sub1"]).NotTo(BeIdenticalTo(results["sub2"]),
 			"different t should return different Imp")
 	})
 }
@@ -147,12 +147,12 @@ func TestGetOrCreateImp_DifferentT_ReturnsDifferentImp(t *testing.T) {
 func TestGetOrCreateImp_SameT_ReturnsSameImp(t *testing.T) {
 	t.Parallel()
 
-	expect := gomega.NewWithT(t)
+	g := NewWithT(t)
 
 	imp1 := imptest.GetOrCreateImp(t)
 	imp2 := imptest.GetOrCreateImp(t)
 
-	expect.Expect(imp1).To(gomega.BeIdenticalTo(imp2), "same t should return same Imp")
+	g.Expect(imp1).To(BeIdenticalTo(imp2), "same t should return same Imp")
 }
 
 // TestWait_BlocksUntilAsyncExpectationsSatisfied verifies that Wait(t)
@@ -160,7 +160,7 @@ func TestGetOrCreateImp_SameT_ReturnsSameImp(t *testing.T) {
 func TestWait_BlocksUntilAsyncExpectationsSatisfied(t *testing.T) {
 	t.Parallel()
 
-	expect := gomega.NewWithT(t)
+	g := NewWithT(t)
 
 	// Ensure Imp exists for this test
 	_ = imptest.GetOrCreateImp(t)
@@ -168,14 +168,14 @@ func TestWait_BlocksUntilAsyncExpectationsSatisfied(t *testing.T) {
 	// Track completion order
 	completionOrder := make([]string, 0, 2)
 
-	var orderMutex sync.Mutex
+	var mu sync.Mutex
 
 	recordCompletion := func(name string) {
-		orderMutex.Lock()
+		mu.Lock()
 
 		completionOrder = append(completionOrder, name)
 
-		orderMutex.Unlock()
+		mu.Unlock()
 	}
 
 	// Simulate async expectation by using the Imp's underlying Wait mechanism
@@ -194,12 +194,12 @@ func TestWait_BlocksUntilAsyncExpectationsSatisfied(t *testing.T) {
 
 	<-done
 
-	orderMutex.Lock()
-	defer orderMutex.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 
-	expect.Expect(completionOrder).To(gomega.HaveLen(2))
-	expect.Expect(completionOrder[0]).To(gomega.Equal("expectation"))
-	expect.Expect(completionOrder[1]).To(gomega.Equal("wait"))
+	g.Expect(completionOrder).To(HaveLen(2))
+	g.Expect(completionOrder[0]).To(Equal("expectation"))
+	g.Expect(completionOrder[1]).To(Equal("wait"))
 }
 
 // TestWait_NoExpectations_ReturnsImmediately verifies that Wait(t) returns
@@ -207,7 +207,7 @@ func TestWait_BlocksUntilAsyncExpectationsSatisfied(t *testing.T) {
 func TestWait_NoExpectations_ReturnsImmediately(t *testing.T) {
 	t.Parallel()
 
-	expect := gomega.NewWithT(t)
+	g := NewWithT(t)
 
 	// Ensure Imp exists
 	_ = imptest.GetOrCreateImp(t)
@@ -221,5 +221,5 @@ func TestWait_NoExpectations_ReturnsImmediately(t *testing.T) {
 	}()
 
 	// Should complete very quickly
-	expect.Eventually(done).Should(gomega.BeClosed())
+	g.Eventually(done).Should(BeClosed())
 }
