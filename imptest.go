@@ -10,6 +10,7 @@
 //   - [TestReporter] - interface for test frameworks (usually *testing.T)
 //   - [GetOrCreateImp] - get/create shared coordinator for a test (used by generated code)
 //   - [Wait] - block until all async expectations for a test are satisfied
+//   - [SetTimeout] - configure timeout for blocking operations
 //
 // # Generated Code API
 //
@@ -26,6 +27,8 @@
 package imptest
 
 import (
+	"time"
+
 	"github.com/toejough/imptest/internal/core"
 )
 
@@ -112,4 +115,31 @@ func MatchValue(actual, expected any) (bool, string) {
 // Satisfies returns a matcher that uses a predicate function to check for a match.
 func Satisfies[T any](predicate func(T) error) Matcher {
 	return core.Satisfies(predicate)
+}
+
+// GetOrCreateImp returns the Imp for the given test, creating one if needed.
+// Multiple calls with the same TestReporter return the same Imp instance.
+// This enables coordination between mocks and wrappers in the same test.
+//
+// If the TestReporter supports Cleanup (like *testing.T), the Imp is
+// automatically removed from the registry when the test completes.
+func GetOrCreateImp(t TestReporter) *Imp {
+	return core.GetOrCreateImp(t)
+}
+
+// SetTimeout configures the timeout for all blocking operations in the test.
+// A duration of 0 means no timeout (block forever).
+//
+// If no Imp has been created for t yet, one is created.
+func SetTimeout(t TestReporter, d time.Duration) {
+	core.SetTimeout(t, d)
+}
+
+// Wait blocks until all async expectations registered under t are satisfied.
+// This is the package-level wait that coordinates across all mocks/wrappers
+// sharing the same TestReporter.
+//
+// If no Imp has been created for t yet, Wait returns immediately.
+func Wait(t TestReporter) {
+	core.Wait(t)
 }

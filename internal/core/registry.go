@@ -1,10 +1,8 @@
-package imptest
+package core
 
 import (
 	"sync"
 	"time"
-
-	"github.com/toejough/imptest/internal/core"
 )
 
 // GetOrCreateImp returns the Imp for the given test, creating one if needed.
@@ -21,7 +19,7 @@ func GetOrCreateImp(t TestReporter) *Imp {
 		return imp
 	}
 
-	imp := core.NewImp(t)
+	imp := NewImp(t)
 	registry[t] = imp
 
 	// Register cleanup if the TestReporter supports it
