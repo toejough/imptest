@@ -8,14 +8,14 @@ import (
 	concurrency "github.com/toejough/imptest/UAT/variations/concurrency/eventually"
 )
 
-// TestAsyncEventuallyInjectPanicValue tests InjectPanicValue in async mode.
-func TestAsyncEventuallyInjectPanicValue(t *testing.T) {
+// TestAsyncEventuallyPanic tests Panic in async mode.
+func TestAsyncEventuallyPanic(t *testing.T) {
 	t.Parallel()
 
 	mock, imp := MockSlowService(t)
 
 	// Register expectation with panic FIRST (async pattern)
-	imp.DoA.Eventually.ExpectCalledWithExactly(999).InjectPanicValue("test panic")
+	imp.DoA.Eventually.Expect(999).Panic("test panic")
 
 	// Capture panic from goroutine
 	panicChan := make(chan any, 1)
@@ -50,7 +50,7 @@ func TestAsyncEventuallyInjectPanicValue(t *testing.T) {
 // Key Requirements Met:
 //  1. Non-blocking Eventually(): Expectations register immediately without blocking
 //  2. Controller.Wait(): Single call blocks until all expectations are satisfied
-//  3. Callback pattern: InjectReturnValues can be called before call arrives
+//  3. Callback pattern: Return can be called before call arrives
 func TestAsyncEventuallyWithControllerWait(t *testing.T) {
 	t.Parallel()
 
@@ -58,8 +58,8 @@ func TestAsyncEventuallyWithControllerWait(t *testing.T) {
 
 	// Register expectations FIRST - these must NOT block (new async behavior)
 	// With blocking Eventually(), this would deadlock because no goroutine is making calls yet
-	imp.DoA.Eventually.ExpectCalledWithExactly(789).InjectReturnValues("Async A")
-	imp.DoB.Eventually.ExpectCalledWithExactly(789).InjectReturnValues("Async B")
+	imp.DoA.Eventually.Expect(789).Return("Async A")
+	imp.DoB.Eventually.Expect(789).Return("Async B")
 
 	// NOW start code under test - the expectations are already registered
 	go func() {
@@ -98,10 +98,10 @@ func TestConcurrentOutOfOrder(t *testing.T) {
 	// The .Eventually modifier tells imptest to wait indefinitely for the call.
 
 	// 1. Expect DoA(123) to be called.
-	imp.DoA.Eventually.ExpectCalledWithExactly(123).InjectReturnValues("Result A")
+	imp.DoA.Eventually.Expect(123).Return("Result A")
 
 	// 2. Expect DoB(123) to be called.
-	imp.DoB.Eventually.ExpectCalledWithExactly(123).InjectReturnValues("Result B")
+	imp.DoB.Eventually.Expect(123).Return("Result B")
 
 	// Wait for the code under test to finish and verify results.
 	results := <-resultChan
@@ -128,8 +128,8 @@ func TestExplicitReversedExpectation(t *testing.T) {
 
 	// Requirement: Demonstrate that we can wait for DoB first, then DoA,
 	// regardless of which one the system-under-test triggers first.
-	imp.DoB.Eventually.ExpectCalledWithExactly(456).InjectReturnValues("Result B")
-	imp.DoA.Eventually.ExpectCalledWithExactly(456).InjectReturnValues("Result A")
+	imp.DoB.Eventually.Expect(456).Return("Result B")
+	imp.DoA.Eventually.Expect(456).Return("Result A")
 
 	results := <-resultChan
 	if results[0] != "Result A" || results[1] != "Result B" {
@@ -150,6 +150,6 @@ func TestSetTimeoutAPI(t *testing.T) {
 		_ = mock.DoA(1)
 	}()
 
-	imp.DoA.Eventually.ExpectCalledWithExactly(1).InjectReturnValues("ok")
+	imp.DoA.Eventually.Expect(1).Return("ok")
 	imptest.Wait(t)
 }

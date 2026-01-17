@@ -67,8 +67,8 @@ func TestProcessOrder(t *testing.T) {
 
     call := wrapper.Start(mock, order)
 
-    imp.Charge.ExpectCalledWithExactly(order.Amount).
-        InjectReturnValues(receipt, nil)
+    imp.Charge.Expect(order.Amount).
+        Return(receipt, nil)
 
     call.ExpectReturnsEqual(expectedResult, nil)
 }
@@ -92,8 +92,8 @@ func TestUserService(t *testing.T) {
 
     go service.GetUser(123)
 
-    imp.FindByID.ExpectCalledWithExactly(123).
-        InjectReturnValues(User{ID: 123, Name: "Alice"}, nil)
+    imp.FindByID.Expect(123).
+        Return(User{ID: 123, Name: "Alice"}, nil)
 }
 ```
 
@@ -129,7 +129,7 @@ wrapper := WrapMyFunc(t, pkg.MyFunc)
 call := wrapper.Start(arg1, arg2, ...)
 
 // 3. Handle any dependency interactions (see Mock Pattern)
-imp.DepMethod.ExpectCalledWithExactly(...).InjectReturnValues(...)
+imp.DepMethod.Expect(...).Return(...)
 
 // 4. Verify the result
 call.ExpectReturnsEqual(expectedReturn1, expectedReturn2)
@@ -154,8 +154,8 @@ func TestProcessOrder(t *testing.T) {
 
     call := wrapper.Start(mock, 42)
 
-    imp.FetchData.ExpectCalledWithExactly(42).
-        InjectReturnValues("data", nil)
+    imp.FetchData.Expect(42).
+        Return("data", nil)
 
     call.ExpectReturnsEqual("Result: data", nil)
 }
@@ -270,16 +270,16 @@ mock, imp := MockService(t)
 go myFunction(mock)
 
 // 3. For each expected call (in Ordered mode):
-imp.MethodName.ExpectCalledWithExactly(arg1, arg2).
-    InjectReturnValues(ret1, ret2)
+imp.MethodName.Expect(arg1, arg2).
+    Return(ret1, ret2)
 
 // Or with matchers for flexible matching:
-imp.MethodName.ExpectCalledWithMatches(imptest.Any(), expectedArg2).
-    InjectReturnValues(ret1, ret2)
+imp.MethodName.Match(imptest.Any, expectedArg2).
+    Return(ret1, ret2)
 
 // For concurrent code, use Eventually with imptest.Wait(t):
-imp.MethodName.Eventually.ExpectCalledWithExactly(arg1, arg2).
-    InjectReturnValues(ret1, ret2)
+imp.MethodName.Eventually.Expect(arg1, arg2).
+    Return(ret1, ret2)
 imptest.Wait(t)  // blocks until all Eventually expectations satisfied
 ```
 
@@ -296,8 +296,8 @@ func TestUserService(t *testing.T) {
 
     go service.GetUser(123)
 
-    imp.FindByID.ExpectCalledWithExactly(123).
-        InjectReturnValues(User{ID: 123}, nil)
+    imp.FindByID.Expect(123).
+        Return(User{ID: 123}, nil)
 }
 ```
 
@@ -312,8 +312,8 @@ func TestWithVariadic(t *testing.T) {
     go doWork(mock)
 
     // Variadic args passed normally
-    imp.Logf.ExpectCalledWithExactly("format: %s %d", "hello", 42).
-        InjectReturnValues()
+    imp.Logf.Expect("format: %s %d", "hello", 42).
+        Return()
 }
 ```
 
@@ -326,8 +326,8 @@ func TestErrorPath(t *testing.T) {
 
     go service.GetUser(999)
 
-    imp.FindByID.ExpectCalledWithExactly(999).
-        InjectReturnValues(User{}, ErrNotFound)
+    imp.FindByID.Expect(999).
+        Return(User{}, ErrNotFound)
 }
 ```
 
@@ -340,8 +340,8 @@ func TestPanicRecovery(t *testing.T) {
 
     go service.GetUser(123)
 
-    imp.FindByID.ExpectCalledWithExactly(123).
-        InjectPanicValue("database connection lost")
+    imp.FindByID.Expect(123).
+        Panic("database connection lost")
 }
 ```
 
@@ -355,8 +355,8 @@ func TestRouterDependency(t *testing.T) {
 
     go processRequests(mock)
 
-    imp.ExpectCalledWithExactly("/api/users").
-        InjectReturnValues(handlerFunc)
+    imp.Expect("/api/users").
+        Return(handlerFunc)
 }
 ```
 
@@ -371,8 +371,8 @@ func TestGenericCache(t *testing.T) {
 
     go service.GetCached("user:123")
 
-    imp.Get.ExpectCalledWithExactly("user:123").
-        InjectReturnValues(User{ID: 123}, true)
+    imp.Get.Expect("user:123").
+        Return(User{ID: 123}, true)
 }
 ```
 
@@ -387,10 +387,10 @@ func TestReadCloser(t *testing.T) {
     go processFile(mock)
 
     // Methods from embedded interfaces are accessible
-    imp.Read.ExpectCalledWithMatches(imptest.Any()).
-        InjectReturnValues(10, nil)
-    imp.Close.ExpectCalledWithExactly().
-        InjectReturnValues(nil)
+    imp.Read.Match(imptest.Any).
+        Return(10, nil)
+    imp.Close.Expect().
+        Return(nil)
 }
 ```
 
@@ -462,12 +462,12 @@ imptest handles various parameter and return type patterns:
 When testing with function parameters, use matchers since Go functions cannot be compared:
 
 ```go
-// DON'T use ExpectCalledWithExactly for functions
-// mock.Map.ExpectCalledWithExactly(items, mapFunc)  // Will hang!
+// DON'T use Expect for functions
+// mock.Map.Expect(items, mapFunc)  // Will hang!
 
 // DO use matchers
-mock.Map.ExpectCalledWithMatches(items, imptest.Any()).
-    InjectReturnValues(result)
+mock.Map.Match(items, imptest.Any).
+    Return(result)
 ```
 
 ---
@@ -479,8 +479,8 @@ mock.Map.ExpectCalledWithMatches(items, imptest.Any()).
 By default, imptest expects calls in the exact order you specify:
 
 ```go
-imp.First.ExpectCalledWithExactly(1).InjectReturnValues(1)
-imp.Second.ExpectCalledWithExactly(2).InjectReturnValues(2)
+imp.First.Expect(1).Return(1)
+imp.Second.Expect(2).Return(2)
 // Calls MUST arrive as: First, then Second
 ```
 
@@ -498,9 +498,9 @@ go func() { mock.TaskB("b") }()
 go func() { mock.TaskC("c") }()
 
 // Register async expectations (non-blocking)
-imp.TaskA.Eventually.ExpectCalledWithExactly("a").InjectReturnValues()
-imp.TaskB.Eventually.ExpectCalledWithExactly("b").InjectReturnValues()
-imp.TaskC.Eventually.ExpectCalledWithExactly("c").InjectReturnValues()
+imp.TaskA.Eventually.Expect("a").Return()
+imp.TaskB.Eventually.Expect("b").Return()
+imp.TaskC.Eventually.Expect("c").Return()
 
 // Block until all expectations are satisfied
 imptest.Wait(t)

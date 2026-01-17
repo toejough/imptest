@@ -12,7 +12,7 @@ type ValidatorMockArgs struct {
 	Data string
 }
 
-// ValidatorMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ValidatorMockCall wraps DependencyCall with typed GetArgs and Return.
 type ValidatorMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -25,9 +25,9 @@ func (c *ValidatorMockCall) GetArgs() ValidatorMockArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ValidatorMockCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ValidatorMockCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // ValidatorMockMethod wraps DependencyMethod with typed returns.
@@ -37,15 +37,15 @@ type ValidatorMockMethod struct {
 	Eventually *ValidatorMockMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ValidatorMockMethod) ExpectCalledWithExactly(data string) *ValidatorMockCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(data)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ValidatorMockMethod) Expect(data string) *ValidatorMockCall {
+	call := m.DependencyMethod.Expect(data)
 	return &ValidatorMockCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ValidatorMockMethod) ExpectCalledWithMatches(matchers ...any) *ValidatorMockCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ValidatorMockMethod) Match(matchers ...any) *ValidatorMockCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ValidatorMockCall{DependencyCall: call}
 }
 

@@ -30,8 +30,8 @@ func TestProcessItem_Int_Property(t *testing.T) {
 		call := wrapper.Method.Start(repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
-		repoImp.Get.ExpectCalledWithExactly(key).InjectReturnValues(value, nil)
-		repoImp.Save.ExpectCalledWithExactly(value * multiplier).InjectReturnValues(nil)
+		repoImp.Get.Expect(key).Return(value, nil)
+		repoImp.Save.Expect(value * multiplier).Return(nil)
 
 		// Property: Function returns nil on success
 		call.ExpectReturnsEqual(nil)
@@ -60,8 +60,8 @@ func TestProcessItem_String_Property(t *testing.T) {
 		call := wrapper.Method.Start(repo, key, transformer)
 
 		// Property: Get is called with the key, Save is called with transformed value
-		repoImp.Get.ExpectCalledWithExactly(key).InjectReturnValues(value, nil)
-		repoImp.Save.ExpectCalledWithExactly(value + suffix).InjectReturnValues(nil)
+		repoImp.Get.Expect(key).Return(value, nil)
+		repoImp.Save.Expect(value + suffix).Return(nil)
 
 		// Property: Function returns nil on success
 		call.ExpectReturnsEqual(nil)

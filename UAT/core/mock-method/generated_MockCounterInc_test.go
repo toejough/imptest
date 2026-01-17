@@ -7,14 +7,14 @@ import (
 	_imptest "github.com/toejough/imptest"
 )
 
-// CounterIncMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// CounterIncMockCall wraps DependencyCall with typed GetArgs and Return.
 type CounterIncMockCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *CounterIncMockCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *CounterIncMockCall) Return(result0 int) {
+	c.DependencyCall.Return(result0)
 }
 
 // MockCounterInc creates a mock Counter.Inc function and returns (mock, expectation handle).

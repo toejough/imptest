@@ -101,7 +101,7 @@ func (gen *functionDependencyGenerator) buildMethodTemplateData() depMethodTempl
 	// Extract parameter fields for type-safe args
 	paramFields := gen.buildParamFields(ftype)
 
-	// Build typed return parameters for type-safe InjectReturnValues
+	// Build typed return parameters for type-safe Return
 	typedReturnParams, returnParamNames := buildTypedReturnParams(resultTypes)
 
 	// Build method template data with base fields

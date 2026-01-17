@@ -32,7 +32,7 @@ func TestMethodMock(t *testing.T) {
 	}()
 
 	// Verify the mock was called with expected argument
-	call := imp.ExpectCalledWithExactly(inputValue)
+	call := imp.Expect(inputValue)
 	args := call.GetArgs()
 
 	if args.N != inputValue {
@@ -40,7 +40,7 @@ func TestMethodMock(t *testing.T) {
 	}
 
 	// Inject return value
-	call.InjectReturnValues(returnValue)
+	call.Return(returnValue)
 }
 
 // TestMethodMockMatchers demonstrates using matchers with method mocks.
@@ -56,8 +56,8 @@ func TestMethodMockMatchers(t *testing.T) {
 	}()
 
 	// Use matchers for flexible argument matching
-	call := imp.ExpectCalledWithMatches(999)
-	call.InjectReturnValues(expectedReturn)
+	call := imp.Match(999)
+	call.Return(expectedReturn)
 }
 
 // TestMultipleMethodMocks demonstrates mocking multiple methods from same struct.
@@ -84,6 +84,6 @@ func TestMultipleMethodMocks(t *testing.T) {
 	}()
 
 	// Verify both mocks independently
-	addImp.Eventually.ExpectCalledWithExactly(addInput).InjectReturnValues(addReturn)
-	incImp.Eventually.ExpectCalledWithMatches().InjectReturnValues(incReturn)
+	addImp.Eventually.Expect(addInput).Return(addReturn)
+	incImp.Eventually.Match().Return(incReturn)
 }

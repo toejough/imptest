@@ -25,13 +25,13 @@ type DependencyCall struct {
 
 // Build the args struct from the call's args
 
-// InjectPanicValue specifies that the mock should panic with the given value.
+// Panic specifies that the mock should panic with the given value.
 // This sends a panic response to the mock's response channel, unblocking it.
 // In async mode, this can be called before or after the call is matched.
-func (dc *DependencyCall) InjectPanicValue(value any) {
+func (dc *DependencyCall) Panic(value any) {
 	if dc.pending != nil {
 		// Async mode - delegate to PendingExpectation
-		dc.pending.InjectPanicValue(value)
+		dc.pending.Panic(value)
 
 		return
 	}
@@ -42,26 +42,6 @@ func (dc *DependencyCall) InjectPanicValue(value any) {
 	dc.call.ResponseChan <- GenericResponse{
 		Type:       "panic",
 		PanicValue: value,
-	}
-}
-
-// InjectReturnValues specifies the values the mock should return when called.
-// This sends the response to the mock's response channel, unblocking it.
-// In async mode, this can be called before or after the call is matched.
-func (dc *DependencyCall) InjectReturnValues(values ...any) {
-	if dc.pending != nil {
-		// Async mode - delegate to PendingExpectation
-		dc.pending.InjectReturnValues(values...)
-
-		return
-	}
-
-	// Synchronous mode - send directly
-	dc.call.MarkDone()
-
-	dc.call.ResponseChan <- GenericResponse{
-		Type:         "return",
-		ReturnValues: values,
 	}
 }
 
@@ -78,6 +58,26 @@ func (dc *DependencyCall) RawArgs() []any {
 	return dc.call.Args
 }
 
+// Return specifies the values the mock should return when called.
+// This sends the response to the mock's response channel, unblocking it.
+// In async mode, this can be called before or after the call is matched.
+func (dc *DependencyCall) Return(values ...any) {
+	if dc.pending != nil {
+		// Async mode - delegate to PendingExpectation
+		dc.pending.Return(values...)
+
+		return
+	}
+
+	// Synchronous mode - send directly
+	dc.call.MarkDone()
+
+	dc.call.ResponseChan <- GenericResponse{
+		Type:         "return",
+		ReturnValues: values,
+	}
+}
+
 // DependencyMethod represents a method on a mocked interface.
 // It provides methods to set up expectations for that specific method.
 // Code generation creates instances of this for each method in an interface.
@@ -88,7 +88,7 @@ type DependencyMethod struct {
 
 	// Eventually is the async version of this method.
 	// Use this for concurrent code where calls may arrive out of order.
-	// Example: h.Method.Add.Eventually.ExpectCalledWithExactly(1, 2)
+	// Example: imp.Add.Eventually.Expect(1, 2)
 	Eventually *DependencyMethod
 }
 
@@ -110,11 +110,11 @@ func NewDependencyMethod(imp *Imp, methodName string) *DependencyMethod {
 	return depMethod
 }
 
-// ExpectCalledWithExactly waits for a call to this method with exactly the specified arguments.
+// Expect waits for a call to this method with exactly the specified arguments.
 // Uses reflection-based DeepEqual for argument matching. Returns detailed error messages
 // when arguments don't match.
 // In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
-func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall {
+func (dm *DependencyMethod) Expect(args ...any) *DependencyCall {
 	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(args) {
 			//nolint:err113 // validation error with dynamic context
@@ -146,11 +146,21 @@ func (dm *DependencyMethod) ExpectCalledWithExactly(args ...any) *DependencyCall
 	return newDependencyCall(call)
 }
 
-// ExpectCalledWithMatches waits for a call to this method with arguments matching the given matchers.
+// MatchAny waits for a call to this method with any arguments.
+// Use when you don't care about the argument values.
+// In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
+
+// Always matches
+
+// Async mode - register pending expectation and return immediately
+
+// Synchronous mode - block until call arrives
+
+// Match waits for a call to this method with arguments matching the given matchers.
 // Each matcher should implement the Matcher interface (compatible with gomega matchers).
 // Returns detailed error messages when matchers don't match.
 // In eventually mode, this returns immediately (non-blocking) and registers a pending expectation.
-func (dm *DependencyMethod) ExpectCalledWithMatches(matchers ...any) *DependencyCall {
+func (dm *DependencyMethod) Match(matchers ...any) *DependencyCall {
 	validator := func(actualArgs []any) error {
 		if len(actualArgs) != len(matchers) {
 			//nolint:err113 // validation error with dynamic context

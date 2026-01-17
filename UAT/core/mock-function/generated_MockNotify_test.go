@@ -34,15 +34,15 @@ type NotifyMockMethod struct {
 	Eventually *NotifyMockMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *NotifyMockMethod) ExpectCalledWithExactly(userID int, message string) *NotifyMockCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(userID, message)
+// Expect waits for a call with exactly the specified arguments.
+func (m *NotifyMockMethod) Expect(userID int, message string) *NotifyMockCall {
+	call := m.DependencyMethod.Expect(userID, message)
 	return &NotifyMockCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *NotifyMockMethod) ExpectCalledWithMatches(matchers ...any) *NotifyMockCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *NotifyMockMethod) Match(matchers ...any) *NotifyMockCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &NotifyMockCall{DependencyCall: call}
 }
 

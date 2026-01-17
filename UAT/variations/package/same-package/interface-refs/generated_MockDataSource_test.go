@@ -13,14 +13,14 @@ type DataSourceImp struct {
 	GetData *_imptest.DependencyMethod
 }
 
-// DataSourceMockGetDataCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// DataSourceMockGetDataCall wraps DependencyCall with typed GetArgs and Return.
 type DataSourceMockGetDataCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *DataSourceMockGetDataCall) InjectReturnValues(result0 []byte, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *DataSourceMockGetDataCall) Return(result0 []byte, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // MockDataSource creates a mock DataSource and returns (mock, expectation handle).

@@ -19,7 +19,7 @@ type SlowServiceMockDoAArgs struct {
 	Id int
 }
 
-// SlowServiceMockDoACall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// SlowServiceMockDoACall wraps DependencyCall with typed GetArgs and Return.
 type SlowServiceMockDoACall struct {
 	*_imptest.DependencyCall
 }
@@ -32,9 +32,9 @@ func (c *SlowServiceMockDoACall) GetArgs() SlowServiceMockDoAArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *SlowServiceMockDoACall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *SlowServiceMockDoACall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // SlowServiceMockDoAMethod wraps DependencyMethod with typed returns.
@@ -44,15 +44,15 @@ type SlowServiceMockDoAMethod struct {
 	Eventually *SlowServiceMockDoAMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *SlowServiceMockDoAMethod) ExpectCalledWithExactly(id int) *SlowServiceMockDoACall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(id)
+// Expect waits for a call with exactly the specified arguments.
+func (m *SlowServiceMockDoAMethod) Expect(id int) *SlowServiceMockDoACall {
+	call := m.DependencyMethod.Expect(id)
 	return &SlowServiceMockDoACall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *SlowServiceMockDoAMethod) ExpectCalledWithMatches(matchers ...any) *SlowServiceMockDoACall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *SlowServiceMockDoAMethod) Match(matchers ...any) *SlowServiceMockDoACall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &SlowServiceMockDoACall{DependencyCall: call}
 }
 
@@ -61,7 +61,7 @@ type SlowServiceMockDoBArgs struct {
 	Id int
 }
 
-// SlowServiceMockDoBCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// SlowServiceMockDoBCall wraps DependencyCall with typed GetArgs and Return.
 type SlowServiceMockDoBCall struct {
 	*_imptest.DependencyCall
 }
@@ -74,9 +74,9 @@ func (c *SlowServiceMockDoBCall) GetArgs() SlowServiceMockDoBArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *SlowServiceMockDoBCall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *SlowServiceMockDoBCall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // SlowServiceMockDoBMethod wraps DependencyMethod with typed returns.
@@ -86,15 +86,15 @@ type SlowServiceMockDoBMethod struct {
 	Eventually *SlowServiceMockDoBMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *SlowServiceMockDoBMethod) ExpectCalledWithExactly(id int) *SlowServiceMockDoBCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(id)
+// Expect waits for a call with exactly the specified arguments.
+func (m *SlowServiceMockDoBMethod) Expect(id int) *SlowServiceMockDoBCall {
+	call := m.DependencyMethod.Expect(id)
 	return &SlowServiceMockDoBCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *SlowServiceMockDoBMethod) ExpectCalledWithMatches(matchers ...any) *SlowServiceMockDoBCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *SlowServiceMockDoBMethod) Match(matchers ...any) *SlowServiceMockDoBCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &SlowServiceMockDoBCall{DependencyCall: call}
 }
 

@@ -49,9 +49,9 @@ func Test_PrintSum(t *testing.T) {
     wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
 
     // Expect calls in order, inject responses
-    mockImp.Add.ExpectCalledWithExactly(10, 32).InjectReturnValues(42)
-    mockImp.Format.ExpectCalledWithExactly(42).InjectReturnValues("42")
-    mockImp.Print.ExpectCalledWithExactly("42").InjectReturnValues()
+    mockImp.Add.Expect(10, 32).Return(42)
+    mockImp.Format.Expect(42).Return("42")
+    mockImp.Print.Expect("42").Return()
 
     // Validate return values
     wrapper.ExpectReturnsEqual(10, 32, "42")
@@ -64,8 +64,8 @@ func Test_PrintSum(t *testing.T) {
    over dependency behavior
 1. A `//go:generate` directive created a type-safe wrapper (`WrapPrintSum`) for the function under test, enabling return
    value and panic validation
-1. The test controls the dependency interactively—each `ExpectCalledWithExactly` call waits for the actual call
-1. Results are injected on-demand with `InjectReturnValues`, simulating any behavior you want
+1. The test controls the dependency interactively—each `Expect` call waits for the actual call
+1. Results are injected on-demand with `Return`, simulating any behavior you want
 1. Return values are validated with `ExpectReturnsEqual`
 
 ## Flexible Matching with Gomega
@@ -83,13 +83,13 @@ func Test_PrintSum_Flexible(t *testing.T) {
     wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
 
     // Flexible matching with gomega-style matchers
-    mockImp.Add.ExpectCalledWithMatches(
+    mockImp.Add.Match(
         BeNumerically(">", 0),
         BeNumerically(">", 0),
-    ).InjectReturnValues(42)
+    ).Return(42)
 
-    mockImp.Format.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues("42")
-    mockImp.Print.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues()
+    mockImp.Format.Match(imptest.Any).Return("42")
+    mockImp.Print.Match(imptest.Any).Return()
 
     wrapper.ExpectReturnsMatch(
         Equal(10),
@@ -106,8 +106,8 @@ func Test_PrintSum_Flexible(t *testing.T) {
 | **Interface Mocks**       | Generate type-safe mocks from any interface with `//go:generate impgen <package.Interface> --dependency`                  |
 | **Callable Wrappers**     | Wrap functions to validate returns/panics with `//go:generate impgen <package.Function> --target`                         |
 | **Two-Return Pattern**    | Mocks return `(mock, imp)`: `mock` is the interface, `imp` holds method expectations                                      |
-| **Two-Step Matching**     | Access methods via `imp.X`, then specify matching mode (`ExpectCalledWithExactly()` or `ExpectCalledWithMatches()`)       |
-| **Type Safety**           | `ExpectCalledWithExactly(int, int)` is compile-time checked; `ExpectCalledWithMatches(matcher, matcher)` accepts matchers |
+| **Two-Step Matching**     | Access methods via `imp.X`, then specify matching mode (`Expect()` or `Match()`)       |
+| **Type Safety**           | `Expect(int, int)` is compile-time checked; `Match(matcher, matcher)` accepts matchers |
 | **Concurrent Support**    | Use `.Eventually` for async expectations, then `imptest.Wait(t)` to block until satisfied                                 |
 | **Matcher Compatibility** | Works with any gomega-style matcher via duck typing—implement `Match(any) (bool, error)` and `FailureMessage(any) string` |
 
@@ -123,8 +123,8 @@ func Test_Concurrent(t *testing.T) {
     go func() { mock.Add(5, 6) }()
 
     // Register async expectations (non-blocking)
-    imp.Add.Eventually.ExpectCalledWithExactly(5, 6).InjectReturnValues(11)
-    imp.Add.Eventually.ExpectCalledWithExactly(1, 2).InjectReturnValues(3)
+    imp.Add.Eventually.Expect(5, 6).Return(11)
+    imp.Add.Eventually.Expect(1, 2).Return(3)
 
     // Wait for all expectations to be satisfied
     imptest.Wait(t)
@@ -139,7 +139,7 @@ func Test_PrintSum_Panic(t *testing.T) {
     wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
 
     // Inject a panic
-    mockImp.Add.ExpectCalledWithExactly(10, 32).InjectPanicValue("math overflow")
+    mockImp.Add.Expect(10, 32).Panic("math overflow")
 
     // Expect the function to panic with matching value
     wrapper.ExpectPanicMatches(ContainSubstring("overflow"))
@@ -156,13 +156,13 @@ func Test_Manual(t *testing.T) {
 
     go func() { mock.Add(1, 2) }()
 
-    call := imp.Add.ExpectCalledWithExactly(1, 2)
+    call := imp.Add.Expect(1, 2)
 
     // Access typed arguments
     args := call.GetArgs()
     result := args.A + args.B
 
-    call.InjectReturnValues(result)
+    call.Return(result)
 }
 ```
 
@@ -174,8 +174,8 @@ When your code passes callback functions to mocked dependencies, imptest makes i
 // Create mock for dependency that receives callbacks
 mock, imp := MockTreeWalker(t)
 
-// Wait for the call with a callback parameter (use imptest.Any() to match any function)
-call := imp.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
+// Wait for the call with a callback parameter (use imptest.Any to match any function)
+call := imp.Walk.Eventually.Match("/test", imptest.Any)
 
 // Extract the callback from the arguments (blocks until call arrives and matches)
 rawArgs := call.GetMatchedArgs()
@@ -185,7 +185,7 @@ callback := rawArgs[1].(func(string, fs.DirEntry, error) error)
 err := callback("/test/file.txt", mockDirEntry{name: "file.txt"}, nil)
 
 // Verify callback behavior and complete the mock call
-call.InjectReturnValues(nil)
+call.Return(nil)
 ```
 
 ## Channel Patterns
@@ -207,7 +207,7 @@ func Test_ChannelReturn(t *testing.T) {
     eventChan := make(chan Event)
 
     // Inject it as the return value
-    mockImp.Events.ExpectCalled().InjectReturnValues(eventChan)
+    mockImp.Events.ExpectCalled().Return(eventChan)
 
     // Send events when you want
     eventChan <- Event{Type: "start"}
@@ -237,13 +237,13 @@ func Test_ChannelArg(t *testing.T) {
     }()
 
     // Capture the call and access the channel argument
-    call := imp.StartJob.ExpectCalledWithMatches(Equal(42), imptest.Any())
+    call := imp.StartJob.Match(Equal(42), imptest.Any)
     resultsChan := call.GetArgs().Results
 
     // Send a result on the captured channel
     resultsChan <- Result{Status: "done"}
 
-    call.InjectReturnValues(nil)
+    call.Return(nil)
 }
 ```
 
@@ -276,7 +276,7 @@ func Test_Bidirectional(t *testing.T) {
     req := <-args.Req
     args.Resp <- Response{ID: req.ID, Data: "pong"}
 
-    call.InjectReturnValues()
+    call.Return()
     imptest.Wait(t)
 }
 ```
@@ -402,8 +402,8 @@ func TestProcessUser_Imptest(t *testing.T) {
     wrapper := WrapProcessUser(t, ProcessUser).Start(mock, 42)
 
     // ✅ Interactive control: expect calls and inject responses
-    mockImp.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("test data", nil)
-    mockImp.Process.ExpectCalledWithExactly("test data").InjectReturnValues("processed")
+    mockImp.FetchData.Expect(42).Return("test data", nil)
+    mockImp.Process.Expect("test data").Return("processed")
 
     // ✅ Validate return values (can use gomega matchers too!)
     wrapper.ExpectReturnsEqual("processed", nil)

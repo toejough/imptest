@@ -19,7 +19,7 @@ type StorageMockLoadArgs struct {
 	Key string
 }
 
-// StorageMockLoadCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// StorageMockLoadCall wraps DependencyCall with typed GetArgs and Return.
 type StorageMockLoadCall struct {
 	*_imptest.DependencyCall
 }
@@ -32,9 +32,9 @@ func (c *StorageMockLoadCall) GetArgs() StorageMockLoadArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *StorageMockLoadCall) InjectReturnValues(result0 string, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *StorageMockLoadCall) Return(result0 string, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // StorageMockLoadMethod wraps DependencyMethod with typed returns.
@@ -44,15 +44,15 @@ type StorageMockLoadMethod struct {
 	Eventually *StorageMockLoadMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *StorageMockLoadMethod) ExpectCalledWithExactly(key string) *StorageMockLoadCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(key)
+// Expect waits for a call with exactly the specified arguments.
+func (m *StorageMockLoadMethod) Expect(key string) *StorageMockLoadCall {
+	call := m.DependencyMethod.Expect(key)
 	return &StorageMockLoadCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *StorageMockLoadMethod) ExpectCalledWithMatches(matchers ...any) *StorageMockLoadCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *StorageMockLoadMethod) Match(matchers ...any) *StorageMockLoadCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &StorageMockLoadCall{DependencyCall: call}
 }
 
@@ -62,7 +62,7 @@ type StorageMockSaveArgs struct {
 	Value string
 }
 
-// StorageMockSaveCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// StorageMockSaveCall wraps DependencyCall with typed GetArgs and Return.
 type StorageMockSaveCall struct {
 	*_imptest.DependencyCall
 }
@@ -76,9 +76,9 @@ func (c *StorageMockSaveCall) GetArgs() StorageMockSaveArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *StorageMockSaveCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *StorageMockSaveCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // StorageMockSaveMethod wraps DependencyMethod with typed returns.
@@ -88,15 +88,15 @@ type StorageMockSaveMethod struct {
 	Eventually *StorageMockSaveMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *StorageMockSaveMethod) ExpectCalledWithExactly(key string, value string) *StorageMockSaveCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(key, value)
+// Expect waits for a call with exactly the specified arguments.
+func (m *StorageMockSaveMethod) Expect(key string, value string) *StorageMockSaveCall {
+	call := m.DependencyMethod.Expect(key, value)
 	return &StorageMockSaveCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *StorageMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *StorageMockSaveCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *StorageMockSaveMethod) Match(matchers ...any) *StorageMockSaveCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &StorageMockSaveCall{DependencyCall: call}
 }
 

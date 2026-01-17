@@ -13,7 +13,7 @@ type FormatPriceMockArgs struct {
 	Currency string
 }
 
-// FormatPriceMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// FormatPriceMockCall wraps DependencyCall with typed GetArgs and Return.
 type FormatPriceMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -27,9 +27,9 @@ func (c *FormatPriceMockCall) GetArgs() FormatPriceMockArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *FormatPriceMockCall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *FormatPriceMockCall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // FormatPriceMockMethod wraps DependencyMethod with typed returns.
@@ -39,15 +39,15 @@ type FormatPriceMockMethod struct {
 	Eventually *FormatPriceMockMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *FormatPriceMockMethod) ExpectCalledWithExactly(amount float64, currency string) *FormatPriceMockCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(amount, currency)
+// Expect waits for a call with exactly the specified arguments.
+func (m *FormatPriceMockMethod) Expect(amount float64, currency string) *FormatPriceMockCall {
+	call := m.DependencyMethod.Expect(amount, currency)
 	return &FormatPriceMockCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *FormatPriceMockMethod) ExpectCalledWithMatches(matchers ...any) *FormatPriceMockCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *FormatPriceMockMethod) Match(matchers ...any) *FormatPriceMockCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &FormatPriceMockCall{DependencyCall: call}
 }
 

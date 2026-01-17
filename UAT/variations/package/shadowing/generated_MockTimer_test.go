@@ -14,14 +14,14 @@ type TimerImp struct {
 	GetElapsed *_imptest.DependencyMethod
 }
 
-// TimerMockGetElapsedCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TimerMockGetElapsedCall wraps DependencyCall with typed GetArgs and Return.
 type TimerMockGetElapsedCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TimerMockGetElapsedCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TimerMockGetElapsedCall) Return(result0 int) {
+	c.DependencyCall.Return(result0)
 }
 
 // TimerMockWaitArgs holds typed arguments for Wait.
@@ -29,7 +29,7 @@ type TimerMockWaitArgs struct {
 	Seconds int
 }
 
-// TimerMockWaitCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TimerMockWaitCall wraps DependencyCall with typed GetArgs and Return.
 type TimerMockWaitCall struct {
 	*_imptest.DependencyCall
 }
@@ -42,9 +42,9 @@ func (c *TimerMockWaitCall) GetArgs() TimerMockWaitArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TimerMockWaitCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TimerMockWaitCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // TimerMockWaitMethod wraps DependencyMethod with typed returns.
@@ -54,15 +54,15 @@ type TimerMockWaitMethod struct {
 	Eventually *TimerMockWaitMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TimerMockWaitMethod) ExpectCalledWithExactly(seconds int) *TimerMockWaitCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(seconds)
+// Expect waits for a call with exactly the specified arguments.
+func (m *TimerMockWaitMethod) Expect(seconds int) *TimerMockWaitCall {
+	call := m.DependencyMethod.Expect(seconds)
 	return &TimerMockWaitCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TimerMockWaitMethod) ExpectCalledWithMatches(matchers ...any) *TimerMockWaitCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TimerMockWaitMethod) Match(matchers ...any) *TimerMockWaitCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TimerMockWaitCall{DependencyCall: call}
 }
 

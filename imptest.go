@@ -29,6 +29,13 @@ import (
 	"github.com/toejough/imptest/internal/core"
 )
 
+// Exported variables.
+var (
+	// Any is a matcher that matches any value.
+	//nolint:gochecknoglobals // Intentional exported constant-like value
+	Any = core.Any
+)
+
 // Call represents a single call to a mock or callable.
 type Call = core.Call
 
@@ -96,11 +103,6 @@ type TestReporter = core.TestReporter
 
 // Timer abstracts time-based operations for testability.
 type Timer = core.Timer
-
-// Any returns a matcher that matches any value.
-func Any() Matcher {
-	return core.Any()
-}
 
 // MatchValue checks if actual matches expected.
 func MatchValue(actual, expected any) (bool, string) {

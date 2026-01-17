@@ -21,7 +21,7 @@ type CalculatorMockAddArgs struct {
 	B int
 }
 
-// CalculatorMockAddCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// CalculatorMockAddCall wraps DependencyCall with typed GetArgs and Return.
 type CalculatorMockAddCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,9 +35,9 @@ func (c *CalculatorMockAddCall) GetArgs() CalculatorMockAddArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *CalculatorMockAddCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *CalculatorMockAddCall) Return(result0 int) {
+	c.DependencyCall.Return(result0)
 }
 
 // CalculatorMockAddMethod wraps DependencyMethod with typed returns.
@@ -47,26 +47,26 @@ type CalculatorMockAddMethod struct {
 	Eventually *CalculatorMockAddMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *CalculatorMockAddMethod) ExpectCalledWithExactly(a int, b int) *CalculatorMockAddCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(a, b)
+// Expect waits for a call with exactly the specified arguments.
+func (m *CalculatorMockAddMethod) Expect(a int, b int) *CalculatorMockAddCall {
+	call := m.DependencyMethod.Expect(a, b)
 	return &CalculatorMockAddCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *CalculatorMockAddMethod) ExpectCalledWithMatches(matchers ...any) *CalculatorMockAddCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *CalculatorMockAddMethod) Match(matchers ...any) *CalculatorMockAddCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &CalculatorMockAddCall{DependencyCall: call}
 }
 
-// CalculatorMockGetCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// CalculatorMockGetCall wraps DependencyCall with typed GetArgs and Return.
 type CalculatorMockGetCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *CalculatorMockGetCall) InjectReturnValues(result0 int, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *CalculatorMockGetCall) Return(result0 int, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // CalculatorMockInterface is a generated interface matching the methods of Calculator.
@@ -82,7 +82,7 @@ type CalculatorMockStoreArgs struct {
 	Value int
 }
 
-// CalculatorMockStoreCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// CalculatorMockStoreCall wraps DependencyCall with typed GetArgs and Return.
 type CalculatorMockStoreCall struct {
 	*_imptest.DependencyCall
 }
@@ -95,9 +95,9 @@ func (c *CalculatorMockStoreCall) GetArgs() CalculatorMockStoreArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *CalculatorMockStoreCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *CalculatorMockStoreCall) Return(result0 int) {
+	c.DependencyCall.Return(result0)
 }
 
 // CalculatorMockStoreMethod wraps DependencyMethod with typed returns.
@@ -107,15 +107,15 @@ type CalculatorMockStoreMethod struct {
 	Eventually *CalculatorMockStoreMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *CalculatorMockStoreMethod) ExpectCalledWithExactly(value int) *CalculatorMockStoreCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(value)
+// Expect waits for a call with exactly the specified arguments.
+func (m *CalculatorMockStoreMethod) Expect(value int) *CalculatorMockStoreCall {
+	call := m.DependencyMethod.Expect(value)
 	return &CalculatorMockStoreCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *CalculatorMockStoreMethod) ExpectCalledWithMatches(matchers ...any) *CalculatorMockStoreCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *CalculatorMockStoreMethod) Match(matchers ...any) *CalculatorMockStoreCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &CalculatorMockStoreCall{DependencyCall: call}
 }
 

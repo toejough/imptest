@@ -36,8 +36,8 @@ func TestFunctionTypeMock_BasicUsage(t *testing.T) {
 	}()
 
 	// Set up expectation and inject return value
-	imp.ExpectCalledWithExactly("test@example.com").
-		InjectReturnValues(nil)
+	imp.Expect("test@example.com").
+		Return(nil)
 
 	// Verify result
 	result := <-errChan
@@ -56,8 +56,8 @@ func TestFunctionTypeMock_GetArgs(t *testing.T) {
 		_ = mock("check-this-data")
 	}()
 
-	// Use ExpectCalledWithMatches to accept any call
-	call := imp.ExpectCalledWithMatches(imptest.Any())
+	// Use Match to accept any call
+	call := imp.Match(imptest.Any)
 
 	// Get typed args
 	args := call.GetArgs()
@@ -65,7 +65,7 @@ func TestFunctionTypeMock_GetArgs(t *testing.T) {
 		t.Errorf("expected Data to be %q, got %q", "check-this-data", args.Data)
 	}
 
-	call.InjectReturnValues(nil)
+	call.Return(nil)
 }
 
 // TestFunctionTypeMock_ReturnError demonstrates injecting an error return.
@@ -82,8 +82,8 @@ func TestFunctionTypeMock_ReturnError(t *testing.T) {
 	}()
 
 	// Inject error return
-	imp.ExpectCalledWithExactly("invalid-email").
-		InjectReturnValues(expectedErr)
+	imp.Expect("invalid-email").
+		Return(expectedErr)
 
 	// Verify error was returned
 	result := <-errChan

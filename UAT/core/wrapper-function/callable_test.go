@@ -41,10 +41,10 @@ func TestBusinessLogic(t *testing.T) {
 	call := wrapper.Method.Start(mockSvc, 42)
 
 	// 1. Expect call to FetchData and provide response.
-	svcImp.FetchData.ExpectCalledWithExactly(42).InjectReturnValues("raw data", nil)
+	svcImp.FetchData.Expect(42).Return("raw data", nil)
 
 	// 2. Expect call to Process and provide response.
-	svcImp.Process.ExpectCalledWithExactly("raw data").InjectReturnValues("processed data")
+	svcImp.Process.Expect("raw data").Return("processed data")
 
 	// 3. Verify the final output of the business logic.
 	call.ExpectReturnsEqual("Result: processed data", nil)
@@ -64,7 +64,7 @@ func TestBusinessLogicError(t *testing.T) {
 	call := wrapper.Method.Start(mockSvc, 99)
 
 	// Simulate an error from the service.
-	svcImp.FetchData.ExpectCalledWithExactly(99).InjectReturnValues("", errNotFound)
+	svcImp.FetchData.Expect(99).Return("", errNotFound)
 
 	// Requirement: Verify that the business logic returns the error.
 	// We use Satisfies to check if the error is (or wraps) errNotFound.

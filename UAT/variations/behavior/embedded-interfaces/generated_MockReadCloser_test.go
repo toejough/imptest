@@ -14,14 +14,14 @@ type ReadCloserImp struct {
 	Close *_imptest.DependencyMethod
 }
 
-// ReadCloserMockCloseCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ReadCloserMockCloseCall wraps DependencyCall with typed GetArgs and Return.
 type ReadCloserMockCloseCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ReadCloserMockCloseCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ReadCloserMockCloseCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // ReadCloserMockReadArgs holds typed arguments for Read.
@@ -29,7 +29,7 @@ type ReadCloserMockReadArgs struct {
 	P []byte
 }
 
-// ReadCloserMockReadCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ReadCloserMockReadCall wraps DependencyCall with typed GetArgs and Return.
 type ReadCloserMockReadCall struct {
 	*_imptest.DependencyCall
 }
@@ -42,9 +42,9 @@ func (c *ReadCloserMockReadCall) GetArgs() ReadCloserMockReadArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ReadCloserMockReadCall) InjectReturnValues(result0 int, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *ReadCloserMockReadCall) Return(result0 int, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // ReadCloserMockReadMethod wraps DependencyMethod with typed returns.
@@ -54,15 +54,15 @@ type ReadCloserMockReadMethod struct {
 	Eventually *ReadCloserMockReadMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ReadCloserMockReadMethod) ExpectCalledWithExactly(p []byte) *ReadCloserMockReadCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(p)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ReadCloserMockReadMethod) Expect(p []byte) *ReadCloserMockReadCall {
+	call := m.DependencyMethod.Expect(p)
 	return &ReadCloserMockReadCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ReadCloserMockReadMethod) ExpectCalledWithMatches(matchers ...any) *ReadCloserMockReadCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ReadCloserMockReadMethod) Match(matchers ...any) *ReadCloserMockReadCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ReadCloserMockReadCall{DependencyCall: call}
 }
 

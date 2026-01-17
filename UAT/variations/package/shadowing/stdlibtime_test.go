@@ -19,7 +19,7 @@ func TestStdlibTimeTypes(t *testing.T) {
 		_ = mock.ScheduleAt("task1", scheduledTime)
 	}()
 
-	imp.ScheduleAt.ExpectCalledWithExactly("task1", scheduledTime).InjectReturnValues(nil)
+	imp.ScheduleAt.Expect("task1", scheduledTime).Return(nil)
 
 	// Test time.Duration as parameter
 	delay := 5 * time.Minute
@@ -28,7 +28,7 @@ func TestStdlibTimeTypes(t *testing.T) {
 		_ = mock.Delay("task2", delay)
 	}()
 
-	imp.Delay.ExpectCalledWithExactly("task2", delay).InjectReturnValues(nil)
+	imp.Delay.Expect("task2", delay).Return(nil)
 
 	// Test time.Time as return value
 	expectedTime := time.Date(2025, 12, 28, 10, 30, 0, 0, time.UTC)
@@ -37,12 +37,12 @@ func TestStdlibTimeTypes(t *testing.T) {
 		_, _ = mock.NextRun()
 	}()
 
-	imp.NextRun.ExpectCalledWithExactly().InjectReturnValues(expectedTime, nil)
+	imp.NextRun.Expect().Return(expectedTime, nil)
 
 	// Test time.Duration as return value
 	go func() {
 		_ = mock.GetInterval("task3")
 	}()
 
-	imp.GetInterval.ExpectCalledWithExactly("task3").InjectReturnValues(10 * time.Second)
+	imp.GetInterval.Expect("task3").Return(10 * time.Second)
 }

@@ -15,7 +15,7 @@ func TestManualTypeSafeGetArgs(t *testing.T) {
 	}()
 
 	// Use the typed wrapper
-	call := imp.Add.Eventually.ExpectCalledWithExactly(10, 20)
+	call := imp.Add.Eventually.Expect(10, 20)
 
 	// GetArgs should return typed struct - no casting!
 	args := call.GetArgs()
@@ -27,5 +27,5 @@ func TestManualTypeSafeGetArgs(t *testing.T) {
 		t.Fatalf("expected B=20, got %d", args.B)
 	}
 
-	call.InjectReturnValues(30)
+	call.Return(30)
 }

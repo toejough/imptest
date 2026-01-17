@@ -21,7 +21,7 @@ type TreeWalkerMockWalkArgs struct {
 	Fn   func(string, fs.DirEntry, error) error
 }
 
-// TreeWalkerMockWalkCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TreeWalkerMockWalkCall wraps DependencyCall with typed GetArgs and Return.
 type TreeWalkerMockWalkCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,9 +35,9 @@ func (c *TreeWalkerMockWalkCall) GetArgs() TreeWalkerMockWalkArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TreeWalkerMockWalkCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TreeWalkerMockWalkCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // TreeWalkerMockWalkMethod wraps DependencyMethod with typed returns.
@@ -47,15 +47,15 @@ type TreeWalkerMockWalkMethod struct {
 	Eventually *TreeWalkerMockWalkMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TreeWalkerMockWalkMethod) ExpectCalledWithExactly(root string, fn func(string, fs.DirEntry, error) error) *TreeWalkerMockWalkCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(root, fn)
+// Expect waits for a call with exactly the specified arguments.
+func (m *TreeWalkerMockWalkMethod) Expect(root string, fn func(string, fs.DirEntry, error) error) *TreeWalkerMockWalkCall {
+	call := m.DependencyMethod.Expect(root, fn)
 	return &TreeWalkerMockWalkCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TreeWalkerMockWalkMethod) ExpectCalledWithMatches(matchers ...any) *TreeWalkerMockWalkCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TreeWalkerMockWalkMethod) Match(matchers ...any) *TreeWalkerMockWalkCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TreeWalkerMockWalkCall{DependencyCall: call}
 }
 
@@ -65,7 +65,7 @@ type TreeWalkerMockWalkWithNamedTypeArgs struct {
 	Fn   visitor.WalkFunc
 }
 
-// TreeWalkerMockWalkWithNamedTypeCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TreeWalkerMockWalkWithNamedTypeCall wraps DependencyCall with typed GetArgs and Return.
 type TreeWalkerMockWalkWithNamedTypeCall struct {
 	*_imptest.DependencyCall
 }
@@ -79,9 +79,9 @@ func (c *TreeWalkerMockWalkWithNamedTypeCall) GetArgs() TreeWalkerMockWalkWithNa
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TreeWalkerMockWalkWithNamedTypeCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TreeWalkerMockWalkWithNamedTypeCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // TreeWalkerMockWalkWithNamedTypeMethod wraps DependencyMethod with typed returns.
@@ -91,15 +91,15 @@ type TreeWalkerMockWalkWithNamedTypeMethod struct {
 	Eventually *TreeWalkerMockWalkWithNamedTypeMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TreeWalkerMockWalkWithNamedTypeMethod) ExpectCalledWithExactly(root string, fn visitor.WalkFunc) *TreeWalkerMockWalkWithNamedTypeCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(root, fn)
+// Expect waits for a call with exactly the specified arguments.
+func (m *TreeWalkerMockWalkWithNamedTypeMethod) Expect(root string, fn visitor.WalkFunc) *TreeWalkerMockWalkWithNamedTypeCall {
+	call := m.DependencyMethod.Expect(root, fn)
 	return &TreeWalkerMockWalkWithNamedTypeCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TreeWalkerMockWalkWithNamedTypeMethod) ExpectCalledWithMatches(matchers ...any) *TreeWalkerMockWalkWithNamedTypeCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TreeWalkerMockWalkWithNamedTypeMethod) Match(matchers ...any) *TreeWalkerMockWalkWithNamedTypeCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TreeWalkerMockWalkWithNamedTypeCall{DependencyCall: call}
 }
 

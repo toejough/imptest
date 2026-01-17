@@ -23,7 +23,7 @@ type SchedulerMockDelayArgs struct {
 	Duration time.Duration
 }
 
-// SchedulerMockDelayCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// SchedulerMockDelayCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockDelayCall struct {
 	*_imptest.DependencyCall
 }
@@ -37,9 +37,9 @@ func (c *SchedulerMockDelayCall) GetArgs() SchedulerMockDelayArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *SchedulerMockDelayCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *SchedulerMockDelayCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // SchedulerMockDelayMethod wraps DependencyMethod with typed returns.
@@ -49,15 +49,15 @@ type SchedulerMockDelayMethod struct {
 	Eventually *SchedulerMockDelayMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *SchedulerMockDelayMethod) ExpectCalledWithExactly(taskID string, duration time.Duration) *SchedulerMockDelayCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(taskID, duration)
+// Expect waits for a call with exactly the specified arguments.
+func (m *SchedulerMockDelayMethod) Expect(taskID string, duration time.Duration) *SchedulerMockDelayCall {
+	call := m.DependencyMethod.Expect(taskID, duration)
 	return &SchedulerMockDelayCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *SchedulerMockDelayMethod) ExpectCalledWithMatches(matchers ...any) *SchedulerMockDelayCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *SchedulerMockDelayMethod) Match(matchers ...any) *SchedulerMockDelayCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &SchedulerMockDelayCall{DependencyCall: call}
 }
 
@@ -66,7 +66,7 @@ type SchedulerMockGetIntervalArgs struct {
 	TaskID string
 }
 
-// SchedulerMockGetIntervalCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// SchedulerMockGetIntervalCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockGetIntervalCall struct {
 	*_imptest.DependencyCall
 }
@@ -79,9 +79,9 @@ func (c *SchedulerMockGetIntervalCall) GetArgs() SchedulerMockGetIntervalArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *SchedulerMockGetIntervalCall) InjectReturnValues(result0 time.Duration) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *SchedulerMockGetIntervalCall) Return(result0 time.Duration) {
+	c.DependencyCall.Return(result0)
 }
 
 // SchedulerMockGetIntervalMethod wraps DependencyMethod with typed returns.
@@ -91,26 +91,26 @@ type SchedulerMockGetIntervalMethod struct {
 	Eventually *SchedulerMockGetIntervalMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *SchedulerMockGetIntervalMethod) ExpectCalledWithExactly(taskID string) *SchedulerMockGetIntervalCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(taskID)
+// Expect waits for a call with exactly the specified arguments.
+func (m *SchedulerMockGetIntervalMethod) Expect(taskID string) *SchedulerMockGetIntervalCall {
+	call := m.DependencyMethod.Expect(taskID)
 	return &SchedulerMockGetIntervalCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *SchedulerMockGetIntervalMethod) ExpectCalledWithMatches(matchers ...any) *SchedulerMockGetIntervalCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *SchedulerMockGetIntervalMethod) Match(matchers ...any) *SchedulerMockGetIntervalCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &SchedulerMockGetIntervalCall{DependencyCall: call}
 }
 
-// SchedulerMockNextRunCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// SchedulerMockNextRunCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockNextRunCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *SchedulerMockNextRunCall) InjectReturnValues(result0 time.Time, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *SchedulerMockNextRunCall) Return(result0 time.Time, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // SchedulerMockScheduleAtArgs holds typed arguments for ScheduleAt.
@@ -119,7 +119,7 @@ type SchedulerMockScheduleAtArgs struct {
 	When   time.Time
 }
 
-// SchedulerMockScheduleAtCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// SchedulerMockScheduleAtCall wraps DependencyCall with typed GetArgs and Return.
 type SchedulerMockScheduleAtCall struct {
 	*_imptest.DependencyCall
 }
@@ -133,9 +133,9 @@ func (c *SchedulerMockScheduleAtCall) GetArgs() SchedulerMockScheduleAtArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *SchedulerMockScheduleAtCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *SchedulerMockScheduleAtCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // SchedulerMockScheduleAtMethod wraps DependencyMethod with typed returns.
@@ -145,15 +145,15 @@ type SchedulerMockScheduleAtMethod struct {
 	Eventually *SchedulerMockScheduleAtMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *SchedulerMockScheduleAtMethod) ExpectCalledWithExactly(taskID string, when time.Time) *SchedulerMockScheduleAtCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(taskID, when)
+// Expect waits for a call with exactly the specified arguments.
+func (m *SchedulerMockScheduleAtMethod) Expect(taskID string, when time.Time) *SchedulerMockScheduleAtCall {
+	call := m.DependencyMethod.Expect(taskID, when)
 	return &SchedulerMockScheduleAtCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *SchedulerMockScheduleAtMethod) ExpectCalledWithMatches(matchers ...any) *SchedulerMockScheduleAtCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *SchedulerMockScheduleAtMethod) Match(matchers ...any) *SchedulerMockScheduleAtCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &SchedulerMockScheduleAtCall{DependencyCall: call}
 }
 

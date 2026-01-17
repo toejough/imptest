@@ -34,10 +34,10 @@ func TestSamePackageInterfaces(t *testing.T) {
 	// Note: The mock's Process method doesn't actually call source.GetData() or sink.PutData(),
 	// it just receives the interface values as arguments and waits for the test to inject a return.
 	go func() {
-		procImp.Process.ExpectCalledWithMatches(
-			imptest.Any(),
-			imptest.Any(),
-		).InjectReturnValues(testErr)
+		procImp.Process.Match(
+			imptest.Any,
+			imptest.Any,
+		).Return(testErr)
 	}()
 
 	// Call the processor - this passes the mock interfaces as arguments
@@ -66,9 +66,9 @@ func TestTransformReturnsInterface(t *testing.T) {
 
 	// Set up processor to return a different source
 	go func() {
-		procImp.Transform.ExpectCalledWithMatches(
-			imptest.Any(),
-		).InjectReturnValues(expectedOutput, nil)
+		procImp.Transform.Match(
+			imptest.Any,
+		).Return(expectedOutput, nil)
 	}()
 
 	// Call transform

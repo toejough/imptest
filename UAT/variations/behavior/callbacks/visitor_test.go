@@ -23,7 +23,7 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	wrapperCall := wrapper.Method.Start(mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call without Eventually to see if that's the issue
-	call := imp.Walk.ExpectCalledWithMatches("/test", imptest.Any())
+	call := imp.Walk.Match("/test", imptest.Any)
 
 	// V2 Pattern: Extract the callback from args using the typed wrapper
 	args := call.GetArgs()
@@ -37,7 +37,7 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	}
 
 	// Inject return value to let Walk complete
-	call.InjectReturnValues(nil)
+	call.Return(nil)
 
 	// Verify the function completed successfully
 	wrapperCall.ExpectReturnsEqual(1, nil)
@@ -57,7 +57,7 @@ func TestCallbackPanicSupport(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for the Walk call
-	call := imp.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
+	call := imp.Walk.Eventually.Match("/test", imptest.Any)
 
 	// V2 Pattern: Extract callback and invoke it, catching the panic
 	rawArgs := call.RawArgs()
@@ -83,7 +83,7 @@ func TestCallbackPanicSupport(t *testing.T) {
 	}
 
 	// Let Walk return
-	call.InjectReturnValues(nil)
+	call.Return(nil)
 }
 
 func TestCountFiles(t *testing.T) {
@@ -97,7 +97,7 @@ func TestCountFiles(t *testing.T) {
 	wrapperCall := wrapper.Method.Start(mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call
-	call := imp.Walk.Eventually.ExpectCalledWithMatches("/test", imptest.Any())
+	call := imp.Walk.Eventually.Match("/test", imptest.Any)
 
 	// V2 Pattern: Extract the callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
@@ -126,7 +126,7 @@ func TestCountFiles(t *testing.T) {
 	}
 
 	// Finally, let Walk return
-	call.InjectReturnValues(nil)
+	call.Return(nil)
 
 	// Verify the results - should count only the 2 non-directory entries
 	wrapperCall.ExpectReturnsEqual(2, nil)
@@ -146,7 +146,7 @@ func TestWalkWithNamedType(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for and verify the WalkWithNamedType call
-	call := imp.WalkWithNamedType.Eventually.ExpectCalledWithMatches("/data", imptest.Any())
+	call := imp.WalkWithNamedType.Eventually.Match("/data", imptest.Any)
 
 	// V2 Pattern: Extract callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
@@ -164,7 +164,7 @@ func TestWalkWithNamedType(t *testing.T) {
 	}
 
 	// Let the method return
-	call.InjectReturnValues(nil)
+	call.Return(nil)
 }
 
 // mockDirEntry is a simple fs.DirEntry implementation for testing.

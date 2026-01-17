@@ -21,7 +21,7 @@ type DataProcessorMockProcessArgs struct {
 	Sink   samepackage.DataSink
 }
 
-// DataProcessorMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// DataProcessorMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,9 +35,9 @@ func (c *DataProcessorMockProcessCall) GetArgs() DataProcessorMockProcessArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *DataProcessorMockProcessCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *DataProcessorMockProcessCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // DataProcessorMockProcessMethod wraps DependencyMethod with typed returns.
@@ -47,15 +47,15 @@ type DataProcessorMockProcessMethod struct {
 	Eventually *DataProcessorMockProcessMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockProcessMethod) ExpectCalledWithExactly(source samepackage.DataSource, sink samepackage.DataSink) *DataProcessorMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(source, sink)
+// Expect waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockProcessMethod) Expect(source samepackage.DataSource, sink samepackage.DataSink) *DataProcessorMockProcessCall {
+	call := m.DependencyMethod.Expect(source, sink)
 	return &DataProcessorMockProcessCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockProcessMethod) Match(matchers ...any) *DataProcessorMockProcessCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &DataProcessorMockProcessCall{DependencyCall: call}
 }
 
@@ -64,7 +64,7 @@ type DataProcessorMockTransformArgs struct {
 	Input samepackage.DataSource
 }
 
-// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// DataProcessorMockTransformCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockTransformCall struct {
 	*_imptest.DependencyCall
 }
@@ -77,9 +77,9 @@ func (c *DataProcessorMockTransformCall) GetArgs() DataProcessorMockTransformArg
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *DataProcessorMockTransformCall) InjectReturnValues(result0 samepackage.DataSource, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *DataProcessorMockTransformCall) Return(result0 samepackage.DataSource, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // DataProcessorMockTransformMethod wraps DependencyMethod with typed returns.
@@ -89,15 +89,15 @@ type DataProcessorMockTransformMethod struct {
 	Eventually *DataProcessorMockTransformMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockTransformMethod) ExpectCalledWithExactly(input samepackage.DataSource) *DataProcessorMockTransformCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(input)
+// Expect waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockTransformMethod) Expect(input samepackage.DataSource) *DataProcessorMockTransformCall {
+	call := m.DependencyMethod.Expect(input)
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockTransformMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockTransformCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockTransformMethod) Match(matchers ...any) *DataProcessorMockTransformCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &DataProcessorMockTransformCall{DependencyCall: call}
 }
 
@@ -106,7 +106,7 @@ type DataProcessorMockValidateArgs struct {
 	Sink samepackage.DataSink
 }
 
-// DataProcessorMockValidateCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// DataProcessorMockValidateCall wraps DependencyCall with typed GetArgs and Return.
 type DataProcessorMockValidateCall struct {
 	*_imptest.DependencyCall
 }
@@ -119,9 +119,9 @@ func (c *DataProcessorMockValidateCall) GetArgs() DataProcessorMockValidateArgs 
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *DataProcessorMockValidateCall) InjectReturnValues(result0 bool) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *DataProcessorMockValidateCall) Return(result0 bool) {
+	c.DependencyCall.Return(result0)
 }
 
 // DataProcessorMockValidateMethod wraps DependencyMethod with typed returns.
@@ -131,15 +131,15 @@ type DataProcessorMockValidateMethod struct {
 	Eventually *DataProcessorMockValidateMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *DataProcessorMockValidateMethod) ExpectCalledWithExactly(sink samepackage.DataSink) *DataProcessorMockValidateCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(sink)
+// Expect waits for a call with exactly the specified arguments.
+func (m *DataProcessorMockValidateMethod) Expect(sink samepackage.DataSink) *DataProcessorMockValidateCall {
+	call := m.DependencyMethod.Expect(sink)
 	return &DataProcessorMockValidateCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *DataProcessorMockValidateMethod) ExpectCalledWithMatches(matchers ...any) *DataProcessorMockValidateCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *DataProcessorMockValidateMethod) Match(matchers ...any) *DataProcessorMockValidateCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &DataProcessorMockValidateCall{DependencyCall: call}
 }
 

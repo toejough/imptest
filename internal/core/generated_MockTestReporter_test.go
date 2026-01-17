@@ -8,6 +8,12 @@ import (
 	core "github.com/toejough/imptest/internal/core"
 )
 
+// TestReporterImp holds method wrappers for setting expectations on TestReporter.
+type TestReporterImp struct {
+	Helper *_imptest.DependencyMethod
+	Fatalf *TestReporterMockFatalfMethod
+}
+
 // TestReporterMockFatalfArgs holds typed arguments for Fatalf.
 type TestReporterMockFatalfArgs struct {
 	Format string
@@ -35,53 +41,36 @@ type TestReporterMockFatalfMethod struct {
 	Eventually *TestReporterMockFatalfMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TestReporterMockFatalfMethod) ExpectCalledWithExactly(format string, args ...any) *TestReporterMockFatalfCall {
+// Expect waits for a call with exactly the specified arguments.
+func (m *TestReporterMockFatalfMethod) Expect(format string, args ...any) *TestReporterMockFatalfCall {
 	callArgs := []any{format}
 	for _, v := range args {
 		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.ExpectCalledWithExactly(callArgs...)
+	call := m.DependencyMethod.Expect(callArgs...)
 	return &TestReporterMockFatalfCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TestReporterMockFatalfMethod) ExpectCalledWithMatches(matchers ...any) *TestReporterMockFatalfCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TestReporterMockFatalfMethod) Match(matchers ...any) *TestReporterMockFatalfCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TestReporterMockFatalfCall{DependencyCall: call}
 }
 
-// TestReporterMockHandle is the test handle for TestReporter.
-type TestReporterMockHandle struct {
-	Mock       core.TestReporter
-	Method     *TestReporterMockMethods
-	Controller *_imptest.Imp
-}
-
-// TestReporterMockMethods holds method wrappers for setting expectations.
-type TestReporterMockMethods struct {
-	Helper *_imptest.DependencyMethod
-	Fatalf *TestReporterMockFatalfMethod
-}
-
-// MockTestReporter creates a new TestReporterMockHandle for testing.
-func MockTestReporter(t _imptest.TestReporter) *TestReporterMockHandle {
+// MockTestReporter creates a mock TestReporter and returns (mock, expectation handle).
+func MockTestReporter(t _imptest.TestReporter) (core.TestReporter, *TestReporterImp) {
 	ctrl := _imptest.GetOrCreateImp(t)
-	methods := &TestReporterMockMethods{
+	imp := &TestReporterImp{
 		Helper: _imptest.NewDependencyMethod(ctrl, "Helper"),
 		Fatalf: newTestReporterMockFatalfMethod(_imptest.NewDependencyMethod(ctrl, "Fatalf")),
 	}
-	h := &TestReporterMockHandle{
-		Method:     methods,
-		Controller: ctrl,
-	}
-	h.Mock = &mockTestReporterImpl{handle: h}
-	return h
+	mock := &mockTestReporterImpl{ctrl: ctrl}
+	return mock, imp
 }
 
 // mockTestReporterImpl implements core.TestReporter.
 type mockTestReporterImpl struct {
-	handle *TestReporterMockHandle
+	ctrl *_imptest.Imp
 }
 
 // Fatalf implements core.TestReporter.Fatalf.
@@ -95,7 +84,7 @@ func (impl *mockTestReporterImpl) Fatalf(format string, args ...any) {
 		Args:         callArgs,
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)
@@ -110,7 +99,7 @@ func (impl *mockTestReporterImpl) Helper() {
 		Args:         []any{},
 		ResponseChan: make(chan _imptest.GenericResponse, 1),
 	}
-	impl.handle.Controller.CallChan <- call
+	impl.ctrl.CallChan <- call
 	resp := <-call.ResponseChan
 	if resp.Type == "panic" {
 		panic(resp.PanicValue)

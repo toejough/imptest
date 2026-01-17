@@ -22,8 +22,8 @@ func TestV2_ManyParams(t *testing.T) {
 	}()
 
 	// Set up expectation with all 10 parameters
-	imp.Process.ExpectCalledWithExactly(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
-		InjectReturnValues("success")
+	imp.Process.Expect(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).
+		Return("success")
 
 	// Verify result
 	result := <-resultChan
@@ -75,7 +75,7 @@ func TestV2_ManyParams_DifferentValues(t *testing.T) {
 			}()
 
 			// Set up expectation
-			imp.Process.ExpectCalledWithExactly(
+			imp.Process.Expect(
 				testCase.params[0],
 				testCase.params[1],
 				testCase.params[2],
@@ -86,7 +86,7 @@ func TestV2_ManyParams_DifferentValues(t *testing.T) {
 				testCase.params[7],
 				testCase.params[8],
 				testCase.params[9],
-			).InjectReturnValues(testCase.result)
+			).Return(testCase.result)
 
 			// Verify result
 			got := <-resultChan
@@ -117,10 +117,10 @@ func TestV2_ManyParams_VerifyArgs(t *testing.T) {
 	}()
 
 	// Set up expectation
-	imp.Process.ExpectCalledWithExactly(
+	imp.Process.Expect(
 		values[0], values[1], values[2], values[3], values[4],
 		values[5], values[6], values[7], values[8], values[9],
-	).InjectReturnValues("ok")
+	).Return("ok")
 
 	// Verify result
 	result := <-resultChan

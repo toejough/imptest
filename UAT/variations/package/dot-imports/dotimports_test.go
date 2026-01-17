@@ -22,8 +22,8 @@ func TestDotImportedProcessor(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := imp.Process.ExpectCalledWithExactly("input data")
-	call.InjectReturnValues("processed data")
+	call := imp.Process.Expect("input data")
+	call.Return("processed data")
 
 	// Verify args
 	args := call.GetArgs()
@@ -49,8 +49,8 @@ func TestDotImportedStorage(t *testing.T) {
 		}()
 
 		// Verify the mock received the call
-		call := imp.Save.ExpectCalledWithExactly("key1", "value1")
-		call.InjectReturnValues(nil)
+		call := imp.Save.Expect("key1", "value1")
+		call.Return(nil)
 
 		// Verify args can be retrieved
 		args := call.GetArgs()
@@ -74,8 +74,8 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Inject error return
 		testErr := errors.New("save failed")
-		call := imp.Save.ExpectCalledWithExactly("bad_key", "bad_value")
-		call.InjectReturnValues(testErr)
+		call := imp.Save.Expect("bad_key", "bad_value")
+		call.Return(testErr)
 	})
 
 	t.Run("Load", func(t *testing.T) {
@@ -88,8 +88,8 @@ func TestDotImportedStorage(t *testing.T) {
 		}()
 
 		// Verify and inject return values
-		call := imp.Load.ExpectCalledWithExactly("key2")
-		call.InjectReturnValues("loaded_value", nil)
+		call := imp.Load.Expect("key2")
+		call.Return("loaded_value", nil)
 
 		// Verify args
 		args := call.GetArgs()
@@ -109,8 +109,8 @@ func TestDotImportedStorage(t *testing.T) {
 
 		// Inject error return
 		testErr := errors.New("not found")
-		call := imp.Load.ExpectCalledWithExactly("missing_key")
-		call.InjectReturnValues("", testErr)
+		call := imp.Load.Expect("missing_key")
+		call.Return("", testErr)
 	})
 }
 

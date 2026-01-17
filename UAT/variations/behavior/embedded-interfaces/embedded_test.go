@@ -19,10 +19,10 @@ func TestEmbeddedInterfaceError(t *testing.T) {
 	}()
 
 	// Simulate a read error
-	imp.Read.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(0, io.EOF)
+	imp.Read.Match(imptest.Any).Return(0, io.EOF)
 
 	// Verify Close is still called (standard Go cleanup pattern)
-	imp.Close.ExpectCalledWithExactly().InjectReturnValues(nil)
+	imp.Close.Expect().Return(nil)
 }
 
 //go:generate impgen embedded.ReadCloser --dependency
@@ -46,8 +46,8 @@ func TestEmbeddedInterfaces(t *testing.T) {
 
 	// Read is embedded from io.Reader
 	// Note: []byte is not comparable, so it uses reflect.DeepEqual automatically.
-	imp.Read.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(5, nil)
+	imp.Read.Match(imptest.Any).Return(5, nil)
 
-	// Close is embedded from Closer (no args, so ExpectCalledWithExactly is called with no arguments)
-	imp.Close.ExpectCalledWithExactly().InjectReturnValues(nil)
+	// Close is embedded from Closer (no args, so Expect is called with no arguments)
+	imp.Close.Expect().Return(nil)
 }

@@ -79,7 +79,7 @@ func TestStructWrapper_ExpectReturnsMatch(t *testing.T) {
 	call := wrapper.Method.AddAmount.Start(10)
 
 	// Should be able to use matchers
-	call.ExpectReturnsMatch(imptest.Any())
+	call.ExpectReturnsMatch(imptest.Any)
 }
 
 // TestStructWrapper_NoGetCallsMethod verifies GetCalls() doesn't exist.
@@ -167,7 +167,7 @@ func TestUnifiedPattern_FunctionInterfaceStructSameAPI(t *testing.T) {
 
 	// 4. Support ExpectReturnsMatch
 	structCall3 := structWrapper.Method.AddAmount.Start(5)
-	structCall3.ExpectReturnsMatch(imptest.Any())
+	structCall3.ExpectReturnsMatch(imptest.Any)
 
 	// Success: Struct wrappers have identical API to function and interface wrappers
 }

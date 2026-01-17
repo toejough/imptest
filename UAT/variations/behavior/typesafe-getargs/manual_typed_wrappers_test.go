@@ -34,13 +34,13 @@ type CalculatorAddMethod struct {
 	Eventually *CalculatorAddMethod
 }
 
-func (m *CalculatorAddMethod) ExpectCalledWithExactly(a, b int) *CalculatorAddCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(a, b)
+func (m *CalculatorAddMethod) Expect(a, b int) *CalculatorAddCall {
+	call := m.DependencyMethod.Expect(a, b)
 	return &CalculatorAddCall{DependencyCall: call}
 }
 
-func (m *CalculatorAddMethod) ExpectCalledWithMatches(matchers ...any) *CalculatorAddCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+func (m *CalculatorAddMethod) Match(matchers ...any) *CalculatorAddCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &CalculatorAddCall{DependencyCall: call}
 }
 

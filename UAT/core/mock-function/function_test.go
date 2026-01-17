@@ -40,8 +40,8 @@ func TestMockFunction_ComplexTypes(t *testing.T) {
 		resultChan <- result
 	}()
 
-	imp.ExpectCalledWithMatches(imptest.Any(), imptest.Any(), imptest.Any()).
-		InjectReturnValues(order, nil)
+	imp.Match(imptest.Any, imptest.Any, imptest.Any).
+		Return(order, nil)
 
 	result := <-resultChan
 	if result != order {
@@ -60,8 +60,8 @@ func TestMockFunction_Eventually(t *testing.T) {
 	go func() { _ = mock("input2") }()
 
 	// Match calls in any order using Eventually
-	imp.Eventually.ExpectCalledWithExactly("input2").InjectReturnValues(nil)
-	imp.Eventually.ExpectCalledWithExactly("input1").InjectReturnValues(nil)
+	imp.Eventually.Expect("input2").Return(nil)
+	imp.Eventually.Expect("input1").Return(nil)
 }
 
 // TestMockFunction_GetArgs demonstrates accessing typed arguments.
@@ -74,7 +74,7 @@ func TestMockFunction_GetArgs(t *testing.T) {
 		_ = mock(123.45, "EUR")
 	}()
 
-	call := imp.ExpectCalledWithMatches(imptest.Any(), imptest.Any())
+	call := imp.Match(imptest.Any, imptest.Any)
 
 	// Access typed arguments
 	args := call.GetArgs()
@@ -86,7 +86,7 @@ func TestMockFunction_GetArgs(t *testing.T) {
 		t.Errorf("expected currency EUR, got %v", args.Currency)
 	}
 
-	call.InjectReturnValues("€123.45")
+	call.Return("€123.45")
 }
 
 // TestMockFunction_NoError demonstrates mocking a function without error return.
@@ -105,7 +105,7 @@ func TestMockFunction_NoError(t *testing.T) {
 		resultChan <- mock(amount, currency)
 	}()
 
-	imp.ExpectCalledWithExactly(amount, currency).InjectReturnValues(expected)
+	imp.Expect(amount, currency).Return(expected)
 
 	result := <-resultChan
 	if result != expected {
@@ -130,8 +130,8 @@ func TestMockFunction_NoReturns(t *testing.T) {
 		done <- struct{}{}
 	}()
 
-	// For void functions, still need to call InjectReturnValues to unblock the mock
-	imp.ExpectCalledWithExactly(userID, message).InjectReturnValues()
+	// For void functions, still need to call Return to unblock the mock
+	imp.Expect(userID, message).Return()
 
 	<-done
 }
@@ -150,7 +150,7 @@ func TestMockFunction_Simple(t *testing.T) {
 		resultChan <- mock(testData)
 	}()
 
-	imp.ExpectCalledWithExactly(testData).InjectReturnValues(nil)
+	imp.Expect(testData).Return(nil)
 
 	err := <-resultChan
 	if err != nil {
@@ -175,7 +175,7 @@ func TestMockFunction_WithError(t *testing.T) {
 		resultChan <- err
 	}()
 
-	imp.ExpectCalledWithExactly(ctx, orderID).InjectReturnValues(nil, expectedErr)
+	imp.Expect(ctx, orderID).Return(nil, expectedErr)
 
 	err := <-resultChan
 	if !errors.Is(err, expectedErr) {
@@ -201,8 +201,8 @@ func TestMockFunction_WithMatchers(t *testing.T) {
 	}()
 
 	// Use matchers instead of exact values
-	imp.ExpectCalledWithMatches(imptest.Any(), imptest.Any()).
-		InjectReturnValues(expectedOrder, nil)
+	imp.Match(imptest.Any, imptest.Any).
+		Return(expectedOrder, nil)
 
 	order := <-resultChan
 	if order.ID != expectedOrder.ID {
@@ -243,7 +243,7 @@ func TestMockFunction_WithReturns(t *testing.T) {
 	}()
 
 	// Set up expectation and inject return values
-	imp.ExpectCalledWithExactly(ctx, orderID).InjectReturnValues(expectedOrder, nil)
+	imp.Expect(ctx, orderID).Return(expectedOrder, nil)
 
 	// Verify results
 	result := <-resultChan

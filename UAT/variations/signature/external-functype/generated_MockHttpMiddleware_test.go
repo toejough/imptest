@@ -19,7 +19,7 @@ type HTTPMiddlewareMockWrapArgs struct {
 	Handler http.HandlerFunc
 }
 
-// HTTPMiddlewareMockWrapCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// HTTPMiddlewareMockWrapCall wraps DependencyCall with typed GetArgs and Return.
 type HTTPMiddlewareMockWrapCall struct {
 	*_imptest.DependencyCall
 }
@@ -32,9 +32,9 @@ func (c *HTTPMiddlewareMockWrapCall) GetArgs() HTTPMiddlewareMockWrapArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *HTTPMiddlewareMockWrapCall) InjectReturnValues(result0 http.HandlerFunc) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *HTTPMiddlewareMockWrapCall) Return(result0 http.HandlerFunc) {
+	c.DependencyCall.Return(result0)
 }
 
 // HTTPMiddlewareMockWrapMethod wraps DependencyMethod with typed returns.
@@ -44,15 +44,15 @@ type HTTPMiddlewareMockWrapMethod struct {
 	Eventually *HTTPMiddlewareMockWrapMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *HTTPMiddlewareMockWrapMethod) ExpectCalledWithExactly(handler http.HandlerFunc) *HTTPMiddlewareMockWrapCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(handler)
+// Expect waits for a call with exactly the specified arguments.
+func (m *HTTPMiddlewareMockWrapMethod) Expect(handler http.HandlerFunc) *HTTPMiddlewareMockWrapCall {
+	call := m.DependencyMethod.Expect(handler)
 	return &HTTPMiddlewareMockWrapCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *HTTPMiddlewareMockWrapMethod) ExpectCalledWithMatches(matchers ...any) *HTTPMiddlewareMockWrapCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *HTTPMiddlewareMockWrapMethod) Match(matchers ...any) *HTTPMiddlewareMockWrapCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &HTTPMiddlewareMockWrapCall{DependencyCall: call}
 }
 

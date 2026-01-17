@@ -28,8 +28,8 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 		}()
 
 		// Verify the mock received the call and inject return value
-		call := imp.Process.ExpectCalledWithExactly(obj)
-		call.InjectReturnValues("processed")
+		call := imp.Process.Expect(obj)
+		call.Return("processed")
 
 		// Verify args can be retrieved
 		args := call.GetArgs()
@@ -50,8 +50,8 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 		}()
 
 		// Verify and inject return value
-		call := imp.Transform.ExpectCalledWithExactly(obj)
-		call.InjectReturnValues(100)
+		call := imp.Transform.Expect(obj)
+		call.Return(100)
 
 		// Verify args can be retrieved and methods can be called
 		args := call.GetArgs()
@@ -73,8 +73,8 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 		// Verify and inject error return
 		testErr := errors.New("mock validation error")
-		call := imp.Validate.ExpectCalledWithExactly(validator)
-		call.InjectReturnValues(testErr)
+		call := imp.Validate.Expect(validator)
+		call.Return(testErr)
 
 		// Verify validator can be called
 		args := call.GetArgs()
@@ -97,8 +97,8 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 
 		// Verify and inject return value
 		returnObj := &resultProvider{result: "output"}
-		call := imp.ProcessWithReturn.ExpectCalledWithExactly("input")
-		call.InjectReturnValues(returnObj)
+		call := imp.ProcessWithReturn.Expect("input")
+		call.Return(returnObj)
 
 		// Verify args
 		args := call.GetArgs()
@@ -119,8 +119,8 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 		}()
 
 		// Use matcher for interface literal parameter
-		call := imp.Process.ExpectCalledWithMatches(imptest.Any())
-		call.InjectReturnValues("matched result")
+		call := imp.Process.Match(imptest.Any)
+		call.Return("matched result")
 
 		// Verify we can still get args
 		args := call.GetArgs()

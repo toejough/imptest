@@ -21,7 +21,7 @@ type ChannelHandlerMockBidirectionalArgs struct {
 	Ch chan bool
 }
 
-// ChannelHandlerMockBidirectionalCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ChannelHandlerMockBidirectionalCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockBidirectionalCall struct {
 	*_imptest.DependencyCall
 }
@@ -34,9 +34,9 @@ func (c *ChannelHandlerMockBidirectionalCall) GetArgs() ChannelHandlerMockBidire
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ChannelHandlerMockBidirectionalCall) InjectReturnValues(result0 bool) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ChannelHandlerMockBidirectionalCall) Return(result0 bool) {
+	c.DependencyCall.Return(result0)
 }
 
 // ChannelHandlerMockBidirectionalMethod wraps DependencyMethod with typed returns.
@@ -46,15 +46,15 @@ type ChannelHandlerMockBidirectionalMethod struct {
 	Eventually *ChannelHandlerMockBidirectionalMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ChannelHandlerMockBidirectionalMethod) ExpectCalledWithExactly(ch chan bool) *ChannelHandlerMockBidirectionalCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ch)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ChannelHandlerMockBidirectionalMethod) Expect(ch chan bool) *ChannelHandlerMockBidirectionalCall {
+	call := m.DependencyMethod.Expect(ch)
 	return &ChannelHandlerMockBidirectionalCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ChannelHandlerMockBidirectionalMethod) ExpectCalledWithMatches(matchers ...any) *ChannelHandlerMockBidirectionalCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ChannelHandlerMockBidirectionalMethod) Match(matchers ...any) *ChannelHandlerMockBidirectionalCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ChannelHandlerMockBidirectionalCall{DependencyCall: call}
 }
 
@@ -63,7 +63,7 @@ type ChannelHandlerMockReceiveOnlyArgs struct {
 	Ch <-chan string
 }
 
-// ChannelHandlerMockReceiveOnlyCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ChannelHandlerMockReceiveOnlyCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockReceiveOnlyCall struct {
 	*_imptest.DependencyCall
 }
@@ -76,9 +76,9 @@ func (c *ChannelHandlerMockReceiveOnlyCall) GetArgs() ChannelHandlerMockReceiveO
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ChannelHandlerMockReceiveOnlyCall) InjectReturnValues(result0 string, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *ChannelHandlerMockReceiveOnlyCall) Return(result0 string, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // ChannelHandlerMockReceiveOnlyMethod wraps DependencyMethod with typed returns.
@@ -88,26 +88,26 @@ type ChannelHandlerMockReceiveOnlyMethod struct {
 	Eventually *ChannelHandlerMockReceiveOnlyMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ChannelHandlerMockReceiveOnlyMethod) ExpectCalledWithExactly(ch <-chan string) *ChannelHandlerMockReceiveOnlyCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ch)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ChannelHandlerMockReceiveOnlyMethod) Expect(ch <-chan string) *ChannelHandlerMockReceiveOnlyCall {
+	call := m.DependencyMethod.Expect(ch)
 	return &ChannelHandlerMockReceiveOnlyCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ChannelHandlerMockReceiveOnlyMethod) ExpectCalledWithMatches(matchers ...any) *ChannelHandlerMockReceiveOnlyCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ChannelHandlerMockReceiveOnlyMethod) Match(matchers ...any) *ChannelHandlerMockReceiveOnlyCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ChannelHandlerMockReceiveOnlyCall{DependencyCall: call}
 }
 
-// ChannelHandlerMockReturnChannelCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ChannelHandlerMockReturnChannelCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockReturnChannelCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ChannelHandlerMockReturnChannelCall) InjectReturnValues(result0 <-chan int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ChannelHandlerMockReturnChannelCall) Return(result0 <-chan int) {
+	c.DependencyCall.Return(result0)
 }
 
 // ChannelHandlerMockSendOnlyArgs holds typed arguments for SendOnly.
@@ -115,7 +115,7 @@ type ChannelHandlerMockSendOnlyArgs struct {
 	Ch chan<- int
 }
 
-// ChannelHandlerMockSendOnlyCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ChannelHandlerMockSendOnlyCall wraps DependencyCall with typed GetArgs and Return.
 type ChannelHandlerMockSendOnlyCall struct {
 	*_imptest.DependencyCall
 }
@@ -128,9 +128,9 @@ func (c *ChannelHandlerMockSendOnlyCall) GetArgs() ChannelHandlerMockSendOnlyArg
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ChannelHandlerMockSendOnlyCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ChannelHandlerMockSendOnlyCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // ChannelHandlerMockSendOnlyMethod wraps DependencyMethod with typed returns.
@@ -140,15 +140,15 @@ type ChannelHandlerMockSendOnlyMethod struct {
 	Eventually *ChannelHandlerMockSendOnlyMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ChannelHandlerMockSendOnlyMethod) ExpectCalledWithExactly(ch chan<- int) *ChannelHandlerMockSendOnlyCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ch)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ChannelHandlerMockSendOnlyMethod) Expect(ch chan<- int) *ChannelHandlerMockSendOnlyCall {
+	call := m.DependencyMethod.Expect(ch)
 	return &ChannelHandlerMockSendOnlyCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ChannelHandlerMockSendOnlyMethod) ExpectCalledWithMatches(matchers ...any) *ChannelHandlerMockSendOnlyCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ChannelHandlerMockSendOnlyMethod) Match(matchers ...any) *ChannelHandlerMockSendOnlyCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ChannelHandlerMockSendOnlyCall{DependencyCall: call}
 }
 

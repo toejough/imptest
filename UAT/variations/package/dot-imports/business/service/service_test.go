@@ -21,8 +21,8 @@ func TestUserServiceDeleteUser(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := imp.Delete.ExpectCalledWithExactly("user999")
-	call.InjectReturnValues(nil)
+	call := imp.Delete.Expect("user999")
+	call.Return(nil)
 
 	// Verify args
 	args := call.GetArgs()
@@ -46,8 +46,8 @@ func TestUserServiceGetUser(t *testing.T) {
 	}()
 
 	// Verify and inject return values
-	call := imp.Load.ExpectCalledWithExactly("user789")
-	call.InjectReturnValues(expectedData, nil)
+	call := imp.Load.Expect("user789")
+	call.Return(expectedData, nil)
 
 	// Verify args
 	args := call.GetArgs()
@@ -73,8 +73,8 @@ func TestUserServiceSaveUser(t *testing.T) {
 	}()
 
 	// Verify and inject return
-	call := imp.Save.ExpectCalledWithExactly("user123", userData)
-	call.InjectReturnValues(nil)
+	call := imp.Save.Expect("user123", userData)
+	call.Return(nil)
 
 	// Verify args
 	args := call.GetArgs()
@@ -99,8 +99,8 @@ func TestUserServiceSaveUserError(t *testing.T) {
 	}()
 
 	// Inject error return
-	call := imp.Save.ExpectCalledWithExactly("user456", userData)
-	call.InjectReturnValues(expectedErr)
+	call := imp.Save.Expect("user456", userData)
+	call.Return(expectedErr)
 }
 
 // unexported variables.

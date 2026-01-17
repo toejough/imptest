@@ -19,7 +19,7 @@ type ExternalServiceMockFetchDataArgs struct {
 	Id int
 }
 
-// ExternalServiceMockFetchDataCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ExternalServiceMockFetchDataCall wraps DependencyCall with typed GetArgs and Return.
 type ExternalServiceMockFetchDataCall struct {
 	*_imptest.DependencyCall
 }
@@ -32,9 +32,9 @@ func (c *ExternalServiceMockFetchDataCall) GetArgs() ExternalServiceMockFetchDat
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ExternalServiceMockFetchDataCall) InjectReturnValues(result0 string, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *ExternalServiceMockFetchDataCall) Return(result0 string, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // ExternalServiceMockFetchDataMethod wraps DependencyMethod with typed returns.
@@ -44,15 +44,15 @@ type ExternalServiceMockFetchDataMethod struct {
 	Eventually *ExternalServiceMockFetchDataMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithExactly(id int) *ExternalServiceMockFetchDataCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(id)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ExternalServiceMockFetchDataMethod) Expect(id int) *ExternalServiceMockFetchDataCall {
+	call := m.DependencyMethod.Expect(id)
 	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ExternalServiceMockFetchDataMethod) ExpectCalledWithMatches(matchers ...any) *ExternalServiceMockFetchDataCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ExternalServiceMockFetchDataMethod) Match(matchers ...any) *ExternalServiceMockFetchDataCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ExternalServiceMockFetchDataCall{DependencyCall: call}
 }
 
@@ -61,7 +61,7 @@ type ExternalServiceMockProcessArgs struct {
 	Data string
 }
 
-// ExternalServiceMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ExternalServiceMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ExternalServiceMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -74,9 +74,9 @@ func (c *ExternalServiceMockProcessCall) GetArgs() ExternalServiceMockProcessArg
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ExternalServiceMockProcessCall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ExternalServiceMockProcessCall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // ExternalServiceMockProcessMethod wraps DependencyMethod with typed returns.
@@ -86,15 +86,15 @@ type ExternalServiceMockProcessMethod struct {
 	Eventually *ExternalServiceMockProcessMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ExternalServiceMockProcessMethod) ExpectCalledWithExactly(data string) *ExternalServiceMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(data)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ExternalServiceMockProcessMethod) Expect(data string) *ExternalServiceMockProcessCall {
+	call := m.DependencyMethod.Expect(data)
 	return &ExternalServiceMockProcessCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ExternalServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *ExternalServiceMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ExternalServiceMockProcessMethod) Match(matchers ...any) *ExternalServiceMockProcessCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ExternalServiceMockProcessCall{DependencyCall: call}
 }
 

@@ -118,8 +118,8 @@ func TestCallHandle_ExpectReturnsMatch(t *testing.T) {
 
 	// Should be able to use matchers (using Any() matcher)
 	call.ExpectReturnsMatch(
-		imptest.Any(),
-		imptest.Any(),
+		imptest.Any,
+		imptest.Any,
 	)
 }
 
@@ -302,7 +302,7 @@ func TestCallHandle_PanicMatches(t *testing.T) {
 
 	call := wrapper.Method.Start("critical error")
 	// Use Any() matcher to accept any panic value
-	call.ExpectPanicMatches(imptest.Any())
+	call.ExpectPanicMatches(imptest.Any)
 }
 
 // TestCallHandle_UniqueHandles verifies that each Start() call returns a unique call handle.

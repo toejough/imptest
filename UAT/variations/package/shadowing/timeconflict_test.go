@@ -24,6 +24,6 @@ func TestUseTimer(t *testing.T) {
 		_ = result // Use the result to avoid unused variable warning
 	}()
 
-	imp.Wait.ExpectCalledWithExactly(100).InjectReturnValues(nil)
-	imp.GetElapsed.ExpectCalledWithExactly().InjectReturnValues(42)
+	imp.Wait.Expect(100).Return(nil)
+	imp.GetElapsed.Expect().Return(42)
 }

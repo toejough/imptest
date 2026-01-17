@@ -34,8 +34,8 @@ func TestDependencyWithNamedParams(t *testing.T) {
 	}()
 
 	// Verify mock handles named parameters and returns correctly
-	imp.GetUser.ExpectCalledWithExactly(ctx, 123).
-		InjectReturnValues(named.User{ID: 123, Name: "Alice"}, nil)
+	imp.GetUser.Expect(ctx, 123).
+		Return(named.User{ID: 123, Name: "Alice"}, nil)
 }
 
 // TestFunctionWithNamedParams demonstrates that function wrappers handle
@@ -53,8 +53,8 @@ func TestFunctionWithNamedParams(t *testing.T) {
 	call := wrapper.Method.Start(ctx, 456, mockRepo)
 
 	// Handle the repository call
-	repoImp.GetUser.ExpectCalledWithExactly(ctx, 456).
-		InjectReturnValues(named.User{ID: 456, Name: "Bob"}, nil)
+	repoImp.GetUser.Expect(ctx, 456).
+		Return(named.User{ID: 456, Name: "Bob"}, nil)
 
 	// Verify the wrapper received correct return values
 	call.ExpectReturnsEqual(named.User{ID: 456, Name: "Bob"}, nil)
@@ -85,16 +85,16 @@ func TestMultipleMethods(t *testing.T) {
 	}()
 
 	// Handle SaveUser
-	imp.SaveUser.ExpectCalledWithExactly(ctx, named.User{ID: 789, Name: "Charlie"}).
-		InjectReturnValues(named.User{ID: 789, Name: "Charlie"}, nil)
+	imp.SaveUser.Expect(ctx, named.User{ID: 789, Name: "Charlie"}).
+		Return(named.User{ID: 789, Name: "Charlie"}, nil)
 
 	// Handle DeleteUser
-	imp.DeleteUser.ExpectCalledWithExactly(ctx, 789).
-		InjectReturnValues(nil)
+	imp.DeleteUser.Expect(ctx, 789).
+		Return(nil)
 
 	// Handle CountUsers
-	imp.CountUsers.ExpectCalledWithExactly(ctx).
-		InjectReturnValues(3, nil)
+	imp.CountUsers.Expect(ctx).
+		Return(3, nil)
 }
 
 // TestTargetWithNamedReturns demonstrates that target wrappers work correctly

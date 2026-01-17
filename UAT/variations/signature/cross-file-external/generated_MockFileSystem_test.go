@@ -22,7 +22,7 @@ type FileSystemMockCreateArgs struct {
 	Mode os.FileMode
 }
 
-// FileSystemMockCreateCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// FileSystemMockCreateCall wraps DependencyCall with typed GetArgs and Return.
 type FileSystemMockCreateCall struct {
 	*_imptest.DependencyCall
 }
@@ -36,9 +36,9 @@ func (c *FileSystemMockCreateCall) GetArgs() FileSystemMockCreateArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *FileSystemMockCreateCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *FileSystemMockCreateCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // FileSystemMockCreateMethod wraps DependencyMethod with typed returns.
@@ -48,15 +48,15 @@ type FileSystemMockCreateMethod struct {
 	Eventually *FileSystemMockCreateMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *FileSystemMockCreateMethod) ExpectCalledWithExactly(path string, mode os.FileMode) *FileSystemMockCreateCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(path, mode)
+// Expect waits for a call with exactly the specified arguments.
+func (m *FileSystemMockCreateMethod) Expect(path string, mode os.FileMode) *FileSystemMockCreateCall {
+	call := m.DependencyMethod.Expect(path, mode)
 	return &FileSystemMockCreateCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *FileSystemMockCreateMethod) ExpectCalledWithMatches(matchers ...any) *FileSystemMockCreateCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *FileSystemMockCreateMethod) Match(matchers ...any) *FileSystemMockCreateCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &FileSystemMockCreateCall{DependencyCall: call}
 }
 
@@ -65,7 +65,7 @@ type FileSystemMockStatArgs struct {
 	Path string
 }
 
-// FileSystemMockStatCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// FileSystemMockStatCall wraps DependencyCall with typed GetArgs and Return.
 type FileSystemMockStatCall struct {
 	*_imptest.DependencyCall
 }
@@ -78,9 +78,9 @@ func (c *FileSystemMockStatCall) GetArgs() FileSystemMockStatArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *FileSystemMockStatCall) InjectReturnValues(result0 os.FileMode, result1 time.Time, result2 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1, result2)
+// Return specifies the typed values the mock should return.
+func (c *FileSystemMockStatCall) Return(result0 os.FileMode, result1 time.Time, result2 error) {
+	c.DependencyCall.Return(result0, result1, result2)
 }
 
 // FileSystemMockStatMethod wraps DependencyMethod with typed returns.
@@ -90,15 +90,15 @@ type FileSystemMockStatMethod struct {
 	Eventually *FileSystemMockStatMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *FileSystemMockStatMethod) ExpectCalledWithExactly(path string) *FileSystemMockStatCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(path)
+// Expect waits for a call with exactly the specified arguments.
+func (m *FileSystemMockStatMethod) Expect(path string) *FileSystemMockStatCall {
+	call := m.DependencyMethod.Expect(path)
 	return &FileSystemMockStatCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *FileSystemMockStatMethod) ExpectCalledWithMatches(matchers ...any) *FileSystemMockStatCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *FileSystemMockStatMethod) Match(matchers ...any) *FileSystemMockStatCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &FileSystemMockStatCall{DependencyCall: call}
 }
 

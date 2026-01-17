@@ -15,7 +15,7 @@ type ProcessOrderMockArgs struct {
 	OrderID int
 }
 
-// ProcessOrderMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ProcessOrderMockCall wraps DependencyCall with typed GetArgs and Return.
 type ProcessOrderMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -29,9 +29,9 @@ func (c *ProcessOrderMockCall) GetArgs() ProcessOrderMockArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ProcessOrderMockCall) InjectReturnValues(result0 *mockfunction.Order, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *ProcessOrderMockCall) Return(result0 *mockfunction.Order, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // ProcessOrderMockMethod wraps DependencyMethod with typed returns.
@@ -41,15 +41,15 @@ type ProcessOrderMockMethod struct {
 	Eventually *ProcessOrderMockMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ProcessOrderMockMethod) ExpectCalledWithExactly(ctx context.Context, orderID int) *ProcessOrderMockCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ctx, orderID)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ProcessOrderMockMethod) Expect(ctx context.Context, orderID int) *ProcessOrderMockCall {
+	call := m.DependencyMethod.Expect(ctx, orderID)
 	return &ProcessOrderMockCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ProcessOrderMockMethod) ExpectCalledWithMatches(matchers ...any) *ProcessOrderMockCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ProcessOrderMockMethod) Match(matchers ...any) *ProcessOrderMockCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ProcessOrderMockCall{DependencyCall: call}
 }
 

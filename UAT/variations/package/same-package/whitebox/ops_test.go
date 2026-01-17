@@ -24,6 +24,6 @@ func TestProcessWithOps(t *testing.T) {
 	}()
 
 	// Can test unexported method because we're in the same package
-	imp.internalMethod.ExpectCalledWithExactly(5).InjectReturnValues(10)
-	imp.PublicMethod.ExpectCalledWithExactly(10).InjectReturnValues(20)
+	imp.internalMethod.Expect(5).Return(10)
+	imp.PublicMethod.Expect(10).Return(20)
 }

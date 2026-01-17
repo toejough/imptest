@@ -121,7 +121,7 @@ func (i *Imp) Helper() {
 }
 
 // RegisterPendingExpectation registers a new pending expectation.
-// Returns the expectation for chaining InjectReturnValues/InjectPanicValue.
+// Returns the expectation for chaining Return/Panic.
 // Also scans the queue for an existing match (in case the call arrived before
 // the expectation was registered).
 func (i *Imp) RegisterPendingExpectation(

@@ -16,14 +16,14 @@ type TimedLoggerImp struct {
 	Value        *_imptest.DependencyMethod
 }
 
-// TimedLoggerMockIncCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TimedLoggerMockIncCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockIncCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TimedLoggerMockIncCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TimedLoggerMockIncCall) Return(result0 int) {
+	c.DependencyCall.Return(result0)
 }
 
 // TimedLoggerMockInterface is a generated interface matching the methods of TimedLogger.
@@ -40,7 +40,7 @@ type TimedLoggerMockLogArgs struct {
 	Msg string
 }
 
-// TimedLoggerMockLogCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TimedLoggerMockLogCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockLogCall struct {
 	*_imptest.DependencyCall
 }
@@ -53,9 +53,9 @@ func (c *TimedLoggerMockLogCall) GetArgs() TimedLoggerMockLogArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TimedLoggerMockLogCall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TimedLoggerMockLogCall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // TimedLoggerMockLogMethod wraps DependencyMethod with typed returns.
@@ -65,15 +65,15 @@ type TimedLoggerMockLogMethod struct {
 	Eventually *TimedLoggerMockLogMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TimedLoggerMockLogMethod) ExpectCalledWithExactly(msg string) *TimedLoggerMockLogCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(msg)
+// Expect waits for a call with exactly the specified arguments.
+func (m *TimedLoggerMockLogMethod) Expect(msg string) *TimedLoggerMockLogCall {
+	call := m.DependencyMethod.Expect(msg)
 	return &TimedLoggerMockLogCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TimedLoggerMockLogMethod) ExpectCalledWithMatches(matchers ...any) *TimedLoggerMockLogCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TimedLoggerMockLogMethod) Match(matchers ...any) *TimedLoggerMockLogCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TimedLoggerMockLogCall{DependencyCall: call}
 }
 
@@ -82,7 +82,7 @@ type TimedLoggerMockLogWithCountArgs struct {
 	Msg string
 }
 
-// TimedLoggerMockLogWithCountCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TimedLoggerMockLogWithCountCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockLogWithCountCall struct {
 	*_imptest.DependencyCall
 }
@@ -95,9 +95,9 @@ func (c *TimedLoggerMockLogWithCountCall) GetArgs() TimedLoggerMockLogWithCountA
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TimedLoggerMockLogWithCountCall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TimedLoggerMockLogWithCountCall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // TimedLoggerMockLogWithCountMethod wraps DependencyMethod with typed returns.
@@ -107,15 +107,15 @@ type TimedLoggerMockLogWithCountMethod struct {
 	Eventually *TimedLoggerMockLogWithCountMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TimedLoggerMockLogWithCountMethod) ExpectCalledWithExactly(msg string) *TimedLoggerMockLogWithCountCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(msg)
+// Expect waits for a call with exactly the specified arguments.
+func (m *TimedLoggerMockLogWithCountMethod) Expect(msg string) *TimedLoggerMockLogWithCountCall {
+	call := m.DependencyMethod.Expect(msg)
 	return &TimedLoggerMockLogWithCountCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TimedLoggerMockLogWithCountMethod) ExpectCalledWithMatches(matchers ...any) *TimedLoggerMockLogWithCountCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TimedLoggerMockLogWithCountMethod) Match(matchers ...any) *TimedLoggerMockLogWithCountCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TimedLoggerMockLogWithCountCall{DependencyCall: call}
 }
 
@@ -144,26 +144,26 @@ type TimedLoggerMockSetPrefixMethod struct {
 	Eventually *TimedLoggerMockSetPrefixMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TimedLoggerMockSetPrefixMethod) ExpectCalledWithExactly(prefix string) *TimedLoggerMockSetPrefixCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(prefix)
+// Expect waits for a call with exactly the specified arguments.
+func (m *TimedLoggerMockSetPrefixMethod) Expect(prefix string) *TimedLoggerMockSetPrefixCall {
+	call := m.DependencyMethod.Expect(prefix)
 	return &TimedLoggerMockSetPrefixCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TimedLoggerMockSetPrefixMethod) ExpectCalledWithMatches(matchers ...any) *TimedLoggerMockSetPrefixCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TimedLoggerMockSetPrefixMethod) Match(matchers ...any) *TimedLoggerMockSetPrefixCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TimedLoggerMockSetPrefixCall{DependencyCall: call}
 }
 
-// TimedLoggerMockValueCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TimedLoggerMockValueCall wraps DependencyCall with typed GetArgs and Return.
 type TimedLoggerMockValueCall struct {
 	*_imptest.DependencyCall
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TimedLoggerMockValueCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *TimedLoggerMockValueCall) Return(result0 int) {
+	c.DependencyCall.Return(result0)
 }
 
 // MockTimedLogger creates a mock TimedLogger and returns (mock, expectation handle).

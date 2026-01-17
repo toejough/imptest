@@ -9,7 +9,7 @@ type {{.ArgsTypeName}}{{.TypeParamsDecl}} struct {
 {{end}}}
 
 {{end}}`
-	tmplDepCallWrapper = `{{if or .HasParams .HasResults}}// {{.CallTypeName}} wraps DependencyCall with typed GetArgs{{if .HasResults}} and InjectReturnValues{{end}}.
+	tmplDepCallWrapper = `{{if or .HasParams .HasResults}}// {{.CallTypeName}} wraps DependencyCall with typed GetArgs{{if .HasResults}} and Return{{end}}.
 type {{.CallTypeName}}{{.TypeParamsDecl}} struct {
 	*{{.PkgImptest}}.DependencyCall
 }
@@ -22,9 +22,9 @@ func (c *{{.CallTypeName}}{{.TypeParamsUse}}) GetArgs() {{.ArgsTypeName}}{{.Type
 {{end}}	}
 }
 {{end}}{{if .HasResults}}
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *{{.CallTypeName}}{{.TypeParamsUse}}) InjectReturnValues({{.TypedReturnParams}}) {
-	c.DependencyCall.InjectReturnValues({{.ReturnParamNames}})
+// Return specifies the typed values the mock should return.
+func (c *{{.CallTypeName}}{{.TypeParamsUse}}) Return({{.TypedReturnParams}}) {
+	c.DependencyCall.Return({{.ReturnParamNames}})
 }
 {{end}}{{end}}
 `
@@ -106,19 +106,19 @@ func new{{.MethodTypeName}}{{.TypeParamsDecl}}(dm *{{.PkgImptest}}.DependencyMet
 	return m
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithExactly({{.TypedParams}}) *{{.CallTypeName}}{{.TypeParamsUse}} {
+// Expect waits for a call with exactly the specified arguments.
+func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) Expect({{.TypedParams}}) *{{.CallTypeName}}{{.TypeParamsUse}} {
 	{{if .HasVariadic}}callArgs := []any{ {{if .NonVariadicArgs}}{{.NonVariadicArgs}}{{end}} }
 	for _, v := range {{.VariadicArg}} {
 		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.ExpectCalledWithExactly(callArgs...){{else}}call := m.DependencyMethod.ExpectCalledWithExactly({{.ArgNames}}){{end}}
+	call := m.DependencyMethod.Expect(callArgs...){{else}}call := m.DependencyMethod.Expect({{.ArgNames}}){{end}}
 	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers ...any) *{{.CallTypeName}}{{.TypeParamsUse}} {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *{{.MethodTypeName}}{{.TypeParamsUse}}) Match(matchers ...any) *{{.CallTypeName}}{{.TypeParamsUse}} {
+	call := m.DependencyMethod.Match(matchers...)
 	return &{{.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
@@ -179,19 +179,19 @@ func new{{.Method.MethodTypeName}}{{.TypeParamsDecl}}(dm *{{.PkgImptest}}.Depend
 	return m
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithExactly({{.Method.TypedParams}}) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
+// Expect waits for a call with exactly the specified arguments.
+func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) Expect({{.Method.TypedParams}}) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
 	{{if .Method.HasVariadic}}callArgs := []any{ {{if .Method.NonVariadicArgs}}{{.Method.NonVariadicArgs}}{{end}} }
 	for _, v := range {{.Method.VariadicArg}} {
 		callArgs = append(callArgs, v)
 	}
-	call := m.DependencyMethod.ExpectCalledWithExactly(callArgs...){{else}}call := m.DependencyMethod.ExpectCalledWithExactly({{.Method.ArgNames}}){{end}}
+	call := m.DependencyMethod.Expect(callArgs...){{else}}call := m.DependencyMethod.Expect({{.Method.ArgNames}}){{end}}
 	return &{{.Method.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) ExpectCalledWithMatches(matchers ...any) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *{{.Method.MethodTypeName}}{{.TypeParamsUse}}) Match(matchers ...any) *{{.Method.CallTypeName}}{{.TypeParamsUse}} {
+	call := m.DependencyMethod.Match(matchers...)
 	return &{{.Method.CallTypeName}}{{.TypeParamsUse}}{DependencyCall: call}
 }
 

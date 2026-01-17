@@ -12,7 +12,7 @@ type CounterAddMockArgs struct {
 	N int
 }
 
-// CounterAddMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// CounterAddMockCall wraps DependencyCall with typed GetArgs and Return.
 type CounterAddMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -25,9 +25,9 @@ func (c *CounterAddMockCall) GetArgs() CounterAddMockArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *CounterAddMockCall) InjectReturnValues(result0 int) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *CounterAddMockCall) Return(result0 int) {
+	c.DependencyCall.Return(result0)
 }
 
 // CounterAddMockMethod wraps DependencyMethod with typed returns.
@@ -37,15 +37,15 @@ type CounterAddMockMethod struct {
 	Eventually *CounterAddMockMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *CounterAddMockMethod) ExpectCalledWithExactly(n int) *CounterAddMockCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(n)
+// Expect waits for a call with exactly the specified arguments.
+func (m *CounterAddMockMethod) Expect(n int) *CounterAddMockCall {
+	call := m.DependencyMethod.Expect(n)
 	return &CounterAddMockCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *CounterAddMockMethod) ExpectCalledWithMatches(matchers ...any) *CounterAddMockCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *CounterAddMockMethod) Match(matchers ...any) *CounterAddMockCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &CounterAddMockCall{DependencyCall: call}
 }
 

@@ -20,7 +20,7 @@ type RepositoryMockDeleteArgs struct {
 	Key string
 }
 
-// RepositoryMockDeleteCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// RepositoryMockDeleteCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockDeleteCall struct {
 	*_imptest.DependencyCall
 }
@@ -33,9 +33,9 @@ func (c *RepositoryMockDeleteCall) GetArgs() RepositoryMockDeleteArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *RepositoryMockDeleteCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *RepositoryMockDeleteCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // RepositoryMockDeleteMethod wraps DependencyMethod with typed returns.
@@ -45,15 +45,15 @@ type RepositoryMockDeleteMethod struct {
 	Eventually *RepositoryMockDeleteMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *RepositoryMockDeleteMethod) ExpectCalledWithExactly(key string) *RepositoryMockDeleteCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(key)
+// Expect waits for a call with exactly the specified arguments.
+func (m *RepositoryMockDeleteMethod) Expect(key string) *RepositoryMockDeleteCall {
+	call := m.DependencyMethod.Expect(key)
 	return &RepositoryMockDeleteCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *RepositoryMockDeleteMethod) ExpectCalledWithMatches(matchers ...any) *RepositoryMockDeleteCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *RepositoryMockDeleteMethod) Match(matchers ...any) *RepositoryMockDeleteCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &RepositoryMockDeleteCall{DependencyCall: call}
 }
 
@@ -62,7 +62,7 @@ type RepositoryMockLoadArgs struct {
 	Key string
 }
 
-// RepositoryMockLoadCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// RepositoryMockLoadCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockLoadCall struct {
 	*_imptest.DependencyCall
 }
@@ -75,9 +75,9 @@ func (c *RepositoryMockLoadCall) GetArgs() RepositoryMockLoadArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *RepositoryMockLoadCall) InjectReturnValues(result0 []byte, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *RepositoryMockLoadCall) Return(result0 []byte, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // RepositoryMockLoadMethod wraps DependencyMethod with typed returns.
@@ -87,15 +87,15 @@ type RepositoryMockLoadMethod struct {
 	Eventually *RepositoryMockLoadMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *RepositoryMockLoadMethod) ExpectCalledWithExactly(key string) *RepositoryMockLoadCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(key)
+// Expect waits for a call with exactly the specified arguments.
+func (m *RepositoryMockLoadMethod) Expect(key string) *RepositoryMockLoadCall {
+	call := m.DependencyMethod.Expect(key)
 	return &RepositoryMockLoadCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *RepositoryMockLoadMethod) ExpectCalledWithMatches(matchers ...any) *RepositoryMockLoadCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *RepositoryMockLoadMethod) Match(matchers ...any) *RepositoryMockLoadCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &RepositoryMockLoadCall{DependencyCall: call}
 }
 
@@ -105,7 +105,7 @@ type RepositoryMockSaveArgs struct {
 	Data []byte
 }
 
-// RepositoryMockSaveCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// RepositoryMockSaveCall wraps DependencyCall with typed GetArgs and Return.
 type RepositoryMockSaveCall struct {
 	*_imptest.DependencyCall
 }
@@ -119,9 +119,9 @@ func (c *RepositoryMockSaveCall) GetArgs() RepositoryMockSaveArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *RepositoryMockSaveCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *RepositoryMockSaveCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // RepositoryMockSaveMethod wraps DependencyMethod with typed returns.
@@ -131,15 +131,15 @@ type RepositoryMockSaveMethod struct {
 	Eventually *RepositoryMockSaveMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *RepositoryMockSaveMethod) ExpectCalledWithExactly(key string, data []byte) *RepositoryMockSaveCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(key, data)
+// Expect waits for a call with exactly the specified arguments.
+func (m *RepositoryMockSaveMethod) Expect(key string, data []byte) *RepositoryMockSaveCall {
+	call := m.DependencyMethod.Expect(key, data)
 	return &RepositoryMockSaveCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *RepositoryMockSaveMethod) ExpectCalledWithMatches(matchers ...any) *RepositoryMockSaveCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *RepositoryMockSaveMethod) Match(matchers ...any) *RepositoryMockSaveCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &RepositoryMockSaveCall{DependencyCall: call}
 }
 

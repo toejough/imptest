@@ -22,7 +22,7 @@ type UserRepositoryMockCountUsersArgs struct {
 	Ctx context.Context
 }
 
-// UserRepositoryMockCountUsersCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// UserRepositoryMockCountUsersCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockCountUsersCall struct {
 	*_imptest.DependencyCall
 }
@@ -35,9 +35,9 @@ func (c *UserRepositoryMockCountUsersCall) GetArgs() UserRepositoryMockCountUser
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *UserRepositoryMockCountUsersCall) InjectReturnValues(result0 int, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *UserRepositoryMockCountUsersCall) Return(result0 int, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // UserRepositoryMockCountUsersMethod wraps DependencyMethod with typed returns.
@@ -47,15 +47,15 @@ type UserRepositoryMockCountUsersMethod struct {
 	Eventually *UserRepositoryMockCountUsersMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockCountUsersMethod) ExpectCalledWithExactly(ctx context.Context) *UserRepositoryMockCountUsersCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ctx)
+// Expect waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockCountUsersMethod) Expect(ctx context.Context) *UserRepositoryMockCountUsersCall {
+	call := m.DependencyMethod.Expect(ctx)
 	return &UserRepositoryMockCountUsersCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockCountUsersMethod) ExpectCalledWithMatches(matchers ...any) *UserRepositoryMockCountUsersCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockCountUsersMethod) Match(matchers ...any) *UserRepositoryMockCountUsersCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &UserRepositoryMockCountUsersCall{DependencyCall: call}
 }
 
@@ -65,7 +65,7 @@ type UserRepositoryMockDeleteUserArgs struct {
 	UserID int
 }
 
-// UserRepositoryMockDeleteUserCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// UserRepositoryMockDeleteUserCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockDeleteUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -79,9 +79,9 @@ func (c *UserRepositoryMockDeleteUserCall) GetArgs() UserRepositoryMockDeleteUse
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *UserRepositoryMockDeleteUserCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *UserRepositoryMockDeleteUserCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // UserRepositoryMockDeleteUserMethod wraps DependencyMethod with typed returns.
@@ -91,15 +91,15 @@ type UserRepositoryMockDeleteUserMethod struct {
 	Eventually *UserRepositoryMockDeleteUserMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockDeleteUserMethod) ExpectCalledWithExactly(ctx context.Context, userID int) *UserRepositoryMockDeleteUserCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ctx, userID)
+// Expect waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockDeleteUserMethod) Expect(ctx context.Context, userID int) *UserRepositoryMockDeleteUserCall {
+	call := m.DependencyMethod.Expect(ctx, userID)
 	return &UserRepositoryMockDeleteUserCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockDeleteUserMethod) ExpectCalledWithMatches(matchers ...any) *UserRepositoryMockDeleteUserCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockDeleteUserMethod) Match(matchers ...any) *UserRepositoryMockDeleteUserCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &UserRepositoryMockDeleteUserCall{DependencyCall: call}
 }
 
@@ -109,7 +109,7 @@ type UserRepositoryMockGetUserArgs struct {
 	UserID int
 }
 
-// UserRepositoryMockGetUserCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// UserRepositoryMockGetUserCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockGetUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -123,9 +123,9 @@ func (c *UserRepositoryMockGetUserCall) GetArgs() UserRepositoryMockGetUserArgs 
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *UserRepositoryMockGetUserCall) InjectReturnValues(result0 named.User, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *UserRepositoryMockGetUserCall) Return(result0 named.User, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // UserRepositoryMockGetUserMethod wraps DependencyMethod with typed returns.
@@ -135,15 +135,15 @@ type UserRepositoryMockGetUserMethod struct {
 	Eventually *UserRepositoryMockGetUserMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockGetUserMethod) ExpectCalledWithExactly(ctx context.Context, userID int) *UserRepositoryMockGetUserCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ctx, userID)
+// Expect waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockGetUserMethod) Expect(ctx context.Context, userID int) *UserRepositoryMockGetUserCall {
+	call := m.DependencyMethod.Expect(ctx, userID)
 	return &UserRepositoryMockGetUserCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockGetUserMethod) ExpectCalledWithMatches(matchers ...any) *UserRepositoryMockGetUserCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockGetUserMethod) Match(matchers ...any) *UserRepositoryMockGetUserCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &UserRepositoryMockGetUserCall{DependencyCall: call}
 }
 
@@ -153,7 +153,7 @@ type UserRepositoryMockSaveUserArgs struct {
 	User named.User
 }
 
-// UserRepositoryMockSaveUserCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// UserRepositoryMockSaveUserCall wraps DependencyCall with typed GetArgs and Return.
 type UserRepositoryMockSaveUserCall struct {
 	*_imptest.DependencyCall
 }
@@ -167,9 +167,9 @@ func (c *UserRepositoryMockSaveUserCall) GetArgs() UserRepositoryMockSaveUserArg
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *UserRepositoryMockSaveUserCall) InjectReturnValues(result0 named.User, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *UserRepositoryMockSaveUserCall) Return(result0 named.User, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // UserRepositoryMockSaveUserMethod wraps DependencyMethod with typed returns.
@@ -179,15 +179,15 @@ type UserRepositoryMockSaveUserMethod struct {
 	Eventually *UserRepositoryMockSaveUserMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *UserRepositoryMockSaveUserMethod) ExpectCalledWithExactly(ctx context.Context, user named.User) *UserRepositoryMockSaveUserCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(ctx, user)
+// Expect waits for a call with exactly the specified arguments.
+func (m *UserRepositoryMockSaveUserMethod) Expect(ctx context.Context, user named.User) *UserRepositoryMockSaveUserCall {
+	call := m.DependencyMethod.Expect(ctx, user)
 	return &UserRepositoryMockSaveUserCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *UserRepositoryMockSaveUserMethod) ExpectCalledWithMatches(matchers ...any) *UserRepositoryMockSaveUserCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *UserRepositoryMockSaveUserMethod) Match(matchers ...any) *UserRepositoryMockSaveUserCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &UserRepositoryMockSaveUserCall{DependencyCall: call}
 }
 

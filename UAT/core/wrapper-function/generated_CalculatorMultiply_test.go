@@ -31,7 +31,7 @@ func NewCalculatorMultiply(t _testing.TB, callable func(value int) int) *Calcula
 }
 
 // ExpectPanicWith asserts the callable panicked with a value matching the expectation.
-// Use imptest.Any() to match any panic value, or imptest.Satisfies(fn) for custom matching.
+// Use imptest.Any to match any panic value, or imptest.Satisfies(fn) for custom matching.
 // Fails the test if the callable returned normally or panicked with a different value.
 func (s *CalculatorMultiply) ExpectPanicWith(expected any) {
 	s.T.Helper()
@@ -66,7 +66,7 @@ func (s *CalculatorMultiply) ExpectReturnedValuesAre(v1 int) {
 }
 
 // ExpectReturnedValuesShould asserts return values match the given matchers.
-// Use imptest.Any() to match any value, or imptest.Satisfies(fn) for custom matching.
+// Use imptest.Any to match any value, or imptest.Satisfies(fn) for custom matching.
 // Fails the test if any matcher fails or if the callable panicked.
 func (s *CalculatorMultiply) ExpectReturnedValuesShould(v1 any) {
 	s.T.Helper()

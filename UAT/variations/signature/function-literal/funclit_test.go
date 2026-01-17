@@ -36,8 +36,8 @@ func TestDependencyWithFunctionLiterals(t *testing.T) {
 
 	// Verify mock handles function literal parameter correctly
 	// Note: Function literals can't be compared with ==, so use matcher
-	imp.Transform.ExpectCalledWithMatches(items, imptest.Any()).
-		InjectReturnValues([]int{2, 4, 6}, nil)
+	imp.Transform.Match(items, imptest.Any).
+		Return([]int{2, 4, 6}, nil)
 }
 
 // TestDependencyWithPredicate demonstrates mocking with predicate function literals.
@@ -53,8 +53,8 @@ func TestDependencyWithPredicate(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Filter.ExpectCalledWithMatches(items, imptest.Any()).
-		InjectReturnValues([]int{2, 4})
+	imp.Filter.Match(items, imptest.Any).
+		Return([]int{2, 4})
 }
 
 // TestDependencyWithReducer demonstrates mocking with multi-parameter function literals.
@@ -71,8 +71,8 @@ func TestDependencyWithReducer(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Reduce.ExpectCalledWithMatches(items, imptest.Any(), imptest.Any()).
-		InjectReturnValues(10)
+	imp.Reduce.Match(items, imptest.Any, imptest.Any).
+		Return(10)
 }
 
 // TestFunctionWithPredicate demonstrates wrapping functions with predicate literals.
@@ -117,8 +117,8 @@ func TestMultipleFunctionLiterals(t *testing.T) {
 		_ = err
 	}()
 
-	imp.Transform.ExpectCalledWithMatches(items, imptest.Any()).
-		InjectReturnValues([]int{3, 6, 9, 12, 15}, nil)
+	imp.Transform.Match(items, imptest.Any).
+		Return([]int{3, 6, 9, 12, 15}, nil)
 
 	// Second call: Filter on same mock
 	predicateFn := func(x int) bool { return x > 10 }
@@ -128,8 +128,8 @@ func TestMultipleFunctionLiterals(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Filter.ExpectCalledWithMatches(items, imptest.Any()).
-		InjectReturnValues([]int{12, 15})
+	imp.Filter.Match(items, imptest.Any).
+		Return([]int{12, 15})
 }
 
 // TestTargetWithCallback demonstrates that target wrappers work correctly

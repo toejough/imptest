@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-// TestTypedInjectReturnValues demonstrates compile-time type safety for return value injection.
+// TestTypedReturn demonstrates compile-time type safety for return value injection.
 // This test verifies that:
-// 1. Typed InjectReturnValues methods exist on call wrappers
+// 1. Typed Return methods exist on call wrappers
 // 2. Correct types can be injected
 // 3. Wrong types would cause compile errors (see commented examples below)
-func TestTypedInjectReturnValues(t *testing.T) {
+func TestTypedReturn(t *testing.T) {
 	t.Parallel()
 
 	// Test Store method (returns int, error)
@@ -23,9 +23,9 @@ func TestTypedInjectReturnValues(t *testing.T) {
 			_, _ = mock.Store("key", "value")
 		}()
 
-		// Use typed InjectReturnValues - should compile with correct types
-		call := imp.Store.ExpectCalledWithExactly("key", "value")
-		call.InjectReturnValues(42, nil) // Correct types: int, error
+		// Use typed Return - should compile with correct types
+		call := imp.Store.Expect("key", "value")
+		call.Return(42, nil) // Correct types: int, error
 
 		// Verify the mock received the call
 		args := call.GetArgs()
@@ -43,10 +43,10 @@ func TestTypedInjectReturnValues(t *testing.T) {
 			_, _ = mock.Store("foo", "bar")
 		}()
 
-		// Use typed InjectReturnValues with error
+		// Use typed Return with error
 		testErr := errors.New("storage failure")
-		call := imp.Store.ExpectCalledWithExactly("foo", "bar")
-		call.InjectReturnValues(0, testErr) // Correct types: int, error
+		call := imp.Store.Expect("foo", "bar")
+		call.Return(0, testErr) // Correct types: int, error
 	})
 
 	// Test Add method (returns int)
@@ -59,9 +59,9 @@ func TestTypedInjectReturnValues(t *testing.T) {
 			_ = mock.Add(5, 3)
 		}()
 
-		// Use typed InjectReturnValues for single return value
-		call := imp.Add.ExpectCalledWithExactly(5, 3)
-		call.InjectReturnValues(8) // Correct type: int
+		// Use typed Return for single return value
+		call := imp.Add.Expect(5, 3)
+		call.Return(8) // Correct type: int
 	})
 
 	// Test Notify method (returns bool)
@@ -74,28 +74,28 @@ func TestTypedInjectReturnValues(t *testing.T) {
 			_ = mock.Notify("alert", 1, 2, 3)
 		}()
 
-		// Use typed InjectReturnValues for bool return
-		call := imp.Notify.ExpectCalledWithExactly("alert", 1, 2, 3)
-		call.InjectReturnValues(true) // Correct type: bool
+		// Use typed Return for bool return
+		call := imp.Notify.Expect("alert", 1, 2, 3)
+		call.Return(true) // Correct type: bool
 	})
 }
 
-// The following would cause COMPILE ERRORS with typed InjectReturnValues:
+// The following would cause COMPILE ERRORS with typed Return:
 //
 // func TestWrongTypes(t *testing.T) {
 //     mock, imp := MockOps(t)
 //     go func() { _, _ = mock.Store("key", "value") }()
-//     call := imp.Store.ExpectCalledWithExactly("key", "value")
+//     call := imp.Store.Expect("key", "value")
 //
 //     // COMPILE ERROR: cannot use "wrong" (type string) as type int
-//     call.InjectReturnValues("wrong", nil)
+//     call.Return("wrong", nil)
 //
 //     // COMPILE ERROR: cannot use 123 (type int) as type error
-//     call.InjectReturnValues(42, 123)
+//     call.Return(42, 123)
 //
 //     // COMPILE ERROR: not enough arguments (expected 2, got 1)
-//     call.InjectReturnValues(42)
+//     call.Return(42)
 //
 //     // COMPILE ERROR: too many arguments (expected 2, got 3)
-//     call.InjectReturnValues(42, nil, "extra")
+//     call.Return(42, nil, "extra")
 // }

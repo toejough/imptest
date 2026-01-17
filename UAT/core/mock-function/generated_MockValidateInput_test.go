@@ -12,7 +12,7 @@ type ValidateInputMockArgs struct {
 	Input string
 }
 
-// ValidateInputMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ValidateInputMockCall wraps DependencyCall with typed GetArgs and Return.
 type ValidateInputMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -25,9 +25,9 @@ func (c *ValidateInputMockCall) GetArgs() ValidateInputMockArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ValidateInputMockCall) InjectReturnValues(result0 error) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ValidateInputMockCall) Return(result0 error) {
+	c.DependencyCall.Return(result0)
 }
 
 // ValidateInputMockMethod wraps DependencyMethod with typed returns.
@@ -37,15 +37,15 @@ type ValidateInputMockMethod struct {
 	Eventually *ValidateInputMockMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ValidateInputMockMethod) ExpectCalledWithExactly(input string) *ValidateInputMockCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(input)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ValidateInputMockMethod) Expect(input string) *ValidateInputMockCall {
+	call := m.DependencyMethod.Expect(input)
 	return &ValidateInputMockCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ValidateInputMockMethod) ExpectCalledWithMatches(matchers ...any) *ValidateInputMockCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ValidateInputMockMethod) Match(matchers ...any) *ValidateInputMockCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ValidateInputMockCall{DependencyCall: call}
 }
 

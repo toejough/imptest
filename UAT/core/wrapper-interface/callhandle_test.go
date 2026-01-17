@@ -90,8 +90,8 @@ func TestInterfaceWrapper_ExpectReturnsMatch(t *testing.T) {
 
 	// Should be able to use matchers
 	call.ExpectReturnsMatch(
-		imptest.Any(),
-		imptest.Any(),
+		imptest.Any,
+		imptest.Any,
 	)
 }
 

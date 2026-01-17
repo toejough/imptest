@@ -31,9 +31,9 @@ func TestGenericCallable(t *testing.T) {
 	call := logicImp.Method.Start(repoMock, "456", transformer)
 
 	//nolint:nilaway // false positive: repoImp assigned above
-	repoImp.Get.ExpectCalledWithExactly("456").InjectReturnValues(21, nil)
+	repoImp.Get.Expect("456").Return(21, nil)
 	//nolint:nilaway // false positive: repoImp assigned above
-	repoImp.Save.ExpectCalledWithExactly(42).InjectReturnValues(nil)
+	repoImp.Save.Expect(42).Return(nil)
 
 	// Verify it returned successfully (nil error).
 	call.ExpectReturnsEqual(nil)
@@ -61,9 +61,9 @@ func TestGenericMocking(t *testing.T) {
 
 	// Expectations are type-safe based on the generic parameter.
 	//nolint:nilaway // false positive: repoImp assigned above
-	repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("hello", nil)
+	repoImp.Get.Expect("123").Return("hello", nil)
 	//nolint:nilaway // false positive: repoImp assigned above
-	repoImp.Save.ExpectCalledWithExactly("hello!").InjectReturnValues(nil)
+	repoImp.Save.Expect("hello!").Return(nil)
 }
 
 // TestProcessItem_Error demonstrates error handling in generic contexts.
@@ -77,7 +77,7 @@ func TestProcessItem_Error(t *testing.T) {
 
 		call := logicImp.Method.Start(repoMock, "123", func(s string) string { return s })
 
-		repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("", errTest)
+		repoImp.Get.Expect("123").Return("", errTest)
 
 		call.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {
@@ -95,8 +95,8 @@ func TestProcessItem_Error(t *testing.T) {
 
 		call := logicImp.Method.Start(repoMock, "123", func(s string) string { return s })
 
-		repoImp.Get.ExpectCalledWithExactly("123").InjectReturnValues("data", nil)
-		repoImp.Save.ExpectCalledWithExactly("data").InjectReturnValues(errTest)
+		repoImp.Get.Expect("123").Return("data", nil)
+		repoImp.Save.Expect("data").Return(errTest)
 
 		call.ExpectReturnsMatch(imptest.Satisfies(func(err error) error {
 			if !errors.Is(err, errTest) {

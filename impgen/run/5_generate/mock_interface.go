@@ -123,7 +123,7 @@ func (gen *dependencyGenerator) buildMethodTemplateData(
 	// Extract parameter fields for type-safe args
 	paramFields := gen.buildParamFields(ftype)
 
-	// Build typed return parameters for type-safe InjectReturnValues
+	// Build typed return parameters for type-safe Return
 	typedReturnParams, returnParamNames := buildTypedReturnParams(resultTypes)
 
 	// Build method template data with base fields
@@ -310,7 +310,7 @@ func buildResultVars(resultTypes []string) (resultVars []resultVar, returnList s
 	return resultVars, returnListBuilder.String()
 }
 
-// buildTypedReturnParams builds typed return parameters for InjectReturnValues method.
+// buildTypedReturnParams builds typed return parameters for Return method.
 // Returns (typedParams, paramNames) like ("result0 int, result1 error", "result0, result1").
 func buildTypedReturnParams(resultTypes []string) (typedParams, paramNames string) {
 	if len(resultTypes) == 0 {

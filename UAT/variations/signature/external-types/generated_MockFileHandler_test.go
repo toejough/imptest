@@ -23,7 +23,7 @@ type FileHandlerMockOpenFileArgs struct {
 	Mode os.FileMode
 }
 
-// FileHandlerMockOpenFileCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// FileHandlerMockOpenFileCall wraps DependencyCall with typed GetArgs and Return.
 type FileHandlerMockOpenFileCall struct {
 	*_imptest.DependencyCall
 }
@@ -37,9 +37,9 @@ func (c *FileHandlerMockOpenFileCall) GetArgs() FileHandlerMockOpenFileArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *FileHandlerMockOpenFileCall) InjectReturnValues(result0 *os.File, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *FileHandlerMockOpenFileCall) Return(result0 *os.File, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // FileHandlerMockOpenFileMethod wraps DependencyMethod with typed returns.
@@ -49,15 +49,15 @@ type FileHandlerMockOpenFileMethod struct {
 	Eventually *FileHandlerMockOpenFileMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *FileHandlerMockOpenFileMethod) ExpectCalledWithExactly(path string, mode os.FileMode) *FileHandlerMockOpenFileCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(path, mode)
+// Expect waits for a call with exactly the specified arguments.
+func (m *FileHandlerMockOpenFileMethod) Expect(path string, mode os.FileMode) *FileHandlerMockOpenFileCall {
+	call := m.DependencyMethod.Expect(path, mode)
 	return &FileHandlerMockOpenFileCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *FileHandlerMockOpenFileMethod) ExpectCalledWithMatches(matchers ...any) *FileHandlerMockOpenFileCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *FileHandlerMockOpenFileMethod) Match(matchers ...any) *FileHandlerMockOpenFileCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &FileHandlerMockOpenFileCall{DependencyCall: call}
 }
 
@@ -66,7 +66,7 @@ type FileHandlerMockReadAllArgs struct {
 	R io.Reader
 }
 
-// FileHandlerMockReadAllCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// FileHandlerMockReadAllCall wraps DependencyCall with typed GetArgs and Return.
 type FileHandlerMockReadAllCall struct {
 	*_imptest.DependencyCall
 }
@@ -79,9 +79,9 @@ func (c *FileHandlerMockReadAllCall) GetArgs() FileHandlerMockReadAllArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *FileHandlerMockReadAllCall) InjectReturnValues(result0 []byte, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *FileHandlerMockReadAllCall) Return(result0 []byte, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // FileHandlerMockReadAllMethod wraps DependencyMethod with typed returns.
@@ -91,15 +91,15 @@ type FileHandlerMockReadAllMethod struct {
 	Eventually *FileHandlerMockReadAllMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *FileHandlerMockReadAllMethod) ExpectCalledWithExactly(r io.Reader) *FileHandlerMockReadAllCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(r)
+// Expect waits for a call with exactly the specified arguments.
+func (m *FileHandlerMockReadAllMethod) Expect(r io.Reader) *FileHandlerMockReadAllCall {
+	call := m.DependencyMethod.Expect(r)
 	return &FileHandlerMockReadAllCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *FileHandlerMockReadAllMethod) ExpectCalledWithMatches(matchers ...any) *FileHandlerMockReadAllCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *FileHandlerMockReadAllMethod) Match(matchers ...any) *FileHandlerMockReadAllCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &FileHandlerMockReadAllCall{DependencyCall: call}
 }
 
@@ -108,7 +108,7 @@ type FileHandlerMockStatsArgs struct {
 	Path string
 }
 
-// FileHandlerMockStatsCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// FileHandlerMockStatsCall wraps DependencyCall with typed GetArgs and Return.
 type FileHandlerMockStatsCall struct {
 	*_imptest.DependencyCall
 }
@@ -121,9 +121,9 @@ func (c *FileHandlerMockStatsCall) GetArgs() FileHandlerMockStatsArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *FileHandlerMockStatsCall) InjectReturnValues(result0 os.FileInfo, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *FileHandlerMockStatsCall) Return(result0 os.FileInfo, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // FileHandlerMockStatsMethod wraps DependencyMethod with typed returns.
@@ -133,15 +133,15 @@ type FileHandlerMockStatsMethod struct {
 	Eventually *FileHandlerMockStatsMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *FileHandlerMockStatsMethod) ExpectCalledWithExactly(path string) *FileHandlerMockStatsCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(path)
+// Expect waits for a call with exactly the specified arguments.
+func (m *FileHandlerMockStatsMethod) Expect(path string) *FileHandlerMockStatsCall {
+	call := m.DependencyMethod.Expect(path)
 	return &FileHandlerMockStatsCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *FileHandlerMockStatsMethod) ExpectCalledWithMatches(matchers ...any) *FileHandlerMockStatsCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *FileHandlerMockStatsMethod) Match(matchers ...any) *FileHandlerMockStatsCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &FileHandlerMockStatsCall{DependencyCall: call}
 }
 

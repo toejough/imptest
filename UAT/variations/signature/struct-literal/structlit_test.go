@@ -103,7 +103,7 @@ func TestFunctionWithStructLiteralReturn(t *testing.T) {
 	wrapper := WrapGetDefaults(t, structlit.GetDefaults)
 
 	// Verify the function can be called and returns a struct literal
-	wrapper.Method.Start().ExpectReturnsMatch(imptest.Any())
+	wrapper.Method.Start().ExpectReturnsMatch(imptest.Any)
 }
 
 // TestMethodWithStructLiteralReturn tests wrapping method with struct literal return.
@@ -114,5 +114,5 @@ func TestMethodWithStructLiteralReturn(t *testing.T) {
 	wrapper := WrapConfigManagerLoad(t, mgr.Load)
 
 	// Verify the method can be called and returns a struct literal
-	wrapper.Method.Start("/etc/config").ExpectReturnsMatch(imptest.Any())
+	wrapper.Method.Start("/etc/config").ExpectReturnsMatch(imptest.Any)
 }

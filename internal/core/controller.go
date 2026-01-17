@@ -479,11 +479,11 @@ type PendingExpectation struct {
 	mu           sync.Mutex
 	MethodName   string
 	Validator    func([]any) error
-	ReturnValues []any                  // nil until InjectReturnValues called
-	PanicValue   any                    // non-nil if InjectPanicValue called
+	ReturnValues []any                  // nil until Return called
+	PanicValue   any                    // non-nil if Panic called
 	IsPanic      bool                   // true if this should panic instead of return
 	Matched      bool                   // true when a call matched the validator
-	Injected     bool                   // true when Inject* was called
+	Injected     bool                   // true when Return/Panic was called
 	responseChan chan<- GenericResponse // set when validator matches
 	done         chan struct{}          // signals when BOTH matched AND injected
 	matchedArgs  []any                  // args from the call that matched
@@ -502,9 +502,9 @@ func (pe *PendingExpectation) GetMatchedArgs() []any {
 	return args
 }
 
-// InjectPanicValue specifies the value the mock should panic with.
+// Panic specifies the value the mock should panic with.
 // Can be called before or after the call is matched.
-func (pe *PendingExpectation) InjectPanicValue(value any) {
+func (pe *PendingExpectation) Panic(value any) {
 	pe.mu.Lock()
 	pe.PanicValue = value
 	pe.IsPanic = true
@@ -524,9 +524,9 @@ func (pe *PendingExpectation) InjectPanicValue(value any) {
 	}
 }
 
-// InjectReturnValues specifies the values the mock should return.
+// Return specifies the values the mock should return.
 // Can be called before or after the call is matched.
-func (pe *PendingExpectation) InjectReturnValues(values ...any) {
+func (pe *PendingExpectation) Return(values ...any) {
 	pe.mu.Lock()
 	pe.ReturnValues = values
 	pe.Injected = true

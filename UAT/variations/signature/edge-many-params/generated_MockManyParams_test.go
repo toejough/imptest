@@ -27,7 +27,7 @@ type ManyParamsMockProcessArgs struct {
 	J int
 }
 
-// ManyParamsMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ManyParamsMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ManyParamsMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -49,9 +49,9 @@ func (c *ManyParamsMockProcessCall) GetArgs() ManyParamsMockProcessArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ManyParamsMockProcessCall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ManyParamsMockProcessCall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // ManyParamsMockProcessMethod wraps DependencyMethod with typed returns.
@@ -61,15 +61,15 @@ type ManyParamsMockProcessMethod struct {
 	Eventually *ManyParamsMockProcessMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ManyParamsMockProcessMethod) ExpectCalledWithExactly(a int, b int, c int, d int, e int, f int, g int, h int, i int, j int) *ManyParamsMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(a, b, c, d, e, f, g, h, i, j)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ManyParamsMockProcessMethod) Expect(a int, b int, c int, d int, e int, f int, g int, h int, i int, j int) *ManyParamsMockProcessCall {
+	call := m.DependencyMethod.Expect(a, b, c, d, e, f, g, h, i, j)
 	return &ManyParamsMockProcessCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ManyParamsMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *ManyParamsMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ManyParamsMockProcessMethod) Match(matchers ...any) *ManyParamsMockProcessCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ManyParamsMockProcessCall{DependencyCall: call}
 }
 

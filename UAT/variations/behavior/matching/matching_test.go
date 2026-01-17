@@ -27,10 +27,10 @@ func TestAdvancedMatching(t *testing.T) {
 
 	go matching.UseService(mock, "hello world")
 
-	// Use ExpectCalledWithMatches with matchers to validate only the parts of the input we care about.
+	// Use Match with matchers to validate only the parts of the input we care about.
 	// Requirement: We want to match the Payload exactly, ensure the ID is valid (positive),
 	// but ignore the Timestamp because it is non-deterministic.
-	imp.Process.ExpectCalledWithMatches(imptest.Satisfies(func(data matching.Data) error {
+	imp.Process.Match(imptest.Satisfies(func(data matching.Data) error {
 		if data.Payload != "hello world" {
 			return fmt.Errorf("expected payload 'hello world', got %q", data.Payload)
 		}
@@ -39,10 +39,10 @@ func TestAdvancedMatching(t *testing.T) {
 			return fmt.Errorf("expected ID > 0, got %d", data.ID)
 		}
 
-		// We could use imptest.Any() if this was a separate argument, but since it's
+		// We could use imptest.Any if this was a separate argument, but since it's
 		// a field in a struct, we simply don't validate it in this predicate.
 		return nil
-	})).InjectReturnValues(true)
+	})).Return(true)
 }
 
 // TestGomegaIntegration demonstrates that imptest is compatible with third-party matchers.
@@ -51,7 +51,7 @@ func TestAdvancedMatching(t *testing.T) {
 //  1. Extensibility: Use familiar libraries like Gomega without imptest having a hard
 //     dependency on them.
 //  2. Duck Typing: Any object implementing Match(any) (bool, error) and FailureMessage(any) string
-//     can be used directly in ExpectCalledWithMatches or ExpectReturnsMatch.
+//     can be used directly in Match or ExpectReturnsMatch.
 func TestGomegaIntegration(t *testing.T) {
 	t.Parallel()
 
@@ -62,13 +62,13 @@ func TestGomegaIntegration(t *testing.T) {
 	// We use Gomega's And and HaveField matchers to verify the struct state.
 	// This demonstrates how imptest's flexible matcher interface allows for
 	// highly readable and powerful expectations.
-	imp.Process.ExpectCalledWithMatches(
+	imp.Process.Match(
 		And(
 			HaveField("Payload", Equal("gomega rules")),
 			HaveField("ID", BeNumerically(">", 100)),
 			HaveField("Timestamp", BeNumerically(">", 0)),
 		),
-	).InjectReturnValues(true)
+	).Return(true)
 }
 
 // TestMatchAny demonstrates the use of the Any() matcher for arguments we don't care about.
@@ -83,5 +83,5 @@ func TestMatchAny(t *testing.T) {
 	// In this scenario, we don't care about the input data at all, only that the call happened.
 	go mock.Process(matching.Data{ID: 999})
 
-	imp.Process.ExpectCalledWithMatches(imptest.Any()).InjectReturnValues(true)
+	imp.Process.Match(imptest.Any).Return(true)
 }

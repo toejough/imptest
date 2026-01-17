@@ -18,7 +18,7 @@ type ComplexServiceMockProcessArgs struct {
 	D matching.Data
 }
 
-// ComplexServiceMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ComplexServiceMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ComplexServiceMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -31,9 +31,9 @@ func (c *ComplexServiceMockProcessCall) GetArgs() ComplexServiceMockProcessArgs 
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ComplexServiceMockProcessCall) InjectReturnValues(result0 bool) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ComplexServiceMockProcessCall) Return(result0 bool) {
+	c.DependencyCall.Return(result0)
 }
 
 // ComplexServiceMockProcessMethod wraps DependencyMethod with typed returns.
@@ -43,15 +43,15 @@ type ComplexServiceMockProcessMethod struct {
 	Eventually *ComplexServiceMockProcessMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ComplexServiceMockProcessMethod) ExpectCalledWithExactly(d matching.Data) *ComplexServiceMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(d)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ComplexServiceMockProcessMethod) Expect(d matching.Data) *ComplexServiceMockProcessCall {
+	call := m.DependencyMethod.Expect(d)
 	return &ComplexServiceMockProcessCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ComplexServiceMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *ComplexServiceMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ComplexServiceMockProcessMethod) Match(matchers ...any) *ComplexServiceMockProcessCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ComplexServiceMockProcessCall{DependencyCall: call}
 }
 

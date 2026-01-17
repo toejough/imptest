@@ -81,10 +81,10 @@ type depMethodTemplateData struct {
 	ArgsTypeName   string       // Args struct type name (e.g., "CalculatorAddArgs")
 	CallTypeName   string       // Call wrapper type name (e.g., "CalculatorAddCall")
 	MethodTypeName string       // Method wrapper type name (e.g., "CalculatorAddMethod")
-	TypedParams    string       // Typed parameter list for ExpectCalledWithExactly (e.g., "a int, b int")
+	TypedParams    string       // Typed parameter list for Expect (e.g., "a int, b int")
 
 	// Type-safe return value support
-	TypedReturnParams string // Typed return parameter list for InjectReturnValues (e.g., "result0 int, result1 error")
+	TypedReturnParams string // Typed return parameter list for Return (e.g., "result0 int, result1 error")
 	ReturnParamNames  string // Comma-separated return parameter names (e.g., "result0, result1")
 }
 

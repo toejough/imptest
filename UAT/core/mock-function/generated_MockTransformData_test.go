@@ -15,7 +15,7 @@ type TransformDataMockArgs struct {
 	Processor func(*mockfunction.Order) error
 }
 
-// TransformDataMockCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// TransformDataMockCall wraps DependencyCall with typed GetArgs and Return.
 type TransformDataMockCall struct {
 	*_imptest.DependencyCall
 }
@@ -30,9 +30,9 @@ func (c *TransformDataMockCall) GetArgs() TransformDataMockArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *TransformDataMockCall) InjectReturnValues(result0 *mockfunction.Order, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *TransformDataMockCall) Return(result0 *mockfunction.Order, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // TransformDataMockMethod wraps DependencyMethod with typed returns.
@@ -42,15 +42,15 @@ type TransformDataMockMethod struct {
 	Eventually *TransformDataMockMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *TransformDataMockMethod) ExpectCalledWithExactly(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) *TransformDataMockCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(items, lookup, processor)
+// Expect waits for a call with exactly the specified arguments.
+func (m *TransformDataMockMethod) Expect(items []*mockfunction.Order, lookup map[string]*mockfunction.Order, processor func(*mockfunction.Order) error) *TransformDataMockCall {
+	call := m.DependencyMethod.Expect(items, lookup, processor)
 	return &TransformDataMockCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *TransformDataMockMethod) ExpectCalledWithMatches(matchers ...any) *TransformDataMockCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *TransformDataMockMethod) Match(matchers ...any) *TransformDataMockCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &TransformDataMockCall{DependencyCall: call}
 }
 

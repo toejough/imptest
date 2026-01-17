@@ -19,7 +19,7 @@ type ServiceMockExecuteArgs struct {
 	Input string
 }
 
-// ServiceMockExecuteCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ServiceMockExecuteCall wraps DependencyCall with typed GetArgs and Return.
 type ServiceMockExecuteCall struct {
 	*_imptest.DependencyCall
 }
@@ -32,9 +32,9 @@ func (c *ServiceMockExecuteCall) GetArgs() ServiceMockExecuteArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ServiceMockExecuteCall) InjectReturnValues(result0 string, result1 error) {
-	c.DependencyCall.InjectReturnValues(result0, result1)
+// Return specifies the typed values the mock should return.
+func (c *ServiceMockExecuteCall) Return(result0 string, result1 error) {
+	c.DependencyCall.Return(result0, result1)
 }
 
 // ServiceMockExecuteMethod wraps DependencyMethod with typed returns.
@@ -44,15 +44,15 @@ type ServiceMockExecuteMethod struct {
 	Eventually *ServiceMockExecuteMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ServiceMockExecuteMethod) ExpectCalledWithExactly(input string) *ServiceMockExecuteCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(input)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ServiceMockExecuteMethod) Expect(input string) *ServiceMockExecuteCall {
+	call := m.DependencyMethod.Expect(input)
 	return &ServiceMockExecuteCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ServiceMockExecuteMethod) ExpectCalledWithMatches(matchers ...any) *ServiceMockExecuteCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ServiceMockExecuteMethod) Match(matchers ...any) *ServiceMockExecuteCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ServiceMockExecuteCall{DependencyCall: call}
 }
 
@@ -61,7 +61,7 @@ type ServiceMockValidateArgs struct {
 	Input string
 }
 
-// ServiceMockValidateCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ServiceMockValidateCall wraps DependencyCall with typed GetArgs and Return.
 type ServiceMockValidateCall struct {
 	*_imptest.DependencyCall
 }
@@ -74,9 +74,9 @@ func (c *ServiceMockValidateCall) GetArgs() ServiceMockValidateArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ServiceMockValidateCall) InjectReturnValues(result0 bool) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ServiceMockValidateCall) Return(result0 bool) {
+	c.DependencyCall.Return(result0)
 }
 
 // ServiceMockValidateMethod wraps DependencyMethod with typed returns.
@@ -86,15 +86,15 @@ type ServiceMockValidateMethod struct {
 	Eventually *ServiceMockValidateMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ServiceMockValidateMethod) ExpectCalledWithExactly(input string) *ServiceMockValidateCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(input)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ServiceMockValidateMethod) Expect(input string) *ServiceMockValidateCall {
+	call := m.DependencyMethod.Expect(input)
 	return &ServiceMockValidateCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ServiceMockValidateMethod) ExpectCalledWithMatches(matchers ...any) *ServiceMockValidateCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ServiceMockValidateMethod) Match(matchers ...any) *ServiceMockValidateCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ServiceMockValidateCall{DependencyCall: call}
 }
 

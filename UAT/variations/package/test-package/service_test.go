@@ -16,8 +16,8 @@ func TestService_Execute(t *testing.T) {
 
 	// Expect call with specific input
 	go func() {
-		call := imp.Execute.ExpectCalledWithExactly(input)
-		call.InjectReturnValues(expectedOutput, nil)
+		call := imp.Execute.Expect(input)
+		call.Return(expectedOutput, nil)
 	}()
 
 	// Call the mock
@@ -40,8 +40,8 @@ func TestService_Validate(t *testing.T) {
 
 	// Expect call and return true
 	go func() {
-		call := imp.Validate.ExpectCalledWithExactly(input)
-		call.InjectReturnValues(true)
+		call := imp.Validate.Expect(input)
+		call.Return(true)
 	}()
 
 	// Call the mock

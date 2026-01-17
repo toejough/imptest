@@ -18,8 +18,8 @@ func Test_PrintSum(t *testing.T) {
     h := MockIntOps(imp)
     wrapper := WrapPrintSum(imp, run.PrintSum).Start(10, 32, h.Mock)
 
-    h.Method.Add.ExpectCalledWithExactly(10, 32).InjectReturnValues(42)
-    h.Method.Format.ExpectCalledWithExactly(42).InjectReturnValues("42")
+    h.Method.Add.Expect(10, 32).Return(42)
+    h.Method.Format.Expect(42).Return("42")
 
     wrapper.ExpectReturnsEqual(10, 32, "42")
 }
@@ -30,8 +30,8 @@ func Test_PrintSum(t *testing.T) {
     mock, imp := MockIntOps(t)
     wrapper := WrapPrintSum(t, run.PrintSum).Start(10, 32, mock)
 
-    imp.Add.ExpectCalledWithExactly(10, 32).InjectReturnValues(42)
-    imp.Format.ExpectCalledWithExactly(42).InjectReturnValues("42")
+    imp.Add.Expect(10, 32).Return(42)
+    imp.Format.Expect(42).Return("42")
 
     wrapper.ExpectReturnsEqual(10, 32, "42")
 }
@@ -227,8 +227,8 @@ func Test_Example(t *testing.T) {
 +   mock, imp := MockDependency(t)
 +   wrapper := WrapFunction(t, Function).Start(mock, arg1)
 
--   h.Method.DoThing.ExpectCalledWithExactly(arg1).InjectReturnValues(result)
-+   imp.DoThing.ExpectCalledWithExactly(arg1).InjectReturnValues(result)
+-   h.Method.DoThing.Expect(arg1).Return(result)
++   imp.DoThing.Expect(arg1).Return(result)
 
 -   h.Controller.Wait()
 +   imptest.Wait(t)

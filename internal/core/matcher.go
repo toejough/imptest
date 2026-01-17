@@ -5,18 +5,20 @@ import (
 	"reflect"
 )
 
+// Exported variables.
+var (
+	// Any is a matcher that matches any value.
+	// Useful when you don't care about a particular argument or return value.
+	//nolint:gochecknoglobals // Intentional exported constant-like value
+	Any Matcher = anyMatcher{}
+)
+
 // Matcher defines the interface for flexible value matching.
 // Compatible with gomega.GomegaMatcher via duck typing - any type
 // implementing Match and FailureMessage will work.
 type Matcher interface {
 	Match(actual any) (success bool, err error)
 	FailureMessage(actual any) string
-}
-
-// Any returns a matcher that matches any value.
-// Useful when you don't care about a particular argument or return value.
-func Any() Matcher {
-	return anyMatcher{}
 }
 
 // MatchValue checks if actual matches expected.
@@ -53,10 +55,10 @@ func Satisfies[T any](predicate func(T) error) Matcher {
 	return &satisfiesMatcher[T]{predicate: predicate}
 }
 
-// anyMatcher is the implementation of the Any() matcher.
+// anyMatcher is the implementation of the Any matcher.
 type anyMatcher struct{}
 
-// FailureMessage returns an empty string since Any() always matches.
+// FailureMessage returns an empty string since Any always matches.
 func (anyMatcher) FailureMessage(any) string {
 	return ""
 }

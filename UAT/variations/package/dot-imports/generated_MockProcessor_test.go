@@ -18,7 +18,7 @@ type ProcessorMockProcessArgs struct {
 	Input string
 }
 
-// ProcessorMockProcessCall wraps DependencyCall with typed GetArgs and InjectReturnValues.
+// ProcessorMockProcessCall wraps DependencyCall with typed GetArgs and Return.
 type ProcessorMockProcessCall struct {
 	*_imptest.DependencyCall
 }
@@ -31,9 +31,9 @@ func (c *ProcessorMockProcessCall) GetArgs() ProcessorMockProcessArgs {
 	}
 }
 
-// InjectReturnValues specifies the typed values the mock should return.
-func (c *ProcessorMockProcessCall) InjectReturnValues(result0 string) {
-	c.DependencyCall.InjectReturnValues(result0)
+// Return specifies the typed values the mock should return.
+func (c *ProcessorMockProcessCall) Return(result0 string) {
+	c.DependencyCall.Return(result0)
 }
 
 // ProcessorMockProcessMethod wraps DependencyMethod with typed returns.
@@ -43,15 +43,15 @@ type ProcessorMockProcessMethod struct {
 	Eventually *ProcessorMockProcessMethod
 }
 
-// ExpectCalledWithExactly waits for a call with exactly the specified arguments.
-func (m *ProcessorMockProcessMethod) ExpectCalledWithExactly(input string) *ProcessorMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithExactly(input)
+// Expect waits for a call with exactly the specified arguments.
+func (m *ProcessorMockProcessMethod) Expect(input string) *ProcessorMockProcessCall {
+	call := m.DependencyMethod.Expect(input)
 	return &ProcessorMockProcessCall{DependencyCall: call}
 }
 
-// ExpectCalledWithMatches waits for a call with arguments matching the given matchers.
-func (m *ProcessorMockProcessMethod) ExpectCalledWithMatches(matchers ...any) *ProcessorMockProcessCall {
-	call := m.DependencyMethod.ExpectCalledWithMatches(matchers...)
+// Match waits for a call with arguments matching the given matchers.
+func (m *ProcessorMockProcessMethod) Match(matchers ...any) *ProcessorMockProcessCall {
+	call := m.DependencyMethod.Match(matchers...)
 	return &ProcessorMockProcessCall{DependencyCall: call}
 }
 
