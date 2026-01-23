@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/toejough/imptest/impgen/run"
-	cache "github.com/toejough/imptest/impgen/run/1_cache"
+	"github.com/toejough/imptest/internal/run"
+	cache "github.com/toejough/imptest/internal/run/1_cache"
 )
 
 // BenchmarkCallableGeneration measures the performance of generating a simple callable.

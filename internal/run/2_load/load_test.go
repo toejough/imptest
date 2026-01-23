@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	load "github.com/toejough/imptest/impgen/run/2_load"
+	load "github.com/toejough/imptest/internal/run/2_load"
 )
 
 // Create a temp directory with a Go file

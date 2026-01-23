@@ -12,8 +12,8 @@ import (
 
 	"github.com/dave/dst"
 
-	detect "github.com/toejough/imptest/impgen/run/3_detect"
-	generate "github.com/toejough/imptest/impgen/run/5_generate"
+	detect "github.com/toejough/imptest/internal/run/3_detect"
+	generate "github.com/toejough/imptest/internal/run/5_generate"
 )
 
 func TestDetermineGeneratedTypeName(t *testing.T) {

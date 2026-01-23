@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	detect "github.com/toejough/imptest/impgen/run/3_detect"
+	detect "github.com/toejough/imptest/internal/run/3_detect"
 )
 
 func TestExtractPackageName(t *testing.T) {

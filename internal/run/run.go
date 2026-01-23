@@ -14,11 +14,11 @@ import (
 	"github.com/dave/dst"
 	"github.com/toejough/targ"
 
-	astutil "github.com/toejough/imptest/impgen/run/0_util"
-	load "github.com/toejough/imptest/impgen/run/2_load"
-	detect "github.com/toejough/imptest/impgen/run/3_detect"
-	generate "github.com/toejough/imptest/impgen/run/5_generate"
-	output "github.com/toejough/imptest/impgen/run/6_output"
+	astutil "github.com/toejough/imptest/internal/run/0_util"
+	load "github.com/toejough/imptest/internal/run/2_load"
+	detect "github.com/toejough/imptest/internal/run/3_detect"
+	generate "github.com/toejough/imptest/internal/run/5_generate"
+	output "github.com/toejough/imptest/internal/run/6_output"
 )
 
 // Exported variables.

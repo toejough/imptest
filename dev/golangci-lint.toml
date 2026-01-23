@@ -36,12 +36,6 @@ path = 'internal/'
 linters = ['revive']
 text = 'exported:.*should have comment'
 
-# Exclude revive exported type comment check from impgen internal packages
-[[linters.exclusions.rules]]
-path = 'impgen/run/'
-linters = ['revive']
-text = 'exported:.*should have comment'
-
 # Exclude revive exported type comment check from match package
 [[linters.exclusions.rules]]
 path = 'match/'

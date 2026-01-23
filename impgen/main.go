@@ -16,8 +16,8 @@ import (
 
 	"github.com/dave/dst"
 
-	"github.com/toejough/imptest/impgen/run"
-	load "github.com/toejough/imptest/impgen/run/2_load"
+	"github.com/toejough/imptest/internal/run"
+	load "github.com/toejough/imptest/internal/run/2_load"
 )
 
 // main is the entry point of the impgen tool.

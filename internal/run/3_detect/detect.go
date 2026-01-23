@@ -15,7 +15,7 @@ import (
 
 	"github.com/dave/dst"
 
-	astutil "github.com/toejough/imptest/impgen/run/0_util"
+	astutil "github.com/toejough/imptest/internal/run/0_util"
 )
 
 type SymbolType int

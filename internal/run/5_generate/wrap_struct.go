@@ -6,7 +6,7 @@ import (
 
 	"github.com/dave/dst"
 
-	detect "github.com/toejough/imptest/impgen/run/3_detect"
+	detect "github.com/toejough/imptest/internal/run/3_detect"
 )
 
 // StructDependencyCode generates dependency mock code for a struct type.

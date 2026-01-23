@@ -11,8 +11,8 @@ import (
 
 	"github.com/dave/dst"
 
-	astutil "github.com/toejough/imptest/impgen/run/0_util"
-	detect "github.com/toejough/imptest/impgen/run/3_detect"
+	astutil "github.com/toejough/imptest/internal/run/0_util"
+	detect "github.com/toejough/imptest/internal/run/3_detect"
 )
 
 type NamingMode int

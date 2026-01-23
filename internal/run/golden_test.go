@@ -16,8 +16,8 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 
-	"github.com/toejough/imptest/impgen/run"
-	cache "github.com/toejough/imptest/impgen/run/1_cache"
+	"github.com/toejough/imptest/internal/run"
+	cache "github.com/toejough/imptest/internal/run/1_cache"
 )
 
 // TestUATConsistency ensures that the generated files in the UAT directory

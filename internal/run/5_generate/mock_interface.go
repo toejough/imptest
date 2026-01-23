@@ -8,7 +8,7 @@ import (
 
 	"github.com/dave/dst"
 
-	detect "github.com/toejough/imptest/impgen/run/3_detect"
+	detect "github.com/toejough/imptest/internal/run/3_detect"
 )
 
 // DependencyCode generates dependency mock code for an interface.
