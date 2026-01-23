@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	visitor "github.com/toejough/imptest/UAT/variations/behavior/callbacks"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 func TestCallbackMatcherSupport(t *testing.T) {
@@ -22,7 +22,7 @@ func TestCallbackMatcherSupport(t *testing.T) {
 	wrapperCall := StartCountFiles(t, visitor.CountFiles, mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call without Eventually to see if that's the issue
-	call := imp.Walk.ArgsShould("/test", match.BeAny)
+	call := imp.Walk.ArgsShould("/test", BeAny)
 
 	// V2 Pattern: Extract the callback from args using the typed wrapper
 	args := call.GetArgs()
@@ -56,7 +56,7 @@ func TestCallbackPanicSupport(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for the Walk call
-	call := imp.Eventually.Walk.ArgsShould("/test", match.BeAny)
+	call := imp.Eventually.Walk.ArgsShould("/test", BeAny)
 
 	// V2 Pattern: Extract callback and invoke it, catching the panic
 	rawArgs := call.RawArgs()
@@ -95,7 +95,7 @@ func TestCountFiles(t *testing.T) {
 	wrapperCall := StartCountFiles(t, visitor.CountFiles, mock, "/test")
 
 	// V2 Pattern: Wait for the Walk call
-	call := imp.Eventually.Walk.ArgsShould("/test", match.BeAny)
+	call := imp.Eventually.Walk.ArgsShould("/test", BeAny)
 
 	// V2 Pattern: Extract the callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()
@@ -144,7 +144,7 @@ func TestWalkWithNamedType(t *testing.T) {
 	}()
 
 	// V2 Pattern: Wait for and verify the WalkWithNamedType call
-	call := imp.Eventually.WalkWithNamedType.ArgsShould("/data", match.BeAny)
+	call := imp.Eventually.WalkWithNamedType.ArgsShould("/data", BeAny)
 
 	// V2 Pattern: Extract callback from args
 	// When using Eventually(), we get the base DependencyCall, so we use RawArgs()

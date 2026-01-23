@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	handlers "github.com/toejough/imptest/UAT/core/wrapper-interface"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // TestInterfaceWrapper_CallHandleHasExpectMethods verifies Expect* methods exist.
@@ -90,8 +90,8 @@ func TestInterfaceWrapper_ExpectReturnMatch(t *testing.T) {
 
 	// Should be able to use matchers
 	call.ReturnsShould(
-		match.BeAny,
-		match.BeAny,
+		BeAny,
+		BeAny,
 	)
 }
 

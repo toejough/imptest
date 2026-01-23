@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // Generate a mock for the dependency using v2 API.
@@ -66,7 +66,7 @@ func TestBusinessLogicError(t *testing.T) {
 
 	// Requirement: Verify that the business logic returns the error.
 	// We use Satisfy to check if the error is (or wraps) errNotFound.
-	call.ReturnsShould("", match.Satisfy(func(err error) error {
+	call.ReturnsShould("", Satisfy(func(err error) error {
 		if !errors.Is(err, errNotFound) {
 			return fmt.Errorf("expected error %w, got %w", errNotFound, err)
 		}

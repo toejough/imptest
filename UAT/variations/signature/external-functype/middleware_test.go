@@ -8,7 +8,7 @@ import (
 
 	// Import for impgen to resolve the package.
 	_ "github.com/toejough/imptest/UAT/variations/signature/external-functype"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // TestHTTPMiddleware tests using an interface with external function type parameters.
@@ -44,7 +44,7 @@ func TestHTTPMiddleware(t *testing.T) {
 	}()
 
 	// Expect the Wrap call and inject the wrapped handler
-	call := imp.Eventually.Wrap.ArgsShould(match.BeAny)
+	call := imp.Eventually.Wrap.ArgsShould(BeAny)
 	call.Return(wrappedHandler)
 
 	// Wait for the result

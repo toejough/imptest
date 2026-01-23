@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	embedded "github.com/toejough/imptest/UAT/variations/behavior/embedded-interfaces"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // TestEmbeddedInterfaceError demonstrates error handling with embedded interfaces.
@@ -19,7 +19,7 @@ func TestEmbeddedInterfaceError(t *testing.T) {
 	}()
 
 	// Simulate a read error
-	imp.Read.ArgsShould(match.BeAny).Return(0, io.EOF)
+	imp.Read.ArgsShould(BeAny).Return(0, io.EOF)
 
 	// Verify Close is still called (standard Go cleanup pattern)
 	imp.Close.Called().Return(nil)
@@ -46,7 +46,7 @@ func TestEmbeddedInterfaces(t *testing.T) {
 
 	// Read is embedded from io.Reader
 	// Note: []byte is not comparable, so it uses reflect.DeepEqual automatically.
-	imp.Read.ArgsShould(match.BeAny).Return(5, nil)
+	imp.Read.ArgsShould(BeAny).Return(5, nil)
 
 	// Close is embedded from Closer (no args, so Called is called)
 	imp.Close.Called().Return(nil)

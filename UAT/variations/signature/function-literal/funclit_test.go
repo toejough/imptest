@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	funclit "github.com/toejough/imptest/UAT/variations/signature/function-literal"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // Generate dependency mock for interface with function literal params
@@ -36,7 +36,7 @@ func TestDependencyWithFunctionLiterals(t *testing.T) {
 
 	// Verify mock handles function literal parameter correctly
 	// Note: Function literals can't be compared with ==, so use matcher
-	imp.Transform.ArgsShould(items, match.BeAny).
+	imp.Transform.ArgsShould(items, BeAny).
 		Return([]int{2, 4, 6}, nil)
 }
 
@@ -53,7 +53,7 @@ func TestDependencyWithPredicate(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Filter.ArgsShould(items, match.BeAny).
+	imp.Filter.ArgsShould(items, BeAny).
 		Return([]int{2, 4})
 }
 
@@ -71,7 +71,7 @@ func TestDependencyWithReducer(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Reduce.ArgsShould(items, match.BeAny, match.BeAny).
+	imp.Reduce.ArgsShould(items, BeAny, BeAny).
 		Return(10)
 }
 
@@ -113,7 +113,7 @@ func TestMultipleFunctionLiterals(t *testing.T) {
 		_ = err
 	}()
 
-	imp.Transform.ArgsShould(items, match.BeAny).
+	imp.Transform.ArgsShould(items, BeAny).
 		Return([]int{3, 6, 9, 12, 15}, nil)
 
 	// Second call: Filter on same mock
@@ -124,7 +124,7 @@ func TestMultipleFunctionLiterals(t *testing.T) {
 		_ = result
 	}()
 
-	imp.Filter.ArgsShould(items, match.BeAny).
+	imp.Filter.ArgsShould(items, BeAny).
 		Return([]int{12, 15})
 }
 

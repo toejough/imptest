@@ -39,7 +39,7 @@ func TestAdvancedMatching(t *testing.T) {
 			return fmt.Errorf("expected ID > 0, got %d", data.ID)
 		}
 
-		// We could use match.BeAny if this was a separate argument, but since it's
+		// We could use BeAny if this was a separate argument, but since it's
 		// a field in a struct, we simply don't validate it in this predicate.
 		return nil
 	})).Return(true)

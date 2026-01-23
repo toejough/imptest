@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	generics "github.com/toejough/imptest/UAT/variations/signature/generics"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // TestGenericCallable demonstrates how imptest supports generic functions.
@@ -80,7 +80,7 @@ func TestProcessItem_Error(t *testing.T) {
 
 		repoImp.Get.ArgsEqual("123").Return("", errTest)
 
-		call.ReturnsShould(match.Satisfy(func(err error) error {
+		call.ReturnsShould(Satisfy(func(err error) error {
 			if !errors.Is(err, errTest) {
 				return fmt.Errorf("expected error %w, got %w", errTest, err)
 			}
@@ -104,7 +104,7 @@ func TestProcessItem_Error(t *testing.T) {
 		repoImp.Get.ArgsEqual("123").Return("data", nil)
 		repoImp.Save.ArgsEqual("data").Return(errTest)
 
-		call.ReturnsShould(match.Satisfy(func(err error) error {
+		call.ReturnsShould(Satisfy(func(err error) error {
 			if !errors.Is(err, errTest) {
 				return fmt.Errorf("expected error %w, got %w", errTest, err)
 			}

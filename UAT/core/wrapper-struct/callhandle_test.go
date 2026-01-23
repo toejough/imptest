@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	calculator "github.com/toejough/imptest/UAT/core/wrapper-struct"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // Generate wrapper for Counter struct
@@ -79,7 +79,7 @@ func TestStructWrapper_ExpectReturnMatch(t *testing.T) {
 	call := wrapper.AddAmount.Start(10)
 
 	// Should be able to use matchers
-	call.ReturnsShould(match.BeAny)
+	call.ReturnsShould(BeAny)
 }
 
 // TestStructWrapper_NoGetCallsMethod verifies GetCalls() doesn't exist.
@@ -167,7 +167,7 @@ func TestUnifiedPattern_FunctionInterfaceStructSameAPI(t *testing.T) {
 
 	// 4. Support ReturnsShould
 	structCall3 := structWrapper.AddAmount.Start(5)
-	structCall3.ReturnsShould(match.BeAny)
+	structCall3.ReturnsShould(BeAny)
 
 	// Success: Struct wrappers have identical API to function and interface wrappers
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	structlit "github.com/toejough/imptest/UAT/variations/signature/struct-literal"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // TestDependencyWithMultiFieldStructLiteral tests mocking with multi-field struct literal parameter.
@@ -99,7 +99,7 @@ func TestFunctionWithStructLiteralReturn(t *testing.T) {
 	t.Parallel()
 
 	// Verify the function can be called and returns a struct literal
-	StartGetDefaults(t, structlit.GetDefaults).ReturnsShould(match.BeAny)
+	StartGetDefaults(t, structlit.GetDefaults).ReturnsShould(BeAny)
 }
 
 // TestMethodWithStructLiteralReturn tests wrapping method with struct literal return.
@@ -109,5 +109,5 @@ func TestMethodWithStructLiteralReturn(t *testing.T) {
 	mgr := structlit.ConfigManager{}
 
 	// Verify the method can be called and returns a struct literal
-	StartConfigManagerLoad(t, mgr.Load, "/etc/config").ReturnsShould(match.BeAny)
+	StartConfigManagerLoad(t, mgr.Load, "/etc/config").ReturnsShould(BeAny)
 }

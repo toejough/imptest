@@ -13,7 +13,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // Generate dependency mock for function type directly (Issue #50)
@@ -57,7 +57,7 @@ func TestFunctionTypeMock_GetArgs(t *testing.T) {
 	}()
 
 	// Use ArgsShould to accept any call
-	call := imp.ArgsShould(match.BeAny)
+	call := imp.ArgsShould(BeAny)
 
 	// Get typed args
 	args := call.GetArgs()

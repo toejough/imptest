@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 //go:generate impgen DataProcessor --dependency
@@ -119,7 +119,7 @@ func TestInterfaceLiteralParameters(t *testing.T) {
 		}()
 
 		// Use matcher for interface literal parameter
-		call := imp.Process.ArgsShould(match.BeAny)
+		call := imp.Process.ArgsShould(BeAny)
 		call.Return("matched result")
 
 		// Verify we can still get args

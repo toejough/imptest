@@ -6,7 +6,7 @@ import (
 
 	"github.com/toejough/imptest"
 	callable "github.com/toejough/imptest/UAT/core/wrapper-function"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 //go:generate impgen callable.PanicWithMessage --target
@@ -125,8 +125,8 @@ func TestCallHandle_ExpectReturnMatch(t *testing.T) {
 
 	// Should be able to use matchers (using BeAny matcher)
 	call.ReturnsShould(
-		match.BeAny,
-		match.BeAny,
+		BeAny,
+		BeAny,
 	)
 }
 
@@ -299,7 +299,7 @@ func TestCallHandle_PanicMatches(t *testing.T) {
 
 	call := StartPanicWithMessage(t, callable.PanicWithMessage, "critical error")
 	// Use BeAny matcher to accept any panic value
-	call.PanicShould(match.BeAny)
+	call.PanicShould(BeAny)
 }
 
 // TestCallHandle_UniqueHandles verifies that each Start() call returns a unique call handle.

@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // TestSamePackageInterfaces tests that interfaces using other interfaces
@@ -35,8 +35,8 @@ func TestSamePackageInterfaces(t *testing.T) {
 	// it just receives the interface values as arguments and waits for the test to inject a return.
 	go func() {
 		procImp.Process.ArgsShould(
-			match.BeAny,
-			match.BeAny,
+			BeAny,
+			BeAny,
 		).Return(testErr)
 	}()
 
@@ -67,7 +67,7 @@ func TestTransformReturnsInterface(t *testing.T) {
 	// Set up processor to return a different source
 	go func() {
 		procImp.Transform.ArgsShould(
-			match.BeAny,
+			BeAny,
 		).Return(expectedOutput, nil)
 	}()
 

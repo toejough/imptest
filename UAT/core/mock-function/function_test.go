@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	mockfunction "github.com/toejough/imptest/UAT/core/mock-function"
-	"github.com/toejough/imptest/match"
+	. "github.com/toejough/imptest/match" //nolint:revive // Dot import for matcher DSL
 )
 
 // TestMockFunction_ComplexTypes demonstrates mocking a function with complex type signatures.
@@ -40,7 +40,7 @@ func TestMockFunction_ComplexTypes(t *testing.T) {
 		resultChan <- result
 	}()
 
-	imp.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+	imp.ArgsShould(BeAny, BeAny, BeAny).
 		Return(order, nil)
 
 	result := <-resultChan
@@ -74,7 +74,7 @@ func TestMockFunction_GetArgs(t *testing.T) {
 		_ = mock(123.45, "EUR")
 	}()
 
-	call := imp.ArgsShould(match.BeAny, match.BeAny)
+	call := imp.ArgsShould(BeAny, BeAny)
 
 	// Access typed arguments
 	args := call.GetArgs()
@@ -201,7 +201,7 @@ func TestMockFunction_WithMatchers(t *testing.T) {
 	}()
 
 	// Use matchers instead of exact values
-	imp.ArgsShould(match.BeAny, match.BeAny).
+	imp.ArgsShould(BeAny, BeAny).
 		Return(expectedOrder, nil)
 
 	order := <-resultChan
